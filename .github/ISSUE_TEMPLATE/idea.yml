@@ -1,0 +1,19 @@
+name: Idea (parked)
+description: A good idea for later. Parked ideas are NOT built in v1.
+labels: ["parked"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for writing it down instead of building it now. 🅿️
+        Parked ideas only move into a milestone when Marv says so explicitly.
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it would be nice

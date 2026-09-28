@@ -1,0 +1,21 @@
+name: Bug
+description: Something that worked is broken
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw vs. what you expected. Screenshots welcome — but crop out other players' names, this repo is public.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: YapTracker version
+      description: Shown in Settings → About
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to trigger it
+      description: Optional, if you know.

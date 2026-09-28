@@ -1,0 +1,31 @@
+name: Task
+description: One match-sized piece of work with one visible outcome
+labels: []
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: One sentence. What changes for Marv & Void?
+    validations:
+      required: true
+  - type: textarea
+    id: visible
+    attributes:
+      label: What you'll see when it's done
+      description: The thing you can check during a queue (≤ 2 min).
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / fallback / blocked by
+      description: Optional. Link blockers as "Blocked by #N".
