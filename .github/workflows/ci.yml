@@ -35,6 +35,8 @@ jobs:
   build:
     name: Windows build
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     defaults:
       run:
         shell: pwsh
@@ -46,11 +48,13 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - name: Set version
+        id: version
         run: |
           $version = "0.$env:MILESTONE.${{ github.run_number }}"
           if ("${{ github.event_name }}" -eq "pull_request") { $version += "+pr${{ github.event.number }}" }
           Set-Content src/yaptracker/_version.py "__version__ = `"$version`""
           "VERSION=$version" >> $env:GITHUB_ENV
+          "version=$version" >> $env:GITHUB_OUTPUT
       - run: pip install . pyinstaller
       - run: pyinstaller --noconfirm packaging/yaptracker.spec
       - name: Smoke test (window opens and loads the page)
@@ -66,3 +70,29 @@ jobs:
           name: YapTracker-${{ env.VERSION }}-win64
           path: dist/YapTracker/
           retention-days: 14
+
+  release:
+    name: Pre-release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: YapTracker-${{ env.VERSION }}-win64
+          path: app
+      - name: Zip the app folder
+        run: cd app && zip -qr "../YapTracker-$VERSION-win64.zip" .
+      - name: Publish pre-release v${{ env.VERSION }}
+        run: |
+          # Release notes = merged PR titles since the previous (pre-)release.
+          previous=$(gh release list -R "$GITHUB_REPOSITORY" --limit 1 --json tagName --jq '.[0].tagName // ""')
+          gh release create "v$VERSION" "YapTracker-$VERSION-win64.zip" \
+            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "YapTracker $VERSION" --generate-notes \
+            ${previous:+--notes-start-tag "$previous"}
