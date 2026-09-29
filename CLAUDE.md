@@ -237,7 +237,7 @@ adapters differ — that's why capture uses WGC. Don't suggest disabling the iGP
 
 **Dev environment:** Claude Code runs in **WSL (Ubuntu)**; the app runs on
 **Windows**. So:
-- Clone inside the WSL filesystem (`~/src/...`), never under `/mnt/c` (slow, file-watch issues).
+- Clone inside the WSL filesystem (Marv: `~/workspace/Overwatch-YapTracker`), never under `/mnt/c` (slow, file-watch issues).
 - Everything except capture, hotkeys and packaging is developed and tested in WSL.
 - **Quick UI review without a build:** `python -m yaptracker --dev` runs NiceGUI in
   browser mode on `0.0.0.0:8080` with fake data (replay frames + a seeded demo DB).
