@@ -284,6 +284,8 @@ FrameSource (WGC, ~4 fps, chat ROI only)
 - Long messages wrap onto an indented line without icon → join them.
 - Default chat region at 2560×1440: x 55–670, y 510–905 (see #10).
 - There is **no** chat duration/opacity setting; chat fades → 4 fps sampling.
+- Strip trailing `[Report]` links and game icons; drop the half-cut top line of a scrolled chat.
+- Best end-of-match signal: subtitle box `[ATHENA] Victory.` / `[ATHENA] Defeat.` (bottom centre), then the big banner (#21).
 
 ---
 
