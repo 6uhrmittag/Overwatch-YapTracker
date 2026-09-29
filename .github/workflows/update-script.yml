@@ -1,0 +1,55 @@
+name: Update script
+
+# Installs the newest release with tools/update.ps1 into a throwaway folder,
+# in Windows PowerShell 5.1 and PowerShell 7.
+on:
+  pull_request:
+    paths: [tools/update.ps1, .github/workflows/update-script.yml]
+  push:
+    branches: [main]
+    paths: [tools/update.ps1, .github/workflows/update-script.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    name: update.ps1 (${{ matrix.shell }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      # Throwaway install root inside the checkout; stands in for %LOCALAPPDATA%\YapTracker.
+      ROOT: ${{ github.workspace }}\_install
+    steps:
+      - uses: actions/checkout@v7
+      - name: Existing data
+        run: |
+          New-Item -ItemType Directory -Force "$env:ROOT\data" | Out-Null
+          Set-Content "$env:ROOT\data\keep.txt" 'my notes'
+      - name: Fresh install
+        run: ./tools/update.ps1 -InstallRoot $env:ROOT -NoStart
+      - name: Already up to date
+        run: |
+          $out = ./tools/update.ps1 -InstallRoot $env:ROOT -NoStart 6>&1 | Out-String
+          if ($out -notmatch 'already the newest') { throw "expected 'already the newest', got: $out" }
+      - name: Replace an installed app
+        run: ./tools/update.ps1 -InstallRoot $env:ROOT -NoStart -Force
+      - name: Check result
+        run: |
+          if (-not (Test-Path "$env:ROOT\app\YapTracker.exe")) { throw 'YapTracker.exe missing' }
+          if ((Get-Content "$env:ROOT\data\keep.txt") -ne 'my notes') { throw 'data folder was touched' }
+          if (Test-Path "$env:ROOT\app.old") { throw 'app.old left behind' }
+          Get-Content "$env:ROOT\app\release.txt"
+      - name: Installed app starts
+        timeout-minutes: 5
+        run: |
+          $p = Start-Process "$env:ROOT\app\YapTracker.exe" -ArgumentList '--smoke-test' -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "YapTracker.exe --smoke-test exited with $($p.ExitCode)" }
