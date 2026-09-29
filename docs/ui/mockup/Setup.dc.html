@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>YapTracker - First start</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,800;1,700;1,800&amp;family=Nunito+Sans:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0d1016;font-family:'Nunito Sans',system-ui,sans-serif;color:#f2f4f8}
+a{color:#ff9c2a}a:hover{color:#ffb85c}
+@keyframes yt-march{to{background-position:24px 0,0 24px,-24px 0,0 -24px}}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; padding: 36px 48px; display: flex; flex-direction: column; gap: 24px; background: #12151c">
+
+<header style="display: flex; align-items: center; gap: 18px">
+<div style="width: 56px; height: 56px; border-radius: 16px; background: #ff9c2a; display: flex; align-items: center; justify-content: center; transform: rotate(-6deg); box-shadow: 0 4px 0 #b86a10">
+<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#12151c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path><path d="M9 9l3 3 3-3"></path><path d="M12 12v2"></path></svg>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: 44px; line-height: 1; text-transform: uppercase">Show me the chat box</h1>
+<div style="font-size: 16px; color: #9aa3b5">One-time setup. Takes about 30 seconds, promise.</div>
+</div>
+<div style="flex-grow: 1"></div>
+<ol aria-label="Setup steps" style="margin: 0; padding: 0; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 800">
+<li style="display: flex; align-items: center; gap: 8px; color: #7ce38b"><span style="width: 28px; height: 28px; border-radius: 50%; background: #1c2a22; border: 2px solid #7ce38b; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>Found Overwatch</li>
+<li aria-hidden="true" style="width: 28px; height: 2px; background: #343c4d"></li>
+<li aria-current="step" style="display: flex; align-items: center; gap: 8px; color: #ff9c2a"><span style="width: 28px; height: 28px; border-radius: 50%; background: #ff9c2a; color: #12151c; display: flex; align-items: center; justify-content: center">2</span>Draw the box</li>
+<li aria-hidden="true" style="width: 28px; height: 2px; background: #343c4d"></li>
+<li style="display: flex; align-items: center; gap: 8px; color: #6f788c"><span style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid #343c4d; display: flex; align-items: center; justify-content: center">3</span>Test read</li>
+</ol>
+</header>
+
+<div style="flex-grow: 1; min-height: 0; display: flex; gap: 24px">
+
+<div aria-label="Screenshot of Overwatch with the chat box marked" style="position: relative; flex-grow: 1; min-width: 0; border-radius: 18px; overflow: hidden; border: 2px solid #252b38; background: linear-gradient(160deg, #2b3a55 0%, #3d4f6e 38%, #6b5a4a 70%, #3a2f2a 100%)">
+<div style="position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); font-size: 13px; font-weight: 800; letter-spacing: 1px; color: rgba(255,255,255,.35); text-transform: uppercase">[ Your Overwatch screenshot ]</div>
+<div style="position: absolute; left: 28px; bottom: 150px; display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 700; text-shadow: 0 1px 2px #000">
+<span style="color: #ffae4d">[Match] NoodleBonk: WAHOOOO</span>
+<span style="color: #5cc3ff">[Team] SirPeelsALot: rein here</span>
+<span style="color: #7ce38b">[Group] you: its the wahoo lucio!!</span>
+<span style="color: #ffae4d">[Match] tortillaTank: gg on that boop</span>
+</div>
+<div style="position: absolute; left: 16px; bottom: 132px; width: 300px; height: 110px; border-radius: 8px; background: rgba(255,156,42,.12); background-image: linear-gradient(90deg, #ff9c2a 50%, transparent 50%), linear-gradient(0deg, #ff9c2a 50%, transparent 50%), linear-gradient(90deg, #ff9c2a 50%, transparent 50%), linear-gradient(0deg, #ff9c2a 50%, transparent 50%); background-repeat: repeat-x, repeat-y, repeat-x, repeat-y; background-size: 12px 3px, 3px 12px, 12px 3px, 3px 12px; background-position: 0 0, 100% 0, 0 100%, 0 0; animation: yt-march 1s linear infinite"></div>
+<span style="position: absolute; left: 10px; bottom: 236px; width: 14px; height: 14px; border-radius: 4px; background: #ff9c2a; border: 2px solid #12151c"></span>
+<span style="position: absolute; left: 308px; bottom: 236px; width: 14px; height: 14px; border-radius: 4px; background: #ff9c2a; border: 2px solid #12151c"></span>
+<span style="position: absolute; left: 10px; bottom: 126px; width: 14px; height: 14px; border-radius: 4px; background: #ff9c2a; border: 2px solid #12151c"></span>
+<span style="position: absolute; left: 308px; bottom: 126px; width: 14px; height: 14px; border-radius: 4px; background: #ff9c2a; border: 2px solid #12151c"></span>
+<div style="position: absolute; left: 340px; bottom: 200px; padding: 10px 14px; border-radius: 12px; background: #ff9c2a; color: #12151c; font-weight: 800; font-size: 15px; transform: rotate(-3deg); box-shadow: 0 4px 0 #b86a10">← Chat lives here, right?</div>
+</div>
+
+<aside style="width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px">
+<div style="padding: 20px; border-radius: 18px; background: #1a1f29; border: 1px solid #252b38; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: 24px; text-transform: uppercase">Drag a box around the chat</h2>
+<p style="margin: 0; font-size: 16px; line-height: 1.5; color: #c3cad8">Be generous — a bit too big is fine, I'll ignore the empty parts. Too small and I'll miss the long yaps.</p>
+</div>
+<div style="padding: 20px; border-radius: 18px; background: #1a1f29; border: 1px solid #252b38; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 8px">
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: 24px; text-transform: uppercase">What I can read</h2>
+<span style="flex-grow: 1"></span>
+<span style="padding: 4px 10px; border-radius: 999px; background: #1c2a22; border: 1px solid #2f5a3a; color: #7ce38b; font-size: 13px; font-weight: 800">4 of 4 lines</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; font-size: 15px">
+<div><span style="font-weight: 800; color: #ffae4d">NoodleBonk:</span> WAHOOOO</div>
+<div><span style="font-weight: 800; color: #5cc3ff">SirPeelsALot:</span> rein here</div>
+<div><span style="font-weight: 800; color: #7ce38b">you:</span> its the wahoo lucio!!</div>
+<div><span style="font-weight: 800; color: #ffae4d">tortillaTank:</span> gg on that boop</div>
+</div>
+</div>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; gap: 10px">
+<button type="button" style="height: 52px; padding: 0 18px; border-radius: 14px; border: 1px solid #343c4d; background: #1a1f29; color: #f2f4f8; font: 700 16px 'Nunito Sans', sans-serif; box-shadow: 0 3px 0 #0b0d12; cursor: pointer">New screenshot</button>
+<a href="Live.dc.html" style="flex-grow: 1; height: 52px; border-radius: 14px; background: #ff9c2a; color: #12151c; font-weight: 800; font-size: 17px; text-decoration: none; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 0 #b86a10">Yep, that's the chat →</a>
+</div>
+</aside>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

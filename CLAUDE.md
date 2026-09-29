@@ -100,6 +100,9 @@ made.
 ## What you can see now
 - (1–3 bullets, user-visible)
 
+## Screenshot
+(UI changes: screenshot, compared against docs/ui/mockup)
+
 ## Test it in 60 seconds
 1. Download the artifact / latest pre-release (or run `tools/update.ps1`)
 2. ...
@@ -269,17 +272,20 @@ chat_fts       -- FTS5 over chat_messages(text, speaker_raw)
 
 ## GUI
 
-Visual language inspired by OverLooker's desktop app (the users like it), with
-our own identity — no copied logos, names or assets.
+**The design is decided: [`docs/ui.md`](docs/ui.md) + the mockups in
+`docs/ui/mockup/`.** Read both before any UI work and match them — colours,
+fonts, stickers, wording. The app must look good from the very first window
+(#3); a plain default NiceGUI look is not acceptable, even temporarily.
 
-- Near-black background (~`#141619`), panels one step lighter (~`#1b1e22`),
-  subtle 1px borders, dense tables with comfortable row height
-- One accent: warm amber (~`#f5a524`) for active nav and highlights
-- Green/red only for meaning (friend/avoid)
-- Left icon rail: Live · Players · Sessions · Search · Settings
-- Inter font, tabular numerals, readable at 1080p on a second monitor
-- The familiar-face card should be impossible to miss: big name, verdict
-  colour, "last met Sep 28 · 3 matches", first line of notes
+In short: simple layout, Overwatch energy, slightly silly.
+- **Silly lives in words, colours and motion. The layout stays boring.**
+- Dark "night" ground, **payload orange** accent, chunky arcade buttons, cards
+- Barlow Condensed 800 italic uppercase for headings/names, Nunito Sans for text
+  (bundled with the app, no network at runtime)
+- Verdicts are tilted stickers: Bestie · Fun · Meh · Nope
+- UI vocabulary: yaps, yappers, "Look who's back!", "Who's that?"
+- No emoji, no Blizzard fonts/logos/art
+- Every UI PR includes a screenshot
 
 Default hotkeys (configurable): `Ctrl+Alt+F` bring YapTracker forward + focus
 lookup · `Ctrl+Alt+M` new match · `Ctrl+Alt+P` pause/resume.

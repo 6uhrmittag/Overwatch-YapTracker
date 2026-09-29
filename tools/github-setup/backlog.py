@@ -75,9 +75,9 @@ ISSUES = [
         blocked=["scaffold"])),
     ("window", 0, ["area:ui"], "App opens a dark window with the nav rail", body(
         "The YapTracker look exists from day one, so every later feature lands in a real app.",
-        "A dark YapTracker window with a left icon rail (Live, Players, Sessions, Search, Settings) and empty placeholder views.",
+        "A dark YapTracker window with a left icon rail (Live, Yappers, Sessions, Search, Settings) and empty placeholder views.",
         ["NiceGUI in native mode opens a window titled YapTracker",
-         "Colours and layout follow the GUI section of CLAUDE.md (near-black bg, amber accent, Inter)",
+         "Looks like docs/ui/mockup/Live.dc.html: colours, fonts (bundled), orange logo, icon rail - no default NiceGUI look",
          "Switching between the five views works",
          "Settings → About shows the app version"],
         notes="Packaging trouble? Fallback order is in CLAUDE.md: Edge app window, then plain browser tab.",
