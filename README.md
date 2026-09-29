@@ -34,3 +34,13 @@ PC (`%LOCALAPPDATA%\YapTracker\data`) and never uploaded anywhere.
 
 Built with Claude Code — see [`CLAUDE.md`](CLAUDE.md) for the project brief, rules
 and scope.
+
+Needs Python 3.12. From a fresh clone (WSL/Linux or Windows):
+
+```
+python3.12 -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e .[dev]
+ruff check . && ruff format --check .
+pytest
+python -m yaptracker --version
+```

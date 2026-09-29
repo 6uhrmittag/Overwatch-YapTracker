@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yaptracker"
+description = "Remember who you played Overwatch with - and what they said."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dynamic = ["version"]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+yaptracker = "yaptracker.__main__:main"
+
+[tool.hatch.version]
+path = "src/yaptracker/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yaptracker"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+# Historical record of the GitHub setup, not app code.
+extend-exclude = ["tools/github-setup"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
