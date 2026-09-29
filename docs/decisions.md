@@ -7,3 +7,4 @@ One line each, newest at the bottom. Link the issue.
 - 2026-09-28 — Repo is public → real screenshots/chat logs live only in `fixtures/private/` (gitignored).
 - 2026-09-29 — UI direction: "simple layout, Overwatch energy, slightly silly". Spec in `docs/ui.md`, mockups in `docs/ui/mockup/`. Replaces the earlier OverLooker-style amber/Inter look.
 - 2026-09-29 — No OBS/recording needed: the app captures the chat region itself (WGC), frames are discarded after OCR, only text is stored.
+- 2026-09-29 — Matches are detected automatically from the screen (chat join line → end-screen OCR → time gap), hotkey only as override (#21). No Overwolf.

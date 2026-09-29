@@ -56,6 +56,7 @@ of effort.** When the timebox runs out:
 | Native window / packaging | NiceGUI `native=True` + PyInstaller | NiceGUI as local server, opened in an Edge app window (`msedge --app=http://127.0.0.1:<port>`) | Plain browser tab |
 | Channel detection (team/match/group) | Parse `[Team]`/`[Match]` prefix + prefix colour | Prefix text only | Store `channel = unknown`, still log the line |
 | Duplicate lines | Fuzzy line matching (rapidfuzz) with neighbour context | Exact-match dedup within a 30 s window | Keep duplicates, hide via "collapse repeats" toggle |
+| Match detection | Chat system line on joining match chat + VICTORY/DEFEAT end-screen OCR | Time gap (90 s after end, 5 min general) | `Ctrl+Alt+M` hotkey only |
 | Speaker → player matching | Fuzzy match against known players + aliases | Exact case-insensitive match | Create new player; manual merge button |
 
 ### GitHub is the source of truth
@@ -127,8 +128,9 @@ Closes #
 4. **Players**: verdict (`friend` / `fun` / `neutral` / `avoid`), free-text
    notes (autosave), first/last met, every message they sent, alias list,
    manual "add player" and "merge players".
-5. **Sessions**: chat grouped by play session and by match (time-gap heuristic
-   + "new match" hotkey), transcript view.
+5. **Sessions**: chat grouped by play session and by match — matches detected
+   automatically from the screen (chat system lines, VICTORY/DEFEAT screen,
+   time gap), `Ctrl+Alt+M` as manual override — transcript view.
 6. **Search** across all chat (SQLite FTS5).
 7. **Settings**: chat-region calibration on a screenshot, OCR engine switch,
    sample rate, hotkeys, data folder, backup button.
@@ -260,7 +262,8 @@ ask the user to check Overwatch's chat settings for display-duration options.
 ```sql
 schema_version (version)
 sessions       (id, started_at, ended_at)
-matches        (id, session_id, started_at, ended_at, source)   -- 'heuristic' | 'hotkey'
+matches        (id, session_id, started_at, ended_at, outcome NULL,
+                source)   -- 'chat' | 'endscreen' | 'gap' | 'hotkey'
 players        (id, display_name, verdict NULL, notes TEXT, first_seen, last_seen)
 player_aliases (player_id, alias)
 chat_messages  (id, match_id, ts, channel, speaker_raw, player_id NULL,
