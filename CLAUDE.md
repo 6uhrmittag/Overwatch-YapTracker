@@ -56,7 +56,7 @@ of effort.** When the timebox runs out:
 | Native window / packaging | NiceGUI `native=True` + PyInstaller | NiceGUI as local server, opened in an Edge app window (`msedge --app=http://127.0.0.1:<port>`) | Plain browser tab |
 | Channel detection (team/match/group) | Parse `[Team]`/`[Match]` prefix + prefix colour | Prefix text only | Store `channel = unknown`, still log the line |
 | Duplicate lines | Fuzzy line matching (rapidfuzz) with neighbour context | Exact-match dedup within a 30 s window | Keep duplicates, hide via "collapse repeats" toggle |
-| Match detection | Chat system line on joining match chat + VICTORY/DEFEAT end-screen OCR | Time gap (90 s after end, 5 min general) | `Ctrl+Alt+M` hotkey only |
+| Match detection | Hero-select `ASSEMBLE YOUR TEAM` (start) + VICTORY/DEFEAT/POTG/endorse screen OCR (end) | Time gap (90 s after end, 5 min general) | `Ctrl+Alt+M` hotkey only |
 | Speaker → player matching | Fuzzy match against known players + aliases | Exact case-insensitive match | Create new player; manual merge button |
 
 ### GitHub is the source of truth
@@ -130,7 +130,7 @@ Closes #
    notes (autosave), first/last met, every message they sent, alias list,
    manual "add player" and "merge players".
 5. **Sessions**: chat grouped by play session and by match — matches detected
-   automatically from the screen (chat system lines, VICTORY/DEFEAT screen,
+   automatically from the screen (hero-select screen, VICTORY/DEFEAT screen,
    time gap), `Ctrl+Alt+M` as manual override — transcript view.
 6. **Search** across all chat (SQLite FTS5).
 7. **Settings**: chat-region calibration on a screenshot, OCR engine switch,
@@ -268,10 +268,22 @@ FrameSource (WGC, ~4 fps, chat ROI only)
   → store (SQLite) → UI updates
 ```
 
-Chat line shape to expect (verify on real samples, don't hardcode blindly):
-`[Team] PlayerName: message`, `[Match] PlayerName: message`, group lines,
-system lines. Chat fades after a few seconds — sampling at 4 fps is the default;
-ask the user to check Overwatch's chat settings for display-duration options.
+**Chat line formats — verified on real 2560×1440 screenshots (details: #13):**
+
+| Kind | Leading icon | Shape |
+|---|---|---|
+| Match chat | ◆ diamond (orange) | `[Name]: text` |
+| Team chat | team icon (green = friendly colour) | `[Name]: text` |
+| Team comms wheel | team icon | `Name (Hero): text` · `… to you: text` · `… to Other (Hero): text` · `Name (Hero) wants to stop the robot!` |
+| System | ⓘ (yellow) | `[Name] started playing Overwatch.` · `You have joined a group!` · `You endorsed Name!` |
+| Group chat | not seen yet | — |
+
+- Brackets wrap the **name**, not the channel; channel = icon + colour.
+  `[Match] …` only appears as the input prompt of an open chat box — ignore it.
+- Colours are user settings → sample at calibration, never hardcode.
+- Long messages wrap onto an indented line without icon → join them.
+- Default chat region at 2560×1440: x 55–670, y 510–905 (see #10).
+- There is **no** chat duration/opacity setting; chat fades → 4 fps sampling.
 
 ---
 
@@ -281,11 +293,12 @@ ask the user to check Overwatch's chat settings for display-duration options.
 schema_version (version)
 sessions       (id, started_at, ended_at)
 matches        (id, session_id, started_at, ended_at, outcome NULL,
-                source)   -- 'chat' | 'endscreen' | 'gap' | 'hotkey'
+                map NULL, mode NULL,
+                source)   -- 'heroselect' | 'endscreen' | 'gap' | 'hotkey'
 players        (id, display_name, verdict NULL, notes TEXT, first_seen, last_seen)
 player_aliases (player_id, alias)
 chat_messages  (id, match_id, ts, channel, speaker_raw, player_id NULL,
-                text, ocr_confidence)
+                hero NULL, text, ocr_confidence)   -- hero from comms-wheel lines
 chat_fts       -- FTS5 over chat_messages(text, speaker_raw)
 ```
 
