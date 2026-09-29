@@ -1,5 +1,8 @@
 """Start the NiceGUI app: native window on Windows, browser mode with --dev."""
 
+import os
+import threading
+
 from nicegui import app, ui
 
 from yaptracker.ui import shell
@@ -8,10 +11,21 @@ TITLE = "YapTracker"
 WINDOW_SIZE = (1280, 800)
 DEV_HOST = "0.0.0.0"
 DEV_PORT = 8080
+SMOKE_TEST_TIMEOUT_S = 90
 
 
-def run(*, dev: bool = False) -> None:
+def _arm_smoke_test() -> None:
+    # A client connecting means the window loaded the page and its websocket is up.
+    app.on_connect(app.shutdown)
+    timer = threading.Timer(SMOKE_TEST_TIMEOUT_S, lambda: os._exit(1))
+    timer.daemon = True
+    timer.start()
+
+
+def run(*, dev: bool = False, smoke_test: bool = False) -> None:
     shell.register_static_files()
+    if smoke_test:
+        _arm_smoke_test()
     common = {
         "title": TITLE,
         "favicon": shell.STATIC_DIR / "logo.svg",

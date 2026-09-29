@@ -12,6 +12,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # v0.<milestone>.<run_number> - bump when a milestone is closed.
+  MILESTONE: "0"
+
 jobs:
   test:
     name: Lint & tests
@@ -27,3 +31,38 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest
+
+  build:
+    name: Windows build
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Set version
+        run: |
+          $version = "0.$env:MILESTONE.${{ github.run_number }}"
+          if ("${{ github.event_name }}" -eq "pull_request") { $version += "+pr${{ github.event.number }}" }
+          Set-Content src/yaptracker/_version.py "__version__ = `"$version`""
+          "VERSION=$version" >> $env:GITHUB_ENV
+      - run: pip install . pyinstaller
+      - run: pyinstaller --noconfirm packaging/yaptracker.spec
+      - name: Smoke test (window opens and loads the page)
+        timeout-minutes: 5
+        run: |
+          $p = Start-Process dist/YapTracker/YapTracker.exe -ArgumentList "--smoke-test" -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "YapTracker.exe --smoke-test exited with $($p.ExitCode)" }
+      - name: Show app log
+        if: always()
+        run: Get-Content "$env:LOCALAPPDATA/YapTracker/data/logs/yaptracker.log" -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v7
+        with:
+          name: YapTracker-${{ env.VERSION }}-win64
+          path: dist/YapTracker/
+          retention-days: 14
