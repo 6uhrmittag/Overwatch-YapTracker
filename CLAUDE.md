@@ -332,6 +332,11 @@ lookup · `Ctrl+Alt+M` new match (override only) · `Ctrl+Alt+P` pause
 - `human` task for Marv/Void: 20–30 screenshots (and optionally one short clip)
   with chat visible — team, match, group and system lines, at their real
   resolution. Stored in `fixtures/private/`, never committed.
+- Marv also has **full OBS match recordings** (kept on Windows, e.g. under
+  `/mnt/c/Users/.../Videos/`). Don't ask him to cut them: `tools/extract_frames.py`
+  (see its issue) turns them into 4 fps chat-region frames + 1 fps full frames in
+  `fixtures/private/frames/` — the main input for replay tests, dedup and match
+  detection. Extract when he isn't playing.
 - From those, generate committed fixtures: OCR-output JSON with names swapped
   for fake ones, plus expected parse results.
 - Unit tests: parser, dedup, matcher. Replay tests: frame sequence → expected
