@@ -11,6 +11,7 @@ LABELS = [
     ("human", "7057ff", "Only Marv/Void can do this - Claude Code: don't start it"),
     ("needs-decision", "fbca04", "Waiting on Marv; all open questions in one comment"),
     ("parked", "bfbfbf", "Good idea, not v1. Never build without Marv's explicit OK"),
+    ("priority", "ff9c2a", "Do this first once unblocked - Marv asked for it explicitly"),
     ("quick-win", "0e8a16", "Fits in one match (~10 min, reviewable in a queue)"),
     ("spike", "c5def5", "Research with a hard 45 min timebox; result goes to docs/decisions.md"),
     ("ci", "1d76db", "Build, release and update pipeline"),

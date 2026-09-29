@@ -71,7 +71,7 @@ made.
    (except `human` issues you're waiting on — work around those).
 2. In that milestone, skip issues labelled `human`, `parked` or `needs-decision`
    and issues whose "Blocked by" issue is still open.
-3. Prefer `quick-win`, then the lowest issue number.
+3. Prefer `priority`, then `quick-win`, then the lowest issue number.
 4. Comment "Starting" on the issue, work on a branch `issue-<N>-<slug>`, open a
    PR that `Closes #N`.
 
@@ -83,6 +83,7 @@ made.
 | `human` | Only Marv/Void can do this (screenshots, play-testing) — don't start it |
 | `needs-decision` | Waiting on Marv; put all open questions in one comment |
 | `parked` | Good idea, not v1. Never implement without Marv's explicit OK |
+| `priority` | Marv asked for this explicitly — do it first as soon as it's unblocked |
 | `quick-win` | Fits in one match (~10 min of review-ready work) |
 | `spike` | Research with a hard 45 min timebox; outcome = a line in `docs/decisions.md` |
 | `ci` | Build, release, update pipeline |
@@ -169,7 +170,10 @@ pre-release.
 
 **M2 — Live chat log** *(first moment of real value)*
 - Live capture → change detection → OCR → dedup → SQLite
-- Live view streaming messages; pause/resume hotkey
+- **Zero-touch** (`priority`): capture starts/stops with Overwatch, matches and
+  sessions are detected automatically, pause auto-resumes at the next match.
+  Marv *will* forget to press keys — a normal evening must need none.
+- Live view streaming messages; pause hotkey
 
 **M3 — Remember people**
 - Players view, notes, verdicts, merge, manual add
@@ -291,7 +295,8 @@ In short: simple layout, Overwatch energy, slightly silly.
 - Every UI PR includes a screenshot
 
 Default hotkeys (configurable): `Ctrl+Alt+F` bring YapTracker forward + focus
-lookup · `Ctrl+Alt+M` new match · `Ctrl+Alt+P` pause/resume.
+lookup · `Ctrl+Alt+M` new match (override only) · `Ctrl+Alt+P` pause
+(auto-resumes next match). **Nothing in normal play may depend on a hotkey.**
 
 ---
 
@@ -313,6 +318,8 @@ lookup · `Ctrl+Alt+M` new match · `Ctrl+Alt+P` pause/resume.
       correct enough to be useful
 - [ ] They've written notes on at least three players, and the familiar-face
       card fired for someone they met before
+- [ ] The whole evening needed **zero** YapTracker key presses or clicks
+      (capture, matches, sessions all automatic)
 - [ ] No noticeable FPS impact in Overwatch; YapTracker uses < 5% of one CPU core
 - [ ] Update via `tools/update.ps1` works from any v0 pre-release to v1.0.0
 - [ ] README: setup, calibration, hotkeys, known limits, tested resolution
