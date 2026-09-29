@@ -4,10 +4,10 @@ name: Update script
 # in Windows PowerShell 5.1 and PowerShell 7.
 on:
   pull_request:
-    paths: [tools/update.ps1, .github/workflows/update-script.yml]
+    paths: [tools/update.ps1, tools/smoke-test.ps1, .github/workflows/update-script.yml]
   push:
     branches: [main]
-    paths: [tools/update.ps1, .github/workflows/update-script.yml]
+    paths: [tools/update.ps1, tools/smoke-test.ps1, .github/workflows/update-script.yml]
   workflow_dispatch:
 
 permissions:
@@ -58,6 +58,4 @@ jobs:
           Get-Content "$env:ROOT\app\release.txt"
       - name: Installed app starts
         timeout-minutes: 5
-        run: |
-          $p = Start-Process "$env:ROOT\app\YapTracker.exe" -ArgumentList '--smoke-test' -PassThru -Wait
-          if ($p.ExitCode -ne 0) { throw "YapTracker.exe --smoke-test exited with $($p.ExitCode)" }
+        run: ./tools/smoke-test.ps1 -Exe "$env:ROOT\app\YapTracker.exe"
