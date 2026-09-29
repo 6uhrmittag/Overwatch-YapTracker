@@ -59,9 +59,7 @@ jobs:
       - run: pyinstaller --noconfirm packaging/yaptracker.spec
       - name: Smoke test (window opens and loads the page)
         timeout-minutes: 5
-        run: |
-          $p = Start-Process dist/YapTracker/YapTracker.exe -ArgumentList "--smoke-test" -PassThru -Wait
-          if ($p.ExitCode -ne 0) { throw "YapTracker.exe --smoke-test exited with $($p.ExitCode)" }
+        run: ./tools/smoke-test.ps1 -Exe dist/YapTracker/YapTracker.exe
       - name: Show app log
         if: always()
         run: Get-Content "$env:LOCALAPPDATA/YapTracker/data/logs/yaptracker.log" -ErrorAction SilentlyContinue
