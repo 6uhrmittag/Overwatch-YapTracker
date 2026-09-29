@@ -40,8 +40,16 @@ jobs:
         run: |
           $out = ./tools/update.ps1 -InstallRoot $env:ROOT -NoStart 6>&1 | Out-String
           if ($out -notmatch 'already the newest') { throw "expected 'already the newest', got: $out" }
-      - name: Replace an installed app
-        run: ./tools/update.ps1 -InstallRoot $env:ROOT -NoStart -Force
+      - name: Replace a running app and start it again
+        run: |
+          $before = Start-Process "$env:ROOT\app\YapTracker.exe" -PassThru
+          Start-Sleep -Seconds 15
+          ./tools/update.ps1 -InstallRoot $env:ROOT -Force
+          if (-not $before.HasExited) { throw 'the running YapTracker was not closed' }
+          Start-Sleep -Seconds 5
+          $after = @(Get-Process YapTracker -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$env:ROOT\app\*" })
+          if ($after.Count -eq 0) { throw 'YapTracker was not started after the update' }
+          $after | Stop-Process -Force
       - name: Check result
         run: |
           if (-not (Test-Path "$env:ROOT\app\YapTracker.exe")) { throw 'YapTracker.exe missing' }
