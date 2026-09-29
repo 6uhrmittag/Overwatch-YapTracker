@@ -235,6 +235,20 @@ adapters differ — that's why capture uses WGC. Don't suggest disabling the iGP
 - Hotkeys: `RegisterHotKey` via a small ctypes wrapper
 - Build: PyInstaller (one-folder) in GitHub Actions `windows-latest`
 
+**Dev environment:** Claude Code runs in **WSL (Ubuntu)**; the app runs on
+**Windows**. So:
+- Clone inside the WSL filesystem (`~/src/...`), never under `/mnt/c` (slow, file-watch issues).
+- Everything except capture, hotkeys and packaging is developed and tested in WSL.
+- **Quick UI review without a build:** `python -m yaptracker --dev` runs NiceGUI in
+  browser mode on `0.0.0.0:8080` with fake data (replay frames + a seeded demo DB).
+  Marv opens `http://localhost:8080` in his Windows browser (WSL forwards localhost)
+  and reviews during a queue. Mention the command in every UI PR.
+- Windows-only parts (WGC capture, `RegisterHotKey`, window focus, PyInstaller)
+  are behind interfaces with fakes for WSL, and verified via the CI Windows build /
+  pre-release on Marv's PC. Never try to run them in WSL.
+- `.ps1` files: ASCII only (Windows PowerShell 5.1 misreads UTF-8 without BOM),
+  CRLF via `.gitattributes`.
+
 **Testability rule:** everything except capture must run and be tested on
 Linux too. Put capture behind a `FrameSource` interface with a
 `ReplayFrameSource` that feeds saved frames — that powers tests, CI and
