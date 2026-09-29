@@ -63,6 +63,11 @@ jobs:
       - name: Show app log
         if: always()
         run: Get-Content "$env:LOCALAPPDATA/YapTracker/data/logs/yaptracker.log" -ErrorAction SilentlyContinue
+      - name: Window got the YapTracker icon
+        run: |
+          if (Select-String -Path "$env:LOCALAPPDATA/YapTracker/data/logs/yaptracker.log" -Pattern 'Could not set native' -Quiet) {
+            throw 'NiceGUI could not set the window/taskbar icon (see app log)'
+          }
       - uses: actions/upload-artifact@v7
         with:
           name: YapTracker-${{ env.VERSION }}-win64

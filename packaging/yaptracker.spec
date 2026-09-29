@@ -27,6 +27,6 @@ exe = EXE(
     exclude_binaries=True,
     name="YapTracker",
     console=False,
-    icon=str(ROOT / "packaging" / "yaptracker.ico"),
+    icon=str(SRC / "yaptracker" / "ui" / "static" / "yaptracker.ico"),
 )
 coll = COLLECT(exe, a.binaries, a.datas, name="YapTracker")

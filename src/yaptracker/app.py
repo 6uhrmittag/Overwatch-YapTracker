@@ -41,7 +41,8 @@ def run(*, dev: bool = False, smoke_test: bool = False) -> None:
         _arm_smoke_test()
     common = {
         "title": TITLE,
-        "favicon": shell.STATIC_DIR / "logo.svg",
+        # .ico because the native window loads it with LoadImage; browsers take it too.
+        "favicon": shell.STATIC_DIR / "yaptracker.ico",
         "dark": True,
         "reload": False,
         "show_welcome_message": dev,
