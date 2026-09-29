@@ -10,3 +10,4 @@ One line each, newest at the bottom. Link the issue.
 - 2026-09-29 — Matches are detected automatically from the screen (chat join line → end-screen OCR → time gap), hotkey only as override (#21). No Overwolf.
 - 2026-09-29 — Zero-touch is a v1 requirement: capture starts with Overwatch, matches auto-detected, pause auto-resumes (#16, #20, #21 labelled `priority`).
 - 2026-09-29 — Development happens in WSL; Windows-only parts sit behind interfaces with fakes and are verified via CI builds. `--dev` browser mode for instant UI review.
+- 2026-09-29 — Versions: `v0.<milestone>.<run_number>` from `MILESTONE` in `.github/workflows/ci.yml` (bump it when closing a milestone); PR builds are `...+pr<N>` and never released (#5).
