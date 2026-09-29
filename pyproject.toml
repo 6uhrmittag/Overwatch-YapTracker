@@ -8,11 +8,16 @@ description = "Remember who you played Overwatch with - and what they said."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dynamic = ["version"]
-dependencies = []
+dependencies = [
+    "nicegui>=3.17,<4",
+    # Native window (WebView2). Linux/WSL dev uses --dev browser mode instead.
+    "pywebview>=5; sys_platform == 'win32'",
+]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
+    "pytest-asyncio>=0.24",
     "ruff>=0.6",
 ]
 
@@ -34,6 +39,10 @@ extend-exclude = ["tools/github-setup"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+# Nested `with` blocks mirror the NiceGUI layout tree; merging them hurts readability.
+ignore = ["SIM117"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
