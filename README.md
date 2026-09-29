@@ -23,6 +23,17 @@ you last played together, and what you wrote about them — so you can say hi.
 - Overwatch in **borderless windowed** mode
 - Text chat enabled in Overwatch
 
+## Install & update
+
+One command installs the newest (pre-)release and later updates it. In PowerShell:
+
+```
+irm https://raw.githubusercontent.com/6uhrmittag/Overwatch-YapTracker/main/tools/update.ps1 -OutFile update.ps1
+powershell -ExecutionPolicy Bypass -File update.ps1
+```
+
+The app goes to `%LOCALAPPDATA%\YapTracker\app` and is replaced on every update. Your data in `%LOCALAPPDATA%\YapTracker\data` is never touched. Run `update.ps1` again whenever you want the newest build; it closes YapTracker first and starts it again afterwards. `-Force` reinstalls, `-NoStart` skips the start.
+
 Setup, calibration and hotkeys will be documented here for v1.0.
 
 ## Privacy
