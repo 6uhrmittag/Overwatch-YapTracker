@@ -20,6 +20,17 @@ class Region:
         return image[self.y : self.y + self.height, self.x : self.x + self.width]
 
 
+# Measured on real 2560x1440 screenshots (#10). Same spot in hero select, in game and end screens.
+_CHAT_1440P = Region(55, 510, 615, 395)
+
+
+def default_chat_region(width: int, height: int) -> Region:
+    """The usual chat box for a 16:9 window of this size, scaled from 2560x1440."""
+    sx, sy = width / 2560, height / 1440
+    r = _CHAT_1440P
+    return Region(round(r.x * sx), round(r.y * sy), round(r.width * sx), round(r.height * sy))
+
+
 @dataclass(frozen=True)
 class Frame:
     ts: float  # seconds since the source started
