@@ -2,7 +2,9 @@
 
 from nicegui import ui
 
-from yaptracker import __version__
+from yaptracker import __version__, config
+from yaptracker.ui.calibrate import calibrate
+from yaptracker.ui.components import button, saved_chip
 
 
 def _header(title: str) -> None:
@@ -60,10 +62,41 @@ def search() -> None:
 
 
 def settings() -> None:
-    _header("Settings")
-    with ui.element("section").classes("yt-card").mark("about"):
-        with ui.element("div").classes("yt-card-head"):
-            ui.label("About").classes("yt-h2")
-        with ui.element("div").classes("yt-card-body"):
-            ui.label(f"YapTracker {__version__}").classes("yt-meta")
-            ui.label("Everything stays on this PC. No cloud, no telemetry.").classes("yt-hint")
+    body = ui.element("div").classes("yt-view")
+
+    def overview(saved: bool = False) -> None:
+        body.clear()
+        with body:
+            _header("Settings")
+            with ui.element("section").classes("yt-card").mark("chat-box"):
+                with ui.element("div").classes("yt-card-head"):
+                    ui.label("Chat box").classes("yt-h2")
+                    if saved:
+                        saved_chip()
+                    ui.element("div").classes("yt-grow")
+                    button("Calibrate", open_calibration).mark("calibrate")
+                with ui.element("div").classes("yt-card-body"):
+                    regions = config.saved_chat_regions()
+                    for resolution, r in regions.items():
+                        ui.label(
+                            f"{resolution}: {r.width} \u00d7 {r.height} px at {r.x}, {r.y}"
+                        ).classes("yt-meta")
+                    if not regions:
+                        ui.label(
+                            "Not calibrated yet. I'll use the usual spot, which fits 16:9 screens."
+                        ).classes("yt-hint")
+            with ui.element("section").classes("yt-card").mark("about"):
+                with ui.element("div").classes("yt-card-head"):
+                    ui.label("About").classes("yt-h2")
+                with ui.element("div").classes("yt-card-body"):
+                    ui.label(f"YapTracker {__version__}").classes("yt-meta")
+                    ui.label("Everything stays on this PC. No cloud, no telemetry.").classes(
+                        "yt-hint"
+                    )
+
+    def open_calibration() -> None:
+        body.clear()
+        with body:
+            calibrate(on_done=overview)
+
+    overview()

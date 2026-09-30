@@ -6,6 +6,7 @@ import threading
 
 from nicegui import app, ui
 
+from yaptracker import demo
 from yaptracker.ui import shell
 
 TITLE = "YapTracker"
@@ -37,6 +38,7 @@ def _arm_smoke_test() -> None:
 
 def run(*, dev: bool = False, smoke_test: bool = False) -> None:
     shell.register_static_files()
+    demo.ENABLED = dev
     if smoke_test:
         _arm_smoke_test()
     common = {

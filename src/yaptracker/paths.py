@@ -13,3 +13,7 @@ def data_dir() -> Path:
 
 def log_file() -> Path:
     return data_dir() / "logs" / "yaptracker.log"
+
+
+def config_file() -> Path:
+    return data_dir() / "config.json"

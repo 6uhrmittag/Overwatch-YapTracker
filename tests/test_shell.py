@@ -44,3 +44,19 @@ async def test_settings_shows_version(user: User):
 
 def test_rail_has_all_five_views():
     assert [v.label for v in shell.VIEWS] == ["Live", "Yappers", "Sessions", "Search", "Settings"]
+
+
+async def test_calibration_saves_the_box_for_the_screenshots_resolution(user: User, monkeypatch):
+    from yaptracker import config, demo
+
+    monkeypatch.setattr(demo, "ENABLED", True)
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see("Not calibrated yet", retries=5)
+    user.find(marker="calibrate").click()
+    await user.should_see("Show me the chat box")
+    await user.should_see("615 × 395 px at 55, 510")
+    user.find(marker="save").click()
+    await user.should_see("Saved")
+    await user.should_see("2560x1440: 615 × 395 px at 55, 510")
+    assert config.saved_chat_region(2560, 1440) is not None
