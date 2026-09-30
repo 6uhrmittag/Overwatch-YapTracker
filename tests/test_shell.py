@@ -143,3 +143,16 @@ async def test_live_hints_once_when_the_window_size_changes(user: User, monkeypa
     await user.should_see("Overwatch runs at 1920×1080 now.")
     user.find(marker="size-ok").click()
     assert not config.size_needs_check(1920, 1080)
+
+
+async def test_settings_shows_what_is_stored(user: User, monkeypatch, tmp_path):
+    from yaptracker import runtime
+    from yaptracker.store.repo import Store
+
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    store.add_message(ts=1.0, channel="match", text="gg")
+    monkeypatch.setattr(runtime, "store", store)
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see("1 yaps, 0 matches, 0 yappers")
+    store.close()

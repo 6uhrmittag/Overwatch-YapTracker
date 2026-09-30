@@ -101,6 +101,7 @@ html, body { background: var(--yt-night); }
   .yt-ch-system { color: var(--yt-system); font-style: italic; }
 
   .yt-grow { flex-grow: 1; }
+  .yt-mono { font-family: ui-monospace, Consolas, monospace; font-size: 14px; overflow-wrap: anywhere; }
   .yt-hidden { display: none; }
   .yt-text-soft { font-size: 16px; line-height: 1.5; color: var(--yt-text-soft); }
   .yt-subtitle { font-size: 16px; color: var(--yt-muted); }

@@ -17,3 +17,11 @@ def log_file() -> Path:
 
 def config_file() -> Path:
     return data_dir() / "config.json"
+
+
+def db_file() -> Path:
+    return data_dir() / "yaptracker.db"
+
+
+def backup_dir() -> Path:
+    return data_dir() / "backups"

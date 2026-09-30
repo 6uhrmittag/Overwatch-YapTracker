@@ -107,6 +107,21 @@ def _watch_for_overwatch(dev: bool) -> None:
     app.on_shutdown(runtime.watcher.stop)
 
 
+def _open_store() -> None:
+    """The database opens with the app (the smoke test too: it proves SQLite + FTS5 in the exe)."""
+    from yaptracker.store.repo import Store
+
+    def open_store() -> None:
+        runtime.store = Store.open()
+
+    def close_store() -> None:
+        if runtime.store is not None:
+            runtime.store.close()
+
+    app.on_startup(open_store)
+    app.on_shutdown(close_store)
+
+
 def run(
     *,
     dev: bool = False,
@@ -116,6 +131,7 @@ def run(
 ) -> None:
     shell.register_static_files()
     demo.ENABLED = dev
+    _open_store()
     if not (dev or smoke_test):
         start_with_windows.apply_at_start(autostart)
     _watch_for_overwatch(dev)
