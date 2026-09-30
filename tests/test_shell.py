@@ -72,3 +72,17 @@ async def test_calibration_shows_what_ocr_reads(user: User, monkeypatch):
     await user.should_see("6 yaps", retries=100)
     await user.should_see("not the wahoo guy again", retries=5)
     await user.should_see("SirPeelsALot (Reinhardt):", retries=5)
+
+
+async def test_me_and_my_crew_saves_names(user: User):
+    from yaptracker import config
+
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see("Me & my crew")
+    user.find(marker="add-crew").trigger("keydown.enter", "Void")
+    await user.should_see("Saved")
+    assert config.identity().crew == ("Void",)
+    user.find(marker="remove-Void").click()
+    await user.should_not_see(marker="remove-Void")
+    assert config.identity().crew == ()

@@ -142,6 +142,20 @@ html, body { background: var(--yt-night); }
   .yt-read-line.is-ignored { opacity: .5; }
   .yt-ch-chat, .yt-ch-ignored { color: var(--yt-muted); }
   .yt-ch-unknown { color: var(--yt-danger); }
+
+  /* Me & my crew */
+  .yt-label { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--yt-muted); }
+  .yt-crew-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 6px; }
+  .yt-crew-list { display: flex; flex-direction: column; gap: 8px; }
+  .yt-name-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .yt-name-chips:empty { display: none; }
+  .yt-name-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 12px; border-radius: 999px; background: var(--yt-panel-raised); border: 1px solid var(--yt-line-strong); font-size: 15px; font-weight: 700; }
+  .yt-chip-remove { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; border-radius: 50%; background: transparent; color: var(--yt-muted); cursor: pointer; }
+  .yt-chip-remove:hover { background: var(--yt-line-strong); color: var(--yt-text); }
+  .yt-input { height: 44px; padding: 0 14px; border-radius: 12px; background: var(--yt-ground); border: 2px solid var(--yt-line-strong); color: var(--yt-text); font: 600 15px var(--yt-body); outline: none; }
+  .yt-input::placeholder { color: var(--yt-faint); }
+  .yt-input:focus { border-color: var(--yt-accent); }
+  .yt-crew-badge { margin-right: 6px; padding: 1px 7px; border-radius: 999px; background: var(--yt-panel-raised); border: 1px solid var(--yt-line-strong); font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--yt-muted); }
   .yt-conf { flex-shrink: 0; font-size: 13px; font-weight: 700; color: var(--yt-faint); }
   .yt-conf--low { color: var(--yt-danger); }
 }

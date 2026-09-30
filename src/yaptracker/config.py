@@ -5,6 +5,7 @@ from pathlib import Path
 
 from yaptracker import paths
 from yaptracker.capture.source import Region, default_chat_region
+from yaptracker.identity import Identity
 from yaptracker.ocr import engine as ocr
 
 
@@ -72,4 +73,16 @@ def save_channel_colours(colours: dict[str, float], path: Path | None = None) ->
     path = path or paths.config_file()
     data = _load(path)
     data["channel_colours"] = {**data.get("channel_colours", {}), **colours}
+    _save(path, data)
+
+
+def identity(path: Path | None = None) -> Identity:
+    saved = _load(path or paths.config_file())
+    return Identity(me=tuple(saved.get("my_names", [])), crew=tuple(saved.get("crew", [])))
+
+
+def save_identity(me: list[str], crew: list[str], path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["my_names"], data["crew"] = me, crew
     _save(path, data)

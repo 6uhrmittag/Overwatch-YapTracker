@@ -49,6 +49,7 @@ class ChatLine:
     hero: str | None = None
     target: str | None = None  # "you" or a name, for comms lines
     flagged: bool = False  # Overwatch appended a [Report] link
+    role: str | None = None  # "me" / "crew" once the identity is applied (#74)
 
 
 def _starts_line(text: str) -> bool:

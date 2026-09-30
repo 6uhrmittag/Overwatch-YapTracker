@@ -5,6 +5,7 @@ from nicegui import ui
 from yaptracker import __version__, config
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import button, saved_chip
+from yaptracker.ui.crew import crew_card
 
 
 def _header(title: str) -> None:
@@ -85,6 +86,7 @@ def settings() -> None:
                         ui.label(
                             "Not calibrated yet. I'll use the usual spot, which fits 16:9 screens."
                         ).classes("yt-hint")
+            crew_card()
             with ui.element("section").classes("yt-card").mark("about"):
                 with ui.element("div").classes("yt-card-head"):
                     ui.label("About").classes("yt-h2")
