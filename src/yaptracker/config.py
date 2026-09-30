@@ -61,3 +61,15 @@ def save_ocr_engine(name: str, path: Path | None = None) -> None:
     data = _load(path)
     data["ocr_engine"] = name
     _save(path, data)
+
+
+def channel_colours(path: Path | None = None) -> dict[str, float]:
+    """Text hue per channel as learned at calibration, e.g. {"team": 72.0, "system": 56.0}."""
+    return _load(path or paths.config_file()).get("channel_colours", {})
+
+
+def save_channel_colours(colours: dict[str, float], path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["channel_colours"] = {**data.get("channel_colours", {}), **colours}
+    _save(path, data)
