@@ -105,8 +105,11 @@ made.
 - Bugs found mid-work → new `bug` issue in the current milestone; don't
   silently widen the PR.
 - Keep `docs/decisions.md` short: one line per decision or dead end, with issue link.
-- When a milestone's issues are all closed: make sure a pre-release exists,
-  close the milestone, update the Roadmap issue if needed.
+- When a milestone's **code** issues are all closed: make sure a pre-release exists,
+  move any remaining `human` issues to the next milestone (comment why), close the
+  milestone, bump `MILESTONE` in `ci.yml`, update the Roadmap — and **keep going** with
+  the next milestone. Don't stop at milestone boundaries just because a `human` issue
+  is open; only stop when every remaining issue is blocked on Marv.
 
 **PR template** (`.github/pull_request_template.md`):
 ```

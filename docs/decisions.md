@@ -19,3 +19,4 @@ One line each, newest at the bottom. Link the issue.
 - 2026-09-30 — OCR engine: **RapidOCR on the 2× upscaled chat box** (99.8 % chars, 98 % names on 8 hand-checked crops) beats Windows OCR (best 88.6 % / 76 %, loses lines on bright or faded backgrounds). Windows OCR stays as the fallback setting; it is ~10× faster. RapidOCR costs ~590 ms per box on one core, so M2 must OCR changed rows only (#11, #17).
 - 2026-09-30 — Autostart moved from parked into M2 (#45); new: me & my crew (#74), capture health + gap records (#75), first-start wizard (#76), spicy yaps (#77). Void runs their own instance; cross-instance sharing is v2.
 - 2026-09-30 — Issue hygiene: tick the "Done when" boxes and post a closing comment before an issue closes; unexplained open boxes block closing.
+- 2026-09-30 — Milestone boundaries don't stop work: leftover `human` issues move to the next milestone, the milestone closes, work continues.
