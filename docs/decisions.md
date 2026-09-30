@@ -20,3 +20,4 @@ One line each, newest at the bottom. Link the issue.
 - 2026-09-30 — Autostart moved from parked into M2 (#45); new: me & my crew (#74), capture health + gap records (#75), first-start wizard (#76), spicy yaps (#77). Void runs their own instance; cross-instance sharing is v2.
 - 2026-09-30 — Issue hygiene: tick the "Done when" boxes and post a closing comment before an issue closes; unexplained open boxes block closing.
 - 2026-09-30 — Milestone boundaries don't stop work: leftover `human` issues move to the next milestone, the milestone closes, work continues.
+- 2026-09-30 — `MILESTONE` = the milestone being worked on: M0 and M1 are closed, so releases are `v0.2.x` from now on (the last `v0.0.x` is `v0.0.44`).
