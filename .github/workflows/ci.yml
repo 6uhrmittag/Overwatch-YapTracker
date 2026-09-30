@@ -57,6 +57,11 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
       - run: pip install . pyinstaller
       - run: pyinstaller --noconfirm packaging/yaptracker.spec
+      - name: Licenses ship with the app
+        run: |
+          foreach ($f in 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'licenses/nicegui') {
+            if (-not (Test-Path "dist/YapTracker/$f")) { throw "dist/YapTracker/$f missing" }
+          }
       - name: Smoke test (window opens and loads the page)
         timeout-minutes: 5
         run: ./tools/smoke-test.ps1 -Exe dist/YapTracker/YapTracker.exe
