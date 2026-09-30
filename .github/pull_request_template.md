@@ -1,6 +1,10 @@
 ## What you can see now
 - 
 
+## Done when (copied from the issue, same ticks)
+- [x] …
+- [ ] … → not done because … / moved to #
+
 ## Screenshot
 <!-- UI change? Paste a screenshot. Compare with docs/ui/mockup first. No real player names. -->
 

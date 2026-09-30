@@ -75,6 +75,17 @@ made.
 4. Comment "Starting" on the issue, work on a branch `issue-<N>-<slug>`, open a
    PR that `Closes #N`.
 
+**Closing an issue — required, every time (Marv tracks progress in the issues):**
+1. **Before merging**, go through the issue's "Done when" checklist and **tick every
+   box that is really done** (edit the issue body: `- [ ]` → `- [x]`).
+2. Post a **closing comment** on the issue: what was built (1–3 lines), the PR link,
+   and for every box that is *not* ticked: why, and where it went — a new issue
+   (`#N`), a `blocker`, or "dropped, because …". No silent leftovers.
+3. Copy the checklist into the PR body ("Done when" section of the template) with the
+   same ticks, so the review and the issue agree.
+4. An issue with unticked boxes and no explanation must not be closed. If a merge
+   closed it anyway, reopen it and fix the checklist first.
+
 **Labels:**
 | Label | Meaning |
 |---|---|
@@ -143,8 +154,9 @@ Closes #
 ### Not in v1 — already filed as `parked` issues, ignore them
 Video/recording import · Overwolf game events · reading OverLooker's files ·
 Tab-scoreboard OCR / full rosters · tags · review queue · PaddleOCR GPU ·
-installer · autostart · in-app auto-updater · tray icon · statistics/charts ·
-sharing notes between Marv's and Void's PCs.
+installer · in-app auto-updater · tray icon · statistics/charts ·
+sharing notes between Marv's and Void's PCs (Void runs their own instance;
+match export/import between instances is v2).
 
 Anything new the user or you think of → a `parked` issue. Moving an issue from
 `parked` into a milestone requires the user saying so explicitly.
@@ -173,14 +185,22 @@ pre-release.
 
 **M2 — Live chat log** *(first moment of real value)*
 - Live capture → change detection → OCR → dedup → SQLite
-- **Zero-touch** (`priority`): capture starts/stops with Overwatch, matches and
-  sessions are detected automatically, pause auto-resumes at the next match.
+- **Zero-touch** (`priority`): YapTracker starts with Windows and waits (#45),
+  capture starts/stops with Overwatch, matches and sessions are detected
+  automatically, pause auto-resumes at the next match.
+- **Me & my crew** (#74): own names and the crew (Void) are known — never greeted
+  as familiar faces, own lines shown as "you".
+- **Capture health** (#75): orange banner when recording stops, automatic restart,
+  and *gap records* — lost time spans are stored and shown, never silent holes.
+- First-start wizard (#76): find Overwatch → chat box → who are you.
   Marv *will* forget to press keys — a normal evening must need none.
 - Live view streaming messages; pause hotkey
 
 **M3 — Remember people**
 - Players view, notes, verdicts, merge, manual add
 - Familiar-face card in Live view; quick lookup with hotkey
+- Spicy yaps (#77): flag possibly bad messages (Overwatch `[Report]` + manual), heads-up
+  when those players return — never an automatic verdict
 
 **M4 — Browse**
 - Sessions/matches with transcripts, full-text search, full open-data export
@@ -304,7 +324,10 @@ matches        (id, session_id, started_at, ended_at, outcome NULL,
 players        (id, display_name, verdict NULL, notes TEXT, first_seen, last_seen)
 player_aliases (player_id, alias)
 chat_messages  (id, match_id, ts, channel, speaker_raw, player_id NULL,
-                hero NULL, text, ocr_confidence)   -- hero from comms-wheel lines
+                hero NULL, text, ocr_confidence,
+                flagged NULL)   -- 'overwatch' ([Report] link) | 'manual'; hero from comms wheel
+capture_gaps   (id, started_at, ended_at, reason)
+               -- 'crash' | 'no_frames' | 'paused' | 'window_lost' | 'app_not_running'
 chat_fts       -- FTS5 over chat_messages(text, speaker_raw)
 ```
 
@@ -361,7 +384,8 @@ lookup · `Ctrl+Alt+M` new match (override only) · `Ctrl+Alt+P` pause
 - [ ] They've written notes on at least three players, and the familiar-face
       card fired for someone they met before
 - [ ] The whole evening needed **zero** YapTracker key presses or clicks
-      (capture, matches, sessions all automatic)
+      (app already running via autostart; capture, matches, sessions automatic)
+- [ ] Any time span that wasn't recorded shows up as a gap record, not a silent hole
 - [ ] No noticeable FPS impact in Overwatch; YapTracker uses < 5% of one CPU core
 - [ ] Update via `tools/update.ps1` works from any v0 pre-release to v1.0.0
 - [ ] README: setup, calibration, hotkeys, known limits, tested resolution
