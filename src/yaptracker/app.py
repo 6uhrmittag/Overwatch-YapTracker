@@ -73,15 +73,25 @@ def _watch_for_overwatch(dev: bool) -> None:
     def paused() -> bool:
         return runtime.pause.paused
 
+    runtime.changes = changes = config.change_detector()
+
+    def on_frame(frame) -> None:
+        changes.update(frame.image)  # changed bands go to OCR once the pipeline exists (#18)
+
     if dev:
-        runtime.watcher = CaptureWatcher(lambda: 1, lambda _: demo.DemoFrameSource(), paused=paused)
+        runtime.watcher = CaptureWatcher(
+            lambda: 1, lambda _: demo.DemoFrameSource(), on_frame, paused=paused
+        )
     elif sys.platform == "win32":
         from yaptracker.capture.wgc import WgcFrameSource
         from yaptracker.capture.window import find_overwatch
         from yaptracker.hotkeys import HotkeyListener
 
         runtime.watcher = CaptureWatcher(
-            find_overwatch, lambda hwnd: WgcFrameSource(hwnd, config.chat_region), paused=paused
+            find_overwatch,
+            lambda hwnd: WgcFrameSource(hwnd, config.chat_region),
+            on_frame,
+            paused=paused,
         )
         hotkeys = HotkeyListener({runtime.PAUSE_HOTKEY: runtime.pause.toggle})
         app.on_startup(hotkeys.start)
