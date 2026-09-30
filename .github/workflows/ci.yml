@@ -56,8 +56,8 @@ jobs:
           "VERSION=$version" >> $env:GITHUB_ENV
           "version=$version" >> $env:GITHUB_OUTPUT
       - run: pip install .[dev] pyinstaller
-      - name: Windows-only tests (Windows OCR, WGC capture)
-        run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py -v
+      - name: Windows-only tests (Windows OCR, WGC capture, hotkeys)
+        run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py tests/test_hotkeys_windows.py -v
       - run: pyinstaller --noconfirm packaging/yaptracker.spec
       - name: Licenses ship with the app
         run: |

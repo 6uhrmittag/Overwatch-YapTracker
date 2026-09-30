@@ -19,11 +19,13 @@ class CaptureWatcher:
         open_source: Callable[[int], FrameSource],
         on_frame: Callable[[Frame], None] = lambda frame: None,
         poll_s: float = 2.0,
+        paused: Callable[[], bool] = lambda: False,
     ) -> None:
         self._find_window = find_window
         self._open_source = open_source
         self._on_frame = on_frame
         self._poll_s = poll_s
+        self._paused = paused
         self._stop = threading.Event()
         self._source: FrameSource | None = None
         self.state = "waiting"  # waiting | capturing
@@ -63,6 +65,9 @@ class CaptureWatcher:
                 if self._stop.is_set():
                     break
                 self.frames += 1
+                if self._paused():  # paused: the frame is dropped, not even previewed (#20)
+                    self.last_frame = None
+                    continue
                 self.last_frame = frame
                 self._on_frame(frame)
         finally:

@@ -64,3 +64,13 @@ def test_a_failing_capture_is_reported_and_retried():
     assert attempts.acquire(timeout=2) and attempts.acquire(timeout=2)
     watcher.stop()
     assert watcher.last_error == "capture item could not be created"
+
+
+def test_frames_are_dropped_while_paused():
+    seen = []
+    watcher = CaptureWatcher(lambda: 42, lambda hwnd: FakeSource(3), seen.append, poll_s=10,
+                             paused=lambda: True)  # fmt: skip
+    watcher.start()
+    wait_for(lambda: watcher.frames >= 3)
+    watcher.stop()
+    assert seen == [] and watcher.last_frame is None

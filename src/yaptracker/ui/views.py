@@ -7,7 +7,7 @@ from PIL import Image
 from yaptracker import __version__, config, runtime
 from yaptracker.capture.watcher import fps
 from yaptracker.ui.calibrate import calibrate
-from yaptracker.ui.components import button, saved_chip
+from yaptracker.ui.components import button, saved_chip, set_button_label
 from yaptracker.ui.crew import crew_card
 
 
@@ -31,7 +31,12 @@ def live() -> None:
         with ui.element("div").classes("yt-pill yt-pill--waiting").mark("status") as pill:
             ui.element("span").classes("yt-pill-dot")
             status = ui.label("Waiting for Overwatch")
-        meta = ui.label().classes("yt-meta")
+        meta = ui.label().classes("yt-meta").mark("status-meta")
+        ui.element("div").classes("yt-grow")
+        pause_button = button(
+            "Pause", lambda: toggle_pause(), keycap=runtime.PAUSE_HOTKEY.replace("+", " ")
+        )
+        pause_button.mark("pause")
     with ui.element("div").classes("yt-columns"):
         with ui.element("section").classes("yt-card yt-card--chat").props('aria-label="Chat"'):
             with ui.element("div").classes("yt-card-head"):
@@ -56,35 +61,57 @@ def live() -> None:
                     picture = ui.image().classes("yt-crop").props("no-spinner no-transition")
                     picture_info = ui.label().classes("yt-meta")
 
-    if watcher is None:
-        return
-    meter = fps(watcher)
+    meter = fps(watcher) if watcher else (lambda: 0.0)
     shown = {"frame": None}
 
+    def toggle_pause() -> None:
+        runtime.pause.toggle()
+        refresh()
+
     def refresh() -> None:
-        rate = meter()
-        capturing = watcher.state == "capturing"
+        paused = runtime.pause.paused
+        capturing = watcher is not None and watcher.state == "capturing"
+        state = "paused" if paused else ("listening" if capturing else "waiting")
         pill.classes(
-            add="yt-pill--listening" if capturing else "yt-pill--waiting",
-            remove="yt-pill--waiting" if capturing else "yt-pill--listening",
+            add=f"yt-pill--{state}",
+            remove=" ".join(
+                f"yt-pill--{s}" for s in ("paused", "listening", "waiting") if s != state
+            ),
         )
-        status.set_text("Listening for yaps" if capturing else "Waiting for Overwatch")
-        meta.set_text(f"{rate:.1f} fps" if capturing else (watcher.last_error or ""))
+        status.set_text(
+            {
+                "paused": "Paused",
+                "listening": "Listening for yaps",
+                "waiting": "Waiting for Overwatch",
+            }[state]
+        )
+        if paused:
+            minutes = max(1, round(runtime.pause.remaining_s() / 60))
+            meta.set_text(f"until next match, {minutes} min at most")
+        elif capturing:
+            meta.set_text(f"{meter():.1f} fps")
+        else:
+            meta.set_text((watcher.last_error or "") if watcher else "")
         hint.set_text(
-            "Ears open. Nobody's typing right now."
-            if capturing
-            else "Waiting for Overwatch. I'll be right here."
+            {
+                "paused": "Ears covered. Nothing is being saved.",
+                "listening": "Ears open. Nobody's typing right now.",
+                "waiting": "Waiting for Overwatch. I'll be right here.",
+            }[state]
         )
-        if capturing:
+        set_button_label(pause_button, "Resume" if paused else "Pause")
+        frame = watcher.last_frame if watcher else None
+        if state == "listening" and frame is not None:
             preview.classes(remove="yt-hidden")
+            if frame is not shown["frame"]:
+                shown["frame"] = frame
+                picture.set_source(Image.fromarray(np.ascontiguousarray(frame.image[:, :, ::-1])))
+                height, width = frame.image.shape[:2]
+                picture_info.set_text(
+                    f"Chat box {width} \u00d7 {height} px, {watcher.frames} frames"
+                )
         else:
             preview.classes(add="yt-hidden")
-        frame = watcher.last_frame
-        if capturing and frame is not None and frame is not shown["frame"]:
-            shown["frame"] = frame
-            picture.set_source(Image.fromarray(np.ascontiguousarray(frame.image[:, :, ::-1])))
-            height, width = frame.image.shape[:2]
-            picture_info.set_text(f"Chat box {width} \u00d7 {height} px, {watcher.frames} frames")
 
     ui.timer(1.0, refresh)
     refresh()

@@ -1,5 +1,9 @@
-"""Things the running app shares between its parts. None in tests and before startup."""
+"""Things the running app shares between its parts."""
 
 from yaptracker.capture.watcher import CaptureWatcher
+from yaptracker.pause import Pause
 
-watcher: CaptureWatcher | None = None
+PAUSE_HOTKEY = "Ctrl+Alt+P"
+
+pause = Pause()
+watcher: CaptureWatcher | None = None  # None in tests and before startup

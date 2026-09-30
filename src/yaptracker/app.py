@@ -68,15 +68,23 @@ def _arm_smoke_test() -> None:
 
 def _watch_for_overwatch(dev: bool) -> None:
     """Capture runs by itself from app start: waits for Overwatch, follows it (#16)."""
+
+    def paused() -> bool:
+        return runtime.pause.paused
+
     if dev:
-        runtime.watcher = CaptureWatcher(lambda: 1, lambda _: demo.DemoFrameSource())
+        runtime.watcher = CaptureWatcher(lambda: 1, lambda _: demo.DemoFrameSource(), paused=paused)
     elif sys.platform == "win32":
         from yaptracker.capture.wgc import WgcFrameSource
         from yaptracker.capture.window import find_overwatch
+        from yaptracker.hotkeys import HotkeyListener
 
         runtime.watcher = CaptureWatcher(
-            find_overwatch, lambda hwnd: WgcFrameSource(hwnd, config.chat_region)
+            find_overwatch, lambda hwnd: WgcFrameSource(hwnd, config.chat_region), paused=paused
         )
+        hotkeys = HotkeyListener({runtime.PAUSE_HOTKEY: runtime.pause.toggle})
+        app.on_startup(hotkeys.start)
+        app.on_shutdown(hotkeys.stop)
     else:
         return  # native mode only exists on Windows; Linux uses --dev
     app.on_startup(runtime.watcher.start)

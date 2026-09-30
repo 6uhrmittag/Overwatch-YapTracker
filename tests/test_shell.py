@@ -105,3 +105,18 @@ async def test_live_view_follows_the_capture(user: User, monkeypatch):
     user.find(marker="nav-live").click()
     await user.should_see("Listening for yaps")
     await user.should_see("Chat box 615 \u00d7 395 px, 1 frames")
+
+
+async def test_pause_button_pauses_and_says_so(user: User, monkeypatch):
+    from yaptracker import runtime
+    from yaptracker.pause import Pause
+
+    monkeypatch.setattr(runtime, "pause", Pause())
+    await user.open("/")
+    user.find(marker="pause").click()
+    await user.should_see("Paused")
+    await user.should_see("Ears covered. Nothing is being saved.")
+    await user.should_see("Resume")
+    user.find(marker="pause").click()
+    await user.should_see("Waiting for Overwatch")
+    assert not runtime.pause.paused
