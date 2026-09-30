@@ -86,3 +86,15 @@ def save_identity(me: list[str], crew: list[str], path: Path | None = None) -> N
     data = _load(path)
     data["my_names"], data["crew"] = me, crew
     _save(path, data)
+
+
+def autostart(path: Path | None = None) -> bool | None:
+    """The user's "Start with Windows" choice; None until it has been made once (#45)."""
+    return _load(path or paths.config_file()).get("autostart")
+
+
+def save_autostart(on: bool, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["autostart"] = on
+    _save(path, data)

@@ -40,3 +40,32 @@ def saved_chip() -> None:
     with ui.element("span").classes("yt-chip yt-chip--ok"):
         ui.html(CHECK, sanitize=False)
         ui.label("Saved")
+
+
+def switch(
+    label: str, value: bool, on_change: Callable[[bool], object], disabled: bool = False
+) -> ui.element:
+    """On/off switch; the whole row is the click target."""
+    state = {"on": value}
+    with (
+        ui.element("button")
+        .classes("yt-switch-row")
+        .props(f'type="button" role="switch" aria-checked="{str(value).lower()}"') as row
+    ):
+        ui.label(label).classes("yt-switch-label")
+        ui.element("span").classes("yt-switch" + (" is-on" if value else ""))
+    if disabled:
+        row.props("disabled")
+
+    def flip() -> None:
+        state["on"] = not state["on"]
+        row.props(f'aria-checked="{str(state["on"]).lower()}"')
+        track = row.default_slot.children[1]
+        if state["on"]:
+            track.classes(add="is-on")
+        else:
+            track.classes(remove="is-on")
+        on_change(state["on"])
+
+    row.on("click", flip)
+    return row

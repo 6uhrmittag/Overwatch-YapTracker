@@ -9,6 +9,7 @@ import numpy as np
 from nicegui import app, ui
 from nicegui.run import io_bound
 
+from yaptracker import autostart as start_with_windows
 from yaptracker import config, demo, runtime
 from yaptracker.capture.watcher import CaptureWatcher
 from yaptracker.ui import shell
@@ -91,9 +92,17 @@ def _watch_for_overwatch(dev: bool) -> None:
     app.on_shutdown(runtime.watcher.stop)
 
 
-def run(*, dev: bool = False, smoke_test: bool = False) -> None:
+def run(
+    *,
+    dev: bool = False,
+    smoke_test: bool = False,
+    background: bool = False,
+    autostart: bool | None = None,
+) -> None:
     shell.register_static_files()
     demo.ENABLED = dev
+    if not (dev or smoke_test):
+        start_with_windows.apply_at_start(autostart)
     _watch_for_overwatch(dev)
     if smoke_test:
         _arm_smoke_test()
@@ -110,4 +119,6 @@ def run(*, dev: bool = False, smoke_test: bool = False) -> None:
     else:
         # Paint the native window in the night colour before the page loads - no white flash.
         app.native.window_args["background_color"] = "#0d1016"
+        # Started with Windows: sit in the taskbar and wait for Overwatch (#45).
+        app.native.window_args["minimized"] = background
         ui.run(shell.root, native=True, window_size=WINDOW_SIZE, **common)

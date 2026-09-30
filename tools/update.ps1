@@ -17,7 +17,10 @@ param(
     # Reinstall even if the newest release is already installed.
     [switch]$Force,
     # Do not start YapTracker afterwards.
-    [switch]$NoStart
+    [switch]$NoStart,
+    # Answer for "Start with Windows?" on a fresh install; Ask shows the question once.
+    [ValidateSet('Ask', 'Yes', 'No')]
+    [string]$Autostart = 'Ask'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -56,6 +59,7 @@ if ($installed -eq $release.tag_name -and -not $Force) {
     exit 0
 }
 
+$fresh = -not (Test-Path (Join-Path $AppDir 'YapTracker.exe'))
 New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
 # Stage next to the app folder so the final swap is a same-drive rename.
 $staged = Join-Path $InstallRoot 'app.new'
@@ -86,5 +90,16 @@ try {
 
 Write-Host "Installed YapTracker $($release.tag_name) in $AppDir (your data stays in $(Join-Path $InstallRoot 'data'))."
 if (-not $NoStart) {
-    Start-Process (Join-Path $AppDir 'YapTracker.exe')
+    $exe = Join-Path $AppDir 'YapTracker.exe'
+    if ($fresh) {
+        # Asked once. The app stores the answer itself - this script never writes the data folder.
+        if ($Autostart -eq 'Ask') {
+            $answer = Read-Host 'Start YapTracker with Windows? It waits quietly until Overwatch starts. [Y/n]'
+            $Autostart = if ($answer -match '^\s*n') { 'No' } else { 'Yes' }
+        }
+        $choice = if ($Autostart -eq 'No') { 'off' } else { 'on' }
+        Start-Process $exe -ArgumentList "--autostart $choice"
+    } else {
+        Start-Process $exe
+    }
 }

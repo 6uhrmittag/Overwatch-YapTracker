@@ -120,3 +120,10 @@ async def test_pause_button_pauses_and_says_so(user: User, monkeypatch):
     user.find(marker="pause").click()
     await user.should_see("Waiting for Overwatch")
     assert not runtime.pause.paused
+
+
+async def test_start_with_windows_is_explained_outside_the_installed_app(user: User):
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see("Start with Windows")
+    await user.should_see("Only in the installed app (tools/update.ps1).")

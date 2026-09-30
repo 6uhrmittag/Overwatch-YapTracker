@@ -159,6 +159,14 @@ html, body { background: var(--yt-night); }
   .yt-input { height: 44px; padding: 0 14px; border-radius: 12px; background: var(--yt-ground); border: 2px solid var(--yt-line-strong); color: var(--yt-text); font: 600 15px var(--yt-body); outline: none; }
   .yt-input::placeholder { color: var(--yt-faint); }
   .yt-input:focus { border-color: var(--yt-accent); }
+  /* On/off switch */
+  .yt-switch-row { display: flex; align-items: center; gap: 14px; width: fit-content; padding: 6px 0; border: 0; background: transparent; color: var(--yt-text); font: 700 16px var(--yt-body); cursor: pointer; }
+  .yt-switch-row[disabled] { cursor: not-allowed; opacity: .45; }
+  .yt-switch { position: relative; width: 48px; height: 28px; border-radius: 999px; background: var(--yt-line-strong); transition: background-color .15s; }
+  .yt-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--yt-text); box-shadow: 0 2px 0 rgba(0,0,0,.35); transition: transform .15s; }
+  .yt-switch.is-on { background: var(--yt-accent); }
+  .yt-switch.is-on::after { transform: translateX(20px); }
+  .yt-switch-row:focus-visible { outline: 2px solid var(--yt-accent); outline-offset: 4px; border-radius: 8px; }
   .yt-crew-badge { margin-right: 6px; padding: 1px 7px; border-radius: 999px; background: var(--yt-panel-raised); border: 1px solid var(--yt-line-strong); font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--yt-muted); }
   .yt-conf { flex-shrink: 0; font-size: 13px; font-weight: 700; color: var(--yt-faint); }
   .yt-conf--low { color: var(--yt-danger); }
