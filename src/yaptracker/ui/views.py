@@ -37,6 +37,9 @@ def live() -> None:
             "Pause", lambda: toggle_pause(), keycap=runtime.PAUSE_HOTKEY.replace("+", " ")
         )
         pause_button.mark("pause")
+    with ui.element("div").classes("yt-banner yt-hidden").mark("size-hint") as size_hint:
+        size_text = ui.label().classes("yt-grow")
+        button("Got it", lambda: size_checked(), "quiet").mark("size-ok")
     with ui.element("div").classes("yt-columns"):
         with ui.element("section").classes("yt-card yt-card--chat").props('aria-label="Chat"'):
             with ui.element("div").classes("yt-card-head"):
@@ -67,6 +70,11 @@ def live() -> None:
     def toggle_pause() -> None:
         runtime.pause.toggle()
         refresh()
+
+    def size_checked() -> None:
+        if runtime.window_size:
+            config.mark_size_checked(*runtime.window_size)
+        size_hint.classes(add="yt-hidden")
 
     def refresh() -> None:
         paused = runtime.pause.paused
@@ -101,6 +109,15 @@ def live() -> None:
             }[state]
         )
         set_button_label(pause_button, "Resume" if paused else "Pause")
+        size = runtime.window_size
+        if capturing and size and config.size_needs_check(*size):
+            size_text.set_text(
+                f"Overwatch runs at {size[0]}\u00d7{size[1]} now. I rescaled the chat box to fit; "
+                "a 10-second look in Settings \u2192 Calibrate won't hurt."
+            )
+            size_hint.classes(remove="yt-hidden")
+        else:
+            size_hint.classes(add="yt-hidden")
         frame = watcher.last_frame if watcher else None
         if state == "listening" and frame is not None:
             preview.classes(remove="yt-hidden")
@@ -148,12 +165,17 @@ def settings() -> None:
                     ui.element("div").classes("yt-grow")
                     button("Calibrate", open_calibration).mark("calibrate")
                 with ui.element("div").classes("yt-card-body"):
-                    regions = config.saved_chat_regions()
-                    for resolution, r in regions.items():
-                        ui.label(
-                            f"{resolution}: {r.width} \u00d7 {r.height} px at {r.x}, {r.y}"
-                        ).classes("yt-meta")
-                    if not regions:
+                    boxes = config.saved_chat_boxes()
+                    for ratio, saved in boxes.items():
+                        w, h = saved.calibrated_at
+                        r = saved.box.to_pixels(w, h)
+                        drawn = (
+                            f"drawn at {w}\u00d7{h}, {r.width} \u00d7 {r.height} px at {r.x}, {r.y}"
+                        )
+                        ui.label(f"{ratio} screens: {drawn}; other sizes scale along").classes(
+                            "yt-meta"
+                        )
+                    if not boxes:
                         ui.label(
                             "Not calibrated yet. I'll use the usual spot, which fits 16:9 screens."
                         ).classes("yt-hint")

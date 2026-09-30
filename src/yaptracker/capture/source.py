@@ -20,15 +20,33 @@ class Region:
         return image[self.y : self.y + self.height, self.x : self.x + self.width]
 
 
+@dataclass(frozen=True)
+class RelativeRegion:
+    """A rectangle as fractions of the window size, so it survives resolution changes (#84)."""
+
+    x: float
+    y: float
+    width: float
+    height: float
+
+    def to_pixels(self, width: int, height: int) -> Region:
+        return Region(round(self.x * width), round(self.y * height),
+                      round(self.width * width), round(self.height * height))  # fmt: skip
+
+    @classmethod
+    def from_pixels(cls, region: Region, width: int, height: int) -> "RelativeRegion":
+        return cls(
+            region.x / width, region.y / height, region.width / width, region.height / height
+        )
+
+
 # Measured on real 2560x1440 screenshots (#10). Same spot in hero select, in game and end screens.
-_CHAT_1440P = Region(55, 510, 615, 395)
+DEFAULT_CHAT_BOX = RelativeRegion.from_pixels(Region(55, 510, 615, 395), 2560, 1440)
 
 
 def default_chat_region(width: int, height: int) -> Region:
-    """The usual chat box for a 16:9 window of this size, scaled from 2560x1440."""
-    sx, sy = width / 2560, height / 1440
-    r = _CHAT_1440P
-    return Region(round(r.x * sx), round(r.y * sy), round(r.width * sx), round(r.height * sy))
+    """The usual chat box for a window of this size (measured at 16:9; others scaled for now)."""
+    return DEFAULT_CHAT_BOX.to_pixels(width, height)
 
 
 @dataclass(frozen=True)
