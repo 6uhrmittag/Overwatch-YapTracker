@@ -37,7 +37,8 @@ def write(value: str | None, name: str = NAME) -> None:
     """Set the entry, or remove it with None."""
     import winreg
 
-    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
+    # CreateKeyEx opens the key, or creates it: a fresh Windows profile may not have one yet.
+    with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
         if value is None:
             with contextlib.suppress(FileNotFoundError):  # already gone is fine
                 winreg.DeleteValue(key, name)
