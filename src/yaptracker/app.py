@@ -6,6 +6,7 @@ import threading
 
 import numpy as np
 from nicegui import app, ui
+from nicegui.run import io_bound
 
 from yaptracker import demo
 from yaptracker.ui import shell
@@ -40,8 +41,8 @@ def _check_ocr() -> bool:
     return True
 
 
-def _close_window() -> None:
-    if not _check_ocr():
+async def _close_window() -> None:
+    if not await io_bound(_check_ocr):  # OCR blocks, so off the event loop like in the UI
         print("smoke test: OCR did not read the demo screenshot")
         _give_up()
     # Same path as a user closing the window: NiceGUI sees the window process end and exits 0.

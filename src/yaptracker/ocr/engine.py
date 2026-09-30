@@ -23,7 +23,7 @@ class OcrLine:
 
 class OcrEngine(Protocol):
     def read(self, image: np.ndarray) -> list[OcrLine]:
-        """Lines of text in a BGR image, top to bottom."""
+        """Lines of text in a BGR image, top to bottom. Blocks: from UI code use run.io_bound."""
         ...
 
 
