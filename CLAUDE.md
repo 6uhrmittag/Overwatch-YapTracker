@@ -136,6 +136,8 @@ Closes #
 7. **Settings**: chat-region calibration on a screenshot, OCR engine switch,
    sample rate, hotkeys, data folder, backup button.
 8. Players + notes export to Markdown and JSON.
+9. **Yap snaps**: select chat messages → pretty PNG with style presets, colours,
+   fonts and a hide-names toggle (#64, #65).
 
 ### Not in v1 — already filed as `parked` issues, ignore them
 Video/recording import · Overwolf game events · reading OverLooker's files ·
@@ -181,6 +183,7 @@ pre-release.
 
 **M4 — Browse**
 - Sessions/matches with transcripts, full-text search, export
+- Yap snaps: selected messages → shareable PNG (styles last; parkable if tight)
 
 **M5 — v1.0**
 - Acceptance session (see Definition of done), README, `v1.0.0` stable release,
