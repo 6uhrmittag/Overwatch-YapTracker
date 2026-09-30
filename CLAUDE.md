@@ -113,6 +113,10 @@ made.
 ## What you can see now
 - (1–3 bullets, user-visible)
 
+## Done when (copied from the issue, same ticks)
+- [x] …
+- [ ] … → not done because … / moved to #
+
 ## Screenshot
 (UI changes: screenshot, compared against docs/ui/mockup)
 
