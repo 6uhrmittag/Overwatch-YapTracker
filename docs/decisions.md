@@ -15,3 +15,4 @@ One line each, newest at the bottom. Link the issue.
 - 2026-09-29 — Full OBS match recordings are the main replay material; frames are extracted by a script, recordings stay on Windows, nothing committed.
 - 2026-09-30 — The app collects its own debug samples (hard OCR frames, match-signal frames) from M2 on, so manual screenshot collection stops (#63).
 - 2026-09-30 — Yap snaps (chat messages → styled PNG) added to M4, built on the transcript view; style controls are the parkable part (#64, #65).
+- 2026-09-30 — Full open-data export (JSON + Markdown, documented schema, optional anonymized names) in M4; README states the code is written by AI (#69).

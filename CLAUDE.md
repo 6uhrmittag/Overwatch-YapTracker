@@ -135,7 +135,8 @@ Closes #
 6. **Search** across all chat (SQLite FTS5).
 7. **Settings**: chat-region calibration on a screenshot, OCR engine switch,
    sample rate, hotkeys, data folder, backup button.
-8. Players + notes export to Markdown and JSON.
+8. **Open data export**: everything (sessions, matches, messages, players, metadata)
+   as documented JSON + Markdown, optional anonymized names (#69; players-only #31).
 9. **Yap snaps**: select chat messages → pretty PNG with style presets, colours,
    fonts and a hide-names toggle (#64, #65).
 
@@ -182,7 +183,7 @@ pre-release.
 - Familiar-face card in Live view; quick lookup with hotkey
 
 **M4 — Browse**
-- Sessions/matches with transcripts, full-text search, export
+- Sessions/matches with transcripts, full-text search, full open-data export
 - Yap snaps: selected messages → shareable PNG (styles last; parkable if tight)
 
 **M5 — v1.0**
