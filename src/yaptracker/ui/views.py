@@ -89,7 +89,8 @@ def live() -> None:
             minutes = max(1, round(runtime.pause.remaining_s() / 60))
             meta.set_text(f"until next match, {minutes} min at most")
         elif capturing:
-            meta.set_text(f"{meter():.1f} fps")
+            skipped = f", {runtime.changes.skipped_share:.0%} skipped" if runtime.changes else ""
+            meta.set_text(f"{meter():.1f} fps{skipped}")
         else:
             meta.set_text((watcher.last_error or "") if watcher else "")
         hint.set_text(

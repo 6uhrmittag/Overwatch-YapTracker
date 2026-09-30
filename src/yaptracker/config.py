@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from yaptracker import paths
+from yaptracker.capture.changes import ChangeDetector
 from yaptracker.capture.source import Region, default_chat_region
 from yaptracker.identity import Identity
 from yaptracker.ocr import engine as ocr
@@ -98,3 +99,11 @@ def save_autostart(on: bool, path: Path | None = None) -> None:
     data = _load(path)
     data["autostart"] = on
     _save(path, data)
+
+
+def change_detector(path: Path | None = None) -> ChangeDetector:
+    """Skip-unchanged-frames thresholds (#17); defaults unless config.json says otherwise.
+
+    "change_detection": {"new_share": 0.03, "min_pixels": 40}
+    """
+    return ChangeDetector(**_load(path or paths.config_file()).get("change_detection", {}))
