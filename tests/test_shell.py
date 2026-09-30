@@ -173,3 +173,19 @@ async def test_live_header_shows_session_and_match(user: User, monkeypatch, tmp_
     user.find(marker="new-match").click()
     await user.should_see("Session 1 · Match 1 · 0:0")
     store.close()
+
+
+async def test_live_says_loudly_when_nothing_is_recorded(user: User, monkeypatch, tmp_path):
+    from yaptracker import runtime
+    from yaptracker.capture.health import CaptureHealth
+    from yaptracker.store.repo import Store
+
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    health = CaptureHealth(store)
+    health.lost("crash")
+    monkeypatch.setattr(runtime, "health", health)
+    await user.open("/")
+    await user.should_see("(capture stopped), trying again")
+    await user.should_see("Not recording")
+    await user.should_see("Overwatch is running, but I can't see it right now.")
+    store.close()
