@@ -4,6 +4,7 @@ import multiprocessing
 import os
 import threading
 
+import numpy as np
 from nicegui import app, ui
 
 from yaptracker import demo
@@ -16,7 +17,33 @@ DEV_PORT = 8080
 SMOKE_TEST_TIMEOUT_S = 90
 
 
+def _check_ocr() -> bool:
+    """The exe must ship working OCR: every engine that runs here reads the demo screenshot."""
+    from yaptracker.capture.source import default_chat_region
+    from yaptracker.ocr import engine as ocr
+
+    image = demo.screenshot()
+    r = default_chat_region(image.width, image.height)
+    crop = np.ascontiguousarray(
+        np.asarray(image.crop((r.x, r.y, r.x + r.width, r.y + r.height)))[:, :, ::-1]
+    )
+    for name in ocr.available():
+        try:
+            engine = ocr.get(name)
+        except ocr.OcrUnavailable as reason:
+            print(f"smoke test: {name} skipped: {reason}")
+            continue
+        text = " ".join(line.text for line in engine.read(crop))
+        print(f"smoke test: {name} read: {text[:120]}")
+        if "WAHOO" not in text.upper():
+            return False
+    return True
+
+
 def _close_window() -> None:
+    if not _check_ocr():
+        print("smoke test: OCR did not read the demo screenshot")
+        _give_up()
     # Same path as a user closing the window: NiceGUI sees the window process end and exits 0.
     # (app.shutdown() would also stop uvicorn, which races the closing websocket and can hang.)
     app.native.main_window.destroy()

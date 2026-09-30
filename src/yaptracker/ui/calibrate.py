@@ -9,6 +9,7 @@ from PIL import Image
 from yaptracker import config, demo
 from yaptracker.ui.box_editor import BoxEditor
 from yaptracker.ui.components import button
+from yaptracker.ui.read_preview import ReadPreview
 
 # The screenshot shows ~900 px wide; overlay sizes are given in screen px and scaled by this.
 _DISPLAY_WIDTH = 900
@@ -52,23 +53,17 @@ def calibrate(on_done: Callable[[bool], None]) -> None:
     with ui.element("div").classes("yt-columns"):
         shot = ui.element("div").classes("yt-shot").mark("screenshot")
         with ui.element("aside").classes("yt-aside"):
-            with (
-                ui.element("section").classes("yt-card"),
-                ui.element("div").classes("yt-card-body"),
-            ):
-                ui.label("Drag a box around the chat").classes("yt-h2")
-                ui.label(
-                    "Be generous - a bit too big is fine, I'll ignore the empty parts. "
-                    "Too small and I'll miss the long yaps."
-                ).classes("yt-text-soft")
-            with (
-                ui.element("section").classes("yt-card"),
-                ui.element("div").classes("yt-card-body"),
-            ):
-                ui.label("What I'll look at").classes("yt-h2")
-                crop = ui.image().classes("yt-crop").props("no-spinner no-transition")
-                crop_info = ui.label().classes("yt-meta").mark("crop-info")
-            ui.element("div").classes("yt-grow")
+            with ui.element("div").classes("yt-aside-scroll"):  # buttons below always stay visible
+                with (
+                    ui.element("section").classes("yt-card"),
+                    ui.element("div").classes("yt-card-body"),
+                ):
+                    ui.label("Drag a box around the chat").classes("yt-h2")
+                    ui.label(
+                        "Be generous - a bit too big is fine, I'll ignore the empty parts. "
+                        "Too small and I'll miss the long yaps."
+                    ).classes("yt-text-soft")
+                preview = ReadPreview()
             with ui.element("div").classes("yt-actions"):
                 upload = (
                     ui.upload(auto_upload=True, on_upload=lambda e: _load_upload(e))
@@ -82,9 +77,11 @@ def calibrate(on_done: Callable[[bool], None]) -> None:
     def refresh_crop() -> None:
         image, editor = state["image"], state["editor"]
         r = editor.region
-        crop.set_source(image.crop((r.x, r.y, r.x + r.width, r.y + r.height)))
-        crop_info.set_text(f"{r.width} × {r.height} px at {r.x}, {r.y}  ·  "
-                           f"{image.width}×{image.height} screenshot")  # fmt: skip
+        preview.show(
+            image.crop((r.x, r.y, r.x + r.width, r.y + r.height)),
+            f"{r.width} \u00d7 {r.height} px at {r.x}, {r.y}  \u00b7  "
+            f"{image.width}\u00d7{image.height} screenshot",
+        )
 
     def on_mouse(e: events.MouseEventArguments) -> None:
         editor = state["editor"]

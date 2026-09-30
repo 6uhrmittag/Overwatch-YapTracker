@@ -5,7 +5,7 @@ from importlib.metadata import distributions
 from pathlib import Path
 
 import nicegui
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 ROOT = Path(SPECPATH).parent  # SPECPATH is injected by PyInstaller
 SRC = ROOT / "src"
@@ -17,6 +17,8 @@ a = Analysis(
         # NiceGUI serves its own JS/CSS from the package folder.
         (str(Path(nicegui.__file__).parent), "nicegui"),
         (str(SRC / "yaptracker" / "ui" / "static"), "yaptracker/ui/static"),
+        # OCR models (.onnx) and config.yaml
+        *collect_data_files("rapidocr_onnxruntime"),
     ],
     # Both pick their implementation at runtime via importlib.
     hiddenimports=collect_submodules("uvicorn") + collect_submodules("engineio.async_drivers"),

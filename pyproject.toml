@@ -19,6 +19,9 @@ dependencies = [
     "nicegui>=3.17,<4",
     "numpy>=2",
     "pillow>=11",
+    "rapidocr-onnxruntime>=1.4,<2",
+    # Windows OCR, the fallback engine
+    "winsdk>=1.0.0b10; sys_platform == 'win32'",
     # Native window (WebView2). Linux/WSL dev uses --dev browser mode instead.
     "pywebview>=5; sys_platform == 'win32'",
 ]
