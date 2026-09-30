@@ -64,8 +64,10 @@ def _classify(text: str, confidence: float, box: Region) -> ChatLine:
     if _INPUT.match(text):
         return replace(line, kind="input")
     if m := _COMMS.match(text):
+        # Text can be empty: "Name (Hero) to Other (Hero):" with the message on the next line.
+        said = (m["text"] or m["action"] or "").strip()
         return replace(line, kind="comms", channel="team", speaker=m["name"], hero=m["hero"],
-                       target=m["target"], text=(m["text"] or m["action"]).strip())  # fmt: skip
+                       target=m["target"], text=said)  # fmt: skip
     if (m := _TYPED.match(text)) or (m := _TYPED_NO_BRACKET.match(text)):
         return replace(line, kind="message", speaker=m["name"], text=m["text"].strip())
     if m := _SYSTEM_NAMED.match(text):

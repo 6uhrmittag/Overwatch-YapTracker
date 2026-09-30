@@ -70,3 +70,9 @@ def test_input_line_of_the_open_chat_is_marked():
 def test_a_player_called_match_is_still_a_message():
     (line,) = parse([_line("[Match]: hi", 10)])
     assert (line.kind, line.speaker) == ("message", "Match")
+
+
+def test_comms_line_with_nothing_after_the_colon_is_kept_not_a_crash():
+    # Real shape (#88): the message text sat on the next visual line and wasn't joined.
+    (line,) = parse([_line("Ana (Ana) to Bo (Zarya):", 10)])
+    assert (line.kind, line.speaker, line.target, line.text) == ("comms", "Ana", "Bo", "")
