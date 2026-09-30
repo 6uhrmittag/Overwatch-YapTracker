@@ -118,6 +118,8 @@ def calibrate(on_done: Callable[[bool], None]) -> None:
     def save() -> None:
         image, editor = state["image"], state["editor"]
         config.save_chat_region(image.width, image.height, editor.region)
+        if preview.learned_colours:  # team/system colours are user settings: remember them
+            config.save_channel_colours(preview.learned_colours)
         on_done(True)
 
     if demo.ENABLED:

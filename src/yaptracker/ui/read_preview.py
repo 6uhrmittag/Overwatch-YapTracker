@@ -4,7 +4,7 @@ import numpy as np
 from nicegui import background_tasks, run, ui
 from PIL import Image
 
-from yaptracker import config
+from yaptracker import channels, config
 from yaptracker.ocr import engine as ocr
 from yaptracker.parser import ChatLine, parse
 
@@ -27,6 +27,7 @@ class ReadPreview:
     def __init__(self) -> None:
         self._image: Image.Image | None = None
         self._request = 0
+        self.learned_colours: dict[str, float] = {}  # channel hues this screenshot proves
         with ui.element("section").classes("yt-card"), ui.element("div").classes("yt-card-body"):
             with ui.element("div").classes("yt-row"):
                 ui.label("What I can read").classes("yt-h2")
@@ -78,7 +79,8 @@ class ReadPreview:
             raise
         if request != self._request:
             return  # the box moved again while this read was running
-        chat = parse(lines)
+        chat = channels.assign(parse(lines), bgr, config.channel_colours())
+        self.learned_colours = channels.learn(chat, bgr)
         yaps = sum(line.kind in YAP_KINDS for line in chat)
         self._count.set_text(f"{yaps} yaps")
         self._count.classes(remove="yt-hidden")
