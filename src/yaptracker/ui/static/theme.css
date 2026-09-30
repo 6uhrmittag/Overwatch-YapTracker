@@ -97,6 +97,31 @@ html, body { background: var(--yt-night); }
   .yt-ch-system { color: var(--yt-system); font-style: italic; }
 
   .yt-grow { flex-grow: 1; }
+  .yt-hidden { display: none; }
+  .yt-text-soft { font-size: 16px; line-height: 1.5; color: var(--yt-text-soft); }
+  .yt-subtitle { font-size: 16px; color: var(--yt-muted); }
+  .yt-view { flex-grow: 1; min-height: 0; display: flex; flex-direction: column; gap: 18px; }
+
+  /* Arcade buttons (Kit mockup) */
+  .yt-btn { height: 48px; padding: 0 20px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; font: 700 16px var(--yt-body); cursor: pointer; transition: transform .08s, box-shadow .08s; }
+  .yt-btn--primary { border: 0; background: var(--yt-accent); color: var(--yt-ground); font-weight: 800; box-shadow: 0 4px 0 var(--yt-accent-shadow); }
+  .yt-btn--secondary { border: 1px solid var(--yt-line-strong); background: var(--yt-panel); color: var(--yt-text); box-shadow: 0 3px 0 #0b0d12; }
+  .yt-btn--quiet { border: 0; padding: 0 12px; background: transparent; color: var(--yt-text-soft); }
+  .yt-btn:active { transform: translateY(3px); box-shadow: none; }
+  .yt-btn:focus-visible { outline: 2px solid var(--yt-accent); outline-offset: 2px; }
+  .yt-btn[disabled] { cursor: not-allowed; opacity: .45; transform: none; }
+  .yt-actions { display: flex; gap: 10px; }
+  .yt-actions .yt-btn--primary { flex-grow: 1; }
+
+  /* Small status chip, e.g. "Saved" */
+  .yt-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 800; }
+  .yt-chip--ok { background: #1c2a22; border: 1px solid #2f5a3a; color: var(--yt-ok); }
+
+  /* Calibration (Setup mockup) */
+  .yt-shot { flex-grow: 1; min-width: 0; border-radius: 18px; overflow: hidden; border: 2px solid var(--yt-line); background: var(--yt-panel-inset); display: flex; align-items: center; justify-content: center; }
+  .yt-shot-image { width: 100%; cursor: crosshair; user-select: none; }
+  .yt-ants { animation: yt-march 1s linear infinite; }
+  .yt-crop { width: 100%; border-radius: 10px; background: var(--yt-night); }
 }
 
 @keyframes yt-pop {
@@ -104,6 +129,8 @@ html, body { background: var(--yt-night); }
   60% { transform: translateY(-3px) scale(1.01); opacity: 1; }
   100% { transform: none; }
 }
+
+@keyframes yt-march { to { stroke-dashoffset: calc(-1 * var(--yt-dash)); } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
