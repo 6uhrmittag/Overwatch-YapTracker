@@ -4,7 +4,7 @@ import numpy as np
 from nicegui import ui
 from PIL import Image
 
-from yaptracker import __version__, autostart, config, runtime
+from yaptracker import __version__, autostart, config, paths, runtime
 from yaptracker.capture.watcher import fps
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import button, saved_chip, set_button_label, switch
@@ -196,6 +196,22 @@ def settings() -> None:
                         "is lost because YapTracker wasn't open."
                         if supported
                         else "Only in the installed app (tools/update.ps1)."
+                    ).classes("yt-hint")
+            with ui.element("section").classes("yt-card").mark("data"):
+                with ui.element("div").classes("yt-card-head"):
+                    ui.label("Your data").classes("yt-h2")
+                with ui.element("div").classes("yt-card-body"):
+                    ui.label(str(paths.data_dir())).classes("yt-meta yt-mono")
+                    if runtime.store is not None:
+                        stats, db = runtime.store.stats(), paths.db_file()
+                        size = db.stat().st_size / 1_000_000 if db.exists() else 0.0
+                        ui.label(
+                            f"{stats.messages} yaps, {stats.matches} matches, "
+                            f"{stats.players} yappers, {size:.1f} MB"
+                        ).classes("yt-meta").mark("data-stats")
+                    ui.label(
+                        "A copy goes to the backups folder before every database update. "
+                        "Updating YapTracker never touches this folder."
                     ).classes("yt-hint")
             with ui.element("section").classes("yt-card").mark("about"):
                 with ui.element("div").classes("yt-card-head"):
