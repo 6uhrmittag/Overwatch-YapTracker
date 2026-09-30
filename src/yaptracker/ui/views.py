@@ -1,8 +1,11 @@
 """The five views behind the icon rail. Placeholders until their milestones land."""
 
+import numpy as np
 from nicegui import ui
+from PIL import Image
 
-from yaptracker import __version__, config
+from yaptracker import __version__, config, runtime
+from yaptracker.capture.watcher import fps
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import button, saved_chip
 from yaptracker.ui.crew import crew_card
@@ -22,11 +25,13 @@ def _empty_card(title: str, hint: str) -> None:
 
 
 def live() -> None:
+    watcher = runtime.watcher
     with ui.element("header").classes("yt-header"):
         ui.label("Live").classes("yt-h1")
-        with ui.element("div").classes("yt-pill yt-pill--waiting"):
+        with ui.element("div").classes("yt-pill yt-pill--waiting").mark("status") as pill:
             ui.element("span").classes("yt-pill-dot")
-            ui.label("Waiting for Overwatch")
+            status = ui.label("Waiting for Overwatch")
+        meta = ui.label().classes("yt-meta")
     with ui.element("div").classes("yt-columns"):
         with ui.element("section").classes("yt-card yt-card--chat").props('aria-label="Chat"'):
             with ui.element("div").classes("yt-card-head"):
@@ -37,7 +42,7 @@ def live() -> None:
                     for channel in ("Team", "Match", "Group", "System"):
                         ui.label(channel).classes(f"yt-ch-{channel.lower()}")
             with ui.element("div").classes("yt-card-body"):
-                ui.label("No yaps yet. Suspiciously quiet lobby.").classes("yt-hint")
+                hint = ui.label("Waiting for Overwatch. I'll be right here.").classes("yt-hint")
         with ui.element("aside").classes("yt-aside").props('aria-label="Familiar faces"'):
             with ui.element("div").classes("yt-card yt-card--placeholder"):
                 with ui.element("div").classes("yt-card-body"):
@@ -45,6 +50,44 @@ def live() -> None:
                     ui.label(
                         "When someone you've met before starts yapping, their card pops up here."
                     ).classes("yt-hint")
+            with ui.element("section").classes("yt-card yt-hidden").mark("preview") as preview:
+                with ui.element("div").classes("yt-card-body"):
+                    ui.label("What I see").classes("yt-h2")
+                    picture = ui.image().classes("yt-crop").props("no-spinner no-transition")
+                    picture_info = ui.label().classes("yt-meta")
+
+    if watcher is None:
+        return
+    meter = fps(watcher)
+    shown = {"frame": None}
+
+    def refresh() -> None:
+        rate = meter()
+        capturing = watcher.state == "capturing"
+        pill.classes(
+            add="yt-pill--listening" if capturing else "yt-pill--waiting",
+            remove="yt-pill--waiting" if capturing else "yt-pill--listening",
+        )
+        status.set_text("Listening for yaps" if capturing else "Waiting for Overwatch")
+        meta.set_text(f"{rate:.1f} fps" if capturing else (watcher.last_error or ""))
+        hint.set_text(
+            "Ears open. Nobody's typing right now."
+            if capturing
+            else "Waiting for Overwatch. I'll be right here."
+        )
+        if capturing:
+            preview.classes(remove="yt-hidden")
+        else:
+            preview.classes(add="yt-hidden")
+        frame = watcher.last_frame
+        if capturing and frame is not None and frame is not shown["frame"]:
+            shown["frame"] = frame
+            picture.set_source(Image.fromarray(np.ascontiguousarray(frame.image[:, :, ::-1])))
+            height, width = frame.image.shape[:2]
+            picture_info.set_text(f"Chat box {width} \u00d7 {height} px, {watcher.frames} frames")
+
+    ui.timer(1.0, refresh)
+    refresh()
 
 
 def yappers() -> None:

@@ -24,6 +24,7 @@ YapTracker itself is MIT licensed (see `LICENSE`). The Windows app bundles the c
 | OpenCV (opencv-python) | Image resizing for OCR | Apache-2.0 |
 | Shapely, pyclipper, PyYAML | Used by RapidOCR | BSD-3-Clause, MIT, MIT |
 | winsdk | Windows OCR fallback | MIT |
+| windows-capture | Window capture (WGC) | MIT |
 | PyInstaller bootloader | The `.exe` | GPL-2.0-or-later with the bootloader exception, which allows shipping the app under its own license |
 
 No Blizzard fonts, logos, art or icons are used or shipped.

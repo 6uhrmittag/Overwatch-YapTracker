@@ -2,13 +2,15 @@
 
 import multiprocessing
 import os
+import sys
 import threading
 
 import numpy as np
 from nicegui import app, ui
 from nicegui.run import io_bound
 
-from yaptracker import demo
+from yaptracker import config, demo, runtime
+from yaptracker.capture.watcher import CaptureWatcher
 from yaptracker.ui import shell
 
 TITLE = "YapTracker"
@@ -64,9 +66,27 @@ def _arm_smoke_test() -> None:
     timer.start()
 
 
+def _watch_for_overwatch(dev: bool) -> None:
+    """Capture runs by itself from app start: waits for Overwatch, follows it (#16)."""
+    if dev:
+        runtime.watcher = CaptureWatcher(lambda: 1, lambda _: demo.DemoFrameSource())
+    elif sys.platform == "win32":
+        from yaptracker.capture.wgc import WgcFrameSource
+        from yaptracker.capture.window import find_overwatch
+
+        runtime.watcher = CaptureWatcher(
+            find_overwatch, lambda hwnd: WgcFrameSource(hwnd, config.chat_region)
+        )
+    else:
+        return  # native mode only exists on Windows; Linux uses --dev
+    app.on_startup(runtime.watcher.start)
+    app.on_shutdown(runtime.watcher.stop)
+
+
 def run(*, dev: bool = False, smoke_test: bool = False) -> None:
     shell.register_static_files()
     demo.ENABLED = dev
+    _watch_for_overwatch(dev)
     if smoke_test:
         _arm_smoke_test()
     common = {
