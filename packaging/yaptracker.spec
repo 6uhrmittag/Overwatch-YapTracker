@@ -1,5 +1,7 @@
 # PyInstaller spec: one-folder Windows app in dist/YapTracker/.
 # Build (Windows, from the repo root): pyinstaller --noconfirm packaging/yaptracker.spec
+import shutil
+from importlib.metadata import distributions
 from pathlib import Path
 
 import nicegui
@@ -30,3 +32,14 @@ exe = EXE(
     icon=str(SRC / "yaptracker" / "ui" / "static" / "yaptracker.ico"),
 )
 coll = COLLECT(exe, a.binaries, a.datas, name="YapTracker")
+
+# Licenses next to the exe: ours, the notices, and every bundled package's own license files.
+APP = Path(DISTPATH) / "YapTracker"  # DISTPATH is injected by PyInstaller
+for name in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
+    shutil.copy(ROOT / name, APP / name)
+for dist in distributions():
+    files = [f for f in dist.files or [] if f.name.upper().startswith(("LICENSE", "LICENCE", "COPYING", "NOTICE"))]
+    for f in files:
+        target = APP / "licenses" / dist.metadata["Name"] / f.name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(f.locate(), target)

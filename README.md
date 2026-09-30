@@ -45,6 +45,10 @@ Setup, calibration and hotkeys will be documented here for v1.0.
 Chat logs contain other players' names and messages. They are stored only on your
 PC (`%LOCALAPPDATA%\YapTracker\data`) and never uploaded anywhere.
 
+## License
+
+MIT. Do whatever you like with it. Bundled fonts and libraries keep their own licenses, see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
 ## Development
 
 Built with Claude Code — see [`CLAUDE.md`](CLAUDE.md) for the project brief, rules

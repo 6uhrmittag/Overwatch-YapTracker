@@ -6,7 +6,14 @@ build-backend = "hatchling.build"
 name = "yaptracker"
 description = "Remember who you played Overwatch with - and what they said."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "src/yaptracker/ui/static/fonts/OFL-*.txt"]
 requires-python = ">=3.12,<3.13"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.12",
+]
 dynamic = ["version"]
 dependencies = [
     "nicegui>=3.17,<4",
