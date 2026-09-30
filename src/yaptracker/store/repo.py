@@ -83,6 +83,32 @@ class Store:
             "UPDATE matches SET ended_at = ?, outcome = ? WHERE id = ?", (ts, outcome, match_id)
         )
 
+    def latest_session(self) -> tuple[int, float] | None:
+        """(id, last activity) of the newest session: when it ended, or its newest yap/match."""
+        rows = self._read(
+            "SELECT s.id, MAX(COALESCE(s.ended_at, s.started_at), "
+            "COALESCE((SELECT MAX(ts) FROM chat_messages c JOIN matches m ON m.id = c.match_id "
+            "WHERE m.session_id = s.id), 0), "
+            "COALESCE((SELECT MAX(started_at) FROM matches WHERE session_id = s.id), 0)) "
+            "FROM sessions s ORDER BY s.id DESC LIMIT 1"
+        )
+        return (rows[0][0], rows[0][1]) if rows else None
+
+    def reopen_session(self, session_id: int) -> None:
+        self._write("UPDATE sessions SET ended_at = NULL WHERE id = ?", (session_id,))
+
+    def session_number(self, session_id: int) -> int:
+        """1 for the first session ever, 2 for the next... (ids can have holes)."""
+        return self._read("SELECT COUNT(*) FROM sessions WHERE id <= ?", (session_id,))[0][0]
+
+    def match_number(self, match_id: int) -> int:
+        """1 for the first match of its session, 2 for the next..."""
+        return self._read(
+            "SELECT COUNT(*) FROM matches WHERE id <= ? AND session_id = "
+            "(SELECT session_id FROM matches WHERE id = ?)",
+            (match_id, match_id),
+        )[0][0]
+
     # Chat -----------------------------------------------------------------------------------
 
     def add_message(
