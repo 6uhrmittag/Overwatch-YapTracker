@@ -78,7 +78,12 @@ def _watch_for_overwatch(dev: bool) -> None:
     def on_frame(frame) -> None:
         changes.update(frame.image)  # changed bands go to OCR once the pipeline exists (#18)
 
+    def region_for(width: int, height: int):
+        runtime.window_size = (width, height)  # the Live view hints when this changes (#84)
+        return config.chat_region(width, height)
+
     if dev:
+        runtime.window_size = (2560, 1440)  # the demo stands in for a 1440p Overwatch window
         runtime.watcher = CaptureWatcher(
             lambda: 1, lambda _: demo.DemoFrameSource(), on_frame, paused=paused
         )
@@ -89,7 +94,7 @@ def _watch_for_overwatch(dev: bool) -> None:
 
         runtime.watcher = CaptureWatcher(
             find_overwatch,
-            lambda hwnd: WgcFrameSource(hwnd, config.chat_region),
+            lambda hwnd: WgcFrameSource(hwnd, region_for),
             on_frame,
             paused=paused,
         )

@@ -58,8 +58,8 @@ async def test_calibration_saves_the_box_for_the_screenshots_resolution(user: Us
     await user.should_see("615 × 395 px at 55, 510")
     user.find(marker="save").click()
     await user.should_see("Saved")
-    await user.should_see("2560x1440: 615 × 395 px at 55, 510")
-    assert config.saved_chat_region(2560, 1440) is not None
+    await user.should_see("16:9 screens: drawn at 2560×1440, 615 × 395 px at 55, 510")
+    assert "16:9" in config.saved_chat_boxes()
 
 
 async def test_calibration_shows_what_ocr_reads(user: User, monkeypatch):
@@ -127,3 +127,19 @@ async def test_start_with_windows_is_explained_outside_the_installed_app(user: U
     user.find(marker="nav-settings").click()
     await user.should_see("Start with Windows")
     await user.should_see("Only in the installed app (tools/update.ps1).")
+
+
+async def test_live_hints_once_when_the_window_size_changes(user: User, monkeypatch):
+    from yaptracker import config, runtime
+    from yaptracker.capture.source import Region
+    from yaptracker.capture.watcher import CaptureWatcher
+
+    config.save_chat_region(2560, 1440, Region(55, 510, 615, 395))
+    watcher = CaptureWatcher(lambda: None, lambda _: None)
+    watcher.state = "capturing"
+    monkeypatch.setattr(runtime, "watcher", watcher)
+    monkeypatch.setattr(runtime, "window_size", (1920, 1080))
+    await user.open("/")
+    await user.should_see("Overwatch runs at 1920×1080 now.")
+    user.find(marker="size-ok").click()
+    assert not config.size_needs_check(1920, 1080)

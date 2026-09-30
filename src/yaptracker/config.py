@@ -1,11 +1,13 @@
 """User settings in data/config.json. Only what the user changed is stored; the rest is defaults."""
 
 import json
+from dataclasses import asdict, dataclass
+from math import gcd
 from pathlib import Path
 
 from yaptracker import paths
 from yaptracker.capture.changes import ChangeDetector
-from yaptracker.capture.source import Region, default_chat_region
+from yaptracker.capture.source import Region, RelativeRegion, default_chat_region
 from yaptracker.identity import Identity
 from yaptracker.ocr import engine as ocr
 
@@ -21,34 +23,78 @@ def _save(path: Path, data: dict) -> None:
     tmp.replace(path)
 
 
-def _key(width: int, height: int) -> str:
-    return f"{width}x{height}"
+def aspect(width: int, height: int) -> str:
+    """'16:9' for 2560x1440 and 1920x1080 alike: one calibration serves every size of a ratio."""
+    d = gcd(width, height)
+    return f"{width // d}:{height // d}"
 
 
-def saved_chat_regions(path: Path | None = None) -> dict[str, Region]:
-    """Calibrated chat boxes by resolution, e.g. {"2560x1440": Region(...)}."""
-    saved = _load(path or paths.config_file()).get("chat_regions", {})
-    return {resolution: Region(**r) for resolution, r in saved.items()}
+def _chat_boxes(path: Path) -> dict:
+    """Saved chat boxes by aspect ratio. Converts the old per-resolution pixels once (#84)."""
+    data = _load(path)
+    if "chat_regions" in data:  # before #84: {"2560x1440": {"x": 55, ...}} in pixels
+        for size, r in data.pop("chat_regions").items():
+            width, height = (int(n) for n in size.split("x"))
+            box = RelativeRegion.from_pixels(Region(**r), width, height)
+            data.setdefault("chat_boxes", {})[aspect(width, height)] = {
+                **asdict(box),
+                "calibrated_at": [width, height],
+            }
+        _save(path, data)
+    return data.get("chat_boxes", {})
 
 
-def saved_chat_region(width: int, height: int, path: Path | None = None) -> Region | None:
-    return saved_chat_regions(path).get(_key(width, height))
+@dataclass(frozen=True)
+class SavedChatBox:
+    box: RelativeRegion
+    calibrated_at: tuple[int, int]  # the window size it was drawn on
+
+
+def saved_chat_boxes(path: Path | None = None) -> dict[str, SavedChatBox]:
+    """Calibrated chat boxes by aspect ratio, e.g. {"16:9": SavedChatBox(...)}."""
+    return {
+        ratio: SavedChatBox(
+            RelativeRegion(**{k: v for k, v in b.items() if k != "calibrated_at"}),
+            tuple(b["calibrated_at"]),
+        )  # fmt: skip
+        for ratio, b in _chat_boxes(path or paths.config_file()).items()
+    }
 
 
 def chat_region(width: int, height: int, path: Path | None = None) -> Region:
-    """The calibrated chat box for this resolution, or the measured default."""
-    return saved_chat_region(width, height, path) or default_chat_region(width, height)
+    """The chat box in pixels for a window of this size: calibrated for its ratio, or default."""
+    saved = saved_chat_boxes(path).get(aspect(width, height))
+    return saved.box.to_pixels(width, height) if saved else default_chat_region(width, height)
 
 
 def save_chat_region(width: int, height: int, region: Region, path: Path | None = None) -> None:
     path = path or paths.config_file()
+    _chat_boxes(path)  # convert old entries first
     data = _load(path)
-    data.setdefault("chat_regions", {})[_key(width, height)] = {
-        "x": region.x,
-        "y": region.y,
-        "width": region.width,
-        "height": region.height,
+    box = RelativeRegion.from_pixels(region, width, height)
+    data.setdefault("chat_boxes", {})[aspect(width, height)] = {
+        **asdict(box),
+        "calibrated_at": [width, height],
     }
+    checked = set(data.get("checked_sizes", [])) | {f"{width}x{height}"}
+    data["checked_sizes"] = sorted(checked)
+    _save(path, data)
+
+
+def size_needs_check(width: int, height: int, path: Path | None = None) -> bool:
+    """One-time hint: Overwatch runs at a size the chat box wasn't drawn on (#84)."""
+    path = path or paths.config_file()
+    boxes = saved_chat_boxes(path)
+    if not boxes or f"{width}x{height}" in _load(path).get("checked_sizes", []):
+        return False
+    saved = boxes.get(aspect(width, height))
+    return saved is None or saved.calibrated_at != (width, height)
+
+
+def mark_size_checked(width: int, height: int, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["checked_sizes"] = sorted(set(data.get("checked_sizes", [])) | {f"{width}x{height}"})
     _save(path, data)
 
 
