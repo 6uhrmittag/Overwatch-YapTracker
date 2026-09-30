@@ -8,6 +8,10 @@ someone you already know types in chat, YapTracker shows you who they are, when
 you last played together, and what you wrote about them — so you can say hi.
 
 > 🚧 **Work in progress.** Follow the pinned 🗺️ Roadmap issue for progress.
+>
+> 🤖 **Disclaimer:** This project's code is 100% written by AI and driven by human
+> ideas (plus a worrying number of Overwatch matches). Without AI it simply wouldn't
+> exist — so take it or leave it. 💛
 
 ## What it is (and isn't)
 
