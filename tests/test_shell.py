@@ -16,7 +16,7 @@ async def user():
 async def test_opens_on_live(user: User):
     await user.open("/")
     await user.should_see("Live")
-    await user.should_see("No yaps yet. Suspiciously quiet lobby.")
+    await user.should_see("Waiting for Overwatch. I'll be right here.")
 
 
 @pytest.mark.parametrize(
@@ -86,3 +86,22 @@ async def test_me_and_my_crew_saves_names(user: User):
     user.find(marker="remove-Void").click()
     await user.should_not_see(marker="remove-Void")
     assert config.identity().crew == ()
+
+
+async def test_live_view_follows_the_capture(user: User, monkeypatch):
+    import numpy as np
+
+    from yaptracker import runtime
+    from yaptracker.capture.source import Frame
+    from yaptracker.capture.watcher import CaptureWatcher
+
+    watcher = CaptureWatcher(lambda: None, lambda _: None)
+    monkeypatch.setattr(runtime, "watcher", watcher)
+    await user.open("/")
+    await user.should_see("Waiting for Overwatch")
+    watcher.state, watcher.frames = "capturing", 1
+    watcher.last_frame = Frame(0.0, np.zeros((395, 615, 3), np.uint8))
+    user.find(marker="nav-yappers").click()
+    user.find(marker="nav-live").click()
+    await user.should_see("Listening for yaps")
+    await user.should_see("Chat box 615 \u00d7 395 px, 1 frames")

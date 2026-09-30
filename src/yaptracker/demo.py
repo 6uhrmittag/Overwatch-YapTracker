@@ -1,8 +1,13 @@
 """Fake data for `--dev` review in a browser. Made-up names only - the repo is public."""
 
+import threading
+import time
+from collections.abc import Iterator
+
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from yaptracker.capture.source import default_chat_region
+from yaptracker.capture.source import Frame, default_chat_region
 
 ENABLED = False  # set by `python -m yaptracker --dev`
 
@@ -33,3 +38,23 @@ def screenshot(width: int = 2560, height: int = 1440) -> Image.Image:
         draw.text((region.x + 20, y), text, fill=colour, font=font, stroke_width=2, stroke_fill=0)
         y += font.size * 1.6
     return img
+
+
+class DemoFrameSource:
+    """Stands in for the game in --dev: the demo chat box, 4 times a second."""
+
+    def __init__(self, fps: float = 4.0) -> None:
+        self._interval = 1 / fps
+        self._closed = threading.Event()
+        image = screenshot()
+        r = default_chat_region(image.width, image.height)
+        crop = image.crop((r.x, r.y, r.x + r.width, r.y + r.height))
+        self._chat = np.ascontiguousarray(np.asarray(crop)[:, :, ::-1])
+
+    def frames(self) -> Iterator[Frame]:
+        start = time.monotonic()
+        while not self._closed.wait(self._interval):
+            yield Frame(time.monotonic() - start, self._chat)
+
+    def close(self) -> None:
+        self._closed.set()
