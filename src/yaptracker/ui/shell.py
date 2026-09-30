@@ -6,6 +6,7 @@ from pathlib import Path
 
 from nicegui import app, ui
 
+from yaptracker import runtime
 from yaptracker.ui import icons, views
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -78,3 +79,14 @@ def root() -> None:
         content = ui.element("main").classes("yt-main")
 
     show(VIEWS[0].key)
+
+    # Paused must be visible from any view and from the taskbar (#20).
+    title = {"paused": None}
+
+    def update_title() -> None:
+        paused = runtime.pause.paused
+        if paused != title["paused"]:
+            title["paused"] = paused
+            ui.page_title("YapTracker - paused" if paused else "YapTracker")
+
+    ui.timer(1.0, update_title)

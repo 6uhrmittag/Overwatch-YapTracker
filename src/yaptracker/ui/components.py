@@ -16,12 +16,24 @@ def button(
     label: str,
     on_click: Callable[[], object],
     variant: Literal["primary", "secondary", "quiet"] = "secondary",
+    keycap: str | None = None,
 ) -> ui.element:
-    """Chunky arcade button: hard bottom shadow, pressed = shadow gone, 3 px down."""
+    """Chunky arcade button: hard bottom shadow, pressed = shadow gone, 3 px down.
+
+    `keycap` shows the hotkey next to the label, e.g. "Ctrl Alt P" (docs/ui.md).
+    """
     with ui.element("button").classes(f"yt-btn yt-btn--{variant}").props('type="button"') as b:
-        ui.label(label)
+        ui.label(label).classes("yt-btn-label")
+        if keycap:
+            ui.label(keycap).classes("yt-keycap")
     b.on("click", on_click)
     return b
+
+
+def set_button_label(b: ui.element, label: str) -> None:
+    next(child for child in b.default_slot.children if "yt-btn-label" in child.classes).set_text(
+        label
+    )
 
 
 def saved_chip() -> None:

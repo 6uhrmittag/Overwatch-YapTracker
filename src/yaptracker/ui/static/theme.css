@@ -90,6 +90,8 @@ html, body { background: var(--yt-night); }
   .yt-pill--waiting { background: var(--yt-panel); border: 1px solid var(--yt-line-strong); color: var(--yt-muted); }
   .yt-pill--listening { background: #1c2a22; border: 1px solid #2f5a3a; color: var(--yt-ok); }
   .yt-pill--listening .yt-pill-dot { animation: yt-pulse 1.6s infinite; }
+  .yt-pill--paused { background: #2e2210; border: 1px solid #5c4216; color: var(--yt-accent); }
+  .yt-keycap { padding: 2px 7px; border-radius: 6px; background: #262d3a; border-bottom: 2px solid #0b0d12; font-size: 12px; font-weight: 800; color: var(--yt-muted); }
 
   /* Chat channel legend */
   .yt-legend { display: flex; gap: 12px; font-size: 13px; font-weight: 700; }
