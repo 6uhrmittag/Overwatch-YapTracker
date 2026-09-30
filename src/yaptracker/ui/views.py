@@ -4,10 +4,10 @@ import numpy as np
 from nicegui import ui
 from PIL import Image
 
-from yaptracker import __version__, config, runtime
+from yaptracker import __version__, autostart, config, runtime
 from yaptracker.capture.watcher import fps
 from yaptracker.ui.calibrate import calibrate
-from yaptracker.ui.components import button, saved_chip, set_button_label
+from yaptracker.ui.components import button, saved_chip, set_button_label, switch
 from yaptracker.ui.crew import crew_card
 
 
@@ -157,6 +157,23 @@ def settings() -> None:
                             "Not calibrated yet. I'll use the usual spot, which fits 16:9 screens."
                         ).classes("yt-hint")
             crew_card()
+            with ui.element("section").classes("yt-card").mark("startup"):
+                with ui.element("div").classes("yt-card-head"):
+                    ui.label("Startup").classes("yt-h2")
+                with ui.element("div").classes("yt-card-body"):
+                    supported = autostart.supported()
+                    switch(
+                        "Start with Windows",
+                        autostart.enabled(),
+                        autostart.set_enabled,
+                        disabled=not supported,
+                    ).mark("autostart")
+                    ui.label(
+                        "Waits quietly in the taskbar until Overwatch starts, so no evening "
+                        "is lost because YapTracker wasn't open."
+                        if supported
+                        else "Only in the installed app (tools/update.ps1)."
+                    ).classes("yt-hint")
             with ui.element("section").classes("yt-card").mark("about"):
                 with ui.element("div").classes("yt-card-head"):
                     ui.label("About").classes("yt-h2")

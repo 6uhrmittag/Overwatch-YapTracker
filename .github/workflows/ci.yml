@@ -56,8 +56,8 @@ jobs:
           "VERSION=$version" >> $env:GITHUB_ENV
           "version=$version" >> $env:GITHUB_OUTPUT
       - run: pip install .[dev] pyinstaller
-      - name: Windows-only tests (Windows OCR, WGC capture, hotkeys)
-        run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py tests/test_hotkeys_windows.py -v
+      - name: Windows-only tests (Windows OCR, WGC capture, hotkeys, autostart)
+        run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py tests/test_hotkeys_windows.py tests/test_autostart_windows.py -v
       - run: pyinstaller --noconfirm packaging/yaptracker.spec
       - name: Licenses ship with the app
         run: |
@@ -79,6 +79,23 @@ jobs:
         run: |
           if (Select-String -Path "$env:LOCALAPPDATA/YapTracker/data/logs/yaptracker.log" -Pattern 'Could not set native' -Quiet) {
             throw 'NiceGUI could not set the window/taskbar icon (see app log)'
+          }
+      - name: Start with Windows, and only one instance
+        timeout-minutes: 3
+        run: |
+          $exe = (Resolve-Path dist/YapTracker/YapTracker.exe).Path
+          $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          $first = Start-Process $exe -ArgumentList '--autostart on' -PassThru
+          try {
+            Start-Sleep -Seconds 15
+            $entry = (Get-ItemProperty $run -Name YapTracker -ErrorAction Stop).YapTracker
+            if ($entry -ne "`"$exe`" --background") { throw "Run entry is: $entry" }
+            $second = Start-Process $exe -PassThru
+            if (-not $second.WaitForExit(20000)) { throw 'the second YapTracker did not exit' }
+            if ($first.HasExited) { throw 'the first YapTracker died' }
+          } finally {
+            Get-Process YapTracker -ErrorAction SilentlyContinue | Stop-Process -Force
+            Remove-ItemProperty $run -Name YapTracker -ErrorAction SilentlyContinue
           }
       - uses: actions/upload-artifact@v7
         with:
