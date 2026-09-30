@@ -343,6 +343,10 @@ lookup · `Ctrl+Alt+M` new match (override only) · `Ctrl+Alt+P` pause
   for fake ones, plus expected parse results.
 - Unit tests: parser, dedup, matcher. Replay tests: frame sequence → expected
   message list.
+- From M2 on, the app **collects its own samples** (#63): hard chat frames and
+  match-signal frames land in `%LOCALAPPDATA%\YapTracker\data\debug\`, readable from
+  WSL at `/mnt/c/Users/marvi/AppData/Local/YapTracker/data/debug/`. Use them for new
+  tests instead of asking Marv for screenshots. Same privacy rules as `fixtures/private/`.
 
 ---
 

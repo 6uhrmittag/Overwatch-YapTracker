@@ -13,3 +13,4 @@ One line each, newest at the bottom. Link the issue.
 - 2026-09-29 — Versions: `v0.<milestone>.<run_number>` from `MILESTONE` in `.github/workflows/ci.yml` (bump it when closing a milestone); PR builds are `...+pr<N>` and never released (#5).
 - 2026-09-29 — Real screenshots reviewed (#7, #8): brackets wrap names not channels, channel = icon + colour, team colour is user-configurable (green here). Match start = hero-select screen (no "joined match chat" line exists); map/mode/hero stored when read (#13, #21).
 - 2026-09-29 — Full OBS match recordings are the main replay material; frames are extracted by a script, recordings stay on Windows, nothing committed.
+- 2026-09-30 — The app collects its own debug samples (hard OCR frames, match-signal frames) from M2 on, so manual screenshot collection stops (#63).
