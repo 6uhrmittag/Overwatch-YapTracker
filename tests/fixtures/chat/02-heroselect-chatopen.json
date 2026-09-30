@@ -1,0 +1,84 @@
+{
+ "ocr": [
+  {
+   "text": "[NoodleBonk] started playing Overwatch.",
+   "confidence": 0.999,
+   "box": [
+    64,
+    166,
+    449,
+    28
+   ]
+  },
+  {
+   "text": "[NoodleBonk] invited you to a group!",
+   "confidence": 0.994,
+   "box": [
+    64,
+    206,
+    402,
+    28
+   ]
+  },
+  {
+   "text": "You have joined a group!",
+   "confidence": 0.996,
+   "box": [
+    64,
+    246,
+    270,
+    28
+   ]
+  },
+  {
+   "text": "[tortillaTank]: yooooo gaaaaang :3",
+   "confidence": 0.998,
+   "box": [
+    66,
+    288,
+    388,
+    26
+   ]
+  },
+  {
+   "text": "[Match] have a",
+   "confidence": 0.969,
+   "box": [
+    58,
+    349,
+    178,
+    28
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "system",
+   "channel": "system",
+   "text": "[NoodleBonk] started playing Overwatch.",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "system",
+   "channel": "system",
+   "text": "[NoodleBonk] invited you to a group!",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "system",
+   "channel": "system",
+   "text": "You have joined a group!"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "yooooo gaaaaang :3",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "input",
+   "channel": "unknown",
+   "text": "[Match] have a"
+  }
+ ]
+}

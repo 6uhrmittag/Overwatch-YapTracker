@@ -1,0 +1,143 @@
+{
+ "ocr": [
+  {
+   "text": "yappci",
+   "confidence": 0.81,
+   "box": [
+    64,
+    24,
+    74,
+    22
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: mb",
+   "confidence": 1.0,
+   "box": [
+    66,
+    58,
+    203,
+    24
+   ]
+  },
+  {
+   "text": "[CopperCatXO]: genuinely stop typing or i leave",
+   "confidence": 0.984,
+   "box": [
+    66,
+    96,
+    462,
+    28
+   ]
+  },
+  {
+   "text": "this lobby right now for good [Report]",
+   "confidence": 0.992,
+   "box": [
+    64,
+    125,
+    333,
+    28
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: How is that my problem",
+   "confidence": 0.998,
+   "box": [
+    66,
+    168,
+    420,
+    24
+   ]
+  },
+  {
+   "text": "[tortillaTank]: omg bubuuu",
+   "confidence": 0.999,
+   "box": [
+    67,
+    208,
+    300,
+    24
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: gg wp",
+   "confidence": 0.988,
+   "box": [
+    65,
+    246,
+    236,
+    30
+   ]
+  },
+  {
+   "text": "[Bobbin]: gg",
+   "confidence": 0.996,
+   "box": [
+    64,
+    286,
+    122,
+    30
+   ]
+  },
+  {
+   "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+   "confidence": 0.965,
+   "box": [
+    58,
+    348,
+    430,
+    28
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "cut",
+   "channel": "unknown",
+   "text": "yappci"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "mb",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "genuinely stop typing or i leave this lobby right now for good",
+   "speaker": "CopperCatXO",
+   "flagged": true
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "How is that my problem",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "omg bubuuu",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "gg wp",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "gg",
+   "speaker": "Bobbin"
+  },
+  {
+   "kind": "input",
+   "channel": "unknown",
+   "text": "[Match] PRESS TAB TO CYCLE CHANNELS"
+  }
+ ]
+}

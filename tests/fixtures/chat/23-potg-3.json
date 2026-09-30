@@ -1,0 +1,121 @@
+{
+ "ocr": [
+  {
+   "text": "[NoodleBonk]j: gg wp",
+   "confidence": 0.921,
+   "box": [
+    62,
+    86,
+    242,
+    34
+   ]
+  },
+  {
+   "text": "[Bobbinkgg",
+   "confidence": 0.912,
+   "box": [
+    64,
+    129,
+    121,
+    26
+   ]
+  },
+  {
+   "text": "[tortillaTank]: very fun game everyone <3",
+   "confidence": 0.959,
+   "box": [
+    65,
+    170,
+    460,
+    26
+   ]
+  },
+  {
+   "text": "[FinalWaffle]:Sombra, next time, more damage,",
+   "confidence": 0.966,
+   "box": [
+    64,
+    210,
+    504,
+    28
+   ]
+  },
+  {
+   "text": "less talk to enemies",
+   "confidence": 0.953,
+   "box": [
+    63,
+    238,
+    215,
+    26
+   ]
+  },
+  {
+   "text": "[tortillaTank]: copper please come down the",
+   "confidence": 0.982,
+   "box": [
+    64,
+    279,
+    472,
+    24
+   ]
+  },
+  {
+   "text": "ladderrrrr",
+   "confidence": 0.986,
+   "box": [
+    66,
+    309,
+    96,
+    22
+   ]
+  },
+  {
+   "text": "[FinalWaffle]: thx",
+   "confidence": 0.997,
+   "box": [
+    64,
+    347,
+    176,
+    26
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "gg wp",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "unknown",
+   "channel": "unknown",
+   "text": "[Bobbinkgg"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "very fun game everyone <3",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "Sombra, next time, more damage, less talk to enemies",
+   "speaker": "FinalWaffle"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "copper please come down the ladderrrrr",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "thx",
+   "speaker": "FinalWaffle"
+  }
+ ]
+}

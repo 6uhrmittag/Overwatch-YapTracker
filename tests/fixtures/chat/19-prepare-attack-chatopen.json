@@ -1,0 +1,144 @@
+{
+ "ocr": [
+  {
+   "text": "IICIIU!",
+   "confidence": 0.609,
+   "box": [
+    64,
+    26,
+    64,
+    14
+   ]
+  },
+  {
+   "text": "NoodleBonk (Sierra): Hello!",
+   "confidence": 0.986,
+   "box": [
+    64,
+    58,
+    308,
+    24
+   ]
+  },
+  {
+   "text": "NoodleBonk (Sierra): Fall back!",
+   "confidence": 0.992,
+   "box": [
+    62,
+    97,
+    350,
+    26
+   ]
+  },
+  {
+   "text": "[tortillaTank]: swords are so barbaricx",
+   "confidence": 0.999,
+   "box": [
+    65,
+    136,
+    424,
+    26
+   ]
+  },
+  {
+   "text": "[tortillaTank]: lets just talk",
+   "confidence": 0.999,
+   "box": [
+    67,
+    178,
+    293,
+    24
+   ]
+  },
+  {
+   "text": "[CopperCatXQ]: sierra i hope you get stuck on",
+   "confidence": 0.977,
+   "box": [
+    66,
+    218,
+    490,
+    26
+   ]
+  },
+  {
+   "text": "the payload",
+   "confidence": 0.997,
+   "box": [
+    64,
+    246,
+    100,
+    23
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: Whew okay",
+   "confidence": 0.999,
+   "box": [
+    64,
+    286,
+    296,
+    28
+   ]
+  },
+  {
+   "text": "[Match] uwwili",
+   "confidence": 0.947,
+   "box": [
+    58,
+    349,
+    162,
+    28
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "cut",
+   "channel": "unknown",
+   "text": "IICIIU!"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Hello!",
+   "speaker": "NoodleBonk",
+   "hero": "Sierra"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Fall back!",
+   "speaker": "NoodleBonk",
+   "hero": "Sierra"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "swords are so barbaricx",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "lets just talk",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "sierra i hope you get stuck on the payload",
+   "speaker": "CopperCatXQ"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "Whew okay",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "input",
+   "channel": "unknown",
+   "text": "[Match] uwwili"
+  }
+ ]
+}

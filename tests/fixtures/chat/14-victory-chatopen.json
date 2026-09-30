@@ -1,0 +1,147 @@
+{
+ "ocr": [
+  {
+   "text": "Lvuiuuiuiiieuj.oiiltAn",
+   "confidence": 0.589,
+   "box": [
+    64,
+    26,
+    253,
+    16
+   ]
+  },
+  {
+   "text": "NoodleBonk (Sierra) to you: Hello!",
+   "confidence": 0.988,
+   "box": [
+    63,
+    58,
+    382,
+    26
+   ]
+  },
+  {
+   "text": "tortillaTank (Sombra): Thanks!",
+   "confidence": 0.999,
+   "box": [
+    64,
+    98,
+    350,
+    26
+   ]
+  },
+  {
+   "text": "MaybeMaybe (Mauga): Enemy Tracer!",
+   "confidence": 0.984,
+   "box": [
+    65,
+    138,
+    433,
+    26
+   ]
+  },
+  {
+   "text": "[tortillaTank]: tracer come heereee I have",
+   "confidence": 0.998,
+   "box": [
+    66,
+    178,
+    462,
+    24
+   ]
+  },
+  {
+   "text": "cookies",
+   "confidence": 0.999,
+   "box": [
+    64,
+    206,
+    84,
+    24
+   ]
+  },
+  {
+   "text": "zappy (Zenyatta) wants to stop the robot!",
+   "confidence": 0.999,
+   "box": [
+    64,
+    246,
+    440,
+    28
+   ]
+  },
+  {
+   "text": "[mossyfox]: gg",
+   "confidence": 0.999,
+   "box": [
+    64,
+    286,
+    138,
+    30
+   ]
+  },
+  {
+   "text": "[Match] EEEH",
+   "confidence": 0.999,
+   "box": [
+    58,
+    350,
+    162,
+    26
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "cut",
+   "channel": "unknown",
+   "text": "Lvuiuuiuiiieuj.oiiltAn"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Hello!",
+   "speaker": "NoodleBonk",
+   "hero": "Sierra",
+   "target": "you"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Thanks!",
+   "speaker": "tortillaTank",
+   "hero": "Sombra"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Enemy Tracer!",
+   "speaker": "MaybeMaybe",
+   "hero": "Mauga"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "tracer come heereee I have cookies",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "wants to stop the robot!",
+   "speaker": "zappy",
+   "hero": "Zenyatta"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "gg",
+   "speaker": "mossyfox"
+  },
+  {
+   "kind": "input",
+   "channel": "unknown",
+   "text": "[Match] EEEH"
+  }
+ ]
+}

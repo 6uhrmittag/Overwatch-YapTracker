@@ -1,0 +1,118 @@
+{
+ "ocr": [
+  {
+   "text": "You have joined a group!",
+   "confidence": 0.995,
+   "box": [
+    65,
+    109,
+    266,
+    24
+   ]
+  },
+  {
+   "text": "[tortillaTank]: yooooo gaaaaang .3",
+   "confidence": 0.8,
+   "box": [
+    66,
+    149,
+    386,
+    24
+   ]
+  },
+  {
+   "text": "[tortillaTank]: have a UwU match :3",
+   "confidence": 0.97,
+   "box": [
+    68,
+    188,
+    401,
+    24
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: Heyy",
+   "confidence": 0.991,
+   "box": [
+    65,
+    226,
+    226,
+    30
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: glhf <3",
+   "confidence": 0.977,
+   "box": [
+    66,
+    268,
+    243,
+    26
+   ]
+  },
+  {
+   "text": "NoodleBonk (Sierra): Group up!",
+   "confidence": 0.988,
+   "box": [
+    64,
+    307,
+    358,
+    28
+   ]
+  },
+  {
+   "text": "[SirPeelsALot]: X3 nuzzles",
+   "confidence": 0.995,
+   "box": [
+    66,
+    348,
+    275,
+    26
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "system",
+   "channel": "system",
+   "text": "You have joined a group!"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "yooooo gaaaaang .3",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "have a UwU match :3",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "Heyy",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "glhf <3",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Group up!",
+   "speaker": "NoodleBonk",
+   "hero": "Sierra"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "X3 nuzzles",
+   "speaker": "SirPeelsALot"
+  }
+ ]
+}

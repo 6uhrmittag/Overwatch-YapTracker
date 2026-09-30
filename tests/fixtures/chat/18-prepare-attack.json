@@ -1,0 +1,123 @@
+{
+ "ocr": [
+  {
+   "text": "[tortillaTank]: lets just talk",
+   "confidence": 0.985,
+   "box": [
+    67,
+    91,
+    292,
+    22
+   ]
+  },
+  {
+   "text": "[CopperCatXQ]: sierra i hope you get stuck on",
+   "confidence": 0.96,
+   "box": [
+    66,
+    130,
+    490,
+    24
+   ]
+  },
+  {
+   "text": "the payload",
+   "confidence": 0.949,
+   "box": [
+    64,
+    159,
+    100,
+    23
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: Whew okay",
+   "confidence": 0.999,
+   "box": [
+    64,
+    198,
+    296,
+    28
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: I'm already feeling quite hot so",
+   "confidence": 0.996,
+   "box": [
+    66,
+    239,
+    496,
+    25
+   ]
+  },
+  {
+   "text": "maybe it's your lucky day?",
+   "confidence": 0.991,
+   "box": [
+    64,
+    269,
+    282,
+    25
+   ]
+  },
+  {
+   "text": "[tortillaTank]: uwwii barbaric too",
+   "confidence": 0.984,
+   "box": [
+    66,
+    308,
+    366,
+    26
+   ]
+  },
+  {
+   "text": "tortillaTank (Sombra): I need healing!",
+   "confidence": 0.987,
+   "box": [
+    63,
+    347,
+    423,
+    27
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "lets just talk",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "sierra i hope you get stuck on the payload",
+   "speaker": "CopperCatXQ"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "Whew okay",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "I'm already feeling quite hot so maybe it's your lucky day?",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "uwwii barbaric too",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "I need healing!",
+   "speaker": "tortillaTank",
+   "hero": "Sombra"
+  }
+ ]
+}

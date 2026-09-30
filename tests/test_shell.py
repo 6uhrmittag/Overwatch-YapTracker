@@ -69,5 +69,6 @@ async def test_calibration_shows_what_ocr_reads(user: User, monkeypatch):
     await user.open("/")
     user.find(marker="nav-settings").click()
     user.find(marker="calibrate").click()
-    await user.should_see("6 lines", retries=100)
-    await user.should_see("[tortillaTank]: not the wahoo guy again", retries=5)
+    await user.should_see("6 yaps", retries=100)
+    await user.should_see("not the wahoo guy again", retries=5)
+    await user.should_see("SirPeelsALot (Reinhardt):", retries=5)

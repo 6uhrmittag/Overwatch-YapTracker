@@ -1,0 +1,118 @@
+{
+ "ocr": [
+  {
+   "text": "[tortillaTank]: outch",
+   "confidence": 0.999,
+   "box": [
+    66,
+    108,
+    226,
+    24
+   ]
+  },
+  {
+   "text": "[tortillaTank]: where areeee uu?",
+   "confidence": 0.99,
+   "box": [
+    67,
+    148,
+    361,
+    24
+   ]
+  },
+  {
+   "text": "[tortillaTank]: ah hei",
+   "confidence": 0.999,
+   "box": [
+    67,
+    188,
+    232,
+    24
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: gg wp",
+   "confidence": 0.973,
+   "box": [
+    65,
+    226,
+    236,
+    30
+   ]
+  },
+  {
+   "text": "[tortillaTank]: whoops",
+   "confidence": 0.999,
+   "box": [
+    66,
+    268,
+    250,
+    26
+   ]
+  },
+  {
+   "text": "[blorpy]: w c9",
+   "confidence": 0.973,
+   "box": [
+    66,
+    308,
+    152,
+    27
+   ]
+  },
+  {
+   "text": "[ZIP]: gg",
+   "confidence": 0.946,
+   "box": [
+    64,
+    347,
+    100,
+    30
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "outch",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "where areeee uu?",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "ah hei",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "gg wp",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "whoops",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "w c9",
+   "speaker": "blorpy"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "gg",
+   "speaker": "ZIP"
+  }
+ ]
+}

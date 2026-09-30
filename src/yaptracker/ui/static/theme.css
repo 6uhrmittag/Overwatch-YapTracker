@@ -136,6 +136,12 @@ html, body { background: var(--yt-night); }
   .yt-read-lines { display: flex; flex-direction: column; gap: 4px; }
   .yt-read-line { display: flex; align-items: baseline; gap: 10px; font-size: 15px; }
   .yt-read-text { flex-grow: 1; min-width: 0; overflow-wrap: anywhere; }
+  .yt-read-text > * { display: inline; }
+  .yt-read-chip { flex-shrink: 0; width: 64px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+  .yt-read-speaker { font-weight: 800; margin-right: 6px; }
+  .yt-read-line.is-ignored { opacity: .5; }
+  .yt-ch-chat, .yt-ch-ignored { color: var(--yt-muted); }
+  .yt-ch-unknown { color: var(--yt-danger); }
   .yt-conf { flex-shrink: 0; font-size: 13px; font-weight: 700; color: var(--yt-faint); }
   .yt-conf--low { color: var(--yt-danger); }
 }
