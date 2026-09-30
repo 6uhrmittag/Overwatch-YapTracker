@@ -16,3 +16,4 @@ One line each, newest at the bottom. Link the issue.
 - 2026-09-30 — The app collects its own debug samples (hard OCR frames, match-signal frames) from M2 on, so manual screenshot collection stops (#63).
 - 2026-09-30 — Yap snaps (chat messages → styled PNG) added to M4, built on the transcript view; style controls are the parkable part (#64, #65).
 - 2026-09-30 — Full open-data export (JSON + Markdown, documented schema, optional anonymized names) in M4; README states the code is written by AI (#69).
+- 2026-09-30 — OCR engine: **RapidOCR on the 2× upscaled chat box** (99.8 % chars, 98 % names on 8 hand-checked crops) beats Windows OCR (best 88.6 % / 76 %, loses lines on bright or faded backgrounds). Windows OCR stays as the fallback setting; it is ~10× faster. RapidOCR costs ~590 ms per box on one core, so M2 must OCR changed rows only (#11, #17).
