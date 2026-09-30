@@ -1,0 +1,128 @@
+{
+ "ocr": [
+  {
+   "text": "penguin42 (Moira): Enemy Junkrat!",
+   "confidence": 0.997,
+   "box": [
+    64,
+    91,
+    379,
+    22
+   ]
+  },
+  {
+   "text": "[tortillaTank]: lalilu",
+   "confidence": 0.995,
+   "box": [
+    67,
+    131,
+    214,
+    22
+   ]
+  },
+  {
+   "text": "NoodleBonk (Sierra) to you: Thanks!",
+   "confidence": 0.992,
+   "box": [
+    64,
+    170,
+    406,
+    26
+   ]
+  },
+  {
+   "text": "penguin42 (Moira): My ultimate (Coalescence)",
+   "confidence": 0.998,
+   "box": [
+    64,
+    212,
+    494,
+    22
+   ]
+  },
+  {
+   "text": "is charging! 76%",
+   "confidence": 0.977,
+   "box": [
+    100,
+    240,
+    178,
+    24
+   ]
+  },
+  {
+   "text": "penguin42 (Moira): Enemy Junkrat!",
+   "confidence": 0.978,
+   "box": [
+    64,
+    280,
+    380,
+    24
+   ]
+  },
+  {
+   "text": "penguin42 (Moira): Enemy D.Va at Critical",
+   "confidence": 0.996,
+   "box": [
+    63,
+    319,
+    456,
+    26
+   ]
+  },
+  {
+   "text": "Health!",
+   "confidence": 0.992,
+   "box": [
+    64,
+    348,
+    78,
+    22
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Enemy Junkrat!",
+   "speaker": "penguin42",
+   "hero": "Moira"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "lalilu",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Thanks!",
+   "speaker": "NoodleBonk",
+   "hero": "Sierra",
+   "target": "you"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "My ultimate (Coalescence) is charging! 76%",
+   "speaker": "penguin42",
+   "hero": "Moira"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Enemy Junkrat!",
+   "speaker": "penguin42",
+   "hero": "Moira"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Enemy D.Va at Critical Health!",
+   "speaker": "penguin42",
+   "hero": "Moira"
+  }
+ ]
+}

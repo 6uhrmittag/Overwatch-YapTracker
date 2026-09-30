@@ -6,8 +6,21 @@ from PIL import Image
 
 from yaptracker import config
 from yaptracker.ocr import engine as ocr
+from yaptracker.parser import ChatLine, parse
 
 LOW_CONFIDENCE = 0.8
+YAP_KINDS = {"message", "comms", "system"}
+# Label and colour class per line; typed chat gets its team/match colour from #14.
+_CHIPS = {"team": "Team", "match": "Match", "group": "Group", "system": "System"}
+_IGNORED = {"input": "Input line", "cut": "Cut off"}
+
+
+def _chip(line: ChatLine) -> tuple[str, str]:
+    if line.kind in _IGNORED:
+        return _IGNORED[line.kind], "yt-ch-ignored"
+    if line.channel in _CHIPS:
+        return _CHIPS[line.channel], f"yt-ch-{line.channel}"
+    return ("Chat", "yt-ch-chat") if line.kind == "message" else ("?", "yt-ch-unknown")
 
 
 class ReadPreview:
@@ -65,17 +78,30 @@ class ReadPreview:
             raise
         if request != self._request:
             return  # the box moved again while this read was running
-        self._count.set_text(f"{len(lines)} lines")
+        chat = parse(lines)
+        yaps = sum(line.kind in YAP_KINDS for line in chat)
+        self._count.set_text(f"{yaps} yaps")
         self._count.classes(remove="yt-hidden")
         self._lines.clear()
         with self._lines:
-            if not lines:
+            if not chat:
                 ui.label("Nothing readable in the box. Is the chat inside it?").classes("yt-hint")
-            for line in lines:
-                with ui.element("div").classes("yt-read-line"):
-                    ui.label(line.text).classes("yt-read-text")
-                    low = " yt-conf--low" if line.confidence < LOW_CONFIDENCE else ""
-                    ui.label(f"{line.confidence:.0%}").classes("yt-conf" + low)
+            for line in chat:
+                self._render(line)
+
+    def _render(self, line: ChatLine) -> None:
+        label, colour = _chip(line)
+        ignored = " is-ignored" if line.kind in _IGNORED else ""
+        with ui.element("div").classes("yt-read-line" + ignored):
+            ui.label(label).classes(f"yt-read-chip {colour}")
+            with ui.element("div").classes("yt-read-text"):
+                if line.speaker and line.kind != "system":
+                    who = line.speaker + (f" ({line.hero})" if line.hero else "")
+                    who += f" to {line.target}" if line.target else ""
+                    ui.label(who + ":").classes(f"yt-read-speaker {colour}")
+                ui.label(line.text).classes("yt-read-message")
+            low = " yt-conf--low" if line.confidence < LOW_CONFIDENCE else ""
+            ui.label(f"{line.confidence:.0%}").classes("yt-conf" + low)
 
     def _set_hint(self, text: str) -> None:
         self._count.classes(add="yt-hidden")

@@ -1,0 +1,128 @@
+{
+ "ocr": [
+  {
+   "text": "yapμci",
+   "confidence": 0.854,
+   "box": [
+    63,
+    84,
+    74,
+    22
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: mb",
+   "confidence": 0.996,
+   "box": [
+    64,
+    119,
+    205,
+    26
+   ]
+  },
+  {
+   "text": "[CopperCatKO]: genuinely stop typing or i leave",
+   "confidence": 0.964,
+   "box": [
+    65,
+    158,
+    464,
+    28
+   ]
+  },
+  {
+   "text": "this lobby right now for good [Report]",
+   "confidence": 0.99,
+   "box": [
+    64,
+    187,
+    333,
+    28
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: How is that my problem",
+   "confidence": 0.985,
+   "box": [
+    65,
+    228,
+    422,
+    26
+   ]
+  },
+  {
+   "text": "[tortillaTank]: omg bubuuu",
+   "confidence": 0.998,
+   "box": [
+    64,
+    268,
+    302,
+    26
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: gg wp",
+   "confidence": 0.978,
+   "box": [
+    65,
+    308,
+    236,
+    28
+   ]
+  },
+  {
+   "text": "[Bobbin]: gg",
+   "confidence": 0.998,
+   "box": [
+    64,
+    347,
+    122,
+    30
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "cut",
+   "channel": "unknown",
+   "text": "yapμci"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "mb",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "genuinely stop typing or i leave this lobby right now for good",
+   "speaker": "CopperCatKO",
+   "flagged": true
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "How is that my problem",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "omg bubuuu",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "gg wp",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "gg",
+   "speaker": "Bobbin"
+  }
+ ]
+}

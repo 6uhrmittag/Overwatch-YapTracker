@@ -1,0 +1,100 @@
+{
+ "ocr": [
+  {
+   "text": "[NoodleBonk] started playing Overwatch.",
+   "confidence": 0.998,
+   "box": [
+    66,
+    189,
+    449,
+    24
+   ]
+  },
+  {
+   "text": "[NoodleBonk] invited you to a group!",
+   "confidence": 0.987,
+   "box": [
+    66,
+    228,
+    406,
+    25
+   ]
+  },
+  {
+   "text": "You have joined a group!",
+   "confidence": 0.97,
+   "box": [
+    62,
+    268,
+    270,
+    28
+   ]
+  },
+  {
+   "text": "[tortillaTank]: yooooo gaaaaangy8",
+   "confidence": 0.95,
+   "box": [
+    64,
+    306,
+    390,
+    32
+   ]
+  },
+  {
+   "text": "[tortillaTank]: have a UwU match :3",
+   "confidence": 0.977,
+   "box": [
+    66,
+    348,
+    404,
+    26
+   ]
+  },
+  {
+   "text": "LEVEL35",
+   "confidence": 0.995,
+   "box": [
+    380,
+    371,
+    88,
+    20
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "system",
+   "channel": "system",
+   "text": "[NoodleBonk] started playing Overwatch.",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "system",
+   "channel": "system",
+   "text": "[NoodleBonk] invited you to a group!",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "system",
+   "channel": "system",
+   "text": "You have joined a group!"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "yooooo gaaaaangy8",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "have a UwU match :3",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "unknown",
+   "channel": "unknown",
+   "text": "LEVEL35"
+  }
+ ]
+}

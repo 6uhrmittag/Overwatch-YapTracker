@@ -1,0 +1,140 @@
+{
+ "ocr": [
+  {
+   "text": "zaGT (Zenyatta): Enemy Tracer discorded here!",
+   "confidence": 0.887,
+   "box": [
+    60,
+    106,
+    524,
+    32
+   ]
+  },
+  {
+   "text": "zappy (Zenyatta): Group up!",
+   "confidence": 0.998,
+   "box": [
+    63,
+    150,
+    307,
+    23
+   ]
+  },
+  {
+   "text": "NoodleBonk (Sierra): Thanks!",
+   "confidence": 0.997,
+   "box": [
+    64,
+    188,
+    332,
+    26
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: Oops XD",
+   "confidence": 0.98,
+   "box": [
+    66,
+    228,
+    250,
+    24
+   ]
+  },
+  {
+   "text": "NoodleBonk (Sierra) to you: Hello!",
+   "confidence": 0.994,
+   "box": [
+    64,
+    267,
+    380,
+    28
+   ]
+  },
+  {
+   "text": "tortillaTank (Sombra): Thanks!",
+   "confidence": 0.983,
+   "box": [
+    60,
+    308,
+    354,
+    26
+   ]
+  },
+  {
+   "text": "GAL",
+   "confidence": 0.993,
+   "box": [
+    113,
+    328,
+    49,
+    20
+   ]
+  },
+  {
+   "text": "MaybeMaybe (Mauga): Enemy Tracer!",
+   "confidence": 0.998,
+   "box": [
+    61,
+    346,
+    437,
+    28
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Enemy Tracer discorded here!",
+   "speaker": "zaGT",
+   "hero": "Zenyatta"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Group up!",
+   "speaker": "zappy",
+   "hero": "Zenyatta"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Thanks!",
+   "speaker": "NoodleBonk",
+   "hero": "Sierra"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "Oops XD",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Hello!",
+   "speaker": "NoodleBonk",
+   "hero": "Sierra",
+   "target": "you"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Thanks!",
+   "speaker": "tortillaTank",
+   "hero": "Sombra"
+  },
+  {
+   "kind": "unknown",
+   "channel": "unknown",
+   "text": "GAL"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Enemy Tracer!",
+   "speaker": "MaybeMaybe",
+   "hero": "Mauga"
+  }
+ ]
+}

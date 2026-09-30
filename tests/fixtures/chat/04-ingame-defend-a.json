@@ -1,0 +1,130 @@
+{
+ "ocr": [
+  {
+   "text": "AKal! :InalimninninA1",
+   "confidence": 0.679,
+   "box": [
+    64,
+    84,
+    226,
+    22
+   ]
+  },
+  {
+   "text": "[tortillaTank]: rarwwww",
+   "confidence": 0.998,
+   "box": [
+    66,
+    120,
+    266,
+    24
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: glhf <3",
+   "confidence": 0.998,
+   "box": [
+    66,
+    160,
+    242,
+    24
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: Good kitty",
+   "confidence": 0.999,
+   "box": [
+    65,
+    198,
+    278,
+    28
+   ]
+  },
+  {
+   "text": "[Bapricot]: son",
+   "confidence": 0.988,
+   "box": [
+    66,
+    240,
+    185,
+    24
+   ]
+  },
+  {
+   "text": "WaffleWizard (Zenyatta) to PixelPudding",
+   "confidence": 0.999,
+   "box": [
+    64,
+    278,
+    418,
+    28
+   ]
+  },
+  {
+   "text": "(Ramattra): Hello!",
+   "confidence": 0.992,
+   "box": [
+    68,
+    310,
+    188,
+    24
+   ]
+  },
+  {
+   "text": "tortillaTank (Sombra): I need healing!",
+   "confidence": 0.999,
+   "box": [
+    64,
+    348,
+    423,
+    27
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "cut",
+   "channel": "unknown",
+   "text": "AKal! :InalimninninA1"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "rarwwww",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "glhf <3",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "Good kitty",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "son",
+   "speaker": "Bapricot"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "Hello!",
+   "speaker": "WaffleWizard",
+   "hero": "Zenyatta",
+   "target": "PixelPudding"
+  },
+  {
+   "kind": "comms",
+   "channel": "team",
+   "text": "I need healing!",
+   "speaker": "tortillaTank",
+   "hero": "Sombra"
+  }
+ ]
+}

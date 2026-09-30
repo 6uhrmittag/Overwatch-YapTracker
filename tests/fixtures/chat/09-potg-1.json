@@ -1,0 +1,37 @@
+{
+ "ocr": [
+  {
+   "text": "WAFFLEWIZARD",
+   "confidence": 0.989,
+   "box": [
+    380,
+    146,
+    128,
+    18
+   ]
+  },
+  {
+   "text": "[ZIP]: gg",
+   "confidence": 0.991,
+   "box": [
+    64,
+    346,
+    102,
+    30
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "unknown",
+   "channel": "unknown",
+   "text": "WAFFLEWIZARD"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "gg",
+   "speaker": "ZIP"
+  }
+ ]
+}

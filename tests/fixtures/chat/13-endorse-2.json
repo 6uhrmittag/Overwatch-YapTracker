@@ -1,0 +1,111 @@
+{
+ "ocr": [
+  {
+   "text": "Iiuiiuiliu Jiviuliaj.Liieily v.va auUilical",
+   "confidence": 0.718,
+   "box": [
+    64,
+    86,
+    454,
+    18
+   ]
+  },
+  {
+   "text": "Health!",
+   "confidence": 0.977,
+   "box": [
+    64,
+    108,
+    78,
+    22
+   ]
+  },
+  {
+   "text": "[tortillaTank]: outch",
+   "confidence": 0.998,
+   "box": [
+    66,
+    148,
+    228,
+    24
+   ]
+  },
+  {
+   "text": "[tortillaTank]: ah hei",
+   "confidence": 0.986,
+   "box": [
+    66,
+    228,
+    232,
+    24
+   ]
+  },
+  {
+   "text": "[NoodleBonk]: gg wp",
+   "confidence": 0.993,
+   "box": [
+    65,
+    267,
+    236,
+    28
+   ]
+  },
+  {
+   "text": "[tortillaTank]: whoops",
+   "confidence": 0.998,
+   "box": [
+    66,
+    308,
+    250,
+    26
+   ]
+  },
+  {
+   "text": "[blorpy]: w c9",
+   "confidence": 0.988,
+   "box": [
+    66,
+    348,
+    154,
+    26
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "cut",
+   "channel": "unknown",
+   "text": "Iiuiiuiliu Jiviuliaj.Liieily v.va auUilical Health!"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "outch",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "ah hei",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "gg wp",
+   "speaker": "NoodleBonk"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "whoops",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "w c9",
+   "speaker": "blorpy"
+  }
+ ]
+}
