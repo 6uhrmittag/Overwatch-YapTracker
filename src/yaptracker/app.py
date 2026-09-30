@@ -76,7 +76,17 @@ def _watch_for_overwatch(dev: bool) -> None:
     runtime.changes = changes = config.change_detector()
 
     def on_frame(frame) -> None:
-        changes.update(frame.image)  # changed bands go to OCR once the pipeline exists (#18)
+        # Changed bands go to OCR once the pipeline exists (#18); a change can start a match.
+        if changes.update(frame.image) and runtime.matches is not None:
+            runtime.matches.chat_changed()
+
+    def on_alive() -> None:
+        if runtime.matches is not None:
+            runtime.matches.capture_alive()
+
+    def new_match() -> None:
+        if runtime.matches is not None:
+            runtime.matches.new_match()
 
     def region_for(width: int, height: int):
         runtime.window_size = (width, height)  # the Live view hints when this changes (#84)
@@ -85,7 +95,7 @@ def _watch_for_overwatch(dev: bool) -> None:
     if dev:
         runtime.window_size = (2560, 1440)  # the demo stands in for a 1440p Overwatch window
         runtime.watcher = CaptureWatcher(
-            lambda: 1, lambda _: demo.DemoFrameSource(), on_frame, paused=paused
+            lambda: 1, lambda _: demo.DemoFrameSource(), on_frame, paused=paused, on_alive=on_alive
         )
     elif sys.platform == "win32":
         from yaptracker.capture.wgc import WgcFrameSource
@@ -97,8 +107,11 @@ def _watch_for_overwatch(dev: bool) -> None:
             lambda hwnd: WgcFrameSource(hwnd, region_for),
             on_frame,
             paused=paused,
+            on_alive=on_alive,
         )
-        hotkeys = HotkeyListener({runtime.PAUSE_HOTKEY: runtime.pause.toggle})
+        hotkeys = HotkeyListener(
+            {runtime.PAUSE_HOTKEY: runtime.pause.toggle, runtime.NEW_MATCH_HOTKEY: new_match}
+        )
         app.on_startup(hotkeys.start)
         app.on_shutdown(hotkeys.stop)
     else:
@@ -109,12 +122,16 @@ def _watch_for_overwatch(dev: bool) -> None:
 
 def _open_store() -> None:
     """The database opens with the app (the smoke test too: it proves SQLite + FTS5 in the exe)."""
+    from yaptracker.matches import MatchTracker
     from yaptracker.store.repo import Store
 
     def open_store() -> None:
         runtime.store = Store.open()
+        runtime.matches = MatchTracker(runtime.store, runtime.pause)
 
     def close_store() -> None:
+        if runtime.matches is not None:
+            runtime.matches.stop()
         if runtime.store is not None:
             runtime.store.close()
 

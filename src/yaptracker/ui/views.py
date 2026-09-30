@@ -1,5 +1,7 @@
 """The five views behind the icon rail. Placeholders until their milestones land."""
 
+import time
+
 import numpy as np
 from nicegui import ui
 from PIL import Image
@@ -31,8 +33,12 @@ def live() -> None:
         with ui.element("div").classes("yt-pill yt-pill--waiting").mark("status") as pill:
             ui.element("span").classes("yt-pill-dot")
             status = ui.label("Waiting for Overwatch")
-        meta = ui.label().classes("yt-meta").mark("status-meta")
+        match_info = ui.label().classes("yt-meta").mark("match-info")
+        meta = ui.label().classes("yt-hint").mark("status-meta")
         ui.element("div").classes("yt-grow")
+        button(
+            "New match", lambda: new_match(), keycap=runtime.NEW_MATCH_HOTKEY.replace("+", " ")
+        ).mark("new-match")
         pause_button = button(
             "Pause", lambda: toggle_pause(), keycap=runtime.PAUSE_HOTKEY.replace("+", " ")
         )
@@ -69,6 +75,11 @@ def live() -> None:
 
     def toggle_pause() -> None:
         runtime.pause.toggle()
+        refresh()
+
+    def new_match() -> None:
+        if runtime.matches is not None:
+            runtime.matches.new_match()
         refresh()
 
     def size_checked() -> None:
@@ -109,6 +120,19 @@ def live() -> None:
             }[state]
         )
         set_button_label(pause_button, "Resume" if paused else "Pause")
+        where = runtime.matches.status() if runtime.matches else None
+        if where is None:
+            match_info.set_text("")
+        else:
+            session_no, match_no, started = where
+            if match_no is None:
+                match_info.set_text(f"Session {session_no} \u00b7 no match yet")
+            else:
+                minutes, seconds = divmod(int(time.time() - started), 60)
+                elapsed = f"{minutes}:{seconds:02d} in"
+                match_info.set_text(
+                    f"Session {session_no} \u00b7 Match {match_no} \u00b7 {elapsed}"
+                )
         size = runtime.window_size
         if capturing and size and config.size_needs_check(*size):
             size_text.set_text(

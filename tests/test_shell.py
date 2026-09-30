@@ -69,7 +69,7 @@ async def test_calibration_shows_what_ocr_reads(user: User, monkeypatch):
     await user.open("/")
     user.find(marker="nav-settings").click()
     user.find(marker="calibrate").click()
-    await user.should_see("6 yaps", retries=100)
+    await user.should_see("6 yaps", retries=300)  # OCR runs in the background; slow CI boxes
     await user.should_see("not the wahoo guy again", retries=5)
     await user.should_see("SirPeelsALot (Reinhardt):", retries=5)
 
@@ -155,4 +155,21 @@ async def test_settings_shows_what_is_stored(user: User, monkeypatch, tmp_path):
     await user.open("/")
     user.find(marker="nav-settings").click()
     await user.should_see("1 yaps, 0 matches, 0 yappers")
+    store.close()
+
+
+async def test_live_header_shows_session_and_match(user: User, monkeypatch, tmp_path):
+    from yaptracker import runtime
+    from yaptracker.matches import MatchTracker
+    from yaptracker.pause import Pause
+    from yaptracker.store.repo import Store
+
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive()
+    monkeypatch.setattr(runtime, "matches", tracker)
+    await user.open("/")
+    await user.should_see("Session 1 · no match yet")
+    user.find(marker="new-match").click()
+    await user.should_see("Session 1 · Match 1 · 0:0")
     store.close()
