@@ -10,6 +10,8 @@ requires-python = ">=3.12,<3.13"
 dynamic = ["version"]
 dependencies = [
     "nicegui>=3.17,<4",
+    "numpy>=2",
+    "pillow>=11",
     # Native window (WebView2). Linux/WSL dev uses --dev browser mode instead.
     "pywebview>=5; sys_platform == 'win32'",
 ]
