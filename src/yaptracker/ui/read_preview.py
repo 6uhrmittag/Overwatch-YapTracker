@@ -79,7 +79,7 @@ class ReadPreview:
             raise
         if request != self._request:
             return  # the box moved again while this read was running
-        chat = channels.assign(parse(lines), bgr, config.channel_colours())
+        chat = config.identity().apply(channels.assign(parse(lines), bgr, config.channel_colours()))
         self.learned_colours = channels.learn(chat, bgr)
         yaps = sum(line.kind in YAP_KINDS for line in chat)
         self._count.set_text(f"{yaps} yaps")
@@ -98,9 +98,12 @@ class ReadPreview:
             ui.label(label).classes(f"yt-read-chip {colour}")
             with ui.element("div").classes("yt-read-text"):
                 if line.speaker and line.kind != "system":
-                    who = line.speaker + (f" ({line.hero})" if line.hero else "")
+                    who = "you" if line.role == "me" else line.speaker
+                    who += f" ({line.hero})" if line.hero else ""
                     who += f" to {line.target}" if line.target else ""
                     ui.label(who + ":").classes(f"yt-read-speaker {colour}")
+                    if line.role == "crew":
+                        ui.label("crew").classes("yt-crew-badge")
                 ui.label(line.text).classes("yt-read-message")
             low = " yt-conf--low" if line.confidence < LOW_CONFIDENCE else ""
             ui.label(f"{line.confidence:.0%}").classes("yt-conf" + low)
