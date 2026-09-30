@@ -5,6 +5,7 @@ from pathlib import Path
 
 from yaptracker import paths
 from yaptracker.capture.source import Region, default_chat_region
+from yaptracker.ocr import engine as ocr
 
 
 def _load(path: Path) -> dict:
@@ -46,4 +47,17 @@ def save_chat_region(width: int, height: int, region: Region, path: Path | None 
         "width": region.width,
         "height": region.height,
     }
+    _save(path, data)
+
+
+def ocr_engine(path: Path | None = None) -> str:
+    """The chosen OCR engine, if it runs on this OS; otherwise the default."""
+    chosen = _load(path or paths.config_file()).get("ocr_engine", ocr.DEFAULT)
+    return chosen if chosen in ocr.available() else ocr.DEFAULT
+
+
+def save_ocr_engine(name: str, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["ocr_engine"] = name
     _save(path, data)

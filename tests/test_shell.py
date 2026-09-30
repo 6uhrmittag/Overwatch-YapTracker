@@ -60,3 +60,14 @@ async def test_calibration_saves_the_box_for_the_screenshots_resolution(user: Us
     await user.should_see("Saved")
     await user.should_see("2560x1440: 615 × 395 px at 55, 510")
     assert config.saved_chat_region(2560, 1440) is not None
+
+
+async def test_calibration_shows_what_ocr_reads(user: User, monkeypatch):
+    from yaptracker import demo
+
+    monkeypatch.setattr(demo, "ENABLED", True)
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    user.find(marker="calibrate").click()
+    await user.should_see("6 lines", retries=100)
+    await user.should_see("[tortillaTank]: not the wahoo guy again", retries=5)

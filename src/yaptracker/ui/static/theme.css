@@ -122,6 +122,22 @@ html, body { background: var(--yt-night); }
   .yt-shot-image { width: 100%; cursor: crosshair; user-select: none; }
   .yt-ants { animation: yt-march 1s linear infinite; }
   .yt-crop { width: 100%; border-radius: 10px; background: var(--yt-night); }
+  .yt-aside-scroll { flex-grow: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+  .yt-row { display: flex; align-items: center; gap: 8px; }
+
+  /* Segmented toggle, e.g. the OCR engine */
+  .yt-seg { display: flex; padding: 3px; gap: 3px; border-radius: 12px; background: var(--yt-ground); border: 1px solid var(--yt-line-strong); }
+  .yt-seg-item { flex: 1; height: 34px; border: 0; border-radius: 9px; background: transparent; color: var(--yt-muted); font: 700 14px var(--yt-body); cursor: pointer; }
+  .yt-seg-item:hover { color: var(--yt-text); }
+  .yt-seg-item.is-active { background: var(--yt-panel-raised); color: var(--yt-text); box-shadow: 0 2px 0 #0b0d12; }
+  .yt-seg-item[disabled] { cursor: not-allowed; opacity: .45; }
+
+  /* OCR result lines */
+  .yt-read-lines { display: flex; flex-direction: column; gap: 4px; }
+  .yt-read-line { display: flex; align-items: baseline; gap: 10px; font-size: 15px; }
+  .yt-read-text { flex-grow: 1; min-width: 0; overflow-wrap: anywhere; }
+  .yt-conf { flex-shrink: 0; font-size: 13px; font-weight: 700; color: var(--yt-faint); }
+  .yt-conf--low { color: var(--yt-danger); }
 }
 
 @keyframes yt-pop {

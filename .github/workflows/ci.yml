@@ -55,7 +55,9 @@ jobs:
           Set-Content src/yaptracker/_version.py "__version__ = `"$version`""
           "VERSION=$version" >> $env:GITHUB_ENV
           "version=$version" >> $env:GITHUB_OUTPUT
-      - run: pip install . pyinstaller
+      - run: pip install .[dev] pyinstaller
+      - name: Windows-only tests (Windows OCR)
+        run: pytest tests/test_ocr_windows.py -v
       - run: pyinstaller --noconfirm packaging/yaptracker.spec
       - name: Licenses ship with the app
         run: |
