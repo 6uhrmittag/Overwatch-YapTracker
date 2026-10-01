@@ -3,6 +3,7 @@
 import ctypes
 import subprocess
 import sys
+import threading
 import time
 
 import pytest
@@ -33,8 +34,17 @@ def test_wgc_captures_a_window_cropped_to_the_region():
         )
         try:
             frame = next(source.frames())
+            # Calibrate's screenshot of the whole window (#112). WGC only sends a frame when
+            # the window repaints - Overwatch always does, a resting Notepad needs a nudge.
+            taken = {}
+            asking = threading.Thread(target=lambda: taken.update(whole=source.snapshot(3.0)))
+            asking.start()
+            while asking.is_alive():
+                ctypes.windll.user32.InvalidateRect(hwnd, None, True)
+                asking.join(0.1)
         finally:
             source.close()
+        assert taken["whole"] is not None and taken["whole"].shape[0] >= frame.image.shape[0] * 2
         assert frame.image.ndim == 3 and frame.image.shape[2] == 3
         assert frame.image.shape[0] > 10 and frame.image.shape[1] > 10
         assert frame.image.max() > 0, "capture delivered a black frame"

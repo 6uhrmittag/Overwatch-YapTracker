@@ -47,6 +47,13 @@ class CaptureWatcher:
         self._thread = threading.Thread(target=self._run, name="capture watcher", daemon=True)
         self._thread.start()
 
+    def snapshot(self, timeout: float = 2.0):
+        """A full-size BGR frame of the game window right now, or None (#112). Blocks."""
+        source = self._source
+        if self.state != "capturing" or source is None or not hasattr(source, "snapshot"):
+            return None
+        return source.snapshot(timeout)
+
     def stop(self) -> None:
         self._stop.set()
         if self._source is not None:
