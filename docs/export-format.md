@@ -75,7 +75,7 @@
 | `notes` | your notes, as typed |
 | `first_met`, `last_met` | |
 | `aliases` | other spellings that were read as this player |
-| `matches`, `messages`, `flagged_messages` | matches together, lines said, spicy lines |
+| `matches`, `messages`, `callouts`, `flagged_messages` | matches together, lines typed, comms-wheel callouts ("Enemy Sombra!"), spicy lines |
 
 ## capture_gaps[]
 

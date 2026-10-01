@@ -85,6 +85,7 @@
         "aliases": {"type": "array", "items": {"type": "string"}},
         "matches": {"type": "integer", "minimum": 0},
         "messages": {"type": "integer", "minimum": 0},
+        "callouts": {"type": "integer", "minimum": 0},
         "flagged_messages": {"type": "integer", "minimum": 0}
       }
     },
