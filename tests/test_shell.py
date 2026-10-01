@@ -272,9 +272,37 @@ async def test_first_start_walks_through_setup_and_ends_on_live(user: User, monk
     await user.should_see("Who are you?")
     await user.should_see("Me & my crew")
     await user.should_see("Start with Windows")
+    user.find(marker="add-me").trigger("keydown.enter", "Marv#2718")
+    await user.should_see(marker="remove-Marv#2718")
     user.find(marker="setup-done").click()
     await user.should_see("This match")
     assert config.setup_state() == "done"
+    (name_hint,) = user.find(marker="no-name").elements
+    assert "yt-hidden" in name_hint.classes  # it knows my name: no reminder
+
+
+async def test_setup_without_my_name_nudges_once_and_live_reminds(user: User, monkeypatch):
+    from yaptracker import demo
+
+    monkeypatch.setattr(demo, "ENABLED", True)
+    first_start()
+    await user.open("/")
+    user.find(marker="setup-next").click()
+    await user.should_see("Show me the chat box")
+    user.find(marker="save").click()
+    await user.should_see("Who are you?")
+    user.find(marker="setup-done").click()  # no name: a nudge first (#168)
+    (nudge,) = user.find(marker="no-name").elements
+    assert "yt-hidden" not in nudge.classes  # still on step 3, with the nudge
+    await user.should_see("Add at least your own name, otherwise I'll greet you as a stranger.")
+    await user.should_see("Go play without my name")
+    user.find(marker="setup-done").click()
+    await user.should_see("This match")
+    (name_hint,) = user.find(marker="no-name").elements
+    assert "yt-hidden" not in name_hint.classes
+    await user.should_see("I don't know your name yet, so I might greet you as a stranger.")
+    user.find(marker="add-my-name").click()
+    await user.should_see("Me & my crew")
 
 
 async def test_skipping_setup_reminds_once(user: User):
