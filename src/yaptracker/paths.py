@@ -33,3 +33,16 @@ def debug_dir() -> Path:
 
 def lines_dir() -> Path:
     return data_dir() / "lines"
+
+
+def export_dir() -> Path:
+    """Exports go where people look for their files: Documents\\YapTracker (#31, #69)."""
+    if sys.platform == "win32":
+        import ctypes
+
+        buf = ctypes.create_unicode_buffer(260)
+        # CSIDL_PERSONAL: the real Documents folder, also when OneDrive moved it
+        ctypes.windll.shell32.SHGetFolderPathW(None, 5, None, 0, buf)  # type: ignore[attr-defined]
+        if buf.value:
+            return Path(buf.value) / "YapTracker"
+    return Path.home() / "Documents" / "YapTracker"

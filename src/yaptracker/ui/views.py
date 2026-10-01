@@ -21,6 +21,7 @@ from yaptracker.ui.components import (
     switch,
 )
 from yaptracker.ui.crew import crew_card
+from yaptracker.ui.exports import export_card
 from yaptracker.ui.familiar_cards import familiar_card
 from yaptracker.ui.lookup import lookup_card
 from yaptracker.ui.setup import setup_wizard, startup_card
@@ -465,6 +466,7 @@ def settings() -> None:
                         "before every database update. Updating YapTracker never touches this "
                         "folder."
                     ).classes("yt-hint")
+            export_card()
             with ui.element("section").classes("yt-card").mark("debug"):
                 with ui.element("div").classes("yt-card-head"):
                     ui.label("Debug samples").classes("yt-h2")
