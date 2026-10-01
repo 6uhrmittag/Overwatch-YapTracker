@@ -135,6 +135,35 @@ class Store:
             (match_id, match_id),
         )[0][0]
 
+    # Players (#23) ---------------------------------------------------------------------------
+
+    def add_player(self, display_name: str, ts: float) -> int:
+        return self._write(
+            "INSERT INTO players (display_name, first_seen, last_seen) VALUES (?, ?, ?)",
+            (display_name, ts, ts),
+        )
+
+    def add_alias(self, player_id: int, alias: str) -> None:
+        self._write(
+            "INSERT OR IGNORE INTO player_aliases (player_id, alias) VALUES (?, ?)",
+            (player_id, alias),
+        )
+
+    def rename_player(self, player_id: int, display_name: str) -> None:
+        self._write("UPDATE players SET display_name = ? WHERE id = ?", (display_name, player_id))
+
+    def player_seen(self, player_id: int, ts: float) -> None:
+        self._write(
+            "UPDATE players SET last_seen = MAX(COALESCE(last_seen, ?), ?) WHERE id = ?",
+            (ts, ts, player_id),
+        )
+
+    def player_names(self) -> list[tuple[int, str]]:
+        """(player id, name) for every display name and alias: what a speaker is matched to."""
+        return self._read(
+            "SELECT id, display_name FROM players UNION SELECT player_id, alias FROM player_aliases"
+        )
+
     # Chat -----------------------------------------------------------------------------------
 
     def add_message(
@@ -150,12 +179,14 @@ class Store:
         flagged: str | None = None,
         role: str | None = None,
         has_glyphs: bool = False,
+        player_id: int | None = None,
     ) -> int:
         return self._write(
             "INSERT INTO chat_messages (match_id, ts, channel, speaker_raw, hero, text, "
-            "ocr_confidence, flagged, role, has_glyphs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "ocr_confidence, flagged, role, has_glyphs, player_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (match_id, ts, channel, speaker_raw, hero, text, ocr_confidence, flagged, role,
-             int(has_glyphs)),
+             int(has_glyphs), player_id),
         )  # fmt: skip
 
     def update_message(
@@ -170,13 +201,15 @@ class Store:
         flagged: str | None = None,
         role: str | None = None,
         has_glyphs: bool = False,
+        player_id: int | None = None,
     ) -> None:
         """A better reading of a stored line (#18); the full-text index follows by trigger."""
         self._write(
             "UPDATE chat_messages SET channel = ?, speaker_raw = ?, hero = ?, text = ?, "
-            "ocr_confidence = ?, flagged = ?, role = ?, has_glyphs = ? WHERE id = ?",
+            "ocr_confidence = ?, flagged = ?, role = ?, has_glyphs = ?, player_id = ? "
+            "WHERE id = ?",
             (channel, speaker_raw, hero, text, ocr_confidence, flagged, role, int(has_glyphs),
-             message_id),
+             player_id, message_id),
         )  # fmt: skip
 
     def messages(self, match_id: int) -> list[Message]:

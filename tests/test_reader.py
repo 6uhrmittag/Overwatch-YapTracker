@@ -166,3 +166,27 @@ def test_every_stored_line_keeps_its_picture(store, tmp_path):
     stored = store.messages(tracker.match_id)
     saved = sorted(int(p.stem) for p in (tmp_path / "lines").rglob("*.webp"))
     assert saved == sorted(m.id for m in stored) and len(saved) == 14  # one each, none extra
+
+
+def test_every_line_belongs_to_a_player_except_mine(store):
+    from yaptracker.players import PlayerMatcher
+
+    frames = json.loads(REPLAY.read_text(encoding="utf-8"))["frames"]
+    shots = [(frame["t"], BLACK.copy(), frame["ocr"]) for frame in frames]
+    reads = {
+        id(image): [OcrLine(o["text"], o["confidence"], Region(*o["box"])) for o in ocr]
+        for _, image, ocr in shots
+    }
+    me = Identity(me=("tortillaTank",))
+    reader, tracker = reader_for(store, reads, identity=lambda: me,
+                                 players=PlayerMatcher(store, lambda: me))  # fmt: skip
+    for t, image, _ in shots:
+        reader.read_frame(1000.0 + t, image)
+    names = dict(store._read("SELECT id, display_name FROM players"))
+    assert sorted(names.values()) == ["MaybeMaybe", "NoodleBonk", "SirPeelsALot", "mossyfox",
+                                      "zappy"]  # fmt: skip
+    for m in store.messages(tracker.match_id):
+        if m.speaker_raw == "tortillaTank" or m.channel == "system":
+            assert m.player_id is None
+        else:
+            assert names[m.player_id] == m.speaker_raw
