@@ -209,7 +209,7 @@ async def test_live_says_loudly_when_nothing_is_recorded(user: User, monkeypatch
     health.lost("crash")
     monkeypatch.setattr(runtime, "health", health)
     await user.open("/")
-    await user.should_see("(capture stopped), trying again")
+    await user.should_see("(capture stopped). I'm restarting it.")  # what to do (#137)
     await user.should_see("Not recording")
     await user.should_see("Overwatch is running, but I can't see it right now.")
     store.close()
@@ -410,3 +410,29 @@ async def test_an_icon_shows_as_a_chip_and_the_line_opens_its_picture(user: User
     user.find(marker="chat-line").click()  # in the browser, a click on the text bubbles up
     await user.should_see(marker="line-picture")
     store.close()
+
+
+async def test_the_save_hotkey_has_a_button_too(user: User, monkeypatch, tmp_path):
+    """#137: nothing is only reachable by hotkey."""
+    import numpy as np
+
+    from yaptracker import config, runtime
+    from yaptracker.debug import DebugSamples
+
+    monkeypatch.setattr(runtime, "debug", DebugSamples(tmp_path / "debug", config.debug_samples))
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see("Ctrl Alt S")
+    user.find(marker="save-chat").click()
+    await user.should_see("Nothing read in the last 20 s")
+    runtime.debug.chat_read(1.0, np.zeros((10, 10, 3), np.uint8), [], [], [])
+    user.find(marker="save-chat").click()
+    await user.should_see("Kept in ")
+
+
+async def test_settings_explain_themselves(user: User):
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see("Switch off only if disk space is tight.")  # line pictures
+    user.find(marker="calibrate").click()
+    await user.should_see("only for when RapidOCR won't start")  # the OCR engine switch
