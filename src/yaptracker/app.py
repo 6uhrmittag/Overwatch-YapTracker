@@ -90,7 +90,7 @@ def _watch_for_overwatch(dev: bool) -> None:
             runtime.matches.new_match()
 
     from yaptracker.ocr import engine as ocr
-    from yaptracker.signals import HeroSelect, signal_regions
+    from yaptracker.signals import EndScreen, HeroSelect, signal_regions
 
     def read_line(image) -> str:
         return ocr.get(config.ocr_engine()).read_line(image)
@@ -103,14 +103,20 @@ def _watch_for_overwatch(dev: bool) -> None:
             runtime.matches.new_match(source="heroselect", mode=mode, map_name=map_name)
 
     def match_running() -> bool:
-        return runtime.matches is not None and runtime.matches.match_id is not None
+        return runtime.matches is not None and runtime.matches.running
+
+    def match_over(outcome: str | None) -> None:
+        if runtime.matches is not None:
+            runtime.matches.end_match(outcome=outcome)
 
     hero_select = HeroSelect(
         read_line, read_lines, hero_select_started, match_running=match_running
     )
+    end_screen = EndScreen(read_line, match_over)
 
     def on_signals(frame) -> None:  # also while paused: the next match ends a pause (#20)
         hero_select.update(frame.signals)
+        end_screen.update(frame.signals)
 
     def region_for(width: int, height: int):
         runtime.window_size = (width, height)  # the Live view hints when this changes (#84)

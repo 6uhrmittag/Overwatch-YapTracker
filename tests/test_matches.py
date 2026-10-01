@@ -2,7 +2,7 @@
 
 import pytest
 
-from yaptracker.matches import QUIET_GAP_S, SESSION_GAP_S, MatchTracker
+from yaptracker.matches import AFTER_END_GAP_S, QUIET_GAP_S, SESSION_GAP_S, MatchTracker
 from yaptracker.pause import Pause
 from yaptracker.store.repo import Store
 
@@ -95,12 +95,48 @@ def test_every_match_start_ends_a_pause(store):
     assert not pause.paused
 
 
-def test_an_ended_match_makes_the_next_chat_a_new_match(store):
+def test_post_game_chat_stays_with_the_match_until_90_s_of_quiet(store):
     tracker = MatchTracker(store, Pause())
     play(tracker, T0, 30, chat_every=10)
     tracker.end_match(T0 + 30, outcome="victory")
-    tracker.chat_changed(T0 + 40)
+    assert tracker.status()[1:] == (1, T0, None, True, "victory")
+    assert not tracker.running
+    tracker.chat_changed(T0 + 40)  # "gg"
+    tracker.chat_changed(T0 + 40 + AFTER_END_GAP_S - 1)  # "gg wp", still the same match
+    assert len(matches(store)) == 1
+    tracker.chat_changed(T0 + 40 + 2 * AFTER_END_GAP_S)  # back in the lobby: the next match
+    assert [(m[2], m[3]) for m in matches(store)] == [(T0 + 30, "gap"), (None, "endscreen")]
     assert store._read("SELECT outcome FROM matches ORDER BY id") == [("victory",), (None,)]
+    assert tracker.running
+
+
+def test_quiet_after_an_end_counts_even_if_nobody_chatted_in_the_match(store):
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    tracker.new_match(T0, source="heroselect")
+    tracker.end_match(T0 + 600, outcome="defeat")
+    tracker.chat_changed(T0 + 600 + AFTER_END_GAP_S)
+    assert [m[3] for m in matches(store)] == ["heroselect", "endscreen"]
+
+
+def test_the_outcome_may_come_after_play_of_the_game(store):
+    tracker = MatchTracker(store, Pause())
+    play(tracker, T0, 30, chat_every=10)
+    tracker.end_match(T0 + 30)  # PLAY OF THE GAME: over, outcome unknown
+    tracker.end_match(T0 + 45, outcome="defeat")  # "DEFEAT EICHENWALDE"
+    tracker.end_match(T0 + 50, outcome="victory")  # never overwrites a known outcome
+    assert store._read("SELECT ended_at, outcome FROM matches") == [(T0 + 30, "defeat")]
+
+
+def test_an_ended_match_keeps_its_end_when_the_next_one_starts(store):
+    tracker = MatchTracker(store, Pause())
+    play(tracker, T0, 30, chat_every=10)
+    tracker.end_match(T0 + 30, outcome="victory")
+    tracker.chat_changed(T0 + 60)  # "gg"
+    tracker.new_match(T0 + 120, source="heroselect", map_name="EICHENWALDE")
+    tracker.capture_alive(T0 + 200)
+    tracker.stop()
+    assert [(m[2], m[3]) for m in matches(store)] == [(T0 + 30, "gap"), (T0 + 200, "heroselect")]
 
 
 def test_hero_select_brings_mode_and_map(store):
