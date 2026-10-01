@@ -25,10 +25,16 @@ def text_mask(image: np.ndarray) -> np.ndarray:
     """
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     saturation, value = hsv[:, :, 1], hsv[:, :, 2]
-    bright = ((value > 150) & (saturation > 70)).astype(np.uint8)
+    # OpenCV ops rather than numpy booleans: the same mask, ~25 % cheaper (#115).
+    bright = cv2.bitwise_and(
+        cv2.threshold(value, 150, 1, cv2.THRESH_BINARY)[1],
+        cv2.threshold(saturation, 70, 1, cv2.THRESH_BINARY)[1],
+    )
     wide = cv2.morphologyEx(bright, cv2.MORPH_OPEN, np.ones((7, 7), np.uint8))
-    near_dark = cv2.erode(value, np.ones((5, 5), np.uint8)) < 90  # the text outline
-    strokes = ((bright > 0) & (wide == 0) & near_dark).astype(np.uint8)
+    near_dark = cv2.threshold(  # the text outline: dark within 2 px
+        cv2.erode(value, np.ones((5, 5), np.uint8)), 89, 1, cv2.THRESH_BINARY_INV
+    )[1]
+    strokes = cv2.bitwise_and(cv2.subtract(bright, wide), near_dark)
 
     scale = image.shape[0] / 395  # the default chat box at 1440p is 395 px high
     count, labels, stats, _ = cv2.connectedComponentsWithStats(strokes, connectivity=8)

@@ -4,7 +4,8 @@
 
 Replays fixtures/private/frames/<recording>/ (from tools/extract_frames.py) through the whole
 pipeline as the app runs it: change detection on every chat frame (4 fps), OCR -> parse ->
-dedup -> store on the changed ones, and once a second the match signals and debug overviews.
+dedup -> store on the changed ones (at most one read per MIN_GAP_S, the newest frame waiting),
+and once a second the match signals and debug overviews.
 Prints the CPU share of one core per minute of footage; reading the images doesn't count.
 
 Heavy: real OCR on hundreds of frames. Run it when nobody is playing.
@@ -24,7 +25,7 @@ from yaptracker.debug import DebugSamples
 from yaptracker.matches import MatchTracker
 from yaptracker.ocr.engine import RapidOcrEngine
 from yaptracker.pause import Pause
-from yaptracker.reader import ChatReader
+from yaptracker.reader import MIN_GAP_S, ChatReader
 from yaptracker.signals import EndScreen, HeroSelect, signal_regions
 from yaptracker.store.repo import Store
 
@@ -63,7 +64,7 @@ def main() -> None:
     cpu: dict[int, float] = defaultdict(float)
     reads: dict[int, int] = defaultdict(int)
     ocr.read(cv2.imread(str(root / "chat" / chat[0])))  # loading the models isn't play time
-    last_second = -1
+    last_second, last_read, pending = -1, float("-inf"), None
     for name in chat:
         t = int(name[:-4]) / 1000
         now["t"], minute = T0 + t, int(t // 60)
@@ -71,7 +72,10 @@ def main() -> None:
         started = time.process_time()
         tracker.capture_alive()
         if changes.update(image):
-            reader.read_frame(now["t"], image)
+            pending = image  # the newest change waits for the gap, like the reader thread
+        if pending is not None and t - last_read >= MIN_GAP_S:
+            reader.read_frame(now["t"], pending)
+            pending, last_read = None, t
             reads[minute] += 1
         cpu[minute] += time.process_time() - started
         second = int(t)

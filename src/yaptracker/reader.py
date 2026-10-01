@@ -6,6 +6,7 @@ later, and the dedup (#18) sorts out what was already stored.
 """
 
 import logging
+import math
 import threading
 import time
 from collections.abc import Callable
@@ -20,6 +21,9 @@ from yaptracker.parser import ChatLine, parse
 
 log = logging.getLogger(__name__)
 LOAD_LOG_S = 60.0  # how often the reading cost goes to the log
+# At most one read per 1.5 s (#115): 9 of 10 reads find nothing new, and a line stays on screen
+# for ~9 s, so it is still read several times. The newest frame waits, older ones are dropped.
+MIN_GAP_S = 1.5
 
 
 def _fields(line: ChatLine) -> dict:
@@ -45,12 +49,15 @@ class ChatReader:
         paused: Callable[[], bool] = lambda: False,
         clock: Callable[[], float] = time.time,
         on_read: Callable[..., object] = lambda ts, image, ocr, lines, new: None,
+        min_gap_s: float = MIN_GAP_S,
     ) -> None:
         self._read, self._store, self._matches = read, store, matches
         self._identity, self._colours, self._paused, self._clock = (
             identity, colours, paused, clock
         )  # fmt: skip
         self._on_read = on_read  # debug samples of hard chat moments (#110)
+        self._min_gap_s = min_gap_s
+        self._last_read = -math.inf  # monotonic time of the last read's start
         self._dedup = Dedup()
         self._stored: dict[int, int] = {}  # yap id -> chat_messages id
         self._pending: tuple[float, np.ndarray] | None = None
@@ -86,7 +93,13 @@ class ChatReader:
                     self._wake.wait()
                 if self._pending is None:  # stopping, and the last frame is done
                     return
+                # Too soon after the last read: wait, newer frames replace the pending one.
+                wait = self._last_read + self._min_gap_s - time.monotonic()
+                if wait > 0 and not self._stop:
+                    self._wake.wait(wait)
+                    continue
                 (ts, image), self._pending = self._pending, None
+            self._last_read = time.monotonic()
             try:
                 self.read_frame(ts, image)
             except Exception:  # logged with traceback; the next frame is tried as usual
