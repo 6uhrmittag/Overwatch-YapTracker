@@ -215,6 +215,18 @@ def save_setup_state(state: str, path: Path | None = None) -> None:
     _save(path, data)
 
 
+def show_what_i_see(path: Path | None = None) -> bool:
+    """Live's "What I see" picture (#163): off unless you switched it on; it distracts in play."""
+    return _load(path or paths.config_file()).get("show_what_i_see", False)
+
+
+def save_show_what_i_see(on: bool, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["show_what_i_see"] = on
+    _save(path, data)
+
+
 def line_pictures(path: Path | None = None) -> bool:
     """Keep the picture of every chat line (#120); on unless switched off."""
     return _load(path or paths.config_file()).get("line_pictures", True)

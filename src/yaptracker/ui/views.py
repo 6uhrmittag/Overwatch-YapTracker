@@ -166,6 +166,7 @@ def _live() -> None:
         match_info = ui.label().classes("yt-meta").mark("match-info")
         meta = ui.label().classes("yt-hint").mark("status-meta")
         ui.element("div").classes("yt-grow")
+        peek = button("Show what I see", lambda: toggle_preview(), "quiet").mark("toggle-preview")
         button("New match", lambda: new_match(), keycap=runtime.keycap("new_match")).mark(
             "new-match"
         )
@@ -206,7 +207,9 @@ def _live() -> None:
             faces = ui.element("div").classes("yt-faces").mark("faces")
             with ui.element("section").classes("yt-card yt-hidden").mark("preview") as preview:
                 with ui.element("div").classes("yt-card-body"):
-                    ui.label("What I see").classes("yt-h2")
+                    with ui.element("div").classes("yt-row"):
+                        ui.label("What I see").classes("yt-h2 yt-grow")
+                        button("Hide", lambda: toggle_preview(False), "quiet").mark("preview-hide")
                     picture = ui.image().classes("yt-crop").props("no-spinner no-transition")
                     picture_info = ui.label().classes("yt-meta")
             ui.element("div").classes("yt-grow")
@@ -251,6 +254,15 @@ def _live() -> None:
     def new_match() -> None:
         if runtime.matches is not None:
             runtime.matches.new_match()
+        refresh()
+
+    peeking = {"closed": False}  # you hid it: it doesn't open by itself again on this page
+
+    def toggle_preview(on: bool | None = None) -> None:
+        """The "What I see" picture (#163): hidden by default, it distracts during play."""
+        on = not config.show_what_i_see() if on is None else on
+        config.save_show_what_i_see(on)
+        peeking["closed"] = not on
         refresh()
 
     def size_checked() -> None:
@@ -355,7 +367,8 @@ def _live() -> None:
         else:
             health_banner.classes(add="yt-hidden")
         size = runtime.window_size
-        if capturing and size and config.size_needs_check(*size):
+        check_size = bool(capturing and size and config.size_needs_check(*size))
+        if check_size:
             size_text.set_text(
                 f"Overwatch runs at {size[0]}\u00d7{size[1]} now. I rescaled the chat box to fit; "
                 "a 10-second look in Settings \u2192 Calibrate won't hurt."
@@ -364,7 +377,9 @@ def _live() -> None:
         else:
             size_hint.classes(add="yt-hidden")
         frame = watcher.last_frame if watcher else None
-        if state == "listening" and frame is not None:
+        wanted = config.show_what_i_see() or (check_size and not peeking["closed"])
+        set_button_label(peek, "Hide what I see" if config.show_what_i_see() else "Show what I see")
+        if state == "listening" and frame is not None and wanted:  # hidden: no pictures sent
             preview.classes(remove="yt-hidden")
             if frame is not shown["frame"]:
                 shown["frame"] = frame
