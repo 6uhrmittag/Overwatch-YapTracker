@@ -80,4 +80,9 @@ CREATE TRIGGER chat_fts_update AFTER UPDATE OF text, speaker_raw ON chat_message
 END;
 """
 
-MIGRATIONS = [V1]
+# Who said it (#74, #18): 'me', 'crew' or NULL, so transcripts, search and export can show it.
+V2 = """
+ALTER TABLE chat_messages ADD COLUMN role TEXT CHECK (role IN ('me', 'crew'));
+"""
+
+MIGRATIONS = [V1, V2]

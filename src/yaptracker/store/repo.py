@@ -21,6 +21,7 @@ class Message:
     text: str
     ocr_confidence: float | None
     flagged: str | None
+    role: str | None = None  # 'me' / 'crew' (#74)
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,7 @@ class Stats:
 
 
 _MESSAGE_COLUMNS = (
-    "id, match_id, ts, channel, speaker_raw, player_id, hero, text, ocr_confidence, flagged"
+    "id, match_id, ts, channel, speaker_raw, player_id, hero, text, ocr_confidence, flagged, role"
 )
 
 
@@ -139,11 +140,12 @@ class Store:
         hero: str | None = None,
         ocr_confidence: float | None = None,
         flagged: str | None = None,
+        role: str | None = None,
     ) -> int:
         return self._write(
             "INSERT INTO chat_messages (match_id, ts, channel, speaker_raw, hero, text, "
-            "ocr_confidence, flagged) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (match_id, ts, channel, speaker_raw, hero, text, ocr_confidence, flagged),
+            "ocr_confidence, flagged, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (match_id, ts, channel, speaker_raw, hero, text, ocr_confidence, flagged, role),
         )
 
     def messages(self, match_id: int) -> list[Message]:
