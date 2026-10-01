@@ -1,11 +1,11 @@
 # YapTracker export format
 
-**Settings → Export → Export everything** writes one file, `Documents\YapTracker\export-<date>\yaptracker-export.json`, with everything YapTracker collected: sessions, matches, every chat message, your yappers and the times nothing was recorded. It's meant for your own scripts, spreadsheets and other tools.
+**Settings → Export → Export everything** writes `Documents\YapTracker\export-<date>\yaptracker-export.json` (`export-<date>-anonymized` with **Anonymize names**), with everything YapTracker collected: sessions, matches, every chat message, your yappers and the times nothing was recorded. It's meant for your own scripts, spreadsheets and other tools.
 
 - **Your data is yours.** Do with an export whatever you like.
 - **The format is free to use** (MIT, like the rest of YapTracker). Read it, write it, build on it; no need to ask.
 - The JSON Schema is [`export.schema.json`](export.schema.json). Every export YapTracker's tests make is checked against it.
-- Other players' names are in there, as read from chat. Think before you publish one. (Anonymized exports and Markdown come with #158.)
+- Other players' names are in there, as read from chat. Think before you publish one, or switch on **Anonymize names**.
 
 ## Basics
 
@@ -21,7 +21,7 @@
 | `format`, `format_version` | `"yaptracker-export"`, `1` |
 | `exported_at` | when the export was made |
 | `app_version` | the YapTracker that made it, e.g. `0.4.160` |
-| `anonymized` | `false`: names are as read |
+| `anonymized` | `false`: names are as read. `true`: every name is a pseudonym like `Player-7f3a` (the same in every file of this export, random per export), also inside the text (as whole words, the names read in the same match); your notes and the other spellings are left out |
 | `sessions` | evenings of play, oldest first, each with its `matches` and their `messages` |
 | `messages_outside_matches` | chat read while no match was running (rare) |
 | `players` | everyone you met: verdict, notes, spellings, counts |
@@ -63,6 +63,7 @@
 | `ocr_confidence` | 0–1, or `null`. Windows OCR always reports 1.0 |
 | `flagged` | `overwatch` (Overwatch showed a `[Report]` link), `manual` (you marked it spicy) or `null` |
 | `has_glyphs` | `true` if the text contains a `◇` |
+| `picture` | only with **Line pictures**: the line as it looked in Overwatch, e.g. `line-images/123.webp` |
 
 ## players[]
 
@@ -82,5 +83,9 @@
 |---|---|
 | `started_at`, `ended_at` | `ended_at` is `null` for a gap that is still open |
 | `reason` | `crash` (capture stopped), `no_frames` (no picture from Overwatch), `window_lost`, `paused`, `app_not_running` (Overwatch ran without YapTracker) |
+
+## The other files
+
+With **Markdown too** (on by default), the folder also has `README.md` (what's inside, counts, date range), `sessions/<date>-session-<id>.md` (one file per evening: every match with its chat, and where nothing was recorded) and `players.md` (your yappers). With **Line pictures**, `line-images/<message id>.webp` holds each line as it looked; they're never included in an anonymized export, because they show the names.
 
 `players.json` from **Export yappers** holds the same `players` records with `format: "yaptracker-players"`.

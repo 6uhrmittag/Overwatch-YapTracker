@@ -7,7 +7,7 @@ from nicegui import run, ui
 
 from yaptracker import logs, paths, runtime
 from yaptracker.export import export_all, export_folder, export_players
-from yaptracker.ui.components import button
+from yaptracker.ui.components import button, switch
 
 
 def export_card() -> None:
@@ -26,8 +26,23 @@ def export_card() -> None:
                 "Everything: every session, match and yap, your yappers and the times nothing was "
                 "recorded, as one documented JSON file. Yours to keep, script or share."
             ).classes("yt-hint")
+            with ui.element("div").classes("yt-row yt-wrap"):
+                switch("Markdown too", True, lambda on: options.update(markdown=on)).mark(
+                    "export-markdown"
+                )
+                switch("Anonymize names", False, lambda on: options.update(anonymize=on)).mark(
+                    "export-anonymize"
+                )
+                switch("Line pictures", False, lambda on: options.update(pictures=on)).mark(
+                    "export-pictures"
+                )
+            ui.label(
+                "Anonymized: every name becomes Player-xxxx, your notes stay out, and so do the "
+                "line pictures (they show the names)."
+            ).classes("yt-hint")
             result = ui.label().classes("yt-meta yt-mono").mark("export-result")
     state = {"done": 0, "total": 0, "running": False}
+    options = {"markdown": True, "anonymize": False, "pictures": False}
 
     def export() -> None:
         if runtime.store is None:
@@ -53,10 +68,17 @@ def export_card() -> None:
         everything.props("loading")
         result.set_text("Exporting…")
         now = time.time()
+        folder = export_folder(paths.export_dir(), now)
+        if options["anonymize"]:
+            folder = folder.with_name(folder.name + "-anonymized")
+        pictures = runtime.pictures if options["pictures"] else None
+
+        def work():
+            return export_all(runtime.store, folder, now, progress, markdown=options["markdown"],
+                              anonymize=options["anonymize"], pictures=pictures)  # fmt: skip
+
         try:
-            path = await run.io_bound(
-                export_all, runtime.store, export_folder(paths.export_dir(), now), now, progress
-            )
+            path = await run.io_bound(work)
         finally:
             state["running"] = False
             everything.props(remove="loading")

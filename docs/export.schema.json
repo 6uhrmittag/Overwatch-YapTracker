@@ -67,7 +67,8 @@
         "text": {"type": "string"},
         "ocr_confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
         "flagged": {"enum": ["overwatch", "manual", null]},
-        "has_glyphs": {"type": "boolean"}
+        "has_glyphs": {"type": "boolean"},
+        "picture": {"type": "string", "description": "only with line pictures: the file in line-images/"}
       }
     },
     "player": {
