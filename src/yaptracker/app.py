@@ -262,6 +262,7 @@ def _open_store() -> Callable[[], None]:
             runtime.matches,
             identity=config.identity,
             colours=config.channel_colours,
+            save_colours=config.save_channel_colours,
             paused=lambda: runtime.pause.paused,
             on_read=runtime.debug.chat_read,
             pictures=runtime.pictures,

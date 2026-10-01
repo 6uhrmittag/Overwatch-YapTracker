@@ -8,6 +8,7 @@ the "friendly" colour), so they are learned from lines whose channel the text al
 comms-wheel lines are team, system lines are system. Calibration saves them.
 """
 
+import re
 from dataclasses import replace
 
 import cv2
@@ -84,7 +85,7 @@ def cut_glued(lines: list[OcrLine], image: np.ndarray, known: dict[str, float] |
         refs = ([own] if own is not None else []) + chat
         while len(keep) > 1 and refs:
             last = hue(image, keep[-1][1])
-            if last is None or any(_distance(last, ref) <= GLUED_DISTANCE for ref in refs):
+            if last is None or any(hue_distance(last, ref) <= GLUED_DISTANCE for ref in refs):
                 break
             keep.pop()
         if len(keep) == len(line.parts):
@@ -98,17 +99,26 @@ def cut_glued(lines: list[OcrLine], image: np.ndarray, known: dict[str, float] |
     return result
 
 
-def _distance(a: float, b: float) -> float:
+def hue_distance(a: float, b: float) -> float:
     d = abs(a - b) % 360
     return min(d, 360 - d)
 
 
+_GROUP_SYSTEM = re.compile(r"\S+'s group wants to stay as a team")  # shown in group colour
+_PROMPT = re.compile(r"^\[(Team|Match|Group)\]")  # the open chat box, in its channel's colour
+
+
 def learn(lines: list[ChatLine], image: np.ndarray) -> dict[str, float]:
-    """Colours this frame proves: comms lines are team, system lines are system, and typed lines
-    with a clear icon are what the icon says (#173)."""
+    """Colours this frame proves: comms lines are team, system lines are system, typed lines
+    with a clear icon are what the icon says (#173), and the open chat box's "[Group]" prompt
+    and "...'s group wants to stay as a team" are the group colour (#80)."""
     samples: dict[str, list[float]] = {}
     for line in lines:
         channel = {"comms": "team", "system": "system"}.get(line.kind)
+        if line.kind == "system" and _GROUP_SYSTEM.match(line.text):
+            channel = "group"
+        if line.kind == "input" and (prompt := _PROMPT.match(line.text)):
+            channel = prompt[1].lower()
         if line.kind == "message":
             shape = icon_shape(image, line.head or line.box)
             channel = shape if shape in ("match", "team") else None
@@ -133,11 +143,11 @@ def assign(
         # A people icon is a team icon blurred by the background, or the group icon: team only
         # in team colours. Group chat needs its own colour first (#80), so it stays unknown here.
         if (shape == "people" and hue is not None and "team" in learned
-                and _distance(hue, learned["team"]) <= TEAM_DISTANCE):  # fmt: skip
+                and hue_distance(hue, learned["team"]) <= TEAM_DISTANCE):  # fmt: skip
             result.append(replace(line, channel="team"))
             continue
         if hue is not None:
-            channel, distance = min(((c, _distance(hue, h)) for c, h in hues.items()),
+            channel, distance = min(((c, hue_distance(hue, h)) for c, h in hues.items()),
                                     key=lambda item: item[1])  # fmt: skip
             # A typed line can be team or match (or group), never a system line.
             if distance <= MAX_DISTANCE and channel != "system":

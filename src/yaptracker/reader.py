@@ -54,6 +54,7 @@ class ChatReader:
         pictures=None,
         players=None,
         on_player: Callable[[int | None, int | None], object] = lambda player, match: None,
+        save_colours: Callable[[dict[str, float]], object] = lambda colours: None,
     ) -> None:
         self._read, self._store, self._matches = read, store, matches
         self._identity, self._colours, self._paused, self._clock = (
@@ -65,6 +66,7 @@ class ChatReader:
         self._on_player = on_player  # a familiar face may be back (#26)
         self._speakers: dict[int, tuple[str | None, int | None]] = {}  # yap id -> (speaker, player)
         self._seen_colours: dict[str, float] = {}  # channel colours learned while reading (#173)
+        self._save_colours = save_colours  # the group colour is rare: kept for next time (#80)
         self.min_gap_s = min_gap_s  # Settings can change it while running (#152)
         self._last_read = -math.inf  # monotonic time of the last read's start
         self._dedup = Dedup()
@@ -125,8 +127,14 @@ class ChatReader:
         read = channels.cut_glued(self._read(image), image, known)  # "gg 512" -> "gg" (#172)
         ocr = glyphs.mark(image, read)  # icons OCR can't spell become ◇ (#128)
         parsed = parse(ocr)
-        self._seen_colours.update(channels.learn(parsed, image))  # e.g. HDR shifts them (#173)
-        known = {**self._colours(), **self._seen_colours}
+        learned = channels.learn(parsed, image)
+        self._seen_colours.update(learned)  # e.g. HDR shifts them (#173)
+        saved = self._colours()
+        if "group" in learned and (
+            "group" not in saved or channels.hue_distance(learned["group"], saved["group"]) > 10
+        ):
+            self._save_colours({"group": learned["group"]})  # seen only when someone uses it
+        known = {**saved, **self._seen_colours}
         lines = self._identity().apply(channels.assign(parsed, image, known))
         new, improved = self._dedup.update(ts, lines)
         if new:
