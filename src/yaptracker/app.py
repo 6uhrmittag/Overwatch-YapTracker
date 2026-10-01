@@ -182,16 +182,22 @@ def _watch_for_overwatch(dev: bool) -> None:
             runtime.lookup_requested = time.monotonic()
             focus_own_window()
 
-        hotkeys = HotkeyListener(
-            {
-                runtime.PAUSE_HOTKEY: runtime.pause.toggle,
-                runtime.NEW_MATCH_HOTKEY: new_match,
-                runtime.SAVE_HOTKEY: save_chat,
-                runtime.LOOKUP_HOTKEY: lookup,
-            }
-        )
-        app.on_startup(hotkeys.start)
-        app.on_shutdown(hotkeys.stop)
+        actions = {"pause": runtime.pause.toggle, "new_match": new_match, "save": save_chat,
+                   "lookup": lookup}  # fmt: skip
+
+        def bind_hotkeys(on: bool = True) -> None:
+            """(Re)registers the keys from Settings; off while Settings listens for a new one."""
+            if runtime.hotkeys is not None:
+                runtime.hotkeys.stop()
+                runtime.hotkeys = None
+            if on:
+                combos = config.hotkeys()
+                runtime.hotkeys = HotkeyListener({combos[a]: f for a, f in actions.items()})
+                runtime.hotkeys.start()
+
+        runtime.bind_hotkeys = bind_hotkeys
+        app.on_startup(bind_hotkeys)
+        app.on_shutdown(lambda: bind_hotkeys(False))
 
 
 def _open_store() -> Callable[[], None]:

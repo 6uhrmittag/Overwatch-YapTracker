@@ -1,5 +1,8 @@
 """Things the running app shares between its parts."""
 
+from collections.abc import Callable
+
+from yaptracker import config
 from yaptracker.capture.changes import ChangeDetector
 from yaptracker.capture.health import CaptureHealth
 from yaptracker.capture.watcher import CaptureWatcher
@@ -13,10 +16,11 @@ from yaptracker.reader import ChatReader
 from yaptracker.store.backups import DailyBackup
 from yaptracker.store.repo import Store
 
-PAUSE_HOTKEY = "Ctrl+Alt+P"
-NEW_MATCH_HOTKEY = "Ctrl+Alt+M"  # manual override only; matches split themselves (#21)
-LOOKUP_HOTKEY = "Ctrl+Alt+F"  # "Who's that?": YapTracker to the front, search focused (#27)
-SAVE_HOTKEY = "Ctrl+Alt+S"  # optional: keep the last 20 s of chat as a debug sample (#110)
+
+def keycap(action: str) -> str:
+    """The hotkey of an action as a keycap label, e.g. "Ctrl Alt P" (changeable, #32)."""
+    return config.hotkeys()[action].replace("+", " ")
+
 
 pause = Pause()
 watcher: CaptureWatcher | None = None  # None in tests and before startup
@@ -31,4 +35,6 @@ backups: DailyBackup | None = None  # one copy of the database a day (#125), wit
 pictures: LinePictures | None = None  # the picture of every chat line (#120)
 players: PlayerMatcher | None = None  # speakers -> players (#23); reloaded after a merge
 familiar: FamiliarFaces | None = None  # "Look who's back!" cards (#26), with the store
+hotkeys = None  # the HotkeyListener (Windows app only); .failed = keys another app owns
+bind_hotkeys: Callable[[bool], None] | None = None  # (re)register them; None in --dev and tests
 lookup_requested = 0.0  # monotonic time of the last Ctrl+Alt+F; the UI focuses the search box

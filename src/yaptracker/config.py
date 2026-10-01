@@ -111,6 +111,27 @@ def save_ocr_engine(name: str, path: Path | None = None) -> None:
     _save(path, data)
 
 
+HOTKEYS = {
+    "pause": "Ctrl+Alt+P",  # auto-resumes at the next match
+    "new_match": "Ctrl+Alt+M",  # manual override only; matches split themselves (#21)
+    "lookup": "Ctrl+Alt+F",  # "Who's that?": YapTracker to the front, search focused (#27)
+    "save": "Ctrl+Alt+S",  # optional: keep the last 20 s of chat as a debug sample (#110)
+}
+
+
+def hotkeys(path: Path | None = None) -> dict[str, str]:
+    """Action -> combo, e.g. {"pause": "Ctrl+Alt+P", ...}; changed ones from Settings (#32)."""
+    saved = _load(path or paths.config_file()).get("hotkeys", {})
+    return {action: saved.get(action, combo) for action, combo in HOTKEYS.items()}
+
+
+def save_hotkey(action: str, combo: str, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data.setdefault("hotkeys", {})[action] = combo
+    _save(path, data)
+
+
 def channel_colours(path: Path | None = None) -> dict[str, float]:
     """Text hue per channel as learned at calibration, e.g. {"team": 72.0, "system": 56.0}."""
     return _load(path or paths.config_file()).get("channel_colours", {})

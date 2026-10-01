@@ -23,6 +23,7 @@ from yaptracker.ui.components import (
 from yaptracker.ui.crew import crew_card
 from yaptracker.ui.exports import export_card
 from yaptracker.ui.familiar_cards import familiar_card
+from yaptracker.ui.hotkeys import hotkeys_card
 from yaptracker.ui.lookup import lookup_card
 from yaptracker.ui.setup import setup_wizard, startup_card
 
@@ -160,12 +161,10 @@ def _live() -> None:
         match_info = ui.label().classes("yt-meta").mark("match-info")
         meta = ui.label().classes("yt-hint").mark("status-meta")
         ui.element("div").classes("yt-grow")
-        button(
-            "New match", lambda: new_match(), keycap=runtime.NEW_MATCH_HOTKEY.replace("+", " ")
-        ).mark("new-match")
-        pause_button = button(
-            "Pause", lambda: toggle_pause(), keycap=runtime.PAUSE_HOTKEY.replace("+", " ")
+        button("New match", lambda: new_match(), keycap=runtime.keycap("new_match")).mark(
+            "new-match"
         )
+        pause_button = button("Pause", lambda: toggle_pause(), keycap=runtime.keycap("pause"))
         pause_button.mark("pause")
     with ui.element("div").classes("yt-banner yt-hidden").mark("health") as health_banner:
         health_text = ui.label().classes("yt-grow")
@@ -413,6 +412,7 @@ def settings() -> None:
                         ).classes("yt-hint")
             crew_card()
             startup_card()
+            hotkeys_card()
             with ui.element("section").classes("yt-card").mark("data"):
                 with ui.element("div").classes("yt-card-head"):
                     ui.label("Your data").classes("yt-h2")
@@ -480,7 +480,7 @@ def settings() -> None:
                         button(
                             "Save the last 20 s",
                             lambda: save_chat(),
-                            keycap=runtime.SAVE_HOTKEY.replace("+", " "),
+                            keycap=runtime.keycap("save"),
                         ).mark("save-chat")
                         saved_chat = ui.label().classes("yt-hint").mark("save-chat-result")
 
