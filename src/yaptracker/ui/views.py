@@ -74,14 +74,18 @@ _OUTCOMES = {"victory": "won", "defeat": "lost", "draw": "draw"}
 _CHANNELS = {"team": "Team", "match": "Match", "group": "Group", "system": "System"}
 
 
-def _chat_line(message, started_at: float | None) -> dict:
-    """One row of the Live feed: time in the match, channel, who (you for own lines), text."""
+def chat_line(message, started_at: float | None, verdict: str | None = None) -> dict:
+    """One chat row (Live feed, transcripts #29): time in the match, channel, who (you for own
+    lines, a crew tag for crew), text. Known players get their verdict colour (docs/ui.md)."""
     channel = message.channel if message.channel in _CHANNELS else "chat"
-    with ui.element("div").classes(f"yt-line yt-line--{channel}").mark("chat-line") as line:
+    known = f" yt-line--known yt-known--{verdict}" if verdict else ""
+    with ui.element("div").classes(f"yt-line yt-line--{channel}{known}").mark("chat-line") as line:
         seconds = max(0, int(message.ts - started_at)) if started_at else 0
         ui.label(f"{seconds // 60}:{seconds % 60:02d}").classes("yt-line-time")
         ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
         name = ui.label().classes(f"yt-line-name yt-ch-{channel}")
+        if message.role == "crew":
+            ui.label("crew").classes("yt-crew-badge")
         text = ui.html("", sanitize=False).classes("yt-line-text")
     line.on("click", lambda: _show_picture(message))  # how the line looked (#120, #128)
     row = {"name": name, "text": text, "shown": None}
@@ -235,7 +239,7 @@ def _live() -> None:
                 _fill_line(chat["rows"][message.id], message)  # a better reading came in
             else:
                 with lines:
-                    chat["rows"][message.id] = _chat_line(message, runtime.matches.match_started_at)
+                    chat["rows"][message.id] = chat_line(message, runtime.matches.match_started_at)
                 added = True
         yappers = {m.speaker_raw for m in messages if m.channel != "system" and m.speaker_raw}
         yaps, people = count(len(messages), "yap", "yaps"), count(len(yappers), "yapper", "yappers")
@@ -377,11 +381,6 @@ def _live() -> None:
 
     ui.timer(1.0, refresh)
     refresh()
-
-
-def sessions() -> None:
-    _header("Sessions")
-    _empty_card("No sessions yet", "Every evening of play lands here, match by match.")
 
 
 def search() -> None:

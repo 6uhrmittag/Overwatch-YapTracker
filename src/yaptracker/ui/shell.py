@@ -7,7 +7,7 @@ from pathlib import Path
 from nicegui import app, ui
 
 from yaptracker import runtime
-from yaptracker.ui import icons, views, yappers
+from yaptracker.ui import icons, sessions, views, yappers
 
 STATIC_DIR = Path(__file__).parent / "static"
 STATIC_URL = "/static"
@@ -25,7 +25,7 @@ class View:
 VIEWS = [
     View("live", "Live", icons.LIVE, views.live),
     View("yappers", "Yappers", icons.YAPPERS, yappers.yappers),
-    View("sessions", "Sessions", icons.SESSIONS, views.sessions),
+    View("sessions", "Sessions", icons.SESSIONS, sessions.sessions),
     View("search", "Search", icons.SEARCH, views.search),
     View("settings", "Settings", icons.SETTINGS, views.settings, bottom=True),
 ]
