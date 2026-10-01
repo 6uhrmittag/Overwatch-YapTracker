@@ -198,10 +198,11 @@ def _live() -> None:
                 with ui.element("div").classes("yt-legend"):
                     for channel in ("Team", "Match", "Group", "System"):
                         ui.label(channel).classes(f"yt-ch-{channel.lower()}")
-            with ui.element("div").classes("yt-card-body"):
-                feed = ui.scroll_area(on_scroll=lambda e: follow(e)).classes("yt-lines")
-                with feed:
+            with ui.element("div").classes("yt-card-body yt-feed"):
+                # follows new yaps in the browser (static/follow.js, #166) until you scroll up
+                with ui.element("div").classes("yt-lines yt-follow").mark("feed"):
                     lines = ui.element("div").classes("yt-lines-inner").mark("lines")
+                ui.label("New yaps \u2193").classes("yt-new-yaps yt-hidden").mark("new-yaps")
                 hint = ui.label("Waiting for Overwatch. I'll be right here.").classes("yt-hint")
         with ui.element("aside").classes("yt-aside").props('aria-label="Familiar faces"'):
             faces = ui.element("div").classes("yt-faces").mark("faces")
@@ -218,11 +219,7 @@ def _live() -> None:
 
     meter = fps(watcher) if watcher else (lambda: 0.0)
     shown = {"frame": None}
-    chat = {"match": None, "rows": {}, "stick": True}
-
-    def follow(e) -> None:
-        """Auto-scroll pauses while you read further up, and comes back at the bottom."""
-        chat["stick"] = e.vertical_size - e.vertical_position - e.vertical_container_size < 40
+    chat = {"match": None, "rows": {}}
 
     def refresh_chat() -> None:
         match_id = runtime.matches.match_id if runtime.matches else None
@@ -233,19 +230,15 @@ def _live() -> None:
             yap_count.set_text("0 yaps")
             return
         messages = runtime.store.messages(match_id)
-        added = False
         for message in messages:
             if message.id in chat["rows"]:
                 _fill_line(chat["rows"][message.id], message)  # a better reading came in
             else:
                 with lines:
                     chat["rows"][message.id] = chat_line(message, runtime.matches.match_started_at)
-                added = True
         yappers = {m.speaker_raw for m in messages if m.channel != "system" and m.speaker_raw}
         yaps, people = count(len(messages), "yap", "yaps"), count(len(yappers), "yapper", "yappers")
         yap_count.set_text(f"{yaps} \u00b7 {people}")
-        if added and chat["stick"]:
-            feed.scroll_to(percent=1.0)
 
     def toggle_pause() -> None:
         runtime.pause.toggle()

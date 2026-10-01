@@ -84,9 +84,12 @@ html, body { background: var(--yt-night); }
   .yt-card--chat .yt-card-body { flex-grow: 1; min-height: 0; justify-content: flex-end; padding: 10px 22px 14px; }
 
   /* Live feed (Live mockup): time · channel · speaker · text, newest at the bottom (#19) */
-  .yt-lines { flex-grow: 1; min-height: 0; margin: 0 -12px; }
-  .yt-lines .q-scrollarea__content { display: flex; flex-direction: column; }
-  .yt-lines-inner { flex-grow: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; }
+  /* The feed scrolls itself; static/follow.js keeps it at the bottom while you are there (#166).
+     margin-top: auto (not justify-content: flex-end) keeps the oldest lines reachable. */
+  .yt-feed { position: relative; }
+  .yt-lines { flex-grow: 1; min-height: 0; margin: 0 -12px; padding: 0 12px; overflow-y: auto; display: flex; flex-direction: column; overscroll-behavior: contain; }
+  .yt-lines-inner { margin-top: auto; display: flex; flex-direction: column; gap: 2px; }
+  .yt-new-yaps { position: absolute; left: 50%; bottom: 48px; transform: translateX(-50%); padding: 6px 14px; border-radius: 999px; background: var(--yt-accent); color: #1a1205; font-size: 13px; font-weight: 800; box-shadow: 0 3px 0 var(--yt-accent-shadow); cursor: pointer; }
   .yt-line { display: flex; align-items: baseline; gap: 10px; padding: 7px 10px; border-radius: 10px; }
   .yt-line-time { width: 44px; flex-shrink: 0; font-size: 13px; color: var(--yt-faint); }
   .yt-line .yt-line-ch { flex-shrink: 0; width: 58px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; font-style: normal; }
