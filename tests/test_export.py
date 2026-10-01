@@ -49,6 +49,7 @@ def test_json_has_everything_about_every_player(store, tmp_path):
         "aliases": ["NoodIeBonk"],
         "matches": 2,
         "messages": 2,
+        "callouts": 0,
         "flagged_messages": 0,
     }
     assert noodle["first_met"].startswith("2026-09-29T20:05:00")  # ISO 8601 with time zone

@@ -39,7 +39,8 @@ def player_records(store: Store) -> list[dict]:
             "last_met": iso(p.last_seen),
             "aliases": store.aliases(p.id),
             "matches": p.matches,
-            "messages": p.yaps,
+            "messages": p.yaps,  # typed lines
+            "callouts": p.callouts,  # comms-wheel lines (#182)
             "flagged_messages": p.spicy,
         }
         for p in sorted(store.players(), key=lambda p: p.id)

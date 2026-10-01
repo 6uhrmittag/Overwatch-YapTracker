@@ -11,7 +11,7 @@ from nicegui import ui
 
 from yaptracker import runtime
 from yaptracker.glyphs import GLYPH
-from yaptracker.ui.components import count
+from yaptracker.ui.components import count, switch
 from yaptracker.ui.yappers import matching
 
 SHOWN = 100  # newest first; more words or a filter find older ones
@@ -35,7 +35,7 @@ def marked_html(marked: str) -> str:
 
 
 def search() -> None:
-    state = {"text": "", "who": "", "channel": "", "span": "any"}
+    state = {"text": "", "who": "", "channel": "", "span": "any", "callouts": False}
     with ui.element("header").classes("yt-header"):
         ui.label("Search").classes("yt-h1")
         found = ui.label().classes("yt-meta").mark("search-count")
@@ -54,6 +54,7 @@ def search() -> None:
         )
     with ui.element("div").classes("yt-row yt-filters"):
         channels = ui.element("div").classes("yt-seg").mark("search-channels")
+        switch("Callouts", False, lambda on: choose("callouts", on)).mark("search-callouts")
         ui.element("div").classes("yt-grow")
         spans = ui.element("div").classes("yt-seg").mark("search-spans")
     with ui.element("section").classes("yt-card yt-card--list"):
@@ -92,6 +93,7 @@ def search() -> None:
             channel=state["channel"] or None,
             player_ids=player_ids,
             since=_since(state["span"], time.time()),
+            callouts=state["callouts"],  # comms-wheel lines ("Enemy Sombra!"), off by default
             limit=SHOWN,
         )
         with body:

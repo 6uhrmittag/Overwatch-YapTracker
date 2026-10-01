@@ -7,7 +7,15 @@ from collections.abc import Callable
 from nicegui import ui
 
 from yaptracker import runtime
-from yaptracker.ui.components import VERDICTS, button, count, saved_chip, spicy_mark, when
+from yaptracker.ui.components import (
+    VERDICTS,
+    button,
+    count,
+    saved_chip,
+    spicy_mark,
+    switch,
+    when,
+)
 
 # Yap-o-meter: yaps per match together.
 _LEVELS = [(1, "Silent type"), (3, "Casual yapper"), (8, "Certified yapper"),
@@ -32,8 +40,10 @@ def profile(player_id: int, on_back: Callable[[], None]) -> None:
         with ui.element("div").classes("yt-profile-main"):
             button("\u2190 All yappers", on_back, "quiet").mark("back-to-yappers")
             ui.label(player.display_name).classes("yt-profile-name")
-            aliases = store.aliases(player_id)
+            aliases, heroes = store.aliases(player_id), store.player_heroes(player_id)
             with ui.element("div").classes("yt-row"):
+                if heroes:
+                    ui.label("Seen as " + ", ".join(heroes)).classes("yt-hint").mark("seen-as")
                 if aliases:
                     ui.label("Also read as " + ", ".join(aliases)).classes("yt-hint")
                 button(
@@ -90,8 +100,19 @@ def profile(player_id: int, on_back: Callable[[], None]) -> None:
             )
         with ui.element("aside").classes("yt-card yt-profile-yaps"):
             with ui.element("div").classes("yt-card-body"):
-                ui.label("Their greatest yaps").classes("yt-h2")
-                _yaps(player_id)
+                with ui.element("div").classes("yt-row"):
+                    ui.label("Their greatest yaps").classes("yt-h2 yt-grow")
+                    if player.callouts:  # comms-wheel lines: kept, but out of the way (#182)
+                        switch(f"Show callouts ({player.callouts})", False,
+                               lambda on: show_yaps(on)).mark("show-callouts")  # fmt: skip
+                said = ui.element("div").classes("yt-their-yaps")
+
+                def show_yaps(callouts: bool) -> None:
+                    said.clear()
+                    with said:
+                        _yaps(player_id, callouts)
+
+                show_yaps(False)
 
     def render_verdicts(current: str | None) -> None:
         verdicts.clear()
@@ -181,11 +202,11 @@ def _day(ts: float | None) -> str:
     return time.strftime("%b %d", time.localtime(ts)).replace(" 0", " ") if ts else "-"
 
 
-def _yaps(player_id: int) -> None:
+def _yaps(player_id: int, callouts: bool = False) -> None:
     store = runtime.store
-    messages = store.player_messages(player_id)
+    messages = store.player_messages(player_id, callouts)
     if not messages:
-        ui.label("They haven't said anything yet. Strong silent type.").classes("yt-hint")
+        ui.label("They haven't typed anything yet. Strong silent type.").classes("yt-hint")
         return
     by_match: dict[int | None, list] = {}
     for message in messages:
@@ -197,9 +218,13 @@ def _yaps(player_id: int) -> None:
         ui.label(title).classes("yt-match-title")
         for message in reversed(said):  # in the order they said it
             channel = message.channel if message.channel in _CHANNELS else "chat"
-            with ui.element("div").classes("yt-their-yap"):
+            callout = " yt-their-yap--callout" if message.hero else ""
+            with ui.element("div").classes("yt-their-yap" + callout):
                 ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
                 ui.label(message.text).classes("yt-line-text")
+                if message.hero:
+                    ui.label(f"as {message.hero}").classes("yt-meta")
                 if message.flagged:
                     spicy_mark()
-    ui.label(count(len(messages), "yap", "yaps") + " in total").classes("yt-meta")
+    typed = sum(1 for m in messages if not m.hero)
+    ui.label(count(typed, "yap", "yaps") + " in total").classes("yt-meta")
