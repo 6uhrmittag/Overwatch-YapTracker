@@ -7,7 +7,8 @@ Shapes seen on real 2560x1440 screenshots (brackets wrap the name, not the chann
   Name (Hero) to you: text              ... with a target
   Name (Hero) to Other (Hero): text
   Name (Hero) wants to stop the robot!  ... without a colon
-  [Name] started playing Overwatch.     system (bracketed name, no colon)
+  [Name] started playing Overwatch.     system (bracketed name, no colon; a few known phrases)
+  [Name] text                           any other phrase: typed chat, OCR lost the colon
   You have joined a group!              system without a name (_NAMELESS_SYSTEM)
   [Match] ...                           input line of the open chat box -> ignored
 Long messages wrap onto a closer-spaced line without icon; those are joined.
@@ -31,6 +32,19 @@ _COMMS = re.compile(
 )
 _COMMS_START = re.compile(r"^[^\s\[\]()]+\s*\([^)]+\)")
 _SYSTEM_NAMED = re.compile(r"^\[(?P<name>[^\]]+)\]\s+(?P<text>[^:：\s].*)$")
+# The few system lines with a [Name] in front (#13, #184). Any other "[Name] text" is typed
+# chat whose colon OCR lost ("[Name] WW", "[Name] fun game :3").
+_NAMED_SYSTEM = (
+    r"started playing\b",
+    r"(?:has )?joined the (?:game|group)\b",
+    r"(?:has )?left the (?:game|group)\b",
+    r"is now (?:online|offline|the group leader)\b",
+    r"invited you\b",
+    r"(?:accepted|declined) your\b",
+)
+_SYSTEM_PHRASE = re.compile(r"^(?:" + "|".join(_NAMED_SYSTEM) + ")", re.IGNORECASE)
+# A colon OCR read twice ("[Name]: : WW") is not part of the text; ":3" and ":)" are.
+_STRAY_COLON = re.compile(r"^(?:[:：;.]\s+)+")
 # System lines without a [Name] (yellow i icon). Each is how a line starts; add new ones here as
 # the debug samples (#63) show them.
 _NAMELESS_SYSTEM = (
@@ -77,9 +91,12 @@ def _classify(text: str, confidence: float, box: Region) -> ChatLine:
         return replace(line, kind="comms", channel="team", speaker=m["name"], hero=m["hero"],
                        target=m["target"], text=said)  # fmt: skip
     if (m := _TYPED.match(text)) or (m := _TYPED_NO_BRACKET.match(text)):
-        return replace(line, kind="message", speaker=m["name"], text=m["text"].strip())
+        said = _STRAY_COLON.sub("", m["text"].strip())
+        return replace(line, kind="message", speaker=m["name"], text=said)
     if m := _SYSTEM_NAMED.match(text):
-        return replace(line, kind="system", channel="system", speaker=m["name"], text=text)
+        if _SYSTEM_PHRASE.match(m["text"]):
+            return replace(line, kind="system", channel="system", speaker=m["name"], text=text)
+        return replace(line, kind="message", speaker=m["name"], text=m["text"].strip())
     if _SYSTEM_PLAIN.match(text):
         return replace(line, kind="system", channel="system")
     return line
