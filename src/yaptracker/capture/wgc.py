@@ -22,7 +22,12 @@ class WgcFrameSource:
         region_for: Callable[[int, int], Region],
         fps: float = 4.0,
         stall_s: float = 10.0,
+        signals_for: Callable[[int, int], dict[str, Region]] = lambda w, h: {},
+        signals_every_s: float = 1.0,
     ):
+        self._signals_for = signals_for
+        self._signals_every_s = signals_every_s
+        self._signals_at = 0.0
         self._queue: queue.Queue = queue.Queue(maxsize=2)  # a slow reader gets the newest frames
         self._stall_s = stall_s
         self._closed = threading.Event()
@@ -48,7 +53,15 @@ class WgcFrameSource:
             region = self._region_for(frame.width, frame.height)
             # BGRA -> BGR, and copy only the chat box: the capture buffer is reused.
             chat = region.crop(frame.frame_buffer)[:, :, :3].copy()
-            self._put(Frame(time.monotonic() - self._start, chat))
+            now = time.monotonic()
+            signals = {}
+            if now - self._signals_at >= self._signals_every_s:  # small crops, once a second
+                self._signals_at = now
+                signals = {
+                    name: r.crop(frame.frame_buffer)[:, :, :3].copy()
+                    for name, r in self._signals_for(frame.width, frame.height).items()
+                }
+            self._put(Frame(now - self._start, chat, signals))
 
         @capture.event
         def on_closed() -> None:

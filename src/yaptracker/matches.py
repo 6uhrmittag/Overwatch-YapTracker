@@ -11,12 +11,25 @@
 import threading
 import time
 from collections.abc import Callable
+from typing import NamedTuple
 
 from yaptracker.pause import Pause
 from yaptracker.store.repo import Store
 
 SESSION_GAP_S = 30 * 60
 QUIET_GAP_S = 5 * 60
+# Lobby chat before hero select starts a 'gap' match; hero select within this time takes it
+# over instead of leaving an almost empty match behind (#93).
+ADOPT_GAP_MATCH_S = 3 * 60
+
+
+class Status(NamedTuple):
+    """What the Live header shows: "Session 3 · Match 5 on Eichenwalde · 7:42 in"."""
+
+    session: int
+    match: int | None
+    started_at: float | None
+    map_name: str | None = None
 
 
 class MatchTracker:
@@ -26,6 +39,8 @@ class MatchTracker:
         self.session_id: int | None = None
         self.match_id: int | None = None
         self.match_started_at: float | None = None
+        self.match_map: str | None = None
+        self._match_source: str | None = None
         self._last_alive: float | None = None
         self._last_chat: float | None = None
         # After a restart, the newest session continues if it was active less than 30 min ago.
@@ -55,11 +70,28 @@ class MatchTracker:
                 self._start_match(ts, "gap")
             self._last_chat = ts
 
-    def new_match(self, ts: float | None = None, source: str = "hotkey") -> None:
-        """Ctrl+Alt+M, or a screen signal from #93."""
+    def new_match(
+        self,
+        ts: float | None = None,
+        source: str = "hotkey",
+        mode: str | None = None,
+        map_name: str | None = None,
+    ) -> None:
+        """Ctrl+Alt+M, or hero select (#93) with the mode and map it showed."""
         ts = self._clock() if ts is None else ts
         with self._lock:
-            self._start_match(ts, source)
+            recent_gap_match = (
+                source == "heroselect"
+                and self.match_id is not None
+                and self._match_source == "gap"
+                and ts - self.match_started_at <= ADOPT_GAP_MATCH_S
+            )
+            if recent_gap_match:
+                self._store.set_match_source(self.match_id, source, mode, map_name)
+                self._match_source, self.match_map = source, map_name
+                self._pause.next_match_started()
+            else:
+                self._start_match(ts, source, mode, map_name)
 
     def end_match(self, ts: float | None = None, outcome: str | None = None) -> None:
         """A screen signal from #94: the match is over."""
@@ -67,7 +99,7 @@ class MatchTracker:
         with self._lock:
             if self.match_id is not None:
                 self._store.end_match(self.match_id, ts, outcome)
-                self.match_id = self.match_started_at = None
+                self.match_id = self.match_started_at = self.match_map = None
 
     def stop(self) -> None:
         """App shutdown: close what's open at the last moment capture was alive."""
@@ -78,13 +110,14 @@ class MatchTracker:
                 if self.session_id is not None:
                     self._store.end_session(self.session_id, self._last_alive)
 
-    def status(self) -> tuple[int, int | None, float | None] | None:
-        """(session number, match number, match start) for the Live header, or None."""
+    def status(self) -> Status | None:
+        """Where the evening is, for the Live header; None before capture ever started."""
         with self._lock:
             if self.session_id is None:
                 return None
             match_no = self._store.match_number(self.match_id) if self.match_id else None
-            return self._store.session_number(self.session_id), match_no, self.match_started_at
+            return Status(self._store.session_number(self.session_id), match_no,
+                          self.match_started_at, self.match_map)  # fmt: skip
 
     def _new_session(self, ts: float) -> None:
         if self.session_id is not None and self._last_alive is not None:
@@ -92,13 +125,15 @@ class MatchTracker:
                 self._store.end_match(self.match_id, self._last_alive)
             self._store.end_session(self.session_id, self._last_alive)
         self.session_id = self._store.start_session(ts)
-        self.match_id = self.match_started_at = self._last_chat = None
+        self.match_id = self.match_started_at = self.match_map = self._last_chat = None
 
-    def _start_match(self, ts: float, source: str) -> None:
+    def _start_match(
+        self, ts: float, source: str, mode: str | None = None, map_name: str | None = None
+    ) -> None:
         if self.session_id is None:
             self._new_session(ts)
         if self.match_id is not None:
             self._store.end_match(self.match_id, self._last_chat or ts)
-        self.match_id = self._store.start_match(self.session_id, ts, source)
-        self.match_started_at = ts
+        self.match_id = self._store.start_match(self.session_id, ts, source, mode, map_name)
+        self.match_started_at, self.match_map, self._match_source = ts, map_name, source
         self._pause.next_match_started()

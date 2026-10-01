@@ -142,14 +142,14 @@ def live() -> None:
         if where is None:
             match_info.set_text("")
         else:
-            session_no, match_no, started = where
-            if match_no is None:
-                match_info.set_text(f"Session {session_no} \u00b7 no match yet")
+            if where.match is None:
+                match_info.set_text(f"Session {where.session} \u00b7 no match yet")
             else:
-                minutes, seconds = divmod(int(time.time() - started), 60)
-                elapsed = f"{minutes}:{seconds:02d} in"
+                minutes, seconds = divmod(int(time.time() - where.started_at), 60)
+                on_map = f" on {where.map_name.title()}" if where.map_name else ""
                 match_info.set_text(
-                    f"Session {session_no} \u00b7 Match {match_no} \u00b7 {elapsed}"
+                    f"Session {where.session} \u00b7 Match {where.match}{on_map} "
+                    f"\u00b7 {minutes}:{seconds:02d} in"
                 )
         if broken:  # paused has its own pill (#20)
             since = time.strftime("%H:%M", time.localtime(gap.since))

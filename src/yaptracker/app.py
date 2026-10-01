@@ -89,12 +89,40 @@ def _watch_for_overwatch(dev: bool) -> None:
         if runtime.matches is not None:
             runtime.matches.new_match()
 
+    from yaptracker.ocr import engine as ocr
+    from yaptracker.signals import HeroSelect, signal_regions
+
+    def read_line(image) -> str:
+        return ocr.get(config.ocr_engine()).read_line(image)
+
+    def read_lines(image) -> list[str]:
+        return [line.text for line in ocr.get(config.ocr_engine()).read(image)]
+
+    def hero_select_started(mode: str | None, map_name: str | None) -> None:
+        if runtime.matches is not None:
+            runtime.matches.new_match(source="heroselect", mode=mode, map_name=map_name)
+
+    def match_running() -> bool:
+        return runtime.matches is not None and runtime.matches.match_id is not None
+
+    hero_select = HeroSelect(
+        read_line, read_lines, hero_select_started, match_running=match_running
+    )
+
+    def on_signals(frame) -> None:  # also while paused: the next match ends a pause (#20)
+        hero_select.update(frame.signals)
+
     def region_for(width: int, height: int):
         runtime.window_size = (width, height)  # the Live view hints when this changes (#84)
         return config.chat_region(width, height)
 
     def make_watcher() -> CaptureWatcher:
-        common = {"paused": paused, "on_alive": on_alive, "health": runtime.health}
+        common = {
+            "paused": paused,
+            "on_alive": on_alive,
+            "health": runtime.health,
+            "on_signals": on_signals,
+        }
         if dev:
             runtime.window_size = (2560, 1440)  # the demo stands in for a 1440p Overwatch window
             return CaptureWatcher(lambda: 1, lambda _: demo.DemoFrameSource(), on_frame, **common)
@@ -102,7 +130,10 @@ def _watch_for_overwatch(dev: bool) -> None:
         from yaptracker.capture.window import find_overwatch
 
         return CaptureWatcher(
-            find_overwatch, lambda hwnd: WgcFrameSource(hwnd, region_for), on_frame, **common
+            find_overwatch,
+            lambda hwnd: WgcFrameSource(hwnd, region_for, signals_for=signal_regions),
+            on_frame,
+            **common,
         )
 
     if not dev and sys.platform != "win32":

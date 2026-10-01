@@ -23,6 +23,7 @@ class CaptureWatcher:
         paused: Callable[[], bool] = lambda: False,
         on_alive: Callable[[], None] = lambda: None,
         health: CaptureHealth | None = None,
+        on_signals: Callable[[Frame], None] = lambda frame: None,
     ) -> None:
         self._find_window = find_window
         self._open_source = open_source
@@ -31,6 +32,7 @@ class CaptureWatcher:
         self._paused = paused
         self._on_alive = on_alive  # every frame, paused or not: the evening is still going (#21)
         self._health = health  # gap records (#75)
+        self._on_signals = on_signals  # match signals (#93); they run even while paused
         self._failures = 0  # in a row; the retry wait grows with them
         self._stop = threading.Event()
         self._source: FrameSource | None = None
@@ -94,6 +96,8 @@ class CaptureWatcher:
                     break
                 self.frames += 1
                 self._on_alive()
+                if frame.signals:
+                    self._on_signals(frame)
                 self.last_error, self._failures = None, 0
                 paused = self._paused()
                 if paused != was_paused:
