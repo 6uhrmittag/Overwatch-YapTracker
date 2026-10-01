@@ -40,14 +40,14 @@ def channels_of(rows) -> list[str]:
 
 
 def test_same_colour_but_the_icon_tells_match_from_team():
-    assert channels_of([("diamond", "[Lemon]: gg"), ("team", "[Void]: on my way")]) == [
+    assert channels_of([("diamond", "[Pickle]: gg"), ("team", "[Void]: on my way")]) == [
         "match",
         "team",
     ]
 
 
 def test_no_icon_falls_back_to_the_colour():
-    assert channels_of([(None, "[Lemon]: gg")]) == ["unknown"]  # pale yellow matches no colour
+    assert channels_of([(None, "[Pickle]: gg")]) == ["unknown"]  # pale yellow matches no colour
 
 
 def test_a_wrapped_line_keeps_the_icon_of_its_first_row():
@@ -59,13 +59,13 @@ def test_a_wrapped_line_keeps_the_icon_of_its_first_row():
 
 
 def test_clear_icons_teach_the_colours():
-    image, ocr = frame([("diamond", "[Lemon]: gg"), ("team", "[Void]: hi")])
+    image, ocr = frame([("diamond", "[Pickle]: gg"), ("team", "[Void]: hi")])
     learned = channels.learn(parse(ocr), image)
     assert set(learned) == {"match", "team"}
 
 
 def test_a_bright_background_hides_the_icon():
-    image, ocr = frame([("diamond", "[Lemon]: gg")])
+    image, ocr = frame([("diamond", "[Pickle]: gg")])
     image[:, :95] = PALE  # the background behind the icon is as bright as the text
     (line,) = parse(ocr)
     assert channels.icon_shape(image, line.head) is None

@@ -4,7 +4,7 @@ which lines of a frame are new, and when an earlier line got a better reading.
 
 Matching, checked on real frames (#18):
 - A frame's yap lines are aligned with the recent lines in order (longest common subsequence,
-  fuzzy), so a misread name ("VoidGrowned") or one missing line doesn't break it.
+  fuzzy), so a misread name ("MoonPebbIe") or one missing line doesn't break it.
 - New lines only ever arrive at the bottom: unmatched lines *below* the last match are new;
   unmatched lines above it are older chat (the chat was opened) or misreads, never new.
 - Lines fade ~9 s after they appear. An older line only matches next to a matched neighbour,

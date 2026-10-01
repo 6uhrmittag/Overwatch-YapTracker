@@ -38,8 +38,8 @@ def test_different_people_stay_different(store):
 
 def test_real_misreads_from_the_recording(store):
     matcher = PlayerMatcher(store)
-    for right, misread in [("VoidCrowned", "VoidGrowned"), ("IDontKnowMan", "IDoftKnowMan"),
-                           ("uwultrararww", "uwultrararwwl")]:  # fmt: skip
+    for right, misread in [("MoonPebble", "MoonPebbIe"), ("BlueTeaKettle", "BlueTeaKetlle"),
+                           ("wobblewobble", "wobblewobblel")]:  # fmt: skip
         assert matcher.link(right, 1.0) == matcher.link(misread, 2.0)
 
 
@@ -55,10 +55,10 @@ def test_my_names_never_become_a_player_and_crew_does(store):
 
 def test_the_name_shown_is_the_spelling_read_most_often(store):
     matcher = PlayerMatcher(store)
-    pid = matcher.link("VoidGrowned", 1.0)  # the very first reading was a slip
+    pid = matcher.link("MoonPebbIe", 1.0)  # the very first reading was a slip
     for t in (2.0, 3.0):
-        matcher.link("VoidCrowned", t)
-    assert players(store) == [(pid, "VoidCrowned")]
+        matcher.link("MoonPebble", t)
+    assert players(store) == [(pid, "MoonPebble")]
     assert store._read("SELECT first_seen, last_seen FROM players") == [(1.0, 3.0)]
 
 

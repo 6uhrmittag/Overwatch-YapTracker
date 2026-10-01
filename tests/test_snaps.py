@@ -22,7 +22,7 @@ CHAT = [
     line("system", "gremlin.exe", "[gremlin.exe] started playing Overwatch."),
     line("match", "NoodleBonk", "gl hf wahoo"),
     line("team", "tortillaTank", "ana pls, NoodleBonk is free", role="me"),
-    line("team", "VoidCrowned", "on it, tortillaTank " + GLYPH, role="crew"),
+    line("team", "MoonPebble", "on it, tortillaTank " + GLYPH, role="crew"),
     line("match", "ana", "bananas"),
 ]
 
@@ -40,10 +40,10 @@ def test_hidden_names_are_numbered_by_first_appearance_also_in_the_text():
 
 def test_names_shown_or_me_and_crew_kept():
     assert [s.who for s in snap_lines(CHAT, hide_names=False)] == [
-        "", "NoodleBonk", "tortillaTank", "VoidCrowned", "ana",
+        "", "NoodleBonk", "tortillaTank", "MoonPebble", "ana",
     ]  # fmt: skip
     kept = snap_lines(CHAT, keep_crew=True)
-    assert [s.who for s in kept] == ["", "Player 2", "tortillaTank", "VoidCrowned", "Player 3"]
+    assert [s.who for s in kept] == ["", "Player 2", "tortillaTank", "MoonPebble", "Player 3"]
     assert kept[3].text == "on it, tortillaTank " + GLYPH
 
 

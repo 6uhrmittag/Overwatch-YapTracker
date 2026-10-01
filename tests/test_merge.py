@@ -20,9 +20,9 @@ def store(tmp_path):
 
 
 def two_of_one(store):
-    """'magin' and its misread 'mao' became two players."""
-    right, wrong = store.add_player("magin", 100.0), store.add_player("mao", 50.0)
-    store.add_alias(wrong, "maoo")
+    """'pollen' and its misread 'pol' became two players."""
+    right, wrong = store.add_player("pollen", 100.0), store.add_player("pol", 50.0)
+    store.add_alias(wrong, "polo")
     store.set_notes(right, "Zen main, calls targets.")
     store.set_notes(wrong, "Said gl hf.")
     store.set_verdict(wrong, "fun")
@@ -34,13 +34,13 @@ def two_of_one(store):
 def test_merging_keeps_yaps_notes_spellings_verdict_and_dates(store):
     right, wrong = two_of_one(store)
     store.merge_players(wrong, right)
-    assert [p.display_name for p in store.players()] == ["magin"]
+    assert [p.display_name for p in store.players()] == ["pollen"]
     merged = store.player(right)
     assert merged.yaps == 2
     assert merged.notes == "Zen main, calls targets.\n\nSaid gl hf."  # joined, not lost
-    assert merged.verdict == "fun"  # magin had none: taken over
+    assert merged.verdict == "fun"  # pollen had none: taken over
     assert (merged.first_seen, merged.last_seen) == (50.0, 100.0)
-    assert store.aliases(right) == ["mao", "maoo"]
+    assert store.aliases(right) == ["pol", "polo"]
 
 
 def test_a_verdict_you_gave_the_kept_one_stays(store):
@@ -57,7 +57,7 @@ def test_a_backup_comes_first_and_new_lines_find_the_merged_player(store, tmp_pa
     store.merge_players(wrong, right)
     matcher.reload()
     assert backup.exists() and backup.name.startswith("yaptracker-before-merge-")
-    assert matcher.link("mao", 200.0) == right  # the misread now lands on magin
+    assert matcher.link("pol", 200.0) == right  # the misread now lands on pollen
 
 
 @pytest.fixture
@@ -76,10 +76,10 @@ async def test_merge_from_the_profile(user: User, store, monkeypatch):
     user.find(marker=f"yapper-{wrong}").click()
     await user.should_see("Your verdict")
     user.find(marker="merge").click()
-    user.find(marker="merge-search").type("magin")
+    user.find(marker="merge-search").type("pollen")
     user.find(marker="merge-pick").click()
-    await user.should_see("mao → magin?")
+    await user.should_see("pol → pollen?")
     user.find(marker="merge-ok").click()
-    await user.should_see("Also read as mao, maoo")
-    assert [p.display_name for p in store.players()] == ["magin"]
+    await user.should_see("Also read as pol, polo")
+    assert [p.display_name for p in store.players()] == ["pollen"]
     assert list(paths.backup_dir().glob("yaptracker-before-merge-*.db"))
