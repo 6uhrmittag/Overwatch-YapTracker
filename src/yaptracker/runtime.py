@@ -8,6 +8,7 @@ from yaptracker.familiar import FamiliarFaces
 from yaptracker.lines import LinePictures
 from yaptracker.matches import MatchTracker
 from yaptracker.pause import Pause
+from yaptracker.players import PlayerMatcher
 from yaptracker.reader import ChatReader
 from yaptracker.store.backups import DailyBackup
 from yaptracker.store.repo import Store
@@ -28,5 +29,6 @@ debug: DebugSamples | None = None  # the hard moments, kept as test material (#6
 reader: ChatReader | None = None  # live chat into the database (#108), with the store
 backups: DailyBackup | None = None  # one copy of the database a day (#125), with the store
 pictures: LinePictures | None = None  # the picture of every chat line (#120)
+players: PlayerMatcher | None = None  # speakers -> players (#23); reloaded after a merge
 familiar: FamiliarFaces | None = None  # "Look who's back!" cards (#26), with the store
 lookup_requested = 0.0  # monotonic time of the last Ctrl+Alt+F; the UI focuses the search box

@@ -42,6 +42,14 @@ class PlayerMatcher:
         self._reads: dict[int, Counter] = {}  # player -> how often each spelling was read
         self._shown: dict[int, str] = {}
 
+    def reload(self) -> None:
+        """After a merge (#28): the names of the merged player now point to the other one."""
+        with self._lock:
+            self._names = {name: pid for pid, name in self._store.player_names()}
+            known = set(self._names.values())
+            self._reads = {pid: reads for pid, reads in self._reads.items() if pid in known}
+            self._shown = {pid: name for pid, name in self._shown.items() if pid in known}
+
     def link(self, speaker: str | None, ts: float, confidence: float = 1.0) -> int | None:
         """The player who said this line; None for system lines and for my own lines."""
         if not speaker:

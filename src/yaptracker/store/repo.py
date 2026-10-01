@@ -216,6 +216,51 @@ class Store:
         rows = self._read("SELECT started_at FROM matches WHERE id = ?", (match_id,))
         return rows[0][0] if rows else None
 
+    def merge_players(self, source_id: int, target_id: int) -> None:
+        """OCR made two players of one person (#28): source goes into target, nothing is lost.
+
+        Their lines move over, notes are joined, source's names become target's aliases, a
+        missing verdict is taken over, first/last met combined. One transaction.
+        """
+        with self._lock:
+            conn = self._conn
+            source = conn.execute(
+                "SELECT display_name, verdict, notes, first_seen, last_seen FROM players "
+                "WHERE id = ?", (source_id,)
+            ).fetchone()  # fmt: skip
+            target = conn.execute(
+                "SELECT verdict, notes, first_seen, last_seen FROM players WHERE id = ?",
+                (target_id,),
+            ).fetchone()
+            if source is None or target is None or source_id == target_id:
+                return
+            name, verdict, notes, first, last = source
+            joined = "\n\n".join(n.strip() for n in (target[1], notes) if n and n.strip())
+            firsts = [t for t in (target[2], first) if t is not None]
+            lasts = [t for t in (target[3], last) if t is not None]
+            conn.execute("BEGIN")
+            try:
+                conn.execute(
+                    "UPDATE chat_messages SET player_id = ? WHERE player_id = ?",
+                    (target_id, source_id),
+                )
+                conn.execute(
+                    "INSERT OR IGNORE INTO player_aliases (player_id, alias) "
+                    "SELECT ?, alias FROM player_aliases WHERE player_id = ? UNION SELECT ?, ?",
+                    (target_id, source_id, target_id, name),
+                )
+                conn.execute(
+                    "UPDATE players SET notes = ?, verdict = COALESCE(verdict, ?), "
+                    "first_seen = ?, last_seen = ? WHERE id = ?",
+                    (joined, verdict, min(firsts, default=None), max(lasts, default=None),
+                     target_id),
+                )  # fmt: skip
+                conn.execute("DELETE FROM players WHERE id = ?", (source_id,))
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+
     def set_verdict(self, player_id: int, verdict: str | None) -> None:
         self._write("UPDATE players SET verdict = ? WHERE id = ?", (verdict, player_id))
 

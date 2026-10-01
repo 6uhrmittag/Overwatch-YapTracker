@@ -117,7 +117,7 @@ def _list(open_profile: Callable[[int], None]) -> None:
                 ).classes("yt-hint").mark("yapper-none")
                 return
             for player in players:
-                row = ui.element("div").classes("yt-yapper").mark("yapper")
+                row = ui.element("div").classes("yt-yapper").mark(f"yapper yapper-{player.id}")
                 row.on("click", lambda pid=player.id: open_profile(pid))
                 with row:
                     ui.label(player.display_name).classes("yt-yapper-name")

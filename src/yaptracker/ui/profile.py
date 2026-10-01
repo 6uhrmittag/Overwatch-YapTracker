@@ -33,8 +33,14 @@ def profile(player_id: int, on_back: Callable[[], None]) -> None:
             button("\u2190 All yappers", on_back, "quiet").mark("back-to-yappers")
             ui.label(player.display_name).classes("yt-profile-name")
             aliases = store.aliases(player_id)
-            if aliases:
-                ui.label("Also read as " + ", ".join(aliases)).classes("yt-hint")
+            with ui.element("div").classes("yt-row"):
+                if aliases:
+                    ui.label("Also read as " + ", ".join(aliases)).classes("yt-hint")
+                button(
+                    "Same person as someone else? Merge into\u2026",
+                    lambda: _merge_dialog(player_id, player.display_name),
+                    "quiet",
+                ).mark("merge")
             ui.label("Your verdict").classes("yt-h2")
             verdicts = ui.element("div").classes("yt-row").mark("verdicts")
             tiles = [
@@ -106,6 +112,60 @@ def profile(player_id: int, on_back: Callable[[], None]) -> None:
 
     notes.on_value_change(save_notes)
     render_verdicts(player.verdict)
+
+
+def _merge_dialog(player_id: int, name: str) -> None:
+    """OCR made two players of one person (#28): pick the other one, confirm, done."""
+    from yaptracker import paths
+    from yaptracker.store.backups import before_merge
+    from yaptracker.ui.yappers import matching
+
+    store = runtime.store
+    with ui.dialog() as dialog, ui.element("section").classes("yt-card yt-merge"):
+        body = ui.element("div").classes("yt-card-body")
+
+    def pick() -> None:
+        body.clear()
+        with body:
+            ui.label(f"Merge {name} into\u2026").classes("yt-h2")
+            box = ui.input(placeholder="The name to keep").props("dense borderless autofocus")
+            box.classes("yt-lookup-box").mark("merge-search")
+            results = ui.element("div").classes("yt-lookup-results")
+
+            def search(e) -> None:
+                results.clear()
+                others = [p for p in store.players() if p.id != player_id]
+                with results:
+                    for other in matching(others, store.player_names(), e.value or "")[:6]:
+                        row = ui.element("div").classes("yt-lookup-row").mark("merge-pick")
+                        row.on("click", lambda o=other: confirm(o.id, o.display_name))
+                        with row:
+                            ui.label(other.display_name).classes("yt-lookup-name")
+
+            box.on_value_change(search)
+
+    def confirm(target_id: int, target: str) -> None:
+        body.clear()
+        with body:
+            ui.label(f"{name} \u2192 {target}?").classes("yt-h2")
+            ui.label(
+                f"Their yaps, notes and spellings move over to {target}; {name} is gone "
+                "afterwards. A backup is made first, so this can be undone."
+            ).classes("yt-hint")
+            with ui.element("div").classes("yt-actions"):
+                button("Back", pick, "quiet")
+                button(f"Merge into {target}", lambda: merge(target_id), "primary").mark("merge-ok")
+
+    def merge(target_id: int) -> None:
+        before_merge(store.backup_to, paths.backup_dir())
+        store.merge_players(player_id, target_id)
+        if runtime.players is not None:
+            runtime.players.reload()
+        dialog.close()
+        ui.context.client.yt_show("yappers", player_id=target_id)
+
+    pick()
+    dialog.open()
 
 
 def _day(ts: float | None) -> str:
