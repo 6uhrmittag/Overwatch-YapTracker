@@ -8,12 +8,15 @@ Gaps are stored in capture_gaps, never silent holes:
 If Overwatch itself closes, nothing is being lost, so an open gap ends there.
 """
 
+import logging
 import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
 from yaptracker.store.repo import Store
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,7 @@ class CaptureHealth:
             if self.gap is None:
                 since = self.last_frame_at or self._clock()
                 self.gap = Gap(self._store.open_gap(since, reason), reason, since)
+                log.warning("not recording since %s: %s", _clock_time(since), reason)
 
     def paused(self, on: bool) -> None:
         with self._lock:
@@ -52,6 +56,7 @@ class CaptureHealth:
                     self._close()
                 now = self._clock()
                 self.gap = Gap(self._store.open_gap(now, "paused"), "paused", now)
+                log.info("paused")
             elif not on and is_paused:
                 self._close()
 
@@ -64,5 +69,11 @@ class CaptureHealth:
     stop = game_closed  # app shutdown: close what's open
 
     def _close(self) -> None:
-        self._store.close_gap(self.gap.id, self._clock())
+        now = self._clock()
+        self._store.close_gap(self.gap.id, now)
+        log.info("recording again after %.0f s (%s)", now - self.gap.since, self.gap.reason)
         self.gap = None
+
+
+def _clock_time(ts: float) -> str:
+    return time.strftime("%H:%M:%S", time.localtime(ts))

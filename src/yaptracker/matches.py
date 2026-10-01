@@ -10,6 +10,7 @@
 - Every match start ends a pause (#20).
 """
 
+import logging
 import threading
 import time
 from collections.abc import Callable
@@ -17,6 +18,8 @@ from typing import NamedTuple
 
 from yaptracker.pause import Pause
 from yaptracker.store.repo import Store
+
+log = logging.getLogger(__name__)
 
 SESSION_GAP_S = 30 * 60
 QUIET_GAP_S = 5 * 60
@@ -120,6 +123,7 @@ class MatchTracker:
             if self.match_ended_at is None:
                 self.match_ended_at, self.match_outcome = ts, outcome
                 self._store.end_match(self.match_id, ts, outcome)
+                log.info("match %d ended: %s", self.match_id, outcome or "outcome unknown")
             elif outcome and not self.match_outcome:  # "PLAY OF THE GAME" first, outcome later
                 self.match_outcome = outcome
                 self._store.end_match(self.match_id, self.match_ended_at, outcome)
@@ -160,6 +164,7 @@ class MatchTracker:
         if self.running:
             self._store.end_match(self.match_id, self._last_chat or ts)
         self.match_id = self._store.start_match(self.session_id, ts, source, mode, map_name)
+        log.info("match %d started (%s, %s, %s)", self.match_id, source, mode, map_name)
         self.match_started_at, self.match_map, self._match_source = ts, map_name, source
         self.match_ended_at = self.match_outcome = None
         self._pause.next_match_started()

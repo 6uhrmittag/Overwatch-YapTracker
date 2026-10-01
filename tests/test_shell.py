@@ -189,3 +189,25 @@ async def test_live_says_loudly_when_nothing_is_recorded(user: User, monkeypatch
     await user.should_see("Not recording")
     await user.should_see("Overwatch is running, but I can't see it right now.")
     store.close()
+
+
+async def test_open_logs_is_greyed_out_off_windows(user: User):
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see(marker="open-logs")
+    button = next(iter(user.find(marker="open-logs").elements))
+    assert "disabled" in button.props
+
+
+async def test_open_logs_opens_the_folder_on_windows(user: User, monkeypatch):
+    from yaptracker import logs
+
+    opened = []
+    monkeypatch.setattr(logs, "folder_opens", lambda: True)
+    monkeypatch.setattr(logs, "open_folder", lambda: opened.append(True))
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    button = next(iter(user.find(marker="open-logs").elements))
+    assert "disabled" not in button.props
+    user.find(marker="open-logs").click()
+    assert opened == [True]
