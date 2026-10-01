@@ -107,23 +107,27 @@ class Dedup:
         """Matched (line, recent) index pairs, in order: most matches, then most similar."""
         n, m = len(keys), len(self.recent)
         score = [[(0, 0.0)] * (m + 1) for _ in range(n + 1)]
+        diagonal = [[None] * (m + 1) for _ in range(n + 1)]  # the score via matching i with j
         for i in range(1, n + 1):
             for j in range(1, m + 1):
                 best = max(score[i - 1][j], score[i][j - 1])
                 similar = self.recent[j - 1].similarity(keys[i - 1])
                 if similar >= SAME:
                     count, total = score[i - 1][j - 1]
-                    best = max(best, (count + 1, total + similar))
+                    diagonal[i][j] = (count + 1, total + similar)
+                    best = max(best, diagonal[i][j])
                 score[i][j] = best
+        # Walking back from the newest entry and matching as soon as it's as good: on a tie the
+        # newest entry wins, so "Group up!" said again isn't paired with the old one (#129).
         pairs, i, j = [], n, m
         while i and j:
-            if score[i][j] == score[i - 1][j]:
-                i -= 1
-            elif score[i][j] == score[i][j - 1]:
-                j -= 1
-            else:
+            if diagonal[i][j] == score[i][j]:
                 pairs.append((i - 1, j - 1))
                 i, j = i - 1, j - 1
+            elif score[i][j] == score[i - 1][j]:
+                i -= 1
+            else:
+                j -= 1
         return pairs[::-1]
 
     def _valid(self, ts: float, pairs: list[tuple[int, int]], n: int, chat_open: bool) -> bool:
