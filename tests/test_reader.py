@@ -131,3 +131,20 @@ def test_every_read_frame_goes_to_the_debug_samples_with_its_ocr(store):
     assert (ts, frame is image, ocr[0].text, lines[0].speaker) == (1000.0, True, "[zappy]: gl hf",
                                                                     "zappy")  # fmt: skip
     assert [y.best.text for y in new] == ["gl hf"]
+
+
+def test_reads_keep_a_gap_and_the_newest_frame_is_the_one_read(store):
+    import time
+
+    frames = [BLACK.copy() for _ in range(12)]
+    read = []
+    tracker = MatchTracker(store, Pause())
+    reader = ChatReader(lambda image: read.append(image) or [], store, tracker, min_gap_s=0.2)
+    reader.start()
+    for frame in frames:  # a burst: 12 changed frames in 0.36 s
+        reader.offer(frame)
+        time.sleep(0.03)
+    time.sleep(0.25)
+    reader.stop()
+    assert 2 <= len(read) <= 4  # not 12
+    assert read[-1] is frames[-1]  # the last change is never lost
