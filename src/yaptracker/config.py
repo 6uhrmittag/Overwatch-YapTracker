@@ -167,6 +167,18 @@ def save_setup_state(state: str, path: Path | None = None) -> None:
     _save(path, data)
 
 
+def line_pictures(path: Path | None = None) -> bool:
+    """Keep the picture of every chat line (#120); on unless switched off."""
+    return _load(path or paths.config_file()).get("line_pictures", True)
+
+
+def save_line_pictures(on: bool, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["line_pictures"] = on
+    _save(path, data)
+
+
 def debug_samples(path: Path | None = None) -> bool:
     """Collect debug samples (#63): on by default while YapTracker is a v0.x pre-release."""
     return _load(path or paths.config_file()).get("debug_samples", __version__.startswith("0."))
