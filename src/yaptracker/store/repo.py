@@ -41,6 +41,31 @@ class PlayerRow:
 
 
 @dataclass(frozen=True)
+class SessionRow:
+    """An evening in the Sessions list (#29)."""
+
+    id: int
+    started_at: float
+    ended_at: float  # its end, or its last yap/match if YapTracker never saw the end
+    matches: int
+    yaps: int
+
+
+@dataclass(frozen=True)
+class MatchRow:
+    """A match in a session (#29)."""
+
+    id: int
+    started_at: float
+    ended_at: float | None
+    outcome: str | None
+    map: str | None
+    mode: str | None
+    yaps: int
+    last_yap: float | None
+
+
+@dataclass(frozen=True)
 class Stats:
     messages: int
     sessions: int
@@ -149,6 +174,31 @@ class Store:
             "(SELECT session_id FROM matches WHERE id = ?)",
             (match_id, match_id),
         )[0][0]
+
+    def sessions(self) -> list[SessionRow]:
+        """Every session with at least one match, newest first (#29)."""
+        rows = self._read(
+            "SELECT s.id, s.started_at, COALESCE(s.ended_at, MAX(s.started_at, "
+            "COALESCE((SELECT MAX(c.ts) FROM chat_messages c JOIN matches m ON m.id = c.match_id "
+            "WHERE m.session_id = s.id), 0), "
+            "COALESCE((SELECT MAX(COALESCE(ended_at, started_at)) FROM matches "
+            "WHERE session_id = s.id), 0))), "
+            "(SELECT COUNT(*) FROM matches WHERE session_id = s.id) AS n, "
+            "(SELECT COUNT(*) FROM chat_messages c JOIN matches m ON m.id = c.match_id "
+            "WHERE m.session_id = s.id) "
+            "FROM sessions s WHERE n > 0 ORDER BY s.started_at DESC, s.id DESC"
+        )
+        return [SessionRow(*row) for row in rows]
+
+    def session_matches(self, session_id: int) -> list[MatchRow]:
+        """The matches of a session in play order, with how much was said (#29)."""
+        rows = self._read(
+            "SELECT m.id, m.started_at, m.ended_at, m.outcome, m.map, m.mode, COUNT(c.id), "
+            "MAX(c.ts) FROM matches m LEFT JOIN chat_messages c ON c.match_id = m.id "
+            "WHERE m.session_id = ? GROUP BY m.id ORDER BY m.started_at, m.id",
+            (session_id,),
+        )
+        return [MatchRow(*row) for row in rows]
 
     # Players (#23) ---------------------------------------------------------------------------
 
@@ -358,6 +408,15 @@ class Store:
 
     def close_gap(self, gap_id: int, ts: float) -> None:
         self._write("UPDATE capture_gaps SET ended_at = ? WHERE id = ?", (ts, gap_id))
+
+    def gaps_between(self, start: float, end: float) -> list[tuple[float, float | None, str]]:
+        """(started, ended, reason) of every gap overlapping (start, end); None = still open.
+        Touching doesn't count: a pause that ends as the next match starts left no hole in it."""
+        return self._read(
+            "SELECT started_at, ended_at, reason FROM capture_gaps "
+            "WHERE started_at < ? AND (ended_at IS NULL OR ended_at > ?) ORDER BY started_at, id",
+            (end, start),
+        )
 
     # Overview -------------------------------------------------------------------------------
 

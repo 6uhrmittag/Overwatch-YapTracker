@@ -92,6 +92,13 @@ html, body { background: var(--yt-night); }
   .yt-line .yt-line-ch { flex-shrink: 0; width: 58px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; font-style: normal; }
   .yt-line .yt-line-name { flex-shrink: 0; font-size: 16px; font-weight: 800; font-style: normal; }
   .yt-line-name:empty { display: none; }
+  /* Known players: a 3 px underline in their verdict colour and a faint gold row tint (docs/ui.md) */
+  .yt-line--known { background: rgba(255,200,61,.06); }
+  .yt-line--known .yt-line-name { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 4px; }
+  .yt-known--friend .yt-line-name { text-decoration-color: #ffc83d; }
+  .yt-known--fun .yt-line-name { text-decoration-color: #b98cff; }
+  .yt-known--neutral .yt-line-name { text-decoration-color: #7d8699; }
+  .yt-known--avoid .yt-line-name { text-decoration-color: #ff5c66; }
   .yt-line-text { min-width: 0; font-size: 16px; line-height: 1.4; color: var(--yt-text); overflow-wrap: anywhere; }
   .yt-line--system .yt-line-text { color: var(--yt-system); font-style: italic; }
   .yt-line { cursor: pointer; }
@@ -193,6 +200,14 @@ html, body { background: var(--yt-night); }
 
   /* Familiar faces (#26, Live mockup): impossible to miss on a second monitor */
   .yt-faces { display: flex; flex-direction: column; gap: 14px; }
+  /* Sessions (#29) */
+  .yt-outcome { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+  .yt-outcome--victory { background: #1c2a22; color: var(--yt-ok); }
+  .yt-outcome--defeat { background: #2b1214; color: var(--yt-danger); }
+  .yt-outcome--draw { background: var(--yt-panel-inset); color: var(--yt-muted); }
+  .yt-incomplete { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; text-transform: uppercase; background: #2e2210; color: #ffd08a; }
+  .yt-transcript { gap: 2px; }
+  .yt-gap-line { margin: 6px 10px; padding: 6px 12px; border-radius: 10px; border: 1px dashed #5c4216; color: #ffd08a; font-size: 13px; font-weight: 700; }
   .yt-spicy { display: inline-flex; vertical-align: -2px; }
   .yt-heads-up { padding: 8px 12px; border-radius: 12px; background: #2e2210; border: 1px solid #5c4216; color: #ffd08a; font-size: 14px; font-weight: 700; }
   .yt-lookup-box { padding: 4px 6px 4px 14px; border-radius: 14px; background: var(--yt-panel-inset); border: 2px solid var(--yt-line-strong); }
