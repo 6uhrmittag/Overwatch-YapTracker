@@ -106,17 +106,23 @@ class Dedup:
         return new, improved
 
     def _align(self, keys: list[str]) -> list[tuple[int, int]]:
-        """Matched (line, recent) index pairs, in order: most matches, then most similar."""
+        """Matched (line, recent) index pairs, in order: most matches, then the newest entries,
+        then the most similar readings.
+
+        Lines on screen are the most recent ones, so among equally many matches the newest
+        entries win, even if an older one was once read a little more exactly (#134). For the
+        same entries, similarity decides ("hi" matches "hi", not "o/" by the same speaker).
+        """
         n, m = len(keys), len(self.recent)
-        score = [[(0, 0.0)] * (m + 1) for _ in range(n + 1)]
+        score = [[(0, 0, 0.0)] * (m + 1) for _ in range(n + 1)]
         diagonal = [[None] * (m + 1) for _ in range(n + 1)]  # the score via matching i with j
         for i in range(1, n + 1):
             for j in range(1, m + 1):
                 best = max(score[i - 1][j], score[i][j - 1])
                 similar = self.recent[j - 1].similarity(keys[i - 1])
                 if similar >= SAME:
-                    count, total = score[i - 1][j - 1]
-                    diagonal[i][j] = (count + 1, total + similar)
+                    count, newest, total = score[i - 1][j - 1]
+                    diagonal[i][j] = (count + 1, newest + j, total + similar)
                     best = max(best, diagonal[i][j])
                 score[i][j] = best
         # Walking back from the newest entry and matching as soon as it's as good: on a tie the
