@@ -151,11 +151,19 @@ async def test_settings_shows_what_is_stored(user: User, monkeypatch, tmp_path):
 
     store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
     store.add_message(ts=1.0, channel="match", text="gg")
+    store.start_match(store.start_session(1.0), 1.0, "gap")
     monkeypatch.setattr(runtime, "store", store)
     await user.open("/")
     user.find(marker="nav-settings").click()
-    await user.should_see("1 yaps, 0 matches, 0 yappers")
+    await user.should_see("1 yap, 1 match, 0 yappers")
     store.close()
+
+
+def test_counts_read_like_a_person_wrote_them():
+    from yaptracker.ui.views import count
+
+    counts = [count(n, "match", "matches") for n in (0, 1, 2)]
+    assert counts == ["0 matches", "1 match", "2 matches"]
 
 
 async def test_live_header_shows_session_and_match(user: User, monkeypatch, tmp_path):

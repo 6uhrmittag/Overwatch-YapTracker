@@ -18,6 +18,11 @@ def _header(title: str) -> None:
         ui.label(title).classes("yt-h1")
 
 
+def count(n: int, one: str, many: str) -> str:
+    """'1 match', '2 matches', '0 yaps'."""
+    return f"{n} {one if n == 1 else many}"
+
+
 def _empty_card(title: str, hint: str) -> None:
     with ui.element("section").classes("yt-card"):
         with ui.element("div").classes("yt-card-head"):
@@ -264,8 +269,9 @@ def settings() -> None:
                         stats, db = runtime.store.stats(), paths.db_file()
                         size = db.stat().st_size / 1_000_000 if db.exists() else 0.0
                         ui.label(
-                            f"{stats.messages} yaps, {stats.matches} matches, "
-                            f"{stats.players} yappers, {size:.1f} MB"
+                            f"{count(stats.messages, 'yap', 'yaps')}, "
+                            f"{count(stats.matches, 'match', 'matches')}, "
+                            f"{count(stats.players, 'yapper', 'yappers')}, {size:.1f} MB"
                         ).classes("yt-meta").mark("data-stats")
                     ui.label(
                         "A copy goes to the backups folder before every database update. "
