@@ -23,6 +23,13 @@ DEV_PORT = 8080
 SMOKE_TEST_TIMEOUT_S = 90
 
 
+def capture_region(box, height: int, match_running: bool):
+    """The calibrated chat box during a match; outside one (menu after a match, map vote,
+    before the first match) the strip from it down to the window's bottom edge, where
+    Overwatch shows the chat then (#176). Dedup knows lines by their text, not their place."""
+    return box if match_running else box.down_to(height)
+
+
 def _check_ocr() -> bool:
     """The exe must ship working OCR: every engine that runs here reads the demo screenshot."""
     from yaptracker.capture.source import default_chat_region
@@ -78,7 +85,9 @@ def _watch_for_overwatch(dev: bool) -> None:
     runtime.changes = changes = config.change_detector()
 
     def on_frame(frame) -> None:  # not while paused: the watcher drops those frames (#20)
-        if changes.update(frame.image) and runtime.reader is not None:
+        size = runtime.window_size
+        text_scale = size[1] / 1440 if size else None  # the strip outside matches is taller
+        if changes.update(frame.image, text_scale) and runtime.reader is not None:
             runtime.reader.offer(frame.image)  # new text: read, dedup and store it (#108)
 
     def on_alive() -> None:
@@ -128,7 +137,8 @@ def _watch_for_overwatch(dev: bool) -> None:
 
     def region_for(width: int, height: int):
         runtime.window_size = (width, height)  # the Live view hints when this changes (#84)
-        return config.chat_region(width, height)
+        running = runtime.matches is None or runtime.matches.running
+        return capture_region(config.chat_region(width, height), height, running)
 
     def make_watcher() -> CaptureWatcher:
         common = {

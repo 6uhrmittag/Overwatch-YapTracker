@@ -19,6 +19,11 @@ class Region:
     def crop(self, image: np.ndarray) -> np.ndarray:
         return image[self.y : self.y + self.height, self.x : self.x + self.width]
 
+    def down_to(self, bottom: int) -> "Region":
+        """The same columns, from the top down to `bottom` (the window's lower edge): outside a
+        match Overwatch shows the chat lower, in the menu and on the map vote screen (#176)."""
+        return Region(self.x, self.y, self.width, max(self.height, bottom - self.y))
+
 
 @dataclass(frozen=True)
 class RelativeRegion:

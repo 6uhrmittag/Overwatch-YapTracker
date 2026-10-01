@@ -178,11 +178,21 @@ def _transcript(match, number: int, back) -> None:
     messages = store.messages(match.id)
     gaps = store.gaps_between(match.started_at, _match_end(match))
     events = [(m.ts, "yap", m) for m in messages] + [(g[0], "gap", g) for g in gaps]
+    if match.ended_at and any(m.ts > match.ended_at for m in messages):
+        events.append((match.ended_at, "end", match))  # what was said after the result (#176)
     with ui.element("section").classes("yt-card yt-card--list"):
         with ui.element("div").classes("yt-card-body yt-transcript").mark("transcript"):
             if not events:
                 ui.label("Nobody typed in this match. Suspiciously quiet lobby.").classes("yt-hint")
             for _, kind, item in sorted(events, key=lambda e: e[0]):
+                if kind == "end":
+                    result = (
+                        f" ({_OUTCOMES.get(item.outcome, item.outcome)})" if item.outcome else ""
+                    )
+                    ui.label(f"After the match{result}").classes("yt-gap-line yt-end-line").mark(
+                        "end-line"
+                    )
+                    continue
                 if kind == "gap":
                     started, ended, reason = item
                     span = f"{_clock(started)}\u2013{_clock(ended)}" if ended else \

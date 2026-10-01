@@ -1,0 +1,109 @@
+{
+ "source": "Chat outside a match (#176), 2026-10-01: the menu after a match and the map vote screen. OCR only, names made up.",
+ "screens": {
+  "menu": [
+   {
+    "text": "zz -Zxzx! zxzxz",
+    "confidence": 0.708,
+    "box": [
+     121,
+     142,
+     261,
+     27
+    ]
+   },
+   {
+    "text": "[MoonPebble]: Perfect team",
+    "confidence": 0.982,
+    "box": [
+     121,
+     189,
+     461,
+     35
+    ]
+   },
+   {
+    "text": "You endorsed SturdyHero!",
+    "confidence": 0.997,
+    "box": [
+     120,
+     246,
+     428,
+     37
+    ]
+   },
+   {
+    "text": "Endorsement Received!",
+    "confidence": 0.999,
+    "box": [
+     132,
+     309,
+     387,
+     35
+    ]
+   },
+   {
+    "text": "[tortillaTank]: <3",
+    "confidence": 0.997,
+    "box": [
+     120,
+     371,
+     293,
+     39
+    ]
+   },
+   {
+    "text": "[KindStranger]: I'm sorry you guys suffered for",
+    "confidence": 0.988,
+    "box": [
+     122,
+     432,
+     719,
+     39
+    ]
+   },
+   {
+    "text": "our 20 mins in q",
+    "confidence": 0.997,
+    "box": [
+     117,
+     472,
+     263,
+     41
+    ]
+   },
+   {
+    "text": "KindStranger's group wants to stay as a team",
+    "confidence": 0.994,
+    "box": [
+     119,
+     534,
+     716,
+     43
+    ]
+   },
+   {
+    "text": "[Group]",
+    "confidence": 0.958,
+    "box": [
+     110,
+     631,
+     119,
+     28
+    ]
+   }
+  ],
+  "vote": [
+   {
+    "text": "[LoudFox]: SEEEEEEEEEEEX",
+    "confidence": 0.997,
+    "box": [
+     120,
+     66,
+     500,
+     39
+    ]
+   }
+  ]
+ }
+}
