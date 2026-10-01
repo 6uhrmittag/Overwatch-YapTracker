@@ -335,7 +335,8 @@ players        (id, display_name, verdict NULL, notes TEXT, first_seen, last_see
 player_aliases (player_id, alias)
 chat_messages  (id, match_id, ts, channel, speaker_raw, player_id NULL,
                 hero NULL, text, ocr_confidence, has_glyphs,
-                flagged NULL)   -- line picture: data/lines/<yyyy-mm>/<id>.png (#120)   -- 'overwatch' ([Report] link) | 'manual'; hero from comms wheel
+                flagged NULL)   -- flagged: 'overwatch' ([Report]) | 'manual'; hero from comms wheel
+               -- has_glyphs: line had emoji/icons (◇); picture at data/lines/<yyyy-mm>/<id>.png (#120)
 capture_gaps   (id, started_at, ended_at, reason)
                -- 'crash' | 'no_frames' | 'paused' | 'window_lost' | 'app_not_running'
 chat_fts       -- FTS5 over chat_messages(text, speaker_raw)
