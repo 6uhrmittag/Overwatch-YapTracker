@@ -30,6 +30,8 @@ class WgcFrameSource:
         self._signals_every_s, self._overview_every_s = signals_every_s, overview_every_s
         self._signals_at = self._overview_at = 0.0
         self._queue: queue.Queue = queue.Queue(maxsize=2)  # a slow reader gets the newest frames
+        self._snapshot_wanted, self._snapshot_ready = threading.Event(), threading.Event()
+        self._snapshot = None
         self._stall_s = stall_s
         self._closed = threading.Event()
         self._start = time.monotonic()
@@ -51,6 +53,10 @@ class WgcFrameSource:
             if self._closed.is_set():
                 control.stop()
                 return
+            if self._snapshot_wanted.is_set():  # Calibrate asked for the whole window (#112)
+                self._snapshot = frame.frame_buffer[:, :, :3].copy()
+                self._snapshot_wanted.clear()
+                self._snapshot_ready.set()
             region = self._region_for(frame.width, frame.height)
             # BGRA -> BGR, and copy only the chat box: the capture buffer is reused.
             chat = region.crop(frame.frame_buffer)[:, :, :3].copy()
@@ -81,6 +87,12 @@ class WgcFrameSource:
             except queue.Full:
                 with contextlib.suppress(queue.Empty):
                     self._queue.get_nowait()  # drop the oldest frame
+
+    def snapshot(self, timeout: float = 2.0):
+        """One full-size BGR frame of the window, or None if none arrives (e.g. minimised)."""
+        self._snapshot_ready.clear()
+        self._snapshot_wanted.set()
+        return self._snapshot if self._snapshot_ready.wait(timeout) else None
 
     def frames(self) -> Iterator[Frame]:
         while True:
