@@ -337,7 +337,7 @@ player_aliases (player_id, alias)
 chat_messages  (id, match_id, ts, channel, speaker_raw, player_id NULL,
                 hero NULL, text, ocr_confidence, has_glyphs,
                 flagged NULL)   -- flagged: 'overwatch' ([Report]) | 'manual'; hero from comms wheel
-               -- has_glyphs: line had emoji/icons (◇); picture at data/lines/<yyyy-mm>/<id>.png (#120)
+               -- has_glyphs: line had emoji/icons (◇); picture at data/lines/<yyyy-mm>/<id>.webp (lossless, #120)
 capture_gaps   (id, started_at, ended_at, reason)
                -- 'crash' | 'no_frames' | 'paused' | 'window_lost' | 'app_not_running'
 chat_fts       -- FTS5 over chat_messages(text, speaker_raw)
@@ -404,7 +404,7 @@ lookup · `Ctrl+Alt+M` new match (override only) · `Ctrl+Alt+P` pause
       (app already running via autostart; capture, matches, sessions automatic)
 - [ ] Any time span that wasn't recorded shows up as a gap record, not a silent hole
 - [ ] No measurable FPS drop in Overwatch; YapTracker averages ≤ 15% of one CPU core
-      over an evening (target: powerful gaming PCs; a spare iGPU may be used, #115)
+      over an evening (target: powerful gaming PCs; dedicated GPU only as tested opt-in, #115)
 - [ ] Update via `tools/update.ps1` works from any v0 pre-release to v1.0.0
 - [ ] README: setup, calibration, hotkeys, known limits, tested resolution
 - [ ] `v1.0.0` released, M5 closed, everything else is `parked`

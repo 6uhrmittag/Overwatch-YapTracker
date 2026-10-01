@@ -29,3 +29,7 @@ def backup_dir() -> Path:
 
 def debug_dir() -> Path:
     return data_dir() / "debug"
+
+
+def lines_dir() -> Path:
+    return data_dir() / "lines"

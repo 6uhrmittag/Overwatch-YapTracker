@@ -148,3 +148,21 @@ def test_reads_keep_a_gap_and_the_newest_frame_is_the_one_read(store):
     reader.stop()
     assert 2 <= len(read) <= 4  # not 12
     assert read[-1] is frames[-1]  # the last change is never lost
+
+
+def test_every_stored_line_keeps_its_picture(store, tmp_path):
+    from yaptracker.lines import LinePictures
+
+    frames = json.loads(REPLAY.read_text(encoding="utf-8"))["frames"]
+    shots = [(frame["t"], np.full((395, 615, 3), 60, np.uint8), frame["ocr"]) for frame in frames]
+    reads = {
+        id(image): [OcrLine(o["text"], o["confidence"], Region(*o["box"])) for o in ocr]
+        for _, image, ocr in shots
+    }
+    pictures = LinePictures(tmp_path / "lines")
+    reader, tracker = reader_for(store, reads, pictures=pictures)
+    for t, image, _ in shots:
+        reader.read_frame(1000.0 + t, image)
+    stored = store.messages(tracker.match_id)
+    saved = sorted(int(p.stem) for p in (tmp_path / "lines").rglob("*.webp"))
+    assert saved == sorted(m.id for m in stored) and len(saved) == 14  # one each, none extra
