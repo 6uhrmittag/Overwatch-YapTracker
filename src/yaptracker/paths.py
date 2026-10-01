@@ -35,14 +35,23 @@ def lines_dir() -> Path:
     return data_dir() / "lines"
 
 
-def export_dir() -> Path:
-    """Exports go where people look for their files: Documents\\YapTracker (#31, #69)."""
+def _known_folder(csidl: int, name: str) -> Path:
+    """A Windows user folder (the real one, also when OneDrive moved it), or ~/<name>."""
     if sys.platform == "win32":
         import ctypes
 
         buf = ctypes.create_unicode_buffer(260)
-        # CSIDL_PERSONAL: the real Documents folder, also when OneDrive moved it
-        ctypes.windll.shell32.SHGetFolderPathW(None, 5, None, 0, buf)  # type: ignore[attr-defined]
+        ctypes.windll.shell32.SHGetFolderPathW(None, csidl, None, 0, buf)  # type: ignore[attr-defined]
         if buf.value:
-            return Path(buf.value) / "YapTracker"
-    return Path.home() / "Documents" / "YapTracker"
+            return Path(buf.value)
+    return Path.home() / name
+
+
+def export_dir() -> Path:
+    """Exports go where people look for their files: Documents\\YapTracker (#31, #69)."""
+    return _known_folder(0x05, "Documents") / "YapTracker"  # CSIDL_PERSONAL
+
+
+def pictures_dir() -> Path:
+    """Yap snaps (#64): Pictures\\YapTracker."""
+    return _known_folder(0x27, "Pictures") / "YapTracker"  # CSIDL_MYPICTURES
