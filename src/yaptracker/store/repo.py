@@ -26,6 +26,20 @@ class Message:
 
 
 @dataclass(frozen=True)
+class PlayerRow:
+    """A yapper in the Yappers list (#24)."""
+
+    id: int
+    display_name: str
+    verdict: str | None
+    notes: str
+    first_seen: float | None
+    last_seen: float | None
+    matches: int
+    yaps: int
+
+
+@dataclass(frozen=True)
 class Stats:
     messages: int
     sessions: int
@@ -157,6 +171,18 @@ class Store:
             "UPDATE players SET last_seen = MAX(COALESCE(last_seen, ?), ?) WHERE id = ?",
             (ts, ts, player_id),
         )
+
+    def players(self) -> list[PlayerRow]:
+        """Every player with how often you met them and how much they said."""
+        rows = self._read(
+            "SELECT p.id, p.display_name, p.verdict, p.notes, p.first_seen, p.last_seen, "
+            "COUNT(DISTINCT c.match_id), COUNT(c.id) "
+            "FROM players p LEFT JOIN chat_messages c ON c.player_id = p.id GROUP BY p.id"
+        )
+        return [PlayerRow(*row) for row in rows]
+
+    def set_verdict(self, player_id: int, verdict: str | None) -> None:
+        self._write("UPDATE players SET verdict = ? WHERE id = ?", (verdict, player_id))
 
     def player_names(self) -> list[tuple[int, str]]:
         """(player id, name) for every display name and alias: what a speaker is matched to."""
