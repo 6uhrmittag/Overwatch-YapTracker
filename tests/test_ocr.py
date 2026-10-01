@@ -92,3 +92,33 @@ def test_german_looking_lines_are_read_again_english_ones_not():
         "Enemy Tracer!",
     ]:
         assert not looks_german(text), text  # fmt: skip
+
+
+def test_upscale_keeps_the_text_height_of_1440p_above_it():
+    """#169: 2x up to 1440p as measured; at 4K only 1.33x, the same text height in pixels."""
+    assert ocr.upscale_for(None) == ocr.upscale_for(1080) == ocr.upscale_for(1440) == 2.0
+    assert ocr.upscale_for(2160) == pytest.approx(4 / 3)
+    assert ocr.upscale_for(1600) == pytest.approx(1.8)
+
+
+def test_a_4k_crop_reads_like_the_1440p_one():
+    import cv2
+    from rapidfuzz import fuzz
+
+    crop = demo_chat_crop()
+    at_4k = cv2.resize(crop, None, fx=1.5, fy=1.5, interpolation=cv2.INTER_CUBIC)
+    engine = ocr.get("rapidocr")
+    expected = [line.text for line in engine.read(crop)]
+    lines = engine.read(at_4k, scale=ocr.upscale_for(2160))
+    assert len(lines) == len(expected)  # a synthetic upscale isn't a real 4K frame: near enough
+    assert all(fuzz.ratio(a.text, b) >= 90 for a, b in zip(lines, expected, strict=True))
+    assert lines[0].box.y == pytest.approx(engine.read(crop)[0].box.y * 1.5, abs=4)  # 4K pixels
+
+
+def test_the_live_scale_follows_the_captured_window(monkeypatch):
+    from yaptracker import runtime
+
+    monkeypatch.setattr(runtime, "window_size", (3840, 2160))
+    assert runtime.ocr_scale() == pytest.approx(4 / 3)
+    monkeypatch.setattr(runtime, "window_size", None)
+    assert runtime.ocr_scale() == 2.0

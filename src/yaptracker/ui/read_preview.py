@@ -4,7 +4,7 @@ import numpy as np
 from nicegui import background_tasks, run, ui
 from PIL import Image
 
-from yaptracker import channels, config
+from yaptracker import channels, config, runtime
 from yaptracker.ocr import engine as ocr
 from yaptracker.parser import ChatLine, parse
 
@@ -76,7 +76,8 @@ class ReadPreview:
         bgr = np.ascontiguousarray(np.asarray(self._image)[:, :, ::-1])
         self._set_hint("Reading...")
         try:
-            lines = await run.io_bound(lambda: ocr.get(name).read(bgr))
+            scale = runtime.ocr_scale()  # as the live reading does (#169)
+            lines = await run.io_bound(lambda: ocr.get(name).read(bgr, scale=scale))
         except Exception as error:  # shown in the card, not swallowed: e.g. no OCR language
             if request == self._request:
                 self._set_hint(
