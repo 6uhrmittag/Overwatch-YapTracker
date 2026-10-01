@@ -25,8 +25,11 @@ class OcrLine:
 
 
 class OcrEngine(Protocol):
-    def read(self, image: np.ndarray) -> list[OcrLine]:
-        """Lines of text in a BGR image, top to bottom. Blocks: from UI code use run.io_bound."""
+    def read(self, image: np.ndarray, accents: bool = False) -> list[OcrLine]:
+        """Lines of text in a BGR image, top to bottom. Blocks: from UI code use run.io_bound.
+
+        accents: look for ä/ç/é... even if the text doesn't look German (map names, #115).
+        """
         ...
 
     def read_line(self, image: np.ndarray) -> str:
@@ -112,13 +115,15 @@ class _ReadTwice:
 
     def __init__(self, default, latin) -> None:
         self.default, self._latin = default, latin
+        self.always = threading.local()  # per thread: capture and the chat reader both read
 
     def __call__(self, crops, return_word_box: bool = False):
         ours, ours_s = self.default(crops, return_word_box)
         # German chat comes in conversations: one German-looking line and the whole chat box is
         # read again, names and system lines included ("You endorsed Björn!"). English-only
         # chat skips the second read (#115).
-        if not any(looks_german(text) for text, _score in ours):
+        always = getattr(self.always, "on", False)
+        if not always and not any(looks_german(text) for text, _score in ours):
             return ours, ours_s
         latin, latin_s = self._latin(crops, return_word_box)
         picked = [b if _has_accent(b[0]) else a for a, b in zip(ours, latin, strict=True)]
@@ -142,11 +147,15 @@ class RapidOcrEngine:
         latin = RapidOCR(rec_model_path=str(LATIN_REC), rec_keys_path=str(LATIN_KEYS), **one_thread)
         self._ocr.text_rec = _ReadTwice(self._ocr.text_rec, latin.text_rec)
 
-    def read(self, image: np.ndarray) -> list[OcrLine]:
+    def read(self, image: np.ndarray, accents: bool = False) -> list[OcrLine]:
         import cv2
 
         big = cv2.resize(image, None, fx=self.scale, fy=self.scale, interpolation=cv2.INTER_CUBIC)
-        result, _ = self._ocr(big)
+        self._ocr.text_rec.always.on = accents
+        try:
+            result, _ = self._ocr(big)
+        finally:
+            self._ocr.text_rec.always.on = False
         words = []
         for points, text, score in result or []:
             xs = [p[0] / self.scale for p in points]
@@ -181,7 +190,7 @@ class WindowsOcrEngine:
             raise OcrUnavailable("Windows has no OCR language installed")
         self._engine = engine
 
-    def read(self, image: np.ndarray) -> list[OcrLine]:
+    def read(self, image: np.ndarray, accents: bool = False) -> list[OcrLine]:
         import asyncio
 
         return asyncio.run(self._read(image))

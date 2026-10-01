@@ -94,8 +94,8 @@ def _watch_for_overwatch(dev: bool) -> None:
     def read_line(image) -> str:
         return ocr.get(config.ocr_engine()).read_line(image)
 
-    def read_lines(image) -> list[str]:
-        return [line.text for line in ocr.get(config.ocr_engine()).read(image)]
+    def read_lines(image) -> list[str]:  # the hero-select corner: map names like ESPERANÇA
+        return [line.text for line in ocr.get(config.ocr_engine()).read(image, accents=True)]
 
     def hero_select_started(mode: str | None, map_name: str | None) -> None:
         if runtime.matches is not None:
