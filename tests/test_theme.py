@@ -13,4 +13,6 @@ def test_hidden_beats_every_component_that_sets_display():
 
 def test_dialog_cards_take_clicks():
     """#200: Quasar only enables div children of a dialog; ours are <section> cards."""
-    assert re.search(r"\.q-dialog__inner\s*>\s*\*\s*\{[^}]*pointer-events:\s*all", THEME.read_text())
+    assert re.search(
+        r"\.q-dialog__inner\s*>\s*\*\s*\{[^}]*pointer-events:\s*all", THEME.read_text()
+    )
