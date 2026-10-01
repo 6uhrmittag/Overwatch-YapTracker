@@ -36,11 +36,20 @@ def key(line: ChatLine) -> str:
     return (f"{clean(line.speaker)}: {line.text}" if line.speaker else line.text).lower()
 
 
+# Punctuation OCR adds or drops between readings of one line ("[Name]: : WW!" / "ww", #184).
+_PUNCTUATION = re.compile(r"[\s:：;.,!?'\"]+")
+
+
 def match_key(line: ChatLine) -> str:
-    """key() without glued capitals, as long as some lower-case text is left ("GG WP" stays)."""
+    """key() without glued capitals, as long as some lower-case text is left ("GG WP" stays),
+    and without punctuation: readings that differ only in case or punctuation are one line."""
     text = _GLUED.sub("", line.text)
     text = text if re.search(r"[a-z]", text) else line.text
-    return (f"{clean(line.speaker)}: {text}" if line.speaker else text).lower()
+    return (
+        _PUNCTUATION.sub(" ", f"{clean(line.speaker) if line.speaker else ''} {text}")
+        .strip()
+        .lower()
+    )
 
 
 def _stored(line: ChatLine) -> tuple:

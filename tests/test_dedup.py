@@ -109,9 +109,20 @@ def test_input_line_and_unreadable_lines_never_become_yaps():
 def test_glued_background_capitals_are_ignored_for_matching_only():
     from yaptracker.dedup import match_key
 
-    assert match_key(yap("gg TOURING EM PORTU", "mossyfox")) == "mossyfox: gg"  # real reads (#18)
-    assert match_key(yap("Enemy Tracer! MAGIN", "MaybeMaybe")) == "maybemaybe: enemy tracer!"
-    assert match_key(yap("GG WP")) == "noodlebonk: gg wp"  # all caps on purpose: kept
+    assert match_key(yap("gg TOURING EM PORTU", "mossyfox")) == "mossyfox gg"  # real reads (#18)
+    assert match_key(yap("Enemy Tracer! MAGIN", "MaybeMaybe")) == "maybemaybe enemy tracer"
+    assert match_key(yap("GG WP")) == "noodlebonk gg wp"  # all caps on purpose: kept
+
+
+def test_readings_that_differ_in_case_or_punctuation_are_one_line():
+    """#184: "[Name]: : WW" and "[Name]: ww" were stored as two lines."""
+    from yaptracker.dedup import match_key
+
+    assert match_key(yap("WW!", "tortillaTank")) == match_key(yap("ww", "tortillaTank"))
+    dedup = Dedup()
+    first, _ = dedup.update(10.0, [yap("WW", "tortillaTank")])
+    again, better = dedup.update(11.5, [yap("ww", "tortillaTank")])
+    assert len(first) == 1 and again == []
 
 
 def test_said_again_later_and_still_on_screen_is_stored_once_more_not_every_frame():
