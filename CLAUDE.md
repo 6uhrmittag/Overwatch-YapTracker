@@ -381,6 +381,11 @@ lookup · `Ctrl+Alt+M` new match (override only) · `Ctrl+Alt+P` pause
   match-signal frames land in `%LOCALAPPDATA%\YapTracker\data\debug\`, readable from
   WSL at `/mnt/c/Users/marvi/AppData/Local/YapTracker/data/debug/`. Use them for new
   tests instead of asking Marv for screenshots. Same privacy rules as `fixtures/private/`.
+- **You are a vision model — use that for ground truth.** When a debug sample or
+  frame needs an expected transcript, look at the image yourself (Read tool) and
+  write the expected lines; Marv only spot-checks. No cloud OCR/LLM at runtime —
+  the app stays local-only.
+- Chat is English **and German** (umlauts, ß). Every OCR change is measured on both (#118).
 
 ---
 
