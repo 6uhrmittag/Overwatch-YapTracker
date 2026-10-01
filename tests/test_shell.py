@@ -328,3 +328,39 @@ async def test_calibrate_takes_the_screenshot_from_the_running_game(user: User, 
             break
         await asyncio.sleep(0.05)
     assert len(taken) == 2
+
+
+async def test_live_streams_the_chat_of_this_match(user: User, monkeypatch, tmp_path):
+    from yaptracker import runtime
+    from yaptracker.matches import MatchTracker
+    from yaptracker.pause import Pause
+    from yaptracker.store.repo import Store
+
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive()
+    tracker.chat_changed()
+    start, match = tracker.match_started_at, tracker.match_id
+    store.add_message(ts=start + 5, channel="match", speaker_raw="NoodleBonk", text="WAHOOOO",
+                      match_id=match)  # fmt: skip
+    store.add_message(ts=start + 65, channel="team", speaker_raw="tortillaTank", text="o/",
+                      match_id=match, role="me")  # fmt: skip
+    glitch = store.add_message(ts=start + 70, channel="system", speaker_raw="gremlin.exe",
+                               text="[gremlin.exe] started playing Overwatch. EM",
+                               match_id=match)  # fmt: skip
+    monkeypatch.setattr(runtime, "store", store)
+    monkeypatch.setattr(runtime, "matches", tracker)
+    await user.open("/")
+    await user.should_see("WAHOOOO")
+    await user.should_see("NoodleBonk:")
+    await user.should_see("you:")  # own lines (#74)
+    await user.should_see("1:05")  # time in the match
+    await user.should_see("3 yaps · 2 yappers")
+    store.update_message(glitch, channel="system", speaker_raw="gremlin.exe",
+                         text="[gremlin.exe] started playing Overwatch.")  # fmt: skip
+    await user.should_not_see("Overwatch. EM", retries=50)  # the better reading replaced it
+    await user.should_see("[gremlin.exe] started playing Overwatch.")
+    tracker.new_match()  # the next match starts with an empty feed
+    await user.should_see("0 yaps · 0 yappers", retries=50)
+    await user.should_not_see("WAHOOOO")
+    store.close()

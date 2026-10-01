@@ -44,6 +44,36 @@ _WHY = {
 _OUTCOMES = {"victory": "won", "defeat": "lost", "draw": "draw"}
 
 
+# Chat line chips (docs/ui/mockup/Live): the channel, in its colour. Unsure typed lines say "Chat".
+_CHANNELS = {"team": "Team", "match": "Match", "group": "Group", "system": "System"}
+
+
+def _chat_line(message, started_at: float | None) -> dict:
+    """One row of the Live feed: time in the match, channel, who (you for own lines), text."""
+    channel = message.channel if message.channel in _CHANNELS else "chat"
+    with ui.element("div").classes(f"yt-line yt-line--{channel}"):
+        seconds = max(0, int(message.ts - started_at)) if started_at else 0
+        ui.label(f"{seconds // 60}:{seconds % 60:02d}").classes("yt-line-time")
+        ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
+        name = ui.label().classes(f"yt-line-name yt-ch-{channel}")
+        text = ui.label().classes("yt-line-text")
+    row = {"name": name, "text": text, "shown": None}
+    _fill_line(row, message)
+    return row
+
+
+def _fill_line(row: dict, message) -> None:
+    shown = (message.speaker_raw, message.role, message.text)
+    if shown == row["shown"]:
+        return
+    row["shown"] = shown
+    # System lines carry the name in their text ("[gremlin.exe] started playing Overwatch.").
+    who = message.speaker_raw if message.channel != "system" else ""
+    who = "you" if who and message.role == "me" else who
+    row["name"].set_text(f"{who}:" if who else "")
+    row["text"].set_text(message.text)
+
+
 # Pill colour per Live state: trouble shares the orange of paused - a heads-up, not an alarm.
 _PILLS = {"paused": "paused", "trouble": "paused", "listening": "listening", "waiting": "waiting"}
 
@@ -102,12 +132,15 @@ def _live() -> None:
         with ui.element("section").classes("yt-card yt-card--chat").props('aria-label="Chat"'):
             with ui.element("div").classes("yt-card-head"):
                 ui.label("This match").classes("yt-h2")
-                ui.label("0 yaps").classes("yt-meta")
+                yap_count = ui.label("0 yaps").classes("yt-meta").mark("yap-count")
                 ui.element("div").classes("yt-grow")
                 with ui.element("div").classes("yt-legend"):
                     for channel in ("Team", "Match", "Group", "System"):
                         ui.label(channel).classes(f"yt-ch-{channel.lower()}")
             with ui.element("div").classes("yt-card-body"):
+                feed = ui.scroll_area(on_scroll=lambda e: follow(e)).classes("yt-lines")
+                with feed:
+                    lines = ui.element("div").classes("yt-lines-inner").mark("lines")
                 hint = ui.label("Waiting for Overwatch. I'll be right here.").classes("yt-hint")
         with ui.element("aside").classes("yt-aside").props('aria-label="Familiar faces"'):
             with ui.element("div").classes("yt-card yt-card--placeholder"):
@@ -124,6 +157,34 @@ def _live() -> None:
 
     meter = fps(watcher) if watcher else (lambda: 0.0)
     shown = {"frame": None}
+    chat = {"match": None, "rows": {}, "stick": True}
+
+    def follow(e) -> None:
+        """Auto-scroll pauses while you read further up, and comes back at the bottom."""
+        chat["stick"] = e.vertical_size - e.vertical_position - e.vertical_container_size < 40
+
+    def refresh_chat() -> None:
+        match_id = runtime.matches.match_id if runtime.matches else None
+        if match_id != chat["match"]:  # a new match starts with an empty feed
+            chat.update(match=match_id, rows={})
+            lines.clear()
+        if match_id is None or runtime.store is None:
+            yap_count.set_text("0 yaps")
+            return
+        messages = runtime.store.messages(match_id)
+        added = False
+        for message in messages:
+            if message.id in chat["rows"]:
+                _fill_line(chat["rows"][message.id], message)  # a better reading came in
+            else:
+                with lines:
+                    chat["rows"][message.id] = _chat_line(message, runtime.matches.match_started_at)
+                added = True
+        yappers = {m.speaker_raw for m in messages if m.channel != "system" and m.speaker_raw}
+        yaps, people = count(len(messages), "yap", "yaps"), count(len(yappers), "yapper", "yappers")
+        yap_count.set_text(f"{yaps} \u00b7 {people}")
+        if added and chat["stick"]:
+            feed.scroll_to(percent=1.0)
 
     def toggle_pause() -> None:
         runtime.pause.toggle()
@@ -140,6 +201,7 @@ def _live() -> None:
         size_hint.classes(add="yt-hidden")
 
     def refresh() -> None:
+        refresh_chat()
         paused = runtime.pause.paused
         capturing = watcher is not None and watcher.state == "capturing"
         gap = runtime.health.gap if runtime.health else None
