@@ -4,7 +4,7 @@ import html
 import time
 
 import numpy as np
-from nicegui import ui
+from nicegui import run, ui
 from PIL import Image
 
 from yaptracker import __version__, config, logs, paths, runtime
@@ -25,6 +25,7 @@ from yaptracker.ui.exports import export_card
 from yaptracker.ui.familiar_cards import familiar_card
 from yaptracker.ui.hotkeys import hotkeys_card
 from yaptracker.ui.lookup import lookup_card
+from yaptracker.ui.reading import reading_card
 from yaptracker.ui.setup import setup_wizard, startup_card
 
 
@@ -410,6 +411,7 @@ def settings() -> None:
                             "Chat moved, or lines come out cut off? Calibrate again: one click "
                             "while Overwatch runs."
                         ).classes("yt-hint")
+            reading_card()
             crew_card()
             startup_card()
             hotkeys_card()
@@ -417,9 +419,13 @@ def settings() -> None:
                 with ui.element("div").classes("yt-card-head"):
                     ui.label("Your data").classes("yt-h2")
                     ui.element("div").classes("yt-grow")
+                    open_data = button(
+                        "Open data folder", lambda: logs.open_folder(paths.data_dir()), "quiet"
+                    ).mark("open-data")
                     open_logs = button("Open logs", lambda: logs.open_folder()).mark("open-logs")
                     if not logs.folder_opens():
-                        open_logs.props('disabled title="Opens Explorer, so only on Windows"')
+                        for b in (open_data, open_logs):
+                            b.props('disabled title="Opens Explorer, so only on Windows"')
                 with ui.element("div").classes("yt-card-body"):
                     ui.label(str(paths.data_dir())).classes("yt-meta yt-mono")
                     if runtime.store is not None:
@@ -431,12 +437,26 @@ def settings() -> None:
                             f"{count(stats.players, 'yapper', 'yappers')}, {size:.1f} MB"
                         ).classes("yt-meta").mark("data-stats")
                     with ui.element("div").classes("yt-row"):
-                        ui.label(_backup_text()).classes("yt-meta").mark("backup-info")
+                        backup_info = (
+                            ui.label(_backup_text()).classes("yt-meta").mark("backup-info")
+                        )
+                        backup_now = button("Back up now", lambda: back_up(), "quiet").mark(
+                            "backup-now"
+                        )
+                        if runtime.backups is None:
+                            backup_now.props("disabled")
                         open_backups = button(
                             "Open backups", lambda: logs.open_folder(paths.backup_dir()), "quiet"
                         ).mark("open-backups")
                         if not logs.folder_opens():
                             open_backups.props("disabled")
+
+                    async def back_up() -> None:
+                        backup_now.props("loading")
+                        await run.io_bound(runtime.backups.now)
+                        backup_now.props(remove="loading")
+                        backup_info.set_text(_backup_text())
+
                     switch(
                         "Keep line pictures", config.line_pictures(), config.save_line_pictures
                     ).mark("pictures-switch")

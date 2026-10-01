@@ -251,6 +251,7 @@ def _open_store() -> Callable[[], None]:
             pictures=runtime.pictures,
             players=runtime.players,
             on_player=runtime.familiar.heard,
+            min_gap_s=config.read_every_s(),
         )
         runtime.reader.start()
 
