@@ -4,7 +4,7 @@ import argparse
 import multiprocessing
 import sys
 
-from yaptracker import __version__, paths
+from yaptracker import __version__, logs
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -35,19 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _log_to_file_without_console() -> None:
-    """The windowed exe has no console, so stdout/stderr are None. Send them to the log file."""
-    if sys.stdout is not None and sys.stderr is not None:
-        return
-    log = paths.log_file()
-    log.parent.mkdir(parents=True, exist_ok=True)
-    stream = open(log, "a", encoding="utf-8", buffering=1)  # noqa: SIM115 - lives as long as the process
-    sys.stdout = sys.stdout or stream
-    sys.stderr = sys.stderr or stream
-
-
 def main(argv: list[str] | None = None) -> None:
-    _log_to_file_without_console()
+    logs.setup()  # also catches stdout/stderr: the windowed exe has no console
     # The native window runs in a spawned child process; in the exe that child starts here.
     multiprocessing.freeze_support()
     args = build_parser().parse_args(argv)
