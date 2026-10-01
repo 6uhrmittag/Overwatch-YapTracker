@@ -15,6 +15,7 @@ from yaptracker.signals import (
     banner_outcome,
     has_bright_text,
     has_colour,
+    is_banner,
     parse_info,
     signal_regions,
     title_end,
@@ -299,3 +300,63 @@ def test_real_recording_of_two_matches_gives_two_matches_with_outcomes(monkeypat
         (88.0, 657.0, "victory", "heroselect", "ESPERANCA"),
         (769.0, 1348.0, "defeat", "heroselect", "EICHENWALDE"),
     ]
+
+
+FOUR_K = json.loads((Path(__file__).parent / "fixtures" / "signals" / "4k-hdr.json").read_text(
+    encoding="utf-8"))  # fmt: skip
+
+
+def washed(text: str) -> np.ndarray:
+    """A 4K hero-select strip with HDR on (#170): white letters with a faint shadow on a ground
+    Windows washed out to near-white."""
+    img = Image.new("RGB", (1170, 90), (232, 230, 226))
+    if text:
+        ImageDraw.Draw(img).text((30, 15), text, fill=(255, 255, 255), stroke_width=2,
+                                 stroke_fill=(160, 160, 160),
+                                 font=ImageFont.load_default(size=52))  # fmt: skip
+    return np.ascontiguousarray(np.asarray(img)[:, :, ::-1])
+
+
+def test_4k_strips_pass_the_pixel_check_like_1440p_ones():
+    import cv2
+
+    at_4k = cv2.resize(strip("ASSEMBLE YOUR TEAM"), None, fx=1.5, fy=1.5)
+    assert has_bright_text(at_4k)
+    assert not has_bright_text(cv2.resize(strip(None), None, fx=1.5, fy=1.5))
+
+
+def test_a_washed_out_hdr_banner_still_passes_the_pixel_check():
+    assert has_bright_text(washed("ASSEMBLE YOUR TEAM"))
+    assert not has_bright_text(washed(""))  # just the washed-out ground
+
+
+def test_4k_hdr_readings_from_a_real_evening():
+    assert all(is_banner(s["banner"]) for s in FOUR_K["starts"])
+    assert [parse_info(s["info"]) for s in FOUR_K["starts"]] == [
+        (None, "NEW QUEEN STREET"),  # "O ATTACK": the queue name was washed out, no guess
+        ("UNRANKED", "ROUTE 66"),
+        ("UNRANKED", "HOLLYWOOD"),
+        ("UNRANKED", "ESPERANÇA"),
+        ("UNRANKED", "JUNKERTOWN"),
+    ]
+    assert [banner_outcome(e["banner"]) for e in FOUR_K["ends"]] == [
+        "defeat", "victory", "defeat", "victory", "victory", "victory", "defeat", "victory",
+    ]  # fmt: skip
+    assert parse_info(["STADIUM ATTACK", "COLOSSEO"]) == ("STADIUM", "COLOSSEO")
+
+
+def test_a_match_without_hero_select_saves_a_look_back():
+    from yaptracker.matches import MatchTracker
+    from yaptracker.pause import Pause
+    from yaptracker.store.repo import Store
+
+    store = Store.open(Path(":memory:"), Path("/nonexistent"))
+    missed = []
+    tracker = MatchTracker(store, Pause(), on_missed_start=missed.append)
+    tracker.new_match(100.0, source="heroselect")
+    tracker.chat_changed(130.0)
+    tracker.end_match(700.0, "victory")
+    tracker.chat_changed(900.0)  # next match by chat after the end: hero select was missed
+    tracker.new_match(1500.0)  # the New match button
+    assert missed == ["endscreen", "hotkey"]
+    store.close()

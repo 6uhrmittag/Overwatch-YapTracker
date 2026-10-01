@@ -221,6 +221,10 @@ def _open_store() -> Callable[[], None]:
         if runtime.debug is not None:
             runtime.debug.match_event("missed-end")
 
+    def missed_start(source: str) -> None:  # the minutes before: was a hero select there? (#170)
+        if runtime.debug is not None:
+            runtime.debug.match_event(f"missed-start-{source}")
+
     def open_store() -> None:
         runtime.debug = DebugSamples(paths.debug_dir(), config.debug_samples)
         runtime.debug.clean_up()  # 14 days / 1 GB, also after a long break
@@ -233,7 +237,8 @@ def _open_store() -> Callable[[], None]:
             busy=lambda: runtime.watcher is not None and runtime.watcher.state == "capturing",
         )
         runtime.backups.start()  # now (first start of the day), or once Overwatch is closed
-        runtime.matches = MatchTracker(runtime.store, runtime.pause, on_missed_end=missed_end)
+        runtime.matches = MatchTracker(runtime.store, runtime.pause, on_missed_end=missed_end,
+                                       on_missed_start=missed_start)  # fmt: skip
         runtime.health = CaptureHealth(runtime.store)
         runtime.familiar = FamiliarFaces(runtime.store, config.identity)
         runtime.players = PlayerMatcher(
