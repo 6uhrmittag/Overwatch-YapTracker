@@ -360,6 +360,9 @@ In short: simple layout, Overwatch energy, slightly silly.
 - Verdicts are tilted stickers: Bestie · Fun · Meh · Nope
 - UI vocabulary: yaps, yappers, "Look who's back!", "Who's that?"
 - No emoji, no Blizzard fonts/logos/art
+- **Self-explaining, no user guide** (#137): every empty view says what will appear, every
+  setting has a one-line hint, every state is shown in words, nothing is hotkey-only.
+  Rules in `docs/ui.md` → Self-explaining. The only written docs are the README quick start (#33).
 - Every UI PR includes a screenshot
 
 Default hotkeys (configurable): `Ctrl+Alt+F` bring YapTracker forward + focus
