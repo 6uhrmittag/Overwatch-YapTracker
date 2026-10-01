@@ -1,11 +1,14 @@
-"""Debug samples (#63): YapTracker keeps the moments it found hard, so they become tests later.
+"""Debug samples (#63, #110): YapTracker keeps the moments it found hard, so they become tests.
 
 data\\debug\\<date>\\<time>-<what>\\ holds JPEG overview frames (every 4th pixel of the game
-window) and the PNG signal crops the detectors read. Real names are in there: like
+window) and the PNG signal crops the detectors read, or (`-chat`) the chat frames of the last
+20 s with what OCR and the parser made of them (sample.json). Real names are in there: like
 fixtures/private/, never committed and never uploaded (YapTracker is local-only anyway).
 At most 1 GB and 14 days, the oldest samples go first. Nothing is kept while paused.
 """
 
+import json
+import math
 import shutil
 import threading
 import time
@@ -21,6 +24,23 @@ import numpy as np
 BUFFER_S = 6 * 60
 CAP_BYTES = 1_000_000_000
 KEEP_DAYS = 14
+CHAT_CONTEXT_S = 20.0  # chat frames kept for a chat sample: enough to see a line arrive and fade
+CHAT_SAMPLE_EVERY_S = 60.0  # automatic chat samples at most once a minute
+LOW_CONFIDENCE = 0.85
+
+
+def why_hard(lines, new) -> list[str]:
+    """Why a read chat frame is worth keeping; empty if it isn't (#110)."""
+    reasons = set()
+    for line in lines:  # map text behind the chat is unknown too, so: only chat-looking lines
+        if line.kind == "unknown" and any(c in line.text for c in "[]:("):
+            reasons.add("unparsed")
+    for yap in new:
+        if yap.best.confidence < LOW_CONFIDENCE:
+            reasons.add("low-confidence")
+        if yap.best.kind == "message" and yap.best.channel == "unknown":
+            reasons.add("channel-unknown")
+    return sorted(reasons)
 
 
 def folder_size(folder: Path) -> int:
@@ -44,6 +64,8 @@ class DebugSamples:
         self._lock = threading.Lock()
         self._overviews: deque[tuple[float, bytes]] = deque()
         self._signals: dict[str, np.ndarray] = {}
+        self._chat: deque[tuple[float, np.ndarray, list, list]] = deque()
+        self._chat_sampled_at = -math.inf
 
     def on_signals(self, signals: dict[str, np.ndarray], paused: bool = False) -> None:
         """About once a second from the capture thread: signal crops, every few s an overview."""
@@ -51,6 +73,7 @@ class DebugSamples:
             with self._lock:
                 self._overviews.clear()
                 self._signals = {}
+                self._chat.clear()
             return
         now = self._clock()
         overview = signals.get("overview")
@@ -84,6 +107,55 @@ class DebugSamples:
             (sample / f"{time.strftime('%H-%M-%S', time.localtime(ts))}.jpg").write_bytes(jpg)
         for name, crop in signals.items():
             cv2.imwrite(str(sample / f"{name}.png"), crop)
+        self.clean_up()
+        return sample
+
+    def chat_read(
+        self, ts: float, image: np.ndarray, ocr: list, lines: list, new: list
+    ) -> Path | None:
+        """Every chat frame the reader read (#108): kept 20 s; hard ones become a sample."""
+        if not self._enabled():
+            return None
+        with self._lock:
+            self._chat.append((ts, image, ocr, lines))
+            while self._chat and ts - self._chat[0][0] > CHAT_CONTEXT_S:
+                self._chat.popleft()
+            reasons = why_hard(lines, new)
+            if not reasons or ts - self._chat_sampled_at < CHAT_SAMPLE_EVERY_S:
+                return None
+            self._chat_sampled_at = ts
+        return self.save_chat(",".join(reasons))
+
+    def save_chat(self, why: str = "hotkey") -> Path | None:
+        """The last 20 s of read chat frames, with their OCR and parse results (Ctrl+Alt+S)."""
+        if not self._enabled():
+            return None
+        with self._lock:
+            frames = list(self._chat)
+        if not frames:
+            return None
+        now = time.localtime(self._clock())
+        sample = self._folder / time.strftime("%Y-%m-%d", now)
+        sample /= f"{time.strftime('%H-%M-%S', now)}-chat"
+        sample.mkdir(parents=True, exist_ok=True)
+        records = []
+        for n, (ts, image, ocr, lines) in enumerate(frames):
+            last = n == len(frames) - 1  # the hard one: lossless, the context as JPEG
+            name = f"{n:02d}-{time.strftime('%H-%M-%S', time.localtime(ts))}"
+            name += ".png" if last else ".jpg"
+            cv2.imwrite(str(sample / name), image, [] if last else [cv2.IMWRITE_JPEG_QUALITY, 90])
+            records.append({
+                "t": ts,
+                "image": name,
+                "ocr": [{"text": o.text, "confidence": round(o.confidence, 3),
+                         "box": [o.box.x, o.box.y, o.box.width, o.box.height]} for o in ocr],
+                "parsed": [{"kind": c.kind, "channel": c.channel, "speaker": c.speaker,
+                            "text": c.text, "confidence": round(c.confidence, 3)} for c in lines],
+            })  # fmt: skip
+        sample_json = {"why": why, "frames": records}
+        (sample / "sample.json").write_text(
+            json.dumps(sample_json, ensure_ascii=False, indent=1), encoding="utf-8"
+        )
         self.clean_up()
         return sample
 

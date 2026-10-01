@@ -171,8 +171,16 @@ def _watch_for_overwatch(dev: bool) -> None:
     if not dev:
         from yaptracker.hotkeys import HotkeyListener
 
+        def save_chat() -> None:
+            if runtime.debug is not None:
+                runtime.debug.save_chat()
+
         hotkeys = HotkeyListener(
-            {runtime.PAUSE_HOTKEY: runtime.pause.toggle, runtime.NEW_MATCH_HOTKEY: new_match}
+            {
+                runtime.PAUSE_HOTKEY: runtime.pause.toggle,
+                runtime.NEW_MATCH_HOTKEY: new_match,
+                runtime.SAVE_HOTKEY: save_chat,
+            }
         )
         app.on_startup(hotkeys.start)
         app.on_shutdown(hotkeys.stop)
@@ -207,6 +215,7 @@ def _open_store() -> Callable[[], None]:
             identity=config.identity,
             colours=config.channel_colours,
             paused=lambda: runtime.pause.paused,
+            on_read=runtime.debug.chat_read,
         )
         runtime.reader.start()
 

@@ -44,11 +44,13 @@ class ChatReader:
         colours: Callable[[], dict[str, float]] = dict,
         paused: Callable[[], bool] = lambda: False,
         clock: Callable[[], float] = time.time,
+        on_read: Callable[..., object] = lambda ts, image, ocr, lines, new: None,
     ) -> None:
         self._read, self._store, self._matches = read, store, matches
         self._identity, self._colours, self._paused, self._clock = (
             identity, colours, paused, clock
         )  # fmt: skip
+        self._on_read = on_read  # debug samples of hard chat moments (#110)
         self._dedup = Dedup()
         self._stored: dict[int, int] = {}  # yap id -> chat_messages id
         self._pending: tuple[float, np.ndarray] | None = None
@@ -96,8 +98,8 @@ class ChatReader:
         if self._paused():  # paused after the frame was offered: nothing is read or kept
             return []
         started = time.thread_time()
-        lines = parse(self._read(image))
-        lines = self._identity().apply(channels.assign(lines, image, self._colours()))
+        ocr = self._read(image)
+        lines = self._identity().apply(channels.assign(parse(ocr), image, self._colours()))
         new, improved = self._dedup.update(ts, lines)
         if new:
             self._matches.chat_changed(ts)  # first: a new match may start with this yap
@@ -109,6 +111,7 @@ class ChatReader:
             if yap.id in self._stored:
                 self._store.update_message(self._stored[yap.id], **_fields(yap.best))
         self._count(time.thread_time() - started)
+        self._on_read(ts, image, ocr, lines, new)
         return new
 
     def _count(self, spent: float) -> None:
