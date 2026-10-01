@@ -63,3 +63,32 @@ def test_engine_setting_falls_back_when_the_engine_cant_run_here(tmp_path, monke
     assert config.ocr_engine(path) == "rapidocr"
     monkeypatch.setattr(ocr, "available", lambda: ["rapidocr", "windows"])
     assert config.ocr_engine(path) == "windows"
+
+
+def test_german_looking_lines_are_read_again_english_ones_not():
+    """#115: the Latin model only reads again when the default reading looks German."""
+    from yaptracker.ocr.engine import looks_german
+
+    # how the default model really reads German chat (#118): ß as B/f/b, umlauts dropped
+    for text in [
+        "[Kokirk]: Schone GruBe an alle, gg!",
+        "[Björn]: GroBe, FuBe, Arger",
+        "[VoidCrowned]: SuB :3",
+        "[Fubball]: Gruf Gott",
+        "Ich heile dich!",
+        "[Zoe]: Ubermorgen wieder?",
+        "[x]: Tschuss, bis spater",
+        "danke fur das Spiel",
+    ]:
+        assert looks_german(text), text
+    for text in [
+        "[NoodleBonk]: WAHOOOO",
+        "[tortillaTank]: not the wahoo guy again lmao",
+        "SirPeelsALot (Reinhardt): Group up!",
+        "[x]: maybe later, gg wp",
+        "[x]: im hanging",
+        "You endorsed NoodleBonk!",
+        "[x]: sooo good",
+        "Enemy Tracer!",
+    ]:
+        assert not looks_german(text), text  # fmt: skip

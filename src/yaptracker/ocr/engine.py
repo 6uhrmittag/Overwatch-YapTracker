@@ -1,5 +1,6 @@
 """OCR engines behind one interface. RapidOCR is the default, Windows OCR the fallback (#11)."""
 
+import re
 import sys
 import threading
 from collections.abc import Callable
@@ -80,6 +81,27 @@ def _has_accent(text: str) -> bool:
     return any(ord(c) > 127 and c.isalpha() for c in text)
 
 
+# A line the default model read looks German (#115, Marv's decision): only then does the Latin
+# model read it again. The default model has no ä ö ü ß, so it writes "GruBe", "Suf", "fur",
+# "Ubermorgen". A false alarm (e.g. a CamelCase name like "M00dyBl4e") only costs a read.
+_SHARP_S = re.compile(r"[a-z]B(?:e|t|en|er|es|\b)|eib|\b(?:Gru|Gro|Su|Fu|Spa|wei|hei)f\b")
+_GERMAN_WORDS = (
+    "und ich nicht schon mal aber ist das der den dem ein eine einen du wir ihr bin bist auch "
+    "noch gut ja nein bitte danke hallo jetzt wo wie wer warum hier dann doch mit von zu auf "
+    "aus bei bis nach vor oder wenn weil sehr viel gerne spiel spielen heiler heile heilen "
+    "gegner leute jungs wieder gott alle alles klar euch "
+    # as the default model spells them, without umlauts
+    "fur uber ubel uberall ubermorgen arger ol schone grune mude konnen mussen spater wurde "
+    "ware hatte nachste mochte tschuss osterreich grusse"
+)
+_GERMAN = frozenset(_GERMAN_WORDS.split())
+_WORDS = re.compile(r"[A-Za-z]+")
+
+
+def looks_german(text: str) -> bool:
+    return bool(_SHARP_S.search(text)) or any(w.lower() in _GERMAN for w in _WORDS.findall(text))
+
+
 class _ReadTwice:
     """Recognition with both models on the same line crops (#118).
 
@@ -93,6 +115,11 @@ class _ReadTwice:
 
     def __call__(self, crops, return_word_box: bool = False):
         ours, ours_s = self.default(crops, return_word_box)
+        # German chat comes in conversations: one German-looking line and the whole chat box is
+        # read again, names and system lines included ("You endorsed Björn!"). English-only
+        # chat skips the second read (#115).
+        if not any(looks_german(text) for text, _score in ours):
+            return ours, ours_s
         latin, latin_s = self._latin(crops, return_word_box)
         picked = [b if _has_accent(b[0]) else a for a, b in zip(ours, latin, strict=True)]
         return picked, ours_s + latin_s
