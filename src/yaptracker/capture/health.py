@@ -5,6 +5,7 @@ Gaps are stored in capture_gaps, never silent holes:
 - no_frames    the window was there but no picture came for 10 s (the capture is restarted)
 - window_lost  the capture ended but the Overwatch window is still there
 - paused       the user paused (#20)
+- app_not_running  Overwatch already ran when YapTracker started (#99)
 If Overwatch itself closes, nothing is being lost, so an open gap ends there.
 """
 
@@ -17,6 +18,8 @@ from dataclasses import dataclass
 from yaptracker.store.repo import Store
 
 log = logging.getLogger(__name__)
+# Starting YapTracker a few seconds after the game isn't worth a gap.
+MIN_MISSED_S = 30.0
 
 
 @dataclass(frozen=True)
@@ -67,6 +70,23 @@ class CaptureHealth:
                 self._close()
 
     stop = game_closed  # app shutdown: close what's open
+
+    def started_late(self, game_started_at: float | None, last_activity: float | None) -> None:
+        """Overwatch already ran at app start: what happened since then wasn't recorded.
+
+        The gap starts when the game started, or when YapTracker last recorded something
+        (a restart mid-evening only loses the time it was gone).
+        """
+        if game_started_at is None:
+            log.info("Overwatch was already running; its start time is unknown, no gap stored")
+            return
+        with self._lock:
+            now = self._clock()
+            since = max(game_started_at, last_activity or game_started_at)
+            if now - since < MIN_MISSED_S:
+                return
+            self._store.close_gap(self._store.open_gap(since, "app_not_running"), now)
+            log.warning("not recorded from %s: YapTracker wasn't running", _clock_time(since))
 
     def _close(self) -> None:
         now = self._clock()

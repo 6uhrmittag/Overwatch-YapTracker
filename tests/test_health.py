@@ -107,3 +107,29 @@ def test_the_first_reason_wins_and_the_gap_starts_at_the_last_picture(store):
     health.lost("no_frames")
     health.lost("crash")
     assert health.gap.reason == "no_frames" and health.gap.since == 100.0
+
+
+def spans(store):
+    return store._read("SELECT started_at, ended_at, reason FROM capture_gaps ORDER BY id")
+
+
+def test_overwatch_running_before_yaptracker_is_a_gap_from_the_game_start(store):
+    now = 20 * 3600.0 + 1800
+    health = CaptureHealth(store, clock=lambda: now)
+    health.started_late(game_started_at=20 * 3600.0, last_activity=None)
+    assert spans(store) == [(20 * 3600.0, now, "app_not_running")]
+
+
+def test_a_restart_mid_evening_only_loses_the_time_it_was_gone(store):
+    now = 21 * 3600.0
+    health = CaptureHealth(store, clock=lambda: now)
+    health.started_late(game_started_at=19 * 3600.0, last_activity=20 * 3600.0 + 3000)
+    assert spans(store) == [(20 * 3600.0 + 3000, now, "app_not_running")]
+
+
+def test_a_few_seconds_late_or_an_unknown_start_is_no_gap(store):
+    now = 1000.0
+    health = CaptureHealth(store, clock=lambda: now)
+    health.started_late(game_started_at=now - 10, last_activity=None)
+    health.started_late(game_started_at=None, last_activity=None)
+    assert spans(store) == []

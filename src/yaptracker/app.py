@@ -152,6 +152,13 @@ def _watch_for_overwatch(dev: bool) -> None:
         return  # native mode only exists on Windows; Linux uses --dev
 
     def start_capture() -> None:  # after the store is open: gaps and matches need it
+        if not dev and runtime.health is not None:
+            from yaptracker.capture import process
+            from yaptracker.capture.window import find_overwatch
+
+            if find_overwatch() is not None:  # the game was there before us (#99)
+                last = runtime.store.latest_session() if runtime.store else None
+                runtime.health.started_late(process.started_at(), last[1] if last else None)
         runtime.watcher = make_watcher()
         runtime.watcher.start()
 
