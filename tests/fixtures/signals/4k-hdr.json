@@ -1,0 +1,66 @@
+{
+ "source": "4K (3840x2160) with HDR on, 2026-10-01: OCR of the hero-select and end-banner crops. No names in these crops.",
+ "starts": [
+  {
+   "banner": "ASSEMBLE YOUR TEAM",
+   "info": [
+    "O ATTACK",
+    "NEW QUEEN STREET"
+   ]
+  },
+  {
+   "banner": "ASSEMBLE YOUR TEAMO",
+   "info": [
+    "UNRANKED DEFEND",
+    "ROUTE 66"
+   ]
+  },
+  {
+   "banner": "ASSEMBLEYOUR TEAMIA",
+   "info": [
+    "UINRANKED DEFEND",
+    "HOLLYWOOD"
+   ]
+  },
+  {
+   "banner": "ASSEMBLEYOUR TEAM",
+   "info": [
+    "LINRANKED ATTACK",
+    "ESPERANÇA"
+   ]
+  },
+  {
+   "banner": "ASSEMBLE YOUR TEAM",
+   "info": [
+    "UNRANKED ATTACK",
+    "JUNKERTOWN"
+   ]
+  }
+ ],
+ "ends": [
+  {
+   "banner": "TEFEAT"
+  },
+  {
+   "banner": "VACTORY!S"
+  },
+  {
+   "banner": "DEFEAT"
+  },
+  {
+   "banner": "HICTORY"
+  },
+  {
+   "banner": "VICTORY!"
+  },
+  {
+   "banner": "VICTORY!"
+  },
+  {
+   "banner": "DEFEAT"
+  },
+  {
+   "banner": "VICTORY!"
+  }
+ ]
+}

@@ -47,9 +47,11 @@ class MatchTracker:
         pause: Pause,
         clock: Callable[[], float] = time.time,
         on_missed_end: Callable[[], None] = lambda: None,
+        on_missed_start: Callable[[str], None] = lambda source: None,
     ) -> None:
         self._store, self._pause, self._clock = store, pause, clock
         self._on_missed_end = on_missed_end  # a new match began, but no end screen was seen (#63)
+        self._on_missed_start = on_missed_start  # a match began without its hero select (#170)
         self._lock = threading.Lock()  # capture thread, hotkey thread and UI all call in
         self.session_id: int | None = None
         self.match_id: int | None = None
@@ -179,3 +181,5 @@ class MatchTracker:
         self.match_started_at, self.match_map, self._match_source = ts, map_name, source
         self.match_ended_at = self.match_outcome = None
         self._pause.next_match_started()
+        if source != "heroselect":
+            self._on_missed_start(source)

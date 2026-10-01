@@ -21,14 +21,17 @@ HEROSELECT = RelativeRegion.from_pixels(Region(60, 330, 780, 60), 2560, 1440)
 HEROSELECT_INFO = RelativeRegion.from_pixels(Region(60, 60, 780, 240), 2560, 1440)
 # "PREPARE TO ATTACK 0:44" box, top centre: also at round starts, so only a backup (see below).
 ROUND_START = RelativeRegion.from_pixels(Region(1080, 30, 400, 75), 2560, 1440)
+ROUND_START_HEIGHT = 75  # px at 1440p, for has_bright_text
 # End of a match (#94): the centre banner, and the title strip in the top-left corner.
 END_BANNER = RelativeRegion.from_pixels(Region(900, 590, 820, 250), 2560, 1440)
 END_TITLE = RelativeRegion.from_pixels(Region(40, 30, 900, 75), 2560, 1440)
+END_TITLE_HEIGHT = 75  # px at 1440p, for has_bright_text
 OUTCOMES = {"VICTORY": "victory", "DEFEAT": "defeat", "DRAW": "draw"}
 BANNER_TEXT = "ASSEMBLE YOUR TEAM"
 MATCH = 80  # rapidfuzz ratio on the letters only; OCR may lose or swap a letter or two
 # Queue names as Overwatch prints them above the map (the side, ATTACK/DEFEND, follows them).
 MODES = ("UNRANKED", "COMPETITIVE", "QUICK PLAY", "ARCADE", "CUSTOM GAME", "PRACTICE")
+SIDES = ("ATTACK", "DEFEND")  # follow the queue name on the hero-select screen
 REARM_S = 120  # the banner must be gone this long before a new hero select counts
 
 
@@ -42,12 +45,26 @@ def signal_regions(width: int, height: int) -> dict[str, Region]:
     }
 
 
-def has_bright_text(image: np.ndarray, min_pixels: int = 150) -> bool:
-    """Cheap check before OCR: enough bright, thin strokes on a darker ground?"""
+def _odd(n: float) -> int:
+    return max(3, int(round(n)) | 1)
+
+
+def has_bright_text(image: np.ndarray, min_pixels: int = 150, height_1440: int = 60) -> bool:
+    """Cheap check before OCR: enough bright, thin strokes?
+
+    Sizes are for the crop at 1440p (`height_1440` high) and grow with it: 4K strokes are 1.5x
+    as thick (#170). Two ways to pass: bright strokes on a darker ground, or strokes clearly
+    brighter than what's around them. With HDR on, Windows washes the hero-select screen out to
+    near-white, and only the second one still sees "ASSEMBLE YOUR TEAM"."""
+    scale = image.shape[0] / height_1440
     value = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)[:, :, 2]
     bright = (value > 200).astype(np.uint8)
-    thin = bright & ~cv2.morphologyEx(bright, cv2.MORPH_OPEN, np.ones((9, 9), np.uint8))
-    return int(thin.sum()) >= min_pixels
+    thick = cv2.morphologyEx(bright, cv2.MORPH_OPEN, np.ones((_odd(9 * scale),) * 2, np.uint8))
+    enough = min_pixels * scale**2
+    if int((bright & ~thick).sum()) >= enough:
+        return True
+    contrast = cv2.morphologyEx(value, cv2.MORPH_TOPHAT, np.ones((_odd(10 * scale),) * 2, np.uint8))
+    return int((contrast > 40).sum()) >= enough
 
 
 def has_colour(image: np.ndarray, min_share: float = 0.08) -> bool:
@@ -111,8 +128,18 @@ def parse_info(lines: list[str]) -> tuple[str | None, str | None]:
         return None, None
     top = lines[0].upper()
     best = max(MODES, key=lambda mode: fuzz.partial_ratio(mode, top))
-    mode = best if fuzz.partial_ratio(best, top) >= MATCH else lines[0]
+    mode = best if fuzz.partial_ratio(best, top) >= MATCH else _without_side(lines[0])
     return mode, (lines[-1] if len(lines) > 1 else None)
+
+
+def _without_side(text: str) -> str | None:
+    """An unknown queue name without the side after it: "STADIUM ATTACK" -> "STADIUM". Only
+    the side and a stray letter ("O ATTACK", 4K HDR, #170) is no mode at all."""
+    words = [
+        w for w in text.split() if all(fuzz.ratio(_letters(w), side) < MATCH for side in SIDES)
+    ]
+    rest = " ".join(words)
+    return rest if len(_letters(rest)) >= 3 else None
 
 
 class HeroSelect:
@@ -153,7 +180,7 @@ class HeroSelect:
             not self._active
             and box is not None
             and not self._match_running()
-            and has_bright_text(box, min_pixels=60)
+            and has_bright_text(box, min_pixels=60, height_1440=ROUND_START_HEIGHT)
             and is_round_start(self._read_line(box))
         ):
             self._active, self._last_seen = True, now
@@ -192,7 +219,7 @@ class EndScreen:
         title = signals.get("end_title")
         if not seen and title is not None and now - self._title_read >= self._title_every_s:
             self._title_read = now
-            if has_bright_text(title):
+            if has_bright_text(title, height_1440=END_TITLE_HEIGHT):
                 seen, outcome = title_end(self._read_line(title))
         if seen:
             self._last_seen = now
