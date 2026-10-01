@@ -224,6 +224,8 @@ html, body { background: var(--yt-night); }
   /* Yap snaps (#64) */
   .yt-snap-bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 14px; background: #2e2210; border: 1px solid #5c4216; color: #ffd08a; font-weight: 700; }
   .yt-line--picked { background: rgba(255,156,42,.16); box-shadow: inset 3px 0 0 var(--yt-accent); }
+  /* Quasar lets clicks through only to a dialog's div children; our cards are sections (#200) */
+  .q-dialog__inner > * { pointer-events: all; }
   .yt-snap { width: min(900px, 92vw); max-width: none !important; }
   .yt-snap-preview { width: 100%; border-radius: 12px; }
   .yt-snap-looks { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px 0; border-top: 1px solid var(--yt-line); }
