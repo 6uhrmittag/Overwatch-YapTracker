@@ -196,6 +196,7 @@ def _open_store() -> Callable[[], None]:
     from yaptracker.lines import LinePictures
     from yaptracker.matches import MatchTracker
     from yaptracker.ocr import engine as ocr
+    from yaptracker.players import PlayerMatcher
     from yaptracker.reader import ChatReader
     from yaptracker.store.backups import DailyBackup
     from yaptracker.store.repo import Store
@@ -227,6 +228,11 @@ def _open_store() -> Callable[[], None]:
             paused=lambda: runtime.pause.paused,
             on_read=runtime.debug.chat_read,
             pictures=runtime.pictures,
+            players=PlayerMatcher(
+                runtime.store,
+                config.identity,
+                on_shaky=lambda name: runtime.debug.save_chat("new-player"),
+            ),
         )
         runtime.reader.start()
 
