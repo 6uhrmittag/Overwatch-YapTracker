@@ -126,6 +126,18 @@ def save_read_every_s(seconds: float, path: Path | None = None) -> None:
     _save(path, data)
 
 
+def snap_style(path: Path | None = None) -> dict:
+    """The last yap snap style (#65), as saved by snaps.Style.to_dict()."""
+    return _load(path or paths.config_file()).get("snap_style", {})
+
+
+def save_snap_style(style: dict, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["snap_style"] = style
+    _save(path, data)
+
+
 HOTKEYS = {
     "pause": "Ctrl+Alt+P",  # auto-resumes at the next match
     "new_match": "Ctrl+Alt+M",  # manual override only; matches split themselves (#21)
