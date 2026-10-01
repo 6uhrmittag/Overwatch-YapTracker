@@ -90,8 +90,21 @@ def _mix(a: str, b: str, t: float) -> str:
     return "#" + "".join(f"{round(x + (y - x) * t):02x}" for x, y in zip(pa, pb, strict=True))
 
 
+def _when(ts: float | None, started_at: float | None) -> str:
+    """In the match ("4:05"), or the clock ("20:41") for lines from several matches (#155)."""
+    if ts is None:
+        return ""
+    if started_at is None:
+        return time.strftime("%H:%M", time.localtime(ts))
+    seconds = max(0, int(ts - started_at)) if started_at else 0
+    return f"{seconds // 60}:{seconds % 60:02d}"
+
+
 def snap_lines(
-    messages: list, hide_names: bool = True, keep_crew: bool = False, started_at: float = 0.0
+    messages: list,
+    hide_names: bool = True,
+    keep_crew: bool = False,
+    started_at: float | None = 0.0,
 ) -> list[SnapLine]:
     """Chat messages as they appear on the snap. `keep_crew`: me and my crew keep their names."""
     fake: dict[str, str] = {}  # hidden name (casefolded) -> what the snap shows
@@ -116,8 +129,7 @@ def snap_lines(
             for name in _BRACKETED.findall(m.text):
                 alias(name)
         who = "" if channel == "system" else alias(m.speaker_raw or "?", m.role)
-        seconds = max(0, int(getattr(m, "ts", 0.0) - started_at)) if started_at else 0
-        rows.append((channel, who, m.text, f"{seconds // 60}:{seconds % 60:02d}"))
+        rows.append((channel, who, m.text, _when(getattr(m, "ts", None), started_at)))
     lines = []
     for channel, who, text, when in rows:
         for name in sorted(fake, key=len, reverse=True):  # "gg NoodleBonk" too

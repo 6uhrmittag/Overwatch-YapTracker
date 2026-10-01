@@ -19,9 +19,17 @@ _COLOURS = {"background": "Background", "card": "Card", "text": "Text", "accent"
 _SWITCHES = {"timestamps": "Times", "channel_labels": "Channel labels", "footer": "Match and date",
              "wordmark": "Wordmark", "rounded": "Round corners"}  # fmt: skip
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+# Copy (#155): the preview's own PNG to the clipboard, in the browser (WebView2 or --dev).
+_COPY = (
+    "(e) => { const img = document.querySelector('.yt-snap-preview img');"
+    " if (!img || !navigator.clipboard || !window.ClipboardItem) { emit('no'); return; }"
+    " fetch(img.src).then(r => r.blob())"
+    ".then(b => navigator.clipboard.write([new ClipboardItem({'image/png': b})]))"
+    ".then(() => emit('ok'), () => emit('no')); }"
+)
 
 
-def snap_dialog(messages: list, footer: str, started_at: float = 0.0) -> None:
+def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> None:
     state = {"hide": True, "crew": False, "image": None,
              "style": Style.from_dict(config.snap_style())}  # fmt: skip
     with ui.dialog() as dialog, ui.element("section").classes("yt-card yt-snap"):
@@ -38,6 +46,11 @@ def snap_dialog(messages: list, footer: str, started_at: float = 0.0) -> None:
             looks = ui.element("div").classes("yt-snap-looks").mark("snap-looks")
             with ui.element("div").classes("yt-row"):
                 button("Save PNG", lambda: keep(), "primary").mark("snap-save")
+                copy = ui.element("button").classes("yt-btn yt-btn--secondary")
+                copy.props('type="button"').mark("snap-copy")
+                with copy:
+                    ui.label("Copy").classes("yt-btn-label")
+                copy.on("click", lambda e: copied(e.args), js_handler=_COPY)
                 saved = ui.label().classes("yt-hint yt-mono").mark("snap-saved")
                 ui.element("div").classes("yt-grow")
                 button("Close", dialog.close, "quiet")
@@ -112,6 +125,10 @@ def snap_dialog(messages: list, footer: str, started_at: float = 0.0) -> None:
     def flip(key: str, on: bool) -> None:
         state[key] = on
         draw()
+
+    def copied(result) -> None:
+        saved.set_text("Copied: paste it into Discord or WhatsApp." if result == "ok"
+                       else "Couldn't copy here, but Save PNG works.")  # fmt: skip
 
     def keep() -> None:
         path = save(state["image"], paths.pictures_dir())
