@@ -1,10 +1,27 @@
-"""Settings -> Me & my crew (#74): my own names and my regular group. Saves on every change."""
+"""Settings -> Me & my crew (#74): my own names and my regular group. Saves on every change.
+
+Both are lists (#162): Enter, the Add button or just clicking elsewhere adds the typed name, so
+nothing typed is ever lost, and the field says "Add another" once there is one.
+"""
 
 from nicegui import ui
 
 from yaptracker import config
 from yaptracker.identity import clean
 from yaptracker.ui.components import saved_chip
+
+# Read the field in the browser and empty it; on blur only if something was typed.
+_TAKE = "(e) => { emit(e.target.value); e.target.value = ''; }"
+_TAKE_TYPED = "(e) => { if (e.target.value.trim()) { emit(e.target.value); e.target.value = ''; } }"
+_TAKE_FIELD = (
+    "(e) => { const f = e.currentTarget.parentElement.querySelector('input'); "
+    "emit(f.value); f.value = ''; }"
+)
+_FIELDS = (
+    ("me", "My names", "Your BattleTag, e.g. Marv#2718", "Another name you play as\u2026", None),
+    ("crew", "My crew", "e.g. Void", "Add another\u2026",
+     "Add everyone you usually queue with, as many as you like."),
+)  # fmt: skip
 
 _REMOVE = (
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
@@ -57,10 +74,7 @@ def crew_card() -> None:
     def render() -> None:
         lists.clear()
         with lists:
-            for key, label, placeholder in (
-                ("me", "My names", "Your BattleTag, e.g. Marv#2718"),
-                ("crew", "My crew", "e.g. Void"),
-            ):
+            for key, label, first, more, hint in _FIELDS:
                 with ui.element("div").classes("yt-crew-list"):
                     ui.label(label).classes("yt-label")
                     with ui.element("div").classes("yt-name-chips"):
@@ -68,12 +82,22 @@ def crew_card() -> None:
                             with ui.element("span").classes("yt-name-chip"):
                                 ui.label(name)
                                 _remove_button(name, lambda key=key, name=name: remove(key, name))
-                    ui.element("input").classes("yt-input").props(
-                        f'type="text" placeholder="{placeholder}" aria-label="{label}"'
-                    ).mark(f"add-{key}").on(
-                        "keydown.enter",
-                        lambda e, key=key: add(key, e.args),
-                        js_handler="(e) => { emit(e.target.value); e.target.value = ''; }",
-                    )
+                    with ui.element("div").classes("yt-row yt-crew-add"):
+                        field = ui.element("input").classes("yt-input yt-grow")
+                        field.props(f'type="text" placeholder="{more if names[key] else first}" '
+                                    f'aria-label="{label}"').mark(f"add-{key}")  # fmt: skip
+
+                        def take(e, key=key) -> None:
+                            add(key, e.args)
+
+                        field.on("keydown.enter", take, js_handler=_TAKE)
+                        field.on("blur", take, js_handler=_TAKE_TYPED)  # typed, then clicked away
+                        plus = ui.element("button").classes("yt-btn yt-btn--secondary")
+                        plus.props('type="button"').mark(f"add-{key}-button")
+                        with plus:
+                            ui.label("Add").classes("yt-btn-label")
+                        plus.on("click", take, js_handler=_TAKE_FIELD)
+                    if hint:
+                        ui.label(hint).classes("yt-hint")
 
     render()
