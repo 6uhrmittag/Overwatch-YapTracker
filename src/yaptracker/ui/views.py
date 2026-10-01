@@ -8,6 +8,7 @@ from PIL import Image
 
 from yaptracker import __version__, config, logs, paths, runtime
 from yaptracker.capture.watcher import fps
+from yaptracker.store.backups import last_backup
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import button, saved_chip, set_button_label, switch
 from yaptracker.ui.crew import crew_card
@@ -38,6 +39,19 @@ _WHY = {
     "no_frames": "no picture from Overwatch",
     "window_lost": "lost the Overwatch window",
 }
+
+
+def _backup_text() -> str:
+    """'Last backup: today 18:02 · 7 kept' (#125)."""
+    newest = last_backup(paths.backup_dir())
+    if newest is None:
+        return "No daily backup yet: the first one is made when Overwatch isn't running."
+    when, kept = newest
+    day = time.strftime("%Y-%m-%d", time.localtime(when))
+    today = time.strftime("%Y-%m-%d")
+    yesterday = time.strftime("%Y-%m-%d", time.localtime(time.time() - 86400))
+    label = {today: "today", yesterday: "yesterday"}.get(day, day)
+    return f"Last backup: {label} {time.strftime('%H:%M', time.localtime(when))} \u00b7 {kept} kept"
 
 
 # How an ended match shows in the Live header (#94).
@@ -353,9 +367,17 @@ def settings() -> None:
                             f"{count(stats.matches, 'match', 'matches')}, "
                             f"{count(stats.players, 'yapper', 'yappers')}, {size:.1f} MB"
                         ).classes("yt-meta").mark("data-stats")
+                    with ui.element("div").classes("yt-row"):
+                        ui.label(_backup_text()).classes("yt-meta").mark("backup-info")
+                        open_backups = button(
+                            "Open backups", lambda: logs.open_folder(paths.backup_dir()), "quiet"
+                        ).mark("open-backups")
+                        if not logs.folder_opens():
+                            open_backups.props("disabled")
                     ui.label(
-                        "A copy goes to the backups folder before every database update. "
-                        "Updating YapTracker never touches this folder."
+                        "A copy goes to the backups folder every day (never during a match) and "
+                        "before every database update. Updating YapTracker never touches this "
+                        "folder."
                     ).classes("yt-hint")
             with ui.element("section").classes("yt-card").mark("debug"):
                 with ui.element("div").classes("yt-card-head"):

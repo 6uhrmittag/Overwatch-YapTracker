@@ -57,6 +57,12 @@ class Store:
         with self._lock:
             self._conn.close()
 
+    def backup_to(self, target: Path) -> None:
+        """A consistent copy of the whole database, safe while the app runs (#125)."""
+        with self._lock, sqlite3.connect(target) as copy:
+            self._conn.backup(copy)
+        copy.close()
+
     def _write(self, sql: str, params: tuple = ()) -> int:
         with self._lock:
             return self._conn.execute(sql, params).lastrowid

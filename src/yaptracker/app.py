@@ -196,6 +196,7 @@ def _open_store() -> Callable[[], None]:
     from yaptracker.matches import MatchTracker
     from yaptracker.ocr import engine as ocr
     from yaptracker.reader import ChatReader
+    from yaptracker.store.backups import DailyBackup
     from yaptracker.store.repo import Store
 
     def missed_end() -> None:
@@ -206,6 +207,12 @@ def _open_store() -> Callable[[], None]:
         runtime.debug = DebugSamples(paths.debug_dir(), config.debug_samples)
         runtime.debug.clean_up()  # 14 days / 1 GB, also after a long break
         runtime.store = Store.open()
+        runtime.backups = DailyBackup(
+            runtime.store.backup_to,
+            paths.backup_dir(),
+            busy=lambda: runtime.watcher is not None and runtime.watcher.state == "capturing",
+        )
+        runtime.backups.start()  # now (first start of the day), or once Overwatch is closed
         runtime.matches = MatchTracker(runtime.store, runtime.pause, on_missed_end=missed_end)
         runtime.health = CaptureHealth(runtime.store)
         runtime.reader = ChatReader(
@@ -220,6 +227,8 @@ def _open_store() -> Callable[[], None]:
         runtime.reader.start()
 
     def close_store() -> None:
+        if runtime.backups is not None:
+            runtime.backups.stop()
         if runtime.reader is not None:
             runtime.reader.stop()  # capture has stopped; the last frame is stored first
         if runtime.health is not None:
