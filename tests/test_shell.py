@@ -107,7 +107,7 @@ async def test_me_and_my_crew_saves_names(user: User):
 async def test_live_view_follows_the_capture(user: User, monkeypatch):
     import numpy as np
 
-    from yaptracker import runtime
+    from yaptracker import config, runtime
     from yaptracker.capture.source import Frame
     from yaptracker.capture.watcher import CaptureWatcher
 
@@ -120,7 +120,13 @@ async def test_live_view_follows_the_capture(user: User, monkeypatch):
     user.find(marker="nav-yappers").click()
     user.find(marker="nav-live").click()
     await user.should_see("Listening for yaps")
+    (preview,) = user.find(marker="preview").elements
+    assert "yt-hidden" in preview.classes  # hidden by default: it distracts in play (#163)
+    user.find(marker="toggle-preview").click()
     await user.should_see("Chat box 615 \u00d7 395 px, 1 frames")
+    assert "yt-hidden" not in preview.classes and config.show_what_i_see()
+    user.find(marker="preview-hide").click()
+    assert "yt-hidden" in preview.classes and not config.show_what_i_see()
 
 
 async def test_pause_button_pauses_and_says_so(user: User, monkeypatch):
