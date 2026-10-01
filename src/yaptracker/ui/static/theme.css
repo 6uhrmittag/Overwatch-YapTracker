@@ -193,6 +193,8 @@ html, body { background: var(--yt-night); }
 
   /* Familiar faces (#26, Live mockup): impossible to miss on a second monitor */
   .yt-faces { display: flex; flex-direction: column; gap: 14px; }
+  .yt-spicy { display: inline-flex; vertical-align: -2px; }
+  .yt-heads-up { padding: 8px 12px; border-radius: 12px; background: #2e2210; border: 1px solid #5c4216; color: #ffd08a; font-size: 14px; font-weight: 700; }
   .yt-lookup-box { padding: 4px 6px 4px 14px; border-radius: 14px; background: var(--yt-panel-inset); border: 2px solid var(--yt-line-strong); }
   .yt-lookup-box:focus-within { border-color: var(--yt-accent); }
   .yt-lookup-results { display: flex; flex-direction: column; gap: 4px; }

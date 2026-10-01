@@ -12,7 +12,7 @@ from yaptracker.ui.profile import profile
 
 FOUND = 60  # rapidfuzz WRatio: typos and half names still find someone
 _FILTERS = {"all": "Everyone", **{k: label for k, (label, _) in VERDICTS.items()},
-            "none": "No verdict yet"}  # fmt: skip
+            "none": "No verdict yet", "spicy": "Spicy yaps"}  # fmt: skip
 _SORTS = {"last": "Last met", "times": "Times met"}
 
 
@@ -102,6 +102,8 @@ def _list(open_profile: Callable[[int], None]) -> None:
                 return
             if state["filter"] == "none":
                 players = [p for p in players if p.verdict is None]
+            elif state["filter"] == "spicy":  # #77
+                players = [p for p in players if p.spicy]
             elif state["filter"] != "all":
                 players = [p for p in players if p.verdict == state["filter"]]
             if state["sort"] == "last":
