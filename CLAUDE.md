@@ -153,9 +153,10 @@ Closes #
 6. **Search** across all chat (SQLite FTS5).
 7. **Settings**: chat-region calibration on a screenshot, OCR engine switch,
    sample rate, hotkeys, data folder, backup button.
-8. **Open data export**: everything (sessions, matches, messages, players, metadata)
+8. Every chat line's **picture is kept**, so emoji/icons are never lost (#120).
+9. **Open data export**: everything (sessions, matches, messages, players, metadata)
    as documented JSON + Markdown, optional anonymized names (#69; players-only #31).
-9. **Yap snaps**: select chat messages → pretty PNG with style presets, colours,
+10. **Yap snaps**: select chat messages → pretty PNG with style presets, colours,
    fonts and a hide-names toggle (#64, #65).
 
 ### Not in v1 — already filed as `parked` issues, ignore them
@@ -315,7 +316,9 @@ FrameSource (WGC, ~4 fps, chat ROI only)
 - Long messages wrap onto an indented line without icon → join them.
 - Default chat region at 2560×1440: x 55–670, y 510–905 (see #10).
 - There is **no** chat duration/opacity setting; chat fades → 4 fps sampling.
-- Strip trailing `[Report]` links and game icons; drop the half-cut top line of a scrolled chat.
+- Strip trailing `[Report]` links; drop the half-cut top line of a scrolled chat.
+- **Never silently drop emoji or game icons** (e.g. a ❤️ in match chat): mark them as `◇` in
+  the text and keep the picture of every line (#120). Real emoji recognition comes later (#121).
 - Best end-of-match signal: subtitle box `[ATHENA] Victory.` / `[ATHENA] Defeat.` (bottom centre), then the big banner (#21).
 
 ---
@@ -331,8 +334,8 @@ matches        (id, session_id, started_at, ended_at, outcome NULL,
 players        (id, display_name, verdict NULL, notes TEXT, first_seen, last_seen)
 player_aliases (player_id, alias)
 chat_messages  (id, match_id, ts, channel, speaker_raw, player_id NULL,
-                hero NULL, text, ocr_confidence,
-                flagged NULL)   -- 'overwatch' ([Report] link) | 'manual'; hero from comms wheel
+                hero NULL, text, ocr_confidence, has_glyphs,
+                flagged NULL)   -- line picture: data/lines/<yyyy-mm>/<id>.png (#120)   -- 'overwatch' ([Report] link) | 'manual'; hero from comms wheel
 capture_gaps   (id, started_at, ended_at, reason)
                -- 'crash' | 'no_frames' | 'paused' | 'window_lost' | 'app_not_running'
 chat_fts       -- FTS5 over chat_messages(text, speaker_raw)
@@ -398,7 +401,8 @@ lookup · `Ctrl+Alt+M` new match (override only) · `Ctrl+Alt+P` pause
 - [ ] The whole evening needed **zero** YapTracker key presses or clicks
       (app already running via autostart; capture, matches, sessions automatic)
 - [ ] Any time span that wasn't recorded shows up as a gap record, not a silent hole
-- [ ] No noticeable FPS impact in Overwatch; YapTracker uses < 5% of one CPU core
+- [ ] No measurable FPS drop in Overwatch; YapTracker averages ≤ 15% of one CPU core
+      over an evening (target: powerful gaming PCs; a spare iGPU may be used, #115)
 - [ ] Update via `tools/update.ps1` works from any v0 pre-release to v1.0.0
 - [ ] README: setup, calibration, hotkeys, known limits, tested resolution
 - [ ] `v1.0.0` released, M5 closed, everything else is `parked`
