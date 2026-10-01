@@ -319,7 +319,8 @@ FrameSource (WGC, ~4 fps, chat ROI only)
 - Strip trailing `[Report]` links; drop the half-cut top line of a scrolled chat.
 - **Never silently drop emoji or game icons** (e.g. a ❤️ in match chat): mark them as `◇` in
   the text and keep the picture of every line (#120). Real emoji recognition comes later (#121).
-- Best end-of-match signal: subtitle box `[ATHENA] Victory.` / `[ATHENA] Defeat.` (bottom centre), then the big banner (#21).
+- Match end: the centre `VICTORY!` / `DEFEAT` banner (outcome), fallbacks `PLAY OF THE GAME` / summary screens.
+  The `[ATHENA]` subtitle is deliberately **not** read (optional setting, costly) — see decisions (#94).
 
 ---
 
