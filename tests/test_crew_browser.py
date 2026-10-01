@@ -153,21 +153,29 @@ def profile_folder(tmp_path: Path) -> Path:
     return tmp_path / "browser"
 
 
+def devtools_port(profile: Path, log: Path, seconds: float = 60) -> int:
+    """The port the browser picked itself (asked with port 0): no race for a free one."""
+    deadline = time.time() + seconds
+    active = profile / "DevToolsActivePort"
+    while time.time() < deadline:
+        if active.exists() and (first := active.read_text().split("\n")[0].strip()).isdigit():
+            return int(first)
+        time.sleep(0.2)
+    raise AssertionError(f"{BROWSER} didn't start: {log.read_text()[-2000:]}")
+
+
 async def browse(steps, tmp_path: Path) -> None:
-    port, profile = free_port(), profile_folder(tmp_path)
-    log = tmp_path / "browser.log"
+    profile, log = profile_folder(tmp_path), tmp_path / "browser.log"
     with log.open("wb") as out:
         browser = subprocess.Popen(
             [BROWSER, "--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run",
-             f"--user-data-dir={profile}", f"--remote-debugging-port={port}",
+             f"--user-data-dir={profile}", "--remote-debugging-port=0",
              "--window-size=1280,900", "about:blank"],
             stdout=out, stderr=subprocess.STDOUT,
         )  # fmt: skip
     try:
-        try:
-            wait_for(f"http://127.0.0.1:{port}/json/version", seconds=60)
-        except OSError as error:
-            raise AssertionError(f"{BROWSER} didn't start: {log.read_text()[-2000:]}") from error
+        port = devtools_port(profile, log)
+        wait_for(f"http://127.0.0.1:{port}/json/version", seconds=30)
         tabs = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json"))
         url = next(t for t in tabs if t["type"] == "page")["webSocketDebuggerUrl"]
         async with websockets.connect(url, max_size=None) as ws:

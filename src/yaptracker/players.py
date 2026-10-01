@@ -5,7 +5,7 @@ crew", #74: OCR slips like "NoodleBonkl" count, short names must be exact). A ne
 known player becomes an alias; anything else is a new player. My own names never become a
 player; crew players are normal players, marked as crew by the crew setting.
 
-The name shown is the spelling read most often, so a first misread ("VoidGrowned") fixes
+The name shown is the spelling read most often, so a first misread ("MoonPebbIe") fixes
 itself once the name has been read correctly a few times.
 """
 

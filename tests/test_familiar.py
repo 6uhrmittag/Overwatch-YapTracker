@@ -59,8 +59,8 @@ def test_first_time_met_no_card_and_only_once_per_match(store):
 
 
 def test_me_and_my_crew_never_get_a_card(store):
-    crew, now = met(store, "VoidCrowned", 5)
-    faces = FamiliarFaces(store, lambda: Identity(crew=("VoidCrowned",)), clock=Clock())
+    crew, now = met(store, "MoonPebble", 5)
+    faces = FamiliarFaces(store, lambda: Identity(crew=("MoonPebble",)), clock=Clock())
     assert faces.heard(crew, now) is None
 
 
@@ -120,7 +120,7 @@ async def test_got_it_and_the_compact_nope_card(user: User, store, monkeypatch):
 
 def test_never_a_card_for_me_or_crew_under_any_spelling_also_added_later(store):
     """#168: the names were typed in after the players existed, and only an alias matches."""
-    void, now = met(store, "VoidCrowned", 3)  # read long before "Void" went into My crew
+    void, now = met(store, "MoonPebble", 3)  # read long before "Void" went into My crew
     store.add_alias(void, "Void")
     names = {"crew": ()}
     faces = FamiliarFaces(store, lambda: Identity(crew=names["crew"]), clock=Clock())
