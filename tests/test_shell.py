@@ -219,3 +219,18 @@ async def test_open_logs_opens_the_folder_on_windows(user: User, monkeypatch):
     assert "disabled" not in button.props
     user.find(marker="open-logs").click()
     assert opened == [True]
+
+
+async def test_settings_shows_debug_samples_and_their_size(user: User, monkeypatch, tmp_path):
+    from yaptracker import config, runtime
+    from yaptracker.debug import DebugSamples
+
+    (tmp_path / "debug" / "2026-10-01" / "12-00-00-end").mkdir(parents=True)
+    (tmp_path / "debug" / "2026-10-01" / "12-00-00-end" / "a.jpg").write_bytes(b"x" * 2_500_000)
+    monkeypatch.setattr(runtime, "debug", DebugSamples(tmp_path / "debug", config.debug_samples))
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see("Debug samples: 2.5 MB, kept 14 days and 1 GB at most")
+    assert config.debug_samples()  # on in pre-releases
+    user.find(marker="debug-switch").click()
+    assert not config.debug_samples()

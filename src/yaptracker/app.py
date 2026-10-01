@@ -11,7 +11,7 @@ from nicegui import app, ui
 from nicegui.run import io_bound
 
 from yaptracker import autostart as start_with_windows
-from yaptracker import config, demo, runtime
+from yaptracker import config, demo, paths, runtime
 from yaptracker.capture.watcher import CaptureWatcher
 from yaptracker.ui import shell
 
@@ -101,13 +101,18 @@ def _watch_for_overwatch(dev: bool) -> None:
     def hero_select_started(mode: str | None, map_name: str | None) -> None:
         if runtime.matches is not None:
             runtime.matches.new_match(source="heroselect", mode=mode, map_name=map_name)
+        if runtime.debug is not None:
+            runtime.debug.match_event("start")
 
     def match_running() -> bool:
         return runtime.matches is not None and runtime.matches.running
 
     def match_over(outcome: str | None) -> None:
         if runtime.matches is not None:
+            was_running = runtime.matches.running
             runtime.matches.end_match(outcome=outcome)
+            if was_running and runtime.debug is not None:
+                runtime.debug.match_event("end")
 
     hero_select = HeroSelect(
         read_line, read_lines, hero_select_started, match_running=match_running
@@ -115,6 +120,8 @@ def _watch_for_overwatch(dev: bool) -> None:
     end_screen = EndScreen(read_line, match_over)
 
     def on_signals(frame) -> None:  # also while paused: the next match ends a pause (#20)
+        if runtime.debug is not None:  # first, so a start/end sample has what was just read
+            runtime.debug.on_signals(frame.signals, paused=runtime.pause.paused)
         hero_select.update(frame.signals)
         end_screen.update(frame.signals)
 
@@ -171,12 +178,19 @@ def _open_store() -> Callable[[], None]:
     Returns the close function; run() registers it last, after capture has stopped writing.
     """
     from yaptracker.capture.health import CaptureHealth
+    from yaptracker.debug import DebugSamples
     from yaptracker.matches import MatchTracker
     from yaptracker.store.repo import Store
 
+    def missed_end() -> None:
+        if runtime.debug is not None:
+            runtime.debug.match_event("missed-end")
+
     def open_store() -> None:
+        runtime.debug = DebugSamples(paths.debug_dir(), config.debug_samples)
+        runtime.debug.clean_up()  # 14 days / 1 GB, also after a long break
         runtime.store = Store.open()
-        runtime.matches = MatchTracker(runtime.store, runtime.pause)
+        runtime.matches = MatchTracker(runtime.store, runtime.pause, on_missed_end=missed_end)
         runtime.health = CaptureHealth(runtime.store)
 
     def close_store() -> None:

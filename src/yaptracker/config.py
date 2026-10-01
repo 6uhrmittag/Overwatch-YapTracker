@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from math import gcd
 from pathlib import Path
 
-from yaptracker import paths
+from yaptracker import __version__, paths
 from yaptracker.capture.changes import ChangeDetector
 from yaptracker.capture.source import Region, RelativeRegion, default_chat_region
 from yaptracker.identity import Identity
@@ -144,6 +144,18 @@ def save_autostart(on: bool, path: Path | None = None) -> None:
     path = path or paths.config_file()
     data = _load(path)
     data["autostart"] = on
+    _save(path, data)
+
+
+def debug_samples(path: Path | None = None) -> bool:
+    """Collect debug samples (#63): on by default while YapTracker is a v0.x pre-release."""
+    return _load(path or paths.config_file()).get("debug_samples", __version__.startswith("0."))
+
+
+def save_debug_samples(on: bool, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["debug_samples"] = on
     _save(path, data)
 
 

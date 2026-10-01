@@ -3,6 +3,7 @@
 from yaptracker.capture.changes import ChangeDetector
 from yaptracker.capture.health import CaptureHealth
 from yaptracker.capture.watcher import CaptureWatcher
+from yaptracker.debug import DebugSamples
 from yaptracker.matches import MatchTracker
 from yaptracker.pause import Pause
 from yaptracker.store.repo import Store
@@ -17,3 +18,4 @@ window_size: tuple[int, int] | None = None  # of the captured Overwatch window, 
 store: Store | None = None  # the database, open while the app runs (#15)
 matches: MatchTracker | None = None  # sessions and matches (#21), with the store
 health: CaptureHealth | None = None  # gap records (#75), with the store
+debug: DebugSamples | None = None  # the hard moments, kept as test material (#63)
