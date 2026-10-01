@@ -147,6 +147,26 @@ def save_autostart(on: bool, path: Path | None = None) -> None:
     _save(path, data)
 
 
+def setup_state(path: Path | None = None) -> str | None:
+    """First-start setup (#76): 'done', 'skipped', 'skipped-seen' (reminded once), or None.
+
+    Installs from before the wizard count as done once a box was drawn or a name entered.
+    """
+    data = _load(path or paths.config_file())
+    if "setup" in data:
+        return data["setup"]
+    if data.get("chat_boxes") or data.get("chat_regions") or data.get("my_names"):
+        return "done"
+    return None
+
+
+def save_setup_state(state: str, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["setup"] = state
+    _save(path, data)
+
+
 def debug_samples(path: Path | None = None) -> bool:
     """Collect debug samples (#63): on by default while YapTracker is a v0.x pre-release."""
     return _load(path or paths.config_file()).get("debug_samples", __version__.startswith("0."))

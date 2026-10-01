@@ -13,6 +13,20 @@ async def user():
         yield user
 
 
+@pytest.fixture(autouse=True)
+def _set_up_already():
+    """Most tests are about the views after setup; the wizard tests start fresh (#76)."""
+    from yaptracker import config
+
+    config.save_setup_state("done")
+
+
+def first_start():
+    from yaptracker import paths
+
+    paths.config_file().unlink()
+
+
 async def test_opens_on_live(user: User):
     await user.open("/")
     await user.should_see("Live")
@@ -234,3 +248,55 @@ async def test_settings_shows_debug_samples_and_their_size(user: User, monkeypat
     assert config.debug_samples()  # on in pre-releases
     user.find(marker="debug-switch").click()
     assert not config.debug_samples()
+
+
+async def test_first_start_walks_through_setup_and_ends_on_live(user: User, monkeypatch):
+    from yaptracker import config, demo
+
+    monkeypatch.setattr(demo, "ENABLED", True)  # the demo screenshot stands in for the game
+    first_start()
+    await user.open("/")
+    await user.should_see("Let's find Overwatch")
+    await user.should_see("Start Overwatch, I'll wait right here.")
+    user.find(marker="setup-next").click()
+    await user.should_see("Show me the chat box")  # step 2: the calibration from #10
+    user.find(marker="save").click()  # the demo screenshot and the usual box: one click
+    await user.should_see("Who are you?")
+    await user.should_see("Me & my crew")
+    await user.should_see("Start with Windows")
+    user.find(marker="setup-done").click()
+    await user.should_see("This match")
+    assert config.setup_state() == "done"
+
+
+async def test_skipping_setup_reminds_once(user: User):
+    from yaptracker import config
+
+    first_start()
+    await user.open("/")
+    user.find(marker="skip-setup").click()
+    await user.should_see("Setup skipped: I'm using the usual chat spot")
+    user.find(marker="setup-ok").click()
+    assert config.setup_state() == "skipped-seen"
+    await user.open("/")
+    await user.should_see("This match")
+    await user.should_not_see("Setup skipped")
+
+
+async def test_setup_can_run_again_from_settings(user: User):
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    user.find(marker="run-setup").click()
+    await user.should_see("Let's find Overwatch")
+    user.find(marker="skip-setup").click()
+    await user.should_see("Settings")
+
+
+def test_installs_from_before_the_wizard_count_as_set_up(tmp_path):
+    from yaptracker import config
+    from yaptracker.capture.source import Region
+
+    path = tmp_path / "config.json"
+    assert config.setup_state(path) is None
+    config.save_chat_region(2560, 1440, Region(55, 510, 615, 395), path)
+    assert config.setup_state(path) == "done"

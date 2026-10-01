@@ -118,6 +118,16 @@ html, body { background: var(--yt-night); }
   .yt-actions { display: flex; gap: 10px; }
   .yt-actions .yt-btn--primary { flex-grow: 1; }
 
+  /* Setup steps (Setup mockup): done = green check, current = orange, next = grey */
+  .yt-steps { margin: 0; padding: 0; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 800; }
+  .yt-step { display: flex; align-items: center; gap: 8px; color: var(--yt-faint); }
+  .yt-step-dot { box-sizing: border-box; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--yt-line-strong); display: flex; align-items: center; justify-content: center; }
+  .yt-step--done { color: var(--yt-ok); }
+  .yt-step--done .yt-step-dot { background: #1c2a22; border-color: var(--yt-ok); }
+  .yt-step--current { color: var(--yt-accent); }
+  .yt-step--current .yt-step-dot { background: var(--yt-accent); border-color: var(--yt-accent); color: var(--yt-ground); }
+  .yt-step-line { width: 28px; height: 2px; background: var(--yt-line-strong); }
+
   /* Orange banner for things worth a look, e.g. a new window size (#84) */
   .yt-banner { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px; background: #2e2210; border: 1px solid #5c4216; color: var(--yt-text); font-size: 15px; font-weight: 700; }
 

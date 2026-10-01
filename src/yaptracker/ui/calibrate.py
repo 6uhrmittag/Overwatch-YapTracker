@@ -39,8 +39,9 @@ def _overlay(editor: BoxEditor) -> str:
     )
 
 
-def calibrate(on_done: Callable[[bool], None]) -> None:
-    """on_done(saved) returns to where calibration was opened from."""
+def calibrate(on_done: Callable[[bool], None], steps: Callable[[], None] | None = None) -> None:
+    """on_done(saved) returns to where calibration was opened from; `steps` draws the setup
+    wizard's progress in the header (#76)."""
     state: dict = {"image": None, "editor": None}
 
     with ui.element("header").classes("yt-header"):
@@ -48,6 +49,8 @@ def calibrate(on_done: Callable[[bool], None]) -> None:
             ui.label("Show me the chat box").classes("yt-h1")
             ui.label("Takes about 30 seconds, promise.").classes("yt-subtitle")
         ui.element("div").classes("yt-grow")
+        if steps is not None:
+            steps()
         button("Back", lambda: on_done(False), "quiet")
 
     with ui.element("div").classes("yt-columns"):

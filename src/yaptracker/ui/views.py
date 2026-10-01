@@ -6,11 +6,12 @@ import numpy as np
 from nicegui import ui
 from PIL import Image
 
-from yaptracker import __version__, autostart, config, logs, paths, runtime
+from yaptracker import __version__, config, logs, paths, runtime
 from yaptracker.capture.watcher import fps
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import button, saved_chip, set_button_label, switch
 from yaptracker.ui.crew import crew_card
+from yaptracker.ui.setup import setup_wizard, startup_card
 
 
 def _header(title: str) -> None:
@@ -48,6 +49,22 @@ _PILLS = {"paused": "paused", "trouble": "paused", "listening": "listening", "wa
 
 
 def live() -> None:
+    """Live, or the setup wizard in its place on the very first start (#76)."""
+    if config.setup_state() is not None:
+        _live()
+        return
+    body = ui.element("div").classes("yt-view")
+
+    def done() -> None:
+        body.clear()
+        with body:
+            _live()
+
+    with body:
+        setup_wizard(on_done=done)
+
+
+def _live() -> None:
     watcher = runtime.watcher
     with ui.element("header").classes("yt-header"):
         ui.label("Live").classes("yt-h1")
@@ -69,6 +86,18 @@ def live() -> None:
     with ui.element("div").classes("yt-banner yt-hidden").mark("size-hint") as size_hint:
         size_text = ui.label().classes("yt-grow")
         button("Got it", lambda: size_checked(), "quiet").mark("size-ok")
+    if config.setup_state() == "skipped":  # once, after skipping setup (#76)
+        with ui.element("div").classes("yt-banner").mark("setup-hint") as setup_hint:
+            ui.label(
+                "Setup skipped: I'm using the usual chat spot and don't know your name yet. "
+                "Settings \u2192 Run setup takes 30 seconds."
+            ).classes("yt-grow")
+            button("Got it", lambda: setup_seen(), "quiet").mark("setup-ok")
+
+        def setup_seen() -> None:
+            config.save_setup_state("skipped-seen")
+            setup_hint.classes(add="yt-hidden")
+
     with ui.element("div").classes("yt-columns"):
         with ui.element("section").classes("yt-card yt-card--chat").props('aria-label="Chat"'):
             with ui.element("div").classes("yt-card-head"):
@@ -226,6 +255,7 @@ def settings() -> None:
                     if saved:
                         saved_chip()
                     ui.element("div").classes("yt-grow")
+                    button("Run setup again", open_setup, "quiet").mark("run-setup")
                     button("Calibrate", open_calibration).mark("calibrate")
                 with ui.element("div").classes("yt-card-body"):
                     boxes = config.saved_chat_boxes()
@@ -243,23 +273,7 @@ def settings() -> None:
                             "Not calibrated yet. I'll use the usual spot, which fits 16:9 screens."
                         ).classes("yt-hint")
             crew_card()
-            with ui.element("section").classes("yt-card").mark("startup"):
-                with ui.element("div").classes("yt-card-head"):
-                    ui.label("Startup").classes("yt-h2")
-                with ui.element("div").classes("yt-card-body"):
-                    supported = autostart.supported()
-                    switch(
-                        "Start with Windows",
-                        autostart.enabled(),
-                        autostart.set_enabled,
-                        disabled=not supported,
-                    ).mark("autostart")
-                    ui.label(
-                        "Waits quietly in the taskbar until Overwatch starts, so no evening "
-                        "is lost because YapTracker wasn't open."
-                        if supported
-                        else "Only in the installed app (tools/update.ps1)."
-                    ).classes("yt-hint")
+            startup_card()
             with ui.element("section").classes("yt-card").mark("data"):
                 with ui.element("div").classes("yt-card-head"):
                     ui.label("Your data").classes("yt-h2")
@@ -315,5 +329,10 @@ def settings() -> None:
         body.clear()
         with body:
             calibrate(on_done=overview)
+
+    def open_setup() -> None:
+        body.clear()
+        with body:
+            setup_wizard(on_done=overview)
 
     overview()
