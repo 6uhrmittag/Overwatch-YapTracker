@@ -57,6 +57,7 @@ class ChatLine:
     target: str | None = None  # "you" or a name, for comms lines
     flagged: bool = False  # Overwatch appended a [Report] link
     role: str | None = None  # "me" / "crew" once the identity is applied (#74)
+    head: Region | None = None  # the first row: where the channel icon sits (#173)
 
 
 def _starts_line(text: str) -> bool:
@@ -117,6 +118,6 @@ def parse(ocr_lines: list[OcrLine]) -> list[ChatLine]:
         box = group[0].box
         for line in group[1:]:
             box = _union(box, line.box)
-        parsed = _classify(text, confidence, box)
+        parsed = replace(_classify(text, confidence, box), head=group[0].box)
         result.append(replace(parsed, kind="cut") if i == 0 and top_is_cut else parsed)
     return result

@@ -64,6 +64,7 @@ class ChatReader:
         self._players = players  # who said it (#23)
         self._on_player = on_player  # a familiar face may be back (#26)
         self._speakers: dict[int, tuple[str | None, int | None]] = {}  # yap id -> (speaker, player)
+        self._seen_colours: dict[str, float] = {}  # channel colours learned while reading (#173)
         self.min_gap_s = min_gap_s  # Settings can change it while running (#152)
         self._last_read = -math.inf  # monotonic time of the last read's start
         self._dedup = Dedup()
@@ -120,7 +121,10 @@ class ChatReader:
             return []
         started = time.thread_time()
         ocr = glyphs.mark(image, self._read(image))  # icons OCR can't spell become ◇ (#128)
-        lines = self._identity().apply(channels.assign(parse(ocr), image, self._colours()))
+        parsed = parse(ocr)
+        self._seen_colours.update(channels.learn(parsed, image))  # e.g. HDR shifts them (#173)
+        known = {**self._colours(), **self._seen_colours}
+        lines = self._identity().apply(channels.assign(parsed, image, known))
         new, improved = self._dedup.update(ts, lines)
         if new:
             self._matches.chat_changed(ts)  # first: a new match may start with this yap
