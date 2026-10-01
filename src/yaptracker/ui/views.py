@@ -12,19 +12,15 @@ from yaptracker.capture.watcher import fps
 from yaptracker.glyphs import GLYPH
 from yaptracker.store.backups import last_backup
 from yaptracker.ui.calibrate import calibrate
-from yaptracker.ui.components import button, saved_chip, set_button_label, switch
+from yaptracker.ui.components import button, count, saved_chip, set_button_label, switch
 from yaptracker.ui.crew import crew_card
+from yaptracker.ui.familiar_cards import familiar_card
 from yaptracker.ui.setup import setup_wizard, startup_card
 
 
 def _header(title: str) -> None:
     with ui.element("header").classes("yt-header"):
         ui.label(title).classes("yt-h1")
-
-
-def count(n: int, one: str, many: str) -> str:
-    """'1 match', '2 matches', '0 yaps'."""
-    return f"{n} {one if n == 1 else many}"
 
 
 def _empty_card(title: str, hint: str) -> None:
@@ -179,12 +175,7 @@ def _live() -> None:
                     lines = ui.element("div").classes("yt-lines-inner").mark("lines")
                 hint = ui.label("Waiting for Overwatch. I'll be right here.").classes("yt-hint")
         with ui.element("aside").classes("yt-aside").props('aria-label="Familiar faces"'):
-            with ui.element("div").classes("yt-card yt-card--placeholder"):
-                with ui.element("div").classes("yt-card-body"):
-                    ui.label("Look who's back!").classes("yt-h2")
-                    ui.label(
-                        "When someone you've met before starts yapping, their card pops up here."
-                    ).classes("yt-hint")
+            faces = ui.element("div").classes("yt-faces").mark("faces")
             with ui.element("section").classes("yt-card yt-hidden").mark("preview") as preview:
                 with ui.element("div").classes("yt-card-body"):
                     ui.label("What I see").classes("yt-h2")
@@ -236,8 +227,41 @@ def _live() -> None:
             config.mark_size_checked(*runtime.window_size)
         size_hint.classes(add="yt-hidden")
 
+    shown_faces = {"cards": None}
+
+    def refresh_faces() -> None:
+        """Cards for familiar faces (#26), newest on top; the placeholder when there are none."""
+        cards = runtime.familiar.active() if runtime.familiar else []
+        key = [(c.player_id, c.shown_at) for c in cards]
+        if key == shown_faces["cards"]:
+            return
+        shown_faces["cards"] = key
+        faces.clear()
+        with faces:
+            for card in cards:
+                familiar_card(
+                    card,
+                    on_open=lambda pid=card.player_id: ui.context.client.yt_show(
+                        "yappers", player_id=pid
+                    ),
+                    on_dismiss=lambda pid=card.player_id: dismiss(pid),
+                )
+            if not cards:
+                with ui.element("div").classes("yt-card yt-card--placeholder"):
+                    with ui.element("div").classes("yt-card-body"):
+                        ui.label("Look who's back!").classes("yt-h2")
+                        ui.label(
+                            "When someone you've met before starts yapping, their card pops up "
+                            "here."
+                        ).classes("yt-hint")
+
+    def dismiss(player_id: int) -> None:
+        runtime.familiar.dismiss(player_id)
+        refresh_faces()
+
     def refresh() -> None:
         refresh_chat()
+        refresh_faces()
         paused = runtime.pause.paused
         capturing = watcher is not None and watcher.state == "capturing"
         gap = runtime.health.gap if runtime.health else None

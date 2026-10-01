@@ -193,6 +193,7 @@ def _open_store() -> Callable[[], None]:
     """
     from yaptracker.capture.health import CaptureHealth
     from yaptracker.debug import DebugSamples
+    from yaptracker.familiar import FamiliarFaces
     from yaptracker.lines import LinePictures
     from yaptracker.matches import MatchTracker
     from yaptracker.ocr import engine as ocr
@@ -219,6 +220,7 @@ def _open_store() -> Callable[[], None]:
         runtime.backups.start()  # now (first start of the day), or once Overwatch is closed
         runtime.matches = MatchTracker(runtime.store, runtime.pause, on_missed_end=missed_end)
         runtime.health = CaptureHealth(runtime.store)
+        runtime.familiar = FamiliarFaces(runtime.store, config.identity)
         runtime.reader = ChatReader(
             lambda image: ocr.get(config.ocr_engine()).read(image),
             runtime.store,
@@ -233,6 +235,7 @@ def _open_store() -> Callable[[], None]:
                 config.identity,
                 on_shaky=lambda name: runtime.debug.save_chat("new-player"),
             ),
+            on_player=runtime.familiar.heard,
         )
         runtime.reader.start()
 

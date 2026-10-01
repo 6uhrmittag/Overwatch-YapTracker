@@ -4,6 +4,7 @@ from yaptracker.capture.changes import ChangeDetector
 from yaptracker.capture.health import CaptureHealth
 from yaptracker.capture.watcher import CaptureWatcher
 from yaptracker.debug import DebugSamples
+from yaptracker.familiar import FamiliarFaces
 from yaptracker.lines import LinePictures
 from yaptracker.matches import MatchTracker
 from yaptracker.pause import Pause
@@ -26,3 +27,4 @@ debug: DebugSamples | None = None  # the hard moments, kept as test material (#6
 reader: ChatReader | None = None  # live chat into the database (#108), with the store
 backups: DailyBackup | None = None  # one copy of the database a day (#125), with the store
 pictures: LinePictures | None = None  # the picture of every chat line (#120)
+familiar: FamiliarFaces | None = None  # "Look who's back!" cards (#26), with the store

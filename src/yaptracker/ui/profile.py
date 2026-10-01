@@ -7,8 +7,7 @@ from collections.abc import Callable
 from nicegui import ui
 
 from yaptracker import runtime
-from yaptracker.ui.components import VERDICTS, button, saved_chip, when
-from yaptracker.ui.views import count
+from yaptracker.ui.components import VERDICTS, button, count, saved_chip, when
 
 # Yap-o-meter: yaps per match together.
 _LEVELS = [(1, "Silent type"), (3, "Casual yapper"), (8, "Certified yapper"),

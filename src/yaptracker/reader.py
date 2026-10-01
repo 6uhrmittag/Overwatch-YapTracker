@@ -53,6 +53,7 @@ class ChatReader:
         min_gap_s: float = MIN_GAP_S,
         pictures=None,
         players=None,
+        on_player: Callable[[int | None, int | None], object] = lambda player, match: None,
     ) -> None:
         self._read, self._store, self._matches = read, store, matches
         self._identity, self._colours, self._paused, self._clock = (
@@ -61,6 +62,7 @@ class ChatReader:
         self._on_read = on_read  # debug samples of hard chat moments (#110)
         self._pictures = pictures  # the picture of every stored line (#120)
         self._players = players  # who said it (#23)
+        self._on_player = on_player  # a familiar face may be back (#26)
         self._speakers: dict[int, tuple[str | None, int | None]] = {}  # yap id -> (speaker, player)
         self._min_gap_s = min_gap_s
         self._last_read = -math.inf  # monotonic time of the last read's start
@@ -123,11 +125,13 @@ class ChatReader:
         if new:
             self._matches.chat_changed(ts)  # first: a new match may start with this yap
         for yap in new:
+            player = self._player(yap, ts)
             self._stored[yap.id] = self._store.add_message(
-                ts=ts, match_id=self._matches.match_id, player_id=self._player(yap, ts),
-                **_fields(yap.best),
-            )  # fmt: skip
+                ts=ts, match_id=self._matches.match_id, player_id=player, **_fields(yap.best)
+            )
             self._keep_picture(yap, image)
+            if yap.best.channel != "system":  # "[x] started playing" is a friend online, not here
+                self._on_player(player, self._matches.match_id)
         for yap in improved:
             if yap.id in self._stored:
                 self._store.update_message(

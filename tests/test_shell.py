@@ -176,7 +176,7 @@ async def test_settings_shows_what_is_stored(user: User, monkeypatch, tmp_path):
 
 
 def test_counts_read_like_a_person_wrote_them():
-    from yaptracker.ui.views import count
+    from yaptracker.ui.components import count
 
     counts = [count(n, "match", "matches") for n in (0, 1, 2)]
     assert counts == ["0 matches", "1 match", "2 matches"]
