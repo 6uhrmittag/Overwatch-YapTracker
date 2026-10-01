@@ -1,0 +1,235 @@
+{
+ "source": "One bright 4K HDR chat frame, 2026-10-01 (#172): OCR words with their measured text hue, names made up. Background text glued to the lines.",
+ "known": {
+  "match": 56.0,
+  "team": 58.0,
+  "system": 60.0
+ },
+ "lines": [
+  {
+   "confidence": 0.8809351623058319,
+   "parts": [
+    {
+     "text": "NE",
+     "box": [
+      614,
+      0,
+      46,
+      40
+     ],
+     "hue": 210.0
+    }
+   ]
+  },
+  {
+   "confidence": 0.6127140820026398,
+   "parts": [
+    {
+     "text": "B7",
+     "box": [
+      35,
+      21,
+      108,
+      97
+     ],
+     "hue": 204.0
+    }
+   ]
+  },
+  {
+   "confidence": 0.8460306900318223,
+   "parts": [
+    {
+     "text": "[Pickle]: Can i?",
+     "box": [
+      88,
+      163,
+      264,
+      38
+     ],
+     "hue": 202.0
+    },
+    {
+     "text": "DESTINATION",
+     "box": [
+      682,
+      52,
+      145,
+      141
+     ],
+     "hue": 212.0
+    },
+    {
+     "text": "五",
+     "box": [
+      697,
+      130,
+      77,
+      73
+     ],
+     "hue": 236.0
+    }
+   ]
+  },
+  {
+   "confidence": 0.9306426462414976,
+   "parts": [
+    {
+     "text": "[MoonPebble]: gg yall",
+     "box": [
+      95,
+      220,
+      375,
+      44
+     ],
+     "hue": 60.0
+    },
+    {
+     "text": "TRAINNO",
+     "box": [
+      800,
+      170,
+      86,
+      105
+     ],
+     "hue": 212.0
+    }
+   ]
+  },
+  {
+   "confidence": 0.9464682702325348,
+   "parts": [
+    {
+     "text": "[BoltBucket]: gg",
+     "box": [
+      97,
+      280,
+      207,
+      43
+     ],
+     "hue": 60.0
+    },
+    {
+     "text": "5",
+     "box": [
+      478,
+      258,
+      50,
+      52
+     ],
+     "hue": 344.0
+    },
+    {
+     "text": "512",
+     "box": [
+      813,
+      245,
+      55,
+      63
+     ],
+     "hue": 228.0
+    }
+   ]
+  },
+  {
+   "confidence": 0.9760607979260385,
+   "parts": [
+    {
+     "text": "[tortillaTank]: i luv u puuupsss",
+     "box": [
+      98,
+      343,
+      516,
+      38
+     ],
+     "hue": 60.0
+    },
+    {
+     "text": "1732",
+     "box": [
+      779,
+      298,
+      72,
+      78
+     ],
+     "hue": 212.0
+    }
+   ]
+  },
+  {
+   "confidence": 0.9841096489517777,
+   "parts": [
+    {
+     "text": "[MoonPebble]: glhf next :3",
+     "box": [
+      98,
+      404,
+      435,
+      37
+     ],
+     "hue": 60.0
+    }
+   ]
+  },
+  {
+   "confidence": 0.8338367709269127,
+   "parts": [
+    {
+     "text": "[kittycat]; pickle ur a goid boy",
+     "box": [
+      95,
+      459,
+      508,
+      48
+     ],
+     "hue": 60.0
+    },
+    {
+     "text": "利",
+     "box": [
+      556,
+      406,
+      99,
+      88
+     ],
+     "hue": 336.0
+    },
+    {
+     "text": "2325",
+     "box": [
+      721,
+      427,
+      82,
+      79
+     ],
+     "hue": 212.0
+    }
+   ]
+  },
+  {
+   "confidence": 0.9911358875256997,
+   "parts": [
+    {
+     "text": "[tortillaTank]: fun game :3",
+     "box": [
+      97,
+      521,
+      451,
+      41
+     ],
+     "hue": 60.0
+    },
+    {
+     "text": "236",
+     "box": [
+      704,
+      507,
+      62,
+      58
+     ],
+     "hue": 344.0
+    }
+   ]
+  }
+ ]
+}

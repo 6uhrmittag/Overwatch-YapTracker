@@ -121,7 +121,9 @@ class ChatReader:
         if self._paused():  # paused after the frame was offered: nothing is read or kept
             return []
         started = time.thread_time()
-        ocr = glyphs.mark(image, self._read(image))  # icons OCR can't spell become ◇ (#128)
+        known = {**self._colours(), **self._seen_colours}
+        read = channels.cut_glued(self._read(image), image, known)  # "gg 512" -> "gg" (#172)
+        ocr = glyphs.mark(image, read)  # icons OCR can't spell become ◇ (#128)
         parsed = parse(ocr)
         self._seen_colours.update(channels.learn(parsed, image))  # e.g. HDR shifts them (#173)
         known = {**self._colours(), **self._seen_colours}
