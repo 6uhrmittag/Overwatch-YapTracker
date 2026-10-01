@@ -378,3 +378,35 @@ async def test_settings_shows_the_last_daily_backup(user: User):
     user.find(marker="nav-settings").click()
     await user.should_see("Last backup: today")
     await user.should_see("· 1 kept")
+
+
+async def test_an_icon_shows_as_a_chip_and_the_line_opens_its_picture(user: User, monkeypatch,
+                                                                       tmp_path):  # fmt: skip
+    import numpy as np
+
+    from yaptracker import runtime
+    from yaptracker.capture.source import Region
+    from yaptracker.lines import LinePictures
+    from yaptracker.matches import MatchTracker
+    from yaptracker.pause import Pause
+    from yaptracker.store.repo import Store
+
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive()
+    tracker.chat_changed()
+    pictures = LinePictures(tmp_path / "lines")
+    ts = tracker.match_started_at + 3
+    message = store.add_message(ts=ts, channel="team", speaker_raw="NoodleBonk",
+                                text="Thanks! ◇", match_id=tracker.match_id,
+                                has_glyphs=True)  # fmt: skip
+    pictures.save(message, ts, np.full((80, 615, 3), 90, np.uint8), Region(14, 28, 200, 24))
+    monkeypatch.setattr(runtime, "store", store)
+    monkeypatch.setattr(runtime, "matches", tracker)
+    monkeypatch.setattr(runtime, "pictures", pictures)
+    await user.open("/")
+    await user.should_see("Thanks!")
+    await user.should_see('class="yt-glyph"')  # the ◇ is a chip, not a bare character
+    user.find(marker="chat-line").click()  # in the browser, a click on the text bubbles up
+    await user.should_see(marker="line-picture")
+    store.close()

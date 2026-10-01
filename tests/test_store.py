@@ -16,7 +16,7 @@ def store(tmp_path):
 
 def test_a_new_database_has_the_latest_schema_in_wal_mode(tmp_path):
     conn = db.connect(tmp_path / "yaptracker.db", tmp_path / "backups")
-    assert db.version(conn) == db.LATEST == 2
+    assert db.version(conn) == db.LATEST == 3
     assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     assert {"sessions", "matches", "players", "player_aliases", "chat_messages", "capture_gaps",
@@ -111,3 +111,17 @@ def test_capture_and_ui_threads_can_write_at_the_same_time(store):
     for t in threads:
         t.join()
     assert store.stats().messages == 200
+
+
+def test_a_v2_database_gets_has_glyphs_and_keeps_its_yaps(tmp_path, monkeypatch):
+    path, backups = tmp_path / "yaptracker.db", tmp_path / "backups"
+    with monkeypatch.context() as v2_app:  # what's on Marv's PC since #109
+        v2_app.setattr(db, "MIGRATIONS", schema.MIGRATIONS[:2])
+        v2_app.setattr(db, "LATEST", 2)
+        old = db.connect(path, backups)
+        old.execute("INSERT INTO chat_messages (ts, channel, text) VALUES (1.0, 'match', 'gg')")
+        old.close()
+    store = Store.open(path, backups)
+    store.add_message(ts=2.0, channel="match", text="gg ◇", has_glyphs=True)
+    assert [(m.text, m.has_glyphs) for m in store.search("gg")] == [("gg", 0), ("gg ◇", 1)]
+    store.close()

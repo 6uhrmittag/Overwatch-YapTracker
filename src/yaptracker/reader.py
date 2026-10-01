@@ -13,7 +13,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from yaptracker import channels
+from yaptracker import channels, glyphs
 from yaptracker.dedup import Dedup, Yap
 from yaptracker.identity import Identity
 from yaptracker.ocr.engine import OcrLine
@@ -35,6 +35,7 @@ def _fields(line: ChatLine) -> dict:
         "ocr_confidence": line.confidence,
         "flagged": "overwatch" if line.flagged else None,
         "role": line.role,
+        "has_glyphs": glyphs.has_glyphs(line.text),
     }
 
 
@@ -113,7 +114,7 @@ class ChatReader:
         if self._paused():  # paused after the frame was offered: nothing is read or kept
             return []
         started = time.thread_time()
-        ocr = self._read(image)
+        ocr = glyphs.mark(image, self._read(image))  # icons OCR can't spell become ◇ (#128)
         lines = self._identity().apply(channels.assign(parse(ocr), image, self._colours()))
         new, improved = self._dedup.update(ts, lines)
         if new:
