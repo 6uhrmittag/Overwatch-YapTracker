@@ -1,5 +1,6 @@
 """The five views behind the icon rail. Placeholders until their milestones land."""
 
+import html
 import time
 
 import numpy as np
@@ -8,6 +9,7 @@ from PIL import Image
 
 from yaptracker import __version__, config, logs, paths, runtime
 from yaptracker.capture.watcher import fps
+from yaptracker.glyphs import GLYPH
 from yaptracker.store.backups import last_backup
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import button, saved_chip, set_button_label, switch
@@ -65,15 +67,27 @@ _CHANNELS = {"team": "Team", "match": "Match", "group": "Group", "system": "Syst
 def _chat_line(message, started_at: float | None) -> dict:
     """One row of the Live feed: time in the match, channel, who (you for own lines), text."""
     channel = message.channel if message.channel in _CHANNELS else "chat"
-    with ui.element("div").classes(f"yt-line yt-line--{channel}"):
+    with ui.element("div").classes(f"yt-line yt-line--{channel}").mark("chat-line") as line:
         seconds = max(0, int(message.ts - started_at)) if started_at else 0
         ui.label(f"{seconds // 60}:{seconds % 60:02d}").classes("yt-line-time")
         ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
         name = ui.label().classes(f"yt-line-name yt-ch-{channel}")
-        text = ui.label().classes("yt-line-text")
+        text = ui.html("", sanitize=False).classes("yt-line-text")
+    line.on("click", lambda: _show_picture(message))  # how the line looked (#120, #128)
     row = {"name": name, "text": text, "shown": None}
     _fill_line(row, message)
     return row
+
+
+def _show_picture(message) -> None:
+    path = runtime.pictures.path(message.id, message.ts) if runtime.pictures else None
+    if path is None or not path.exists():
+        return
+    with ui.dialog() as dialog, ui.element("section").classes("yt-card yt-picture"):
+        with ui.element("div").classes("yt-card-body"):
+            ui.image(path).classes("yt-picture-image").mark("line-picture")
+            ui.label("The line as it looked in Overwatch.").classes("yt-hint")
+    dialog.open()
 
 
 def _fill_line(row: dict, message) -> None:
@@ -85,7 +99,9 @@ def _fill_line(row: dict, message) -> None:
     who = message.speaker_raw if message.channel != "system" else ""
     who = "you" if who and message.role == "me" else who
     row["name"].set_text(f"{who}:" if who else "")
-    row["text"].set_text(message.text)
+    # Escaped text; an emoji or icon OCR couldn't spell shows as a ◇ chip (#128).
+    chip = f'<span class="yt-glyph" title="An emoji or icon: click for the picture">{GLYPH}</span>'
+    row["text"].set_content(html.escape(message.text, quote=False).replace(GLYPH, chip))
 
 
 # Pill colour per Live state: trouble shares the orange of paused - a heads-up, not an alarm.
