@@ -17,6 +17,13 @@ from yaptracker.store.backups import DailyBackup
 from yaptracker.store.repo import Store
 
 
+def ocr_scale() -> float:
+    """How much OCR enlarges a crop of the captured window (#169): 2x up to 1440p, less above."""
+    from yaptracker.ocr.engine import upscale_for
+
+    return upscale_for(window_size[1] if window_size else None)
+
+
 def keycap(action: str) -> str:
     """The hotkey of an action as a keycap label, e.g. "Ctrl Alt P" (changeable, #32)."""
     return config.hotkeys()[action].replace("+", " ")

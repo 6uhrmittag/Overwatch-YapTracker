@@ -25,11 +25,28 @@ class OcrLine:
     parts: tuple[tuple[str, Region], ...] = ()  # the words left to right, for icons between (#128)
 
 
+UPSCALE = 2.0  # 1x drops the spaces between words; measured best at 1440p (#11)
+REFERENCE_HEIGHT = 1440  # the window height UPSCALE was measured at
+
+
+def upscale_for(window_height: int | None) -> float:
+    """How much to enlarge a crop before OCR (#169): 2x at 1440p, and above 1440p just enough
+    to give the text the same pixel height (4K: 1.33x). Overwatch's chat grows with the window,
+    so a fixed 2x read 4K crops at 2.25x the pixels of 1440p: 3x the CPU, no better reading.
+    Smaller windows keep 2x, as measured."""
+    if not window_height or window_height <= REFERENCE_HEIGHT:
+        return UPSCALE
+    return UPSCALE * REFERENCE_HEIGHT / window_height
+
+
 class OcrEngine(Protocol):
-    def read(self, image: np.ndarray, accents: bool = False) -> list[OcrLine]:
+    def read(
+        self, image: np.ndarray, accents: bool = False, scale: float = UPSCALE
+    ) -> list[OcrLine]:
         """Lines of text in a BGR image, top to bottom. Blocks: from UI code use run.io_bound.
 
         accents: look for ä/ç/é... even if the text doesn't look German (map names, #115).
+        scale: enlarge the image this much first; upscale_for() the window height (#169).
         """
         ...
 
@@ -136,11 +153,10 @@ class _ReadTwice:
 
 
 class RapidOcrEngine:
-    """RapidOCR (ONNX, CPU) on the 2x upscaled image - 1x drops the spaces between words."""
+    """RapidOCR (ONNX, CPU) on the upscaled image (2x at 1440p) - 1x drops the spaces."""
 
     name = "rapidocr"
     label = "RapidOCR"
-    scale = 2.0
 
     def __init__(self) -> None:
         from rapidocr_onnxruntime import RapidOCR  # imported lazily: loading the models takes ~1 s
@@ -152,10 +168,12 @@ class RapidOcrEngine:
         latin = RapidOCR(rec_model_path=str(LATIN_REC), rec_keys_path=str(LATIN_KEYS), **one_thread)
         self._ocr.text_rec = _ReadTwice(self._ocr.text_rec, latin.text_rec)
 
-    def read(self, image: np.ndarray, accents: bool = False) -> list[OcrLine]:
+    def read(
+        self, image: np.ndarray, accents: bool = False, scale: float = UPSCALE
+    ) -> list[OcrLine]:
         import cv2
 
-        big = cv2.resize(image, None, fx=self.scale, fy=self.scale, interpolation=cv2.INTER_CUBIC)
+        big = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
         self._ocr.text_rec.always.on = accents
         try:
             result, _ = self._ocr(big)
@@ -163,8 +181,8 @@ class RapidOcrEngine:
             self._ocr.text_rec.always.on = False
         words = []
         for points, text, score in result or []:
-            xs = [p[0] / self.scale for p in points]
-            ys = [p[1] / self.scale for p in points]
+            xs = [p[0] / scale for p in points]
+            ys = [p[1] / scale for p in points]
             words.append(
                 _Word(text, float(score), min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
             )
@@ -182,7 +200,6 @@ class WindowsOcrEngine:
 
     name = "windows"
     label = "Windows OCR"
-    scale = 2.0
 
     def __init__(self) -> None:
         from winsdk.windows.globalization import Language
@@ -195,17 +212,19 @@ class WindowsOcrEngine:
             raise OcrUnavailable("Windows has no OCR language installed")
         self._engine = engine
 
-    def read(self, image: np.ndarray, accents: bool = False) -> list[OcrLine]:
+    def read(
+        self, image: np.ndarray, accents: bool = False, scale: float = UPSCALE
+    ) -> list[OcrLine]:
         import asyncio
 
-        return asyncio.run(self._read(image))
+        return asyncio.run(self._read(image, scale))
 
-    async def _read(self, image: np.ndarray) -> list[OcrLine]:
+    async def _read(self, image: np.ndarray, scale: float) -> list[OcrLine]:
         import cv2
         from winsdk.windows.graphics.imaging import BitmapPixelFormat, SoftwareBitmap
         from winsdk.windows.storage.streams import DataWriter
 
-        big = cv2.resize(image, None, fx=self.scale, fy=self.scale, interpolation=cv2.INTER_CUBIC)
+        big = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
         bgra = cv2.cvtColor(big, cv2.COLOR_BGR2BGRA)
         writer = DataWriter()
         writer.write_bytes(bgra.tobytes())
@@ -217,10 +236,10 @@ class WindowsOcrEngine:
             _Word(
                 w.text,
                 1.0,
-                r.x / self.scale,
-                r.y / self.scale,
-                r.width / self.scale,
-                r.height / self.scale,
+                r.x / scale,
+                r.y / scale,
+                r.width / scale,
+                r.height / scale,
             )  # fmt: skip
             for line in result.lines
             for w in line.words

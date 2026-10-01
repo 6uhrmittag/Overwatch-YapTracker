@@ -96,7 +96,8 @@ def _watch_for_overwatch(dev: bool) -> None:
         return ocr.get(config.ocr_engine()).read_line(image)
 
     def read_lines(image) -> list[str]:  # the hero-select corner: map names like ESPERANÇA
-        return [line.text for line in ocr.get(config.ocr_engine()).read(image, accents=True)]
+        engine, scale = ocr.get(config.ocr_engine()), runtime.ocr_scale()
+        return [line.text for line in engine.read(image, accents=True, scale=scale)]
 
     def hero_select_started(mode: str | None, map_name: str | None) -> None:
         if runtime.matches is not None:
@@ -241,7 +242,7 @@ def _open_store() -> Callable[[], None]:
             on_shaky=lambda name: runtime.debug.save_chat("new-player"),
         )
         runtime.reader = ChatReader(
-            lambda image: ocr.get(config.ocr_engine()).read(image),
+            lambda image: ocr.get(config.ocr_engine()).read(image, scale=runtime.ocr_scale()),
             runtime.store,
             runtime.matches,
             identity=config.identity,
