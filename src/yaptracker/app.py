@@ -4,6 +4,7 @@ import multiprocessing
 import os
 import sys
 import threading
+import time
 from collections.abc import Callable
 
 import numpy as np
@@ -175,11 +176,18 @@ def _watch_for_overwatch(dev: bool) -> None:
             if runtime.debug is not None:
                 runtime.debug.save_chat()
 
+        def lookup() -> None:  # the window to the front; the UI focuses "Who's that?" (#27)
+            from yaptracker.single_instance import focus_own_window
+
+            runtime.lookup_requested = time.monotonic()
+            focus_own_window()
+
         hotkeys = HotkeyListener(
             {
                 runtime.PAUSE_HOTKEY: runtime.pause.toggle,
                 runtime.NEW_MATCH_HOTKEY: new_match,
                 runtime.SAVE_HOTKEY: save_chat,
+                runtime.LOOKUP_HOTKEY: lookup,
             }
         )
         app.on_startup(hotkeys.start)

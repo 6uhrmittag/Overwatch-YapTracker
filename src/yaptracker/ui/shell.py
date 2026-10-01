@@ -55,7 +55,10 @@ def root() -> None:
 
     buttons: dict[str, ui.element] = {}
 
+    current = {"view": None}
+
     def show(key: str, **kwargs) -> None:
+        current["view"] = key
         for view_key, button in buttons.items():
             if view_key == key:
                 button.classes(add="is-active").props('aria-current="page"')
@@ -93,3 +96,19 @@ def root() -> None:
             ui.page_title("YapTracker - paused" if paused else "YapTracker")
 
     ui.timer(1.0, update_title)
+
+    # Ctrl+Alt+F (#27): the hotkey brings the window forward; here Live opens with
+    # "Who's that?" focused, from whichever view was open.
+    lookup = {"handled": runtime.lookup_requested}
+
+    def check_lookup() -> None:
+        if runtime.lookup_requested == lookup["handled"]:
+            return
+        lookup["handled"] = runtime.lookup_requested
+        if current["view"] != "live":
+            show("live")
+        focus = getattr(ui.context.client, "yt_focus_lookup", None)
+        if focus is not None:
+            focus()
+
+    ui.timer(0.25, check_lookup)
