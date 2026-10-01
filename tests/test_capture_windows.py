@@ -24,7 +24,13 @@ def test_wgc_captures_a_window_cropped_to_the_region():
                 break
             time.sleep(0.1)
         assert hwnd, "Notepad window not found"
-        source = WgcFrameSource(hwnd, lambda w, h: Region(0, 0, w // 2, h // 2), fps=4)
+        from yaptracker.capture.window import has_title_bar
+
+        assert has_title_bar(hwnd)  # a normal window: what setup warns about for Overwatch (#76)
+        corner = {"corner": Region(0, 0, 8, 8)}
+        source = WgcFrameSource(
+            hwnd, lambda w, h: Region(0, 0, w // 2, h // 2), fps=4, signals_for=lambda w, h: corner
+        )
         try:
             frame = next(source.frames())
         finally:
@@ -32,6 +38,9 @@ def test_wgc_captures_a_window_cropped_to_the_region():
         assert frame.image.ndim == 3 and frame.image.shape[2] == 3
         assert frame.image.shape[0] > 10 and frame.image.shape[1] > 10
         assert frame.image.max() > 0, "capture delivered a black frame"
+        # Signal crops and the debug overview (#63) ride along with the first frame.
+        assert frame.signals["corner"].shape == (8, 8, 3)
+        assert frame.signals["overview"].shape[2] == 3
     finally:
         notepad.kill()
 

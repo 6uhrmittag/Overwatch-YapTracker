@@ -1,6 +1,6 @@
 """Shared building blocks from the style kit (docs/ui/mockup/Kit.dc.html)."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Literal
 
 from nicegui import ui
@@ -34,6 +34,24 @@ def set_button_label(b: ui.element, label: str) -> None:
     next(child for child in b.default_slot.children if "yt-btn-label" in child.classes).set_text(
         label
     )
+
+
+def stepper(steps: Sequence[str], current: int) -> None:
+    """Setup steps (docs/ui/mockup/Setup): done ones get a check, the current one is orange."""
+    with ui.element("ol").classes("yt-steps").props('aria-label="Setup steps"'):
+        for n, label in enumerate(steps, start=1):
+            if n > 1:
+                ui.element("li").classes("yt-step-line").props('aria-hidden="true"')
+            state = "done" if n < current else "current" if n == current else "next"
+            with ui.element("li").classes(f"yt-step yt-step--{state}") as item:
+                with ui.element("span").classes("yt-step-dot"):
+                    if state == "done":
+                        ui.html(CHECK.replace('"16"', '"14"'), sanitize=False)
+                    else:
+                        ui.label(str(n))
+                ui.label(label)
+            if state == "current":
+                item.props('aria-current="step"')
 
 
 def saved_chip() -> None:

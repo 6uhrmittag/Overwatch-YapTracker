@@ -38,6 +38,7 @@ class CaptureWatcher:
         self._source: FrameSource | None = None
         self._thread: threading.Thread | None = None
         self.state = "waiting"  # waiting | capturing
+        self.window: int | None = None  # the captured window while capturing
         self.frames = 0
         self.last_frame: Frame | None = None
         self.last_error: str | None = None  # shown in the Live view; capture health is #75
@@ -72,7 +73,7 @@ class CaptureWatcher:
             except Exception as error:  # logged with traceback, shown, recorded, retried
                 log.exception("capture failed")
                 self.last_error, reason = str(error), "crash"
-            self.state = "waiting"
+            self.state, self.window = "waiting", None
             if reason is None:
                 self._health_call("game_closed")
                 self._failures = 0
@@ -88,7 +89,7 @@ class CaptureWatcher:
     def _capture(self, window: int) -> None:
         self._source = source = self._open_source(window)
         log.info("capturing window %s", window)
-        self.state = "capturing"
+        self.state, self.window = "capturing", window
         was_paused = None
         try:
             for frame in source.frames():
