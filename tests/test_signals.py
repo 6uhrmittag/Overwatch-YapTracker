@@ -1,10 +1,26 @@
-"""Hero select starts a match (#93): synthetic strips and a fake OCR, real logic."""
+"""Hero select starts a match (#93), the end screen ends it (#94): synthetic strips and a fake
+OCR, real logic."""
+
+import json
+from pathlib import Path
 
 import numpy as np
+import pytest
 from PIL import Image, ImageDraw, ImageFont
 
 from yaptracker.capture.source import Region
-from yaptracker.signals import HeroSelect, has_bright_text, parse_info, signal_regions
+from yaptracker.signals import (
+    EndScreen,
+    HeroSelect,
+    banner_outcome,
+    has_bright_text,
+    has_colour,
+    parse_info,
+    signal_regions,
+    title_end,
+)
+
+RECORDING = Path(__file__).parent / "fixtures" / "signals" / "two-matches.json"
 
 
 def strip(text: str | None) -> np.ndarray:
@@ -12,6 +28,13 @@ def strip(text: str | None) -> np.ndarray:
     if text:
         ImageDraw.Draw(img).text((20, 10), text, fill=(240, 240, 240),
                                  font=ImageFont.load_default(size=34))  # fmt: skip
+    return np.ascontiguousarray(np.asarray(img)[:, :, ::-1])
+
+
+def banner(text: str, colour: tuple[int, int, int]) -> np.ndarray:
+    """The big centre banner: huge letters in the friendly or enemy colour."""
+    img = Image.new("RGB", (820, 250), (40, 44, 52))
+    ImageDraw.Draw(img).text((20, 0), text, fill=colour, font=ImageFont.load_default(size=200))
     return np.ascontiguousarray(np.asarray(img)[:, :, ::-1])
 
 
@@ -134,13 +157,9 @@ def test_real_recording_of_two_matches_gives_exactly_two_starts(monkeypatch):
     null where the cheap pixel check said "no text" (then nothing is read). Non-signal text is
     scrambled; only the banner, round-start box, modes and maps are kept.
     """
-    import json
-    from pathlib import Path
-
     import yaptracker.signals as signals
 
-    path = Path(__file__).parent / "fixtures" / "signals" / "two-matches.json"
-    ticks = json.loads(path.read_text(encoding="utf-8"))["ticks"]
+    ticks = json.loads(RECORDING.read_text(encoding="utf-8"))["ticks"]
     texts: dict[int, str | None] = {}
     lines: dict[int, list[str]] = {}
     monkeypatch.setattr(signals, "has_bright_text", lambda img, **_: texts[id(img)] is not None)
@@ -161,3 +180,122 @@ def test_real_recording_of_two_matches_gives_exactly_two_starts(monkeypatch):
         lines[id(crops["heroselect_info"])] = tick.get("heroselect_info", [])
         hs.update(crops)
     assert starts == [(88.0, "UNRANKED", "ESPERANCA"), (769.0, "UNRANKED", "EICHENWALDE")]
+
+
+def test_end_crops_scale_with_the_window():
+    assert signal_regions(2560, 1440)["end_banner"] == Region(900, 590, 820, 250)
+    assert signal_regions(1920, 1080)["end_title"] == Region(30, 22, 675, 56)
+
+
+def test_the_banner_check_wants_big_coloured_letters():
+    assert has_colour(banner("DEFEAT", (230, 60, 50)))
+    assert has_colour(banner("VICTORY!", (150, 230, 60)))
+    assert not has_colour(banner("DEFEAT", (200, 200, 200)))  # grey in-game text
+    assert not has_colour(strip("DEFEAT"))  # small letters
+
+
+@pytest.mark.parametrize(
+    ("text", "outcome"),
+    [("VICTORY!", "victory"), ("VICTORYI", "victory"), ('DEFEAT"', "defeat"),
+     ("DRAW", "draw"), ("ViR", None), ("VIY", None), ("CNOTR", None), ("TDEEEOTT", None),
+     ("DRA", None), ("", None)],
+)  # fmt: skip
+def test_banner_reads(text, outcome):  # real reads and real noise from the recording (#94)
+    assert banner_outcome(text) == outcome
+
+
+@pytest.mark.parametrize(
+    ("text", "result"),
+    [("PLAY OF THE GAME MAUGA", (True, None)), ("PLAY OFTHEGAME MOIRA", (True, None)),
+     ("VICTORY ESPERANCA", (True, "victory")), ("DEFEATECHENWALDEE", (True, "defeat")),
+     ("UMMARYREWARS", (True, None)), ("UNRANKED ATTACK", (False, None)),
+     ("VICTORY", (False, None)), ("SA ACK", (False, None))],
+)  # fmt: skip
+def test_title_reads(text, result):
+    assert title_end(text) == result
+
+
+def end_screen(reads, clock):
+    ends = []
+    return EndScreen(lambda img: reads.get(id(img), ""), ends.append, clock), ends
+
+
+def test_one_banner_ends_the_match_once_with_its_outcome():
+    clock = Clock()
+    victory = banner("VICTORY!", (150, 230, 60))
+    potg, quiet = strip("PLAY OF THE GAME"), strip(None)
+    es, ends = end_screen({id(victory): "VICTORY!", id(potg): "PLAY OF THE GAME MAUGA"}, clock)
+    for t in range(4):  # the banner stays ~4 s
+        clock.now = t
+        es.update({"end_banner": victory, "end_title": quiet})
+    for t in range(4, 30):  # then PLAY OF THE GAME
+        clock.now = t
+        es.update({"end_banner": quiet, "end_title": potg})
+    assert ends == ["victory"]
+
+
+def test_play_of_the_game_ends_it_when_the_banner_was_missed_and_the_outcome_follows():
+    clock = Clock()
+    potg, summary, quiet = strip("PLAY OF THE GAME"), strip("DEFEAT EICHENWALDE"), strip(None)
+    reads = {id(potg): "PLAY OF THE GAME MOIRA", id(summary): "DEFEATECHENWALDEE"}
+    es, ends = end_screen(reads, clock)
+    for t, title in [(0, potg), (3, potg), (6, summary), (9, summary)]:
+        clock.now = t
+        es.update({"end_banner": quiet, "end_title": title})
+    assert ends == [None, "defeat"]
+
+
+def test_the_next_end_counts_once_the_end_screens_were_gone_long_enough():
+    clock = Clock()
+    defeat, quiet = banner("DEFEAT", (230, 60, 50)), strip(None)
+    es, ends = end_screen({id(defeat): "DEFEAT"}, clock)
+    es.update({"end_banner": defeat})
+    for t in range(1, 600):  # the next match
+        clock.now = t
+        es.update({"end_banner": quiet, "end_title": quiet})
+    es.update({"end_banner": defeat})
+    assert ends == ["defeat", "defeat"]
+
+
+def test_real_recording_of_two_matches_gives_two_matches_with_outcomes(monkeypatch, tmp_path):
+    """The whole evening path: hero select starts, end screen ends, real MatchTracker and store.
+
+    Same recording as above; per second the read of each crop, or null where the cheap check
+    said "nothing here" (then nothing is read).
+    """
+    import yaptracker.signals as signals
+    from yaptracker.matches import MatchTracker
+    from yaptracker.pause import Pause
+    from yaptracker.store.repo import Store
+
+    ticks = json.loads(RECORDING.read_text(encoding="utf-8"))["ticks"]
+    names = ("heroselect", "heroselect_info", "round_start", "end_banner", "end_title")
+    texts: dict[int, str | None] = {}
+    lines: dict[int, list[str]] = {}
+    present = lambda img, **_: texts[id(img)] is not None  # noqa: E731
+    monkeypatch.setattr(signals, "has_bright_text", present)
+    monkeypatch.setattr(signals, "has_colour", present)
+    clock, t0 = Clock(), 1_000_000.0
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    tracker = MatchTracker(store, Pause(), clock=lambda: t0 + clock.now)
+    hs = HeroSelect(lambda img: texts[id(img)], lambda img: lines.get(id(img), []),
+                    lambda mode, map_name: tracker.new_match(source="heroselect", mode=mode,
+                                                             map_name=map_name),
+                    clock, match_running=lambda: tracker.running)  # fmt: skip
+    es = EndScreen(lambda img: texts[id(img)], lambda outcome: tracker.end_match(outcome=outcome),
+                   clock)  # fmt: skip
+    for tick in ticks:
+        clock.now = tick["t"]
+        tracker.capture_alive()
+        crops = {name: np.zeros((2, 2, 3), np.uint8) for name in names}
+        for name in names:
+            texts[id(crops[name])] = tick.get(name) if name != "heroselect_info" else ""
+        lines[id(crops["heroselect_info"])] = tick.get("heroselect_info", [])
+        hs.update(crops)
+        es.update(crops)
+    rows = store._read("SELECT started_at, ended_at, outcome, source, map FROM matches ORDER BY id")
+    store.close()
+    assert [(s - t0, e - t0, o, src, m) for s, e, o, src, m in rows] == [
+        (88.0, 657.0, "victory", "heroselect", "ESPERANCA"),
+        (769.0, 1348.0, "defeat", "heroselect", "EICHENWALDE"),
+    ]

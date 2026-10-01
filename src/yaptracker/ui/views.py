@@ -34,6 +34,10 @@ _WHY = {
 }
 
 
+# How an ended match shows in the Live header (#94).
+_OUTCOMES = {"victory": "won", "defeat": "lost", "draw": "draw"}
+
+
 # Pill colour per Live state: trouble shares the orange of paused - a heads-up, not an alarm.
 _PILLS = {"paused": "paused", "trouble": "paused", "listening": "listening", "waiting": "waiting"}
 
@@ -147,9 +151,13 @@ def live() -> None:
             else:
                 minutes, seconds = divmod(int(time.time() - where.started_at), 60)
                 on_map = f" on {where.map_name.title()}" if where.map_name else ""
+                when = (
+                    _OUTCOMES.get(where.outcome, "over")
+                    if where.ended
+                    else f"{minutes}:{seconds:02d} in"
+                )
                 match_info.set_text(
-                    f"Session {where.session} \u00b7 Match {where.match}{on_map} "
-                    f"\u00b7 {minutes}:{seconds:02d} in"
+                    f"Session {where.session} \u00b7 Match {where.match}{on_map} \u00b7 {when}"
                 )
         if broken:  # paused has its own pill (#20)
             since = time.strftime("%H:%M", time.localtime(gap.since))
