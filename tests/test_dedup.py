@@ -112,3 +112,13 @@ def test_glued_background_capitals_are_ignored_for_matching_only():
     assert match_key(yap("gg TOURING EM PORTU", "mossyfox")) == "mossyfox: gg"  # real reads (#18)
     assert match_key(yap("Enemy Tracer! MAGIN", "MaybeMaybe")) == "maybemaybe: enemy tracer!"
     assert match_key(yap("GG WP")) == "noodlebonk: gg wp"  # all caps on purpose: kept
+
+
+def test_said_again_later_and_still_on_screen_is_stored_once_more_not_every_frame():
+    """#129: on a tie the alignment took the old "Group up!", which the fade rule then refused."""
+    dedup = Dedup()
+    dedup.update(300.0, [yap("Group up!", "zappy", kind="comms")])  # long ago
+    stored = len(dedup.update(399.0, [yap("Group up!", "zappy", kind="comms")])[0])
+    for t in (399.5, 401.25, 402.75, 406.5):  # the same line, still on screen
+        stored += len(dedup.update(t, [yap("Group up!", "zappy", kind="comms")])[0])
+    assert stored == 1
