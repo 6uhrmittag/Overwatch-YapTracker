@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/6uhrmittag/Overwatch-YapTracker/blob/main/docs/export.schema.json",
+  "title": "YapTracker export",
+  "description": "Everything YapTracker collected: sessions, matches, chat messages, players and capture gaps. See docs/export-format.md.",
+  "type": "object",
+  "required": ["format", "format_version", "exported_at", "app_version", "anonymized", "sessions", "messages_outside_matches", "players", "capture_gaps"],
+  "additionalProperties": false,
+  "properties": {
+    "format": {"const": "yaptracker-export"},
+    "format_version": {"const": 1},
+    "exported_at": {"$ref": "#/$defs/time"},
+    "app_version": {"type": "string"},
+    "anonymized": {"type": "boolean"},
+    "sessions": {"type": "array", "items": {"$ref": "#/$defs/session"}},
+    "messages_outside_matches": {"type": "array", "items": {"$ref": "#/$defs/message"}},
+    "players": {"type": "array", "items": {"$ref": "#/$defs/player"}},
+    "capture_gaps": {"type": "array", "items": {"$ref": "#/$defs/gap"}}
+  },
+  "$defs": {
+    "time": {
+      "type": "string",
+      "description": "ISO 8601 with the PC's UTC offset, seconds precision",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}([+-]\\d{2}:\\d{2}|Z)$"
+    },
+    "time_or_null": {"anyOf": [{"$ref": "#/$defs/time"}, {"type": "null"}]},
+    "session": {
+      "type": "object",
+      "required": ["id", "started_at", "ended_at", "matches"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "integer"},
+        "started_at": {"$ref": "#/$defs/time"},
+        "ended_at": {"$ref": "#/$defs/time_or_null"},
+        "matches": {"type": "array", "items": {"$ref": "#/$defs/match"}}
+      }
+    },
+    "match": {
+      "type": "object",
+      "required": ["id", "number", "started_at", "ended_at", "outcome", "map", "mode", "detected_by", "incomplete", "messages"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "integer"},
+        "number": {"type": "integer", "minimum": 1, "description": "1 for the first match of its session"},
+        "started_at": {"$ref": "#/$defs/time"},
+        "ended_at": {"$ref": "#/$defs/time_or_null"},
+        "outcome": {"enum": ["victory", "defeat", "draw", null]},
+        "map": {"type": ["string", "null"]},
+        "mode": {"type": ["string", "null"]},
+        "detected_by": {"enum": ["heroselect", "endscreen", "gap", "hotkey"]},
+        "incomplete": {"type": "boolean", "description": "a capture gap overlaps the match"},
+        "messages": {"type": "array", "items": {"$ref": "#/$defs/message"}}
+      }
+    },
+    "message": {
+      "type": "object",
+      "required": ["id", "time", "channel", "speaker", "player_id", "role", "hero", "text", "ocr_confidence", "flagged", "has_glyphs"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "integer"},
+        "time": {"$ref": "#/$defs/time"},
+        "channel": {"type": "string", "description": "team, match, group, system, or unknown (the colour didn't tell)"},
+        "speaker": {"type": ["string", "null"]},
+        "player_id": {"type": ["integer", "null"]},
+        "role": {"enum": ["me", "crew", null]},
+        "hero": {"type": ["string", "null"]},
+        "text": {"type": "string"},
+        "ocr_confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "flagged": {"enum": ["overwatch", "manual", null]},
+        "has_glyphs": {"type": "boolean"}
+      }
+    },
+    "player": {
+      "type": "object",
+      "required": ["id", "display_name", "verdict", "notes", "first_met", "last_met", "aliases", "matches", "messages", "flagged_messages"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "integer"},
+        "display_name": {"type": "string"},
+        "verdict": {"enum": ["friend", "fun", "neutral", "avoid", null]},
+        "notes": {"type": "string"},
+        "first_met": {"$ref": "#/$defs/time_or_null"},
+        "last_met": {"$ref": "#/$defs/time_or_null"},
+        "aliases": {"type": "array", "items": {"type": "string"}},
+        "matches": {"type": "integer", "minimum": 0},
+        "messages": {"type": "integer", "minimum": 0},
+        "flagged_messages": {"type": "integer", "minimum": 0}
+      }
+    },
+    "gap": {
+      "type": "object",
+      "required": ["started_at", "ended_at", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "started_at": {"$ref": "#/$defs/time"},
+        "ended_at": {"$ref": "#/$defs/time_or_null"},
+        "reason": {"enum": ["crash", "no_frames", "paused", "window_lost", "app_not_running"]}
+      }
+    }
+  }
+}

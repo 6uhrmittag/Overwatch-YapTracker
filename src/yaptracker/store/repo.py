@@ -112,6 +112,14 @@ class Store:
     def open(cls, path: Path | None = None, backups: Path | None = None) -> "Store":
         return cls(connect(path or paths.db_file(), backups or paths.backup_dir()))
 
+    def read_only_copy(self) -> "Store":
+        """A second Store on its own read-only connection, for long reads like the export (#69):
+        capture keeps writing meanwhile (WAL), nobody waits for the other's lock."""
+        path = next(row[2] for row in self._read("PRAGMA database_list") if row[1] == "main")
+        conn = sqlite3.connect(f"file:{Path(path).as_posix()}?mode=ro", uri=True,
+                               check_same_thread=False)  # fmt: skip
+        return Store(conn)
+
     def close(self) -> None:
         with self._lock:
             self._conn.close()
@@ -459,6 +467,27 @@ class Store:
         )
         n = len(_MESSAGE_COLUMNS.split(","))
         return [Hit(Message(*row[:n]), *row[n:]) for row in rows]
+
+    # Export (#69) -------------------------------------------------------------------------------
+
+    def all_sessions(self) -> list[tuple[int, float, float | None]]:
+        return self._read("SELECT id, started_at, ended_at FROM sessions ORDER BY id")
+
+    def all_matches(self) -> list[tuple]:
+        """(id, session_id, started, ended, outcome, map, mode, source) in play order."""
+        return self._read(
+            "SELECT id, session_id, started_at, ended_at, outcome, map, mode, source FROM matches "
+            "ORDER BY session_id, started_at, id"
+        )
+
+    def messages_outside_matches(self) -> list[Message]:
+        rows = self._read(
+            f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE match_id IS NULL ORDER BY ts, id"
+        )
+        return [Message(*row) for row in rows]
+
+    def all_gaps(self) -> list[tuple[float, float | None, str]]:
+        return self._read("SELECT started_at, ended_at, reason FROM capture_gaps ORDER BY id")
 
     # Capture gaps (#75) -----------------------------------------------------------------------
 
