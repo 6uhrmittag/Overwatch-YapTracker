@@ -41,8 +41,18 @@ def bring_running_to_front() -> bool:
 
     Checking the exe keeps an Explorer window of the folder "YapTracker" from matching.
     """
+    return _to_front(skip_pid=os.getpid())
+
+
+def focus_own_window() -> bool:
+    """Ctrl+Alt+F (#27): our own window to the front. It belongs to pywebview's child process,
+    so it's found the same way, by title and exe; only ever our own processes are opened."""
+    return _to_front(skip_pid=None)
+
+
+def _to_front(skip_pid: int | None) -> bool:
     user32 = ctypes.windll.user32
-    me, exe = os.getpid(), os.path.basename(sys.executable).lower()
+    me, exe = skip_pid, os.path.basename(sys.executable).lower()
     found: list[int] = []
 
     @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)

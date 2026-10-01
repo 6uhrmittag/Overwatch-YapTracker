@@ -15,6 +15,7 @@ from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import button, count, saved_chip, set_button_label, switch
 from yaptracker.ui.crew import crew_card
 from yaptracker.ui.familiar_cards import familiar_card
+from yaptracker.ui.lookup import lookup_card
 from yaptracker.ui.setup import setup_wizard, startup_card
 
 
@@ -181,6 +182,9 @@ def _live() -> None:
                     ui.label("What I see").classes("yt-h2")
                     picture = ui.image().classes("yt-crop").props("no-spinner no-transition")
                     picture_info = ui.label().classes("yt-meta")
+            ui.element("div").classes("yt-grow")
+            lookup = lookup_card()  # bottom right, as in the Live mockup (#27)
+    ui.context.client.yt_focus_lookup = lambda: lookup.run_method("focus")
 
     meter = fps(watcher) if watcher else (lambda: 0.0)
     shown = {"frame": None}

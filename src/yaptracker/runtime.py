@@ -14,6 +14,7 @@ from yaptracker.store.repo import Store
 
 PAUSE_HOTKEY = "Ctrl+Alt+P"
 NEW_MATCH_HOTKEY = "Ctrl+Alt+M"  # manual override only; matches split themselves (#21)
+LOOKUP_HOTKEY = "Ctrl+Alt+F"  # "Who's that?": YapTracker to the front, search focused (#27)
 SAVE_HOTKEY = "Ctrl+Alt+S"  # optional: keep the last 20 s of chat as a debug sample (#110)
 
 pause = Pause()
@@ -28,3 +29,4 @@ reader: ChatReader | None = None  # live chat into the database (#108), with the
 backups: DailyBackup | None = None  # one copy of the database a day (#125), with the store
 pictures: LinePictures | None = None  # the picture of every chat line (#120)
 familiar: FamiliarFaces | None = None  # "Look who's back!" cards (#26), with the store
+lookup_requested = 0.0  # monotonic time of the last Ctrl+Alt+F; the UI focuses the search box

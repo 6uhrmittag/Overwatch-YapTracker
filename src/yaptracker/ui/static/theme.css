@@ -193,6 +193,12 @@ html, body { background: var(--yt-night); }
 
   /* Familiar faces (#26, Live mockup): impossible to miss on a second monitor */
   .yt-faces { display: flex; flex-direction: column; gap: 14px; }
+  .yt-lookup-box { padding: 4px 6px 4px 14px; border-radius: 14px; background: var(--yt-panel-inset); border: 2px solid var(--yt-line-strong); }
+  .yt-lookup-box:focus-within { border-color: var(--yt-accent); }
+  .yt-lookup-results { display: flex; flex-direction: column; gap: 4px; }
+  .yt-lookup-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
+  .yt-lookup-row:hover { background: var(--yt-panel-raised); }
+  .yt-lookup-name { font: 800 italic 18px var(--yt-display); text-transform: uppercase; }
   .yt-face { position: relative; border-radius: 20px; background: var(--yt-panel-raised); border: 2px solid var(--yt-accent); box-shadow: 0 6px 0 #0b0d12, 0 0 0 6px rgba(255,156,42,.12); overflow: hidden; animation: yt-pop .45s ease-out; }
   .yt-face-banner { padding: 8px 18px; background: var(--yt-accent); color: var(--yt-ground); font: 800 italic 24px var(--yt-display); letter-spacing: 1px; text-transform: uppercase; }
   .yt-face-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 12px; }
