@@ -374,6 +374,14 @@ def settings() -> None:
                         ).mark("open-backups")
                         if not logs.folder_opens():
                             open_backups.props("disabled")
+                    switch(
+                        "Keep line pictures", config.line_pictures(), config.save_line_pictures
+                    ).mark("pictures-switch")
+                    pictures = runtime.pictures.size_bytes() / 1_000_000 if runtime.pictures else 0
+                    ui.label(
+                        f"Line pictures: {pictures:.1f} MB, 2 GB at most. Each chat line as it "
+                        "looked, so hearts and icons OCR can't spell are kept."
+                    ).classes("yt-meta").mark("pictures-size")
                     ui.label(
                         "A copy goes to the backups folder every day (never during a match) and "
                         "before every database update. Updating YapTracker never touches this "

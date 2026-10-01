@@ -57,6 +57,7 @@ class Yap:
     readings: Counter = field(default_factory=Counter)  # key -> times read
     lines: dict[str, ChatLine] = field(default_factory=dict)  # key -> its most confident read
     match_keys: set[str] = field(default_factory=set)
+    last: ChatLine | None = None  # the reading from the newest frame (its box is on that frame)
 
     @property
     def best(self) -> ChatLine:
@@ -69,6 +70,7 @@ class Yap:
         if k not in self.lines or line.confidence > self.lines[k].confidence:
             self.lines[k] = line
         self.match_keys.add(match_key(line))
+        self.last = line
 
     def similarity(self, k: str) -> float:
         return max(fuzz.ratio(k, known) for known in self.match_keys)
