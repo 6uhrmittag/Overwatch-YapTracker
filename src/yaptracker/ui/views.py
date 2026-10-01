@@ -264,7 +264,7 @@ def settings() -> None:
                 with ui.element("div").classes("yt-card-head"):
                     ui.label("Your data").classes("yt-h2")
                     ui.element("div").classes("yt-grow")
-                    open_logs = button("Open logs", logs.open_folder).mark("open-logs")
+                    open_logs = button("Open logs", lambda: logs.open_folder()).mark("open-logs")
                     if not logs.folder_opens():
                         open_logs.props('disabled title="Opens Explorer, so only on Windows"')
                 with ui.element("div").classes("yt-card-body"):
@@ -280,6 +280,27 @@ def settings() -> None:
                     ui.label(
                         "A copy goes to the backups folder before every database update. "
                         "Updating YapTracker never touches this folder."
+                    ).classes("yt-hint")
+            with ui.element("section").classes("yt-card").mark("debug"):
+                with ui.element("div").classes("yt-card-head"):
+                    ui.label("Debug samples").classes("yt-h2")
+                    ui.element("div").classes("yt-grow")
+                    open_debug = button(
+                        "Open folder", lambda: logs.open_folder(paths.debug_dir())
+                    ).mark("open-debug")
+                    if not logs.folder_opens():
+                        open_debug.props('disabled title="Opens Explorer, so only on Windows"')
+                with ui.element("div").classes("yt-card-body"):
+                    switch(
+                        "Collect debug samples", config.debug_samples(), config.save_debug_samples
+                    ).mark("debug-switch")
+                    size = runtime.debug.size_bytes() / 1_000_000 if runtime.debug else 0.0
+                    ui.label(
+                        f"Debug samples: {size:.1f} MB, kept 14 days and 1 GB at most"
+                    ).classes("yt-meta").mark("debug-size")
+                    ui.label(
+                        "Match starts and ends, and screens I might have missed, so they can be "
+                        "fixed later. Other players' names are in there: it never leaves this PC."
                     ).classes("yt-hint")
             with ui.element("section").classes("yt-card").mark("about"):
                 with ui.element("div").classes("yt-card-head"):

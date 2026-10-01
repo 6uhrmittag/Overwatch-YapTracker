@@ -25,3 +25,7 @@ def db_file() -> Path:
 
 def backup_dir() -> Path:
     return data_dir() / "backups"
+
+
+def debug_dir() -> Path:
+    return data_dir() / "debug"

@@ -41,8 +41,15 @@ class Status(NamedTuple):
 
 
 class MatchTracker:
-    def __init__(self, store: Store, pause: Pause, clock: Callable[[], float] = time.time) -> None:
+    def __init__(
+        self,
+        store: Store,
+        pause: Pause,
+        clock: Callable[[], float] = time.time,
+        on_missed_end: Callable[[], None] = lambda: None,
+    ) -> None:
         self._store, self._pause, self._clock = store, pause, clock
+        self._on_missed_end = on_missed_end  # a new match began, but no end screen was seen (#63)
         self._lock = threading.Lock()  # capture thread, hotkey thread and UI all call in
         self.session_id: int | None = None
         self.match_id: int | None = None
@@ -163,6 +170,8 @@ class MatchTracker:
             self._new_session(ts)
         if self.running:
             self._store.end_match(self.match_id, self._last_chat or ts)
+            if source != "hotkey":
+                self._on_missed_end()
         self.match_id = self._store.start_match(self.session_id, ts, source, mode, map_name)
         log.info("match %d started (%s, %s, %s)", self.match_id, source, mode, map_name)
         self.match_started_at, self.match_map, self._match_source = ts, map_name, source

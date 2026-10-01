@@ -12,6 +12,7 @@ import multiprocessing.spawn
 import os
 import sys
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 from yaptracker import paths
 
@@ -76,9 +77,12 @@ def setup(argv: list[str] | None = None) -> None:
 
 
 def folder_opens() -> bool:
-    """Open logs needs Explorer, so Windows only."""
+    """Open logs / Open folder need Explorer, so Windows only."""
     return sys.platform == "win32"
 
 
-def open_folder() -> None:
-    os.startfile(paths.log_file().parent)  # type: ignore[attr-defined]  # Windows only
+def open_folder(folder: Path | None = None) -> None:
+    """The log folder, or another one (debug samples), in Explorer."""
+    folder = folder or paths.log_file().parent
+    folder.mkdir(parents=True, exist_ok=True)
+    os.startfile(folder)  # type: ignore[attr-defined]  # Windows only

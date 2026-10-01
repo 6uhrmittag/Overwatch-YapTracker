@@ -24,10 +24,11 @@ class WgcFrameSource:
         stall_s: float = 10.0,
         signals_for: Callable[[int, int], dict[str, Region]] = lambda w, h: {},
         signals_every_s: float = 1.0,
+        overview_every_s: float = 5.0,
     ):
         self._signals_for = signals_for
-        self._signals_every_s = signals_every_s
-        self._signals_at = 0.0
+        self._signals_every_s, self._overview_every_s = signals_every_s, overview_every_s
+        self._signals_at = self._overview_at = 0.0
         self._queue: queue.Queue = queue.Queue(maxsize=2)  # a slow reader gets the newest frames
         self._stall_s = stall_s
         self._closed = threading.Event()
@@ -61,6 +62,9 @@ class WgcFrameSource:
                     name: r.crop(frame.frame_buffer)[:, :, :3].copy()
                     for name, r in self._signals_for(frame.width, frame.height).items()
                 }
+                if now - self._overview_at >= self._overview_every_s:  # debug samples (#63)
+                    self._overview_at = now
+                    signals["overview"] = frame.frame_buffer[::4, ::4, :3].copy()
             self._put(Frame(now - self._start, chat, signals))
 
         @capture.event
