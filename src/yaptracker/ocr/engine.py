@@ -1,6 +1,7 @@
 """OCR engines behind one interface. RapidOCR is the default, Windows OCR the fallback (#11)."""
 
 import sys
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
@@ -78,7 +79,9 @@ class RapidOcrEngine:
     def __init__(self) -> None:
         from rapidocr_onnxruntime import RapidOCR  # imported lazily: loading the models takes ~1 s
 
-        self._ocr = RapidOCR()
+        # One thread: by default onnxruntime spreads each read over every core and burns ~3x the
+        # CPU doing it (measured, #108): a spike on all cores while the game is running.
+        self._ocr = RapidOCR(intra_op_num_threads=1, inter_op_num_threads=1)
 
     def read(self, image: np.ndarray) -> list[OcrLine]:
         import cv2
@@ -169,10 +172,12 @@ def available() -> list[str]:
 
 
 _cache: dict[str, OcrEngine] = {}
+_cache_lock = threading.Lock()  # capture (signals) and the chat reader may both ask first
 
 
 def get(name: str) -> OcrEngine:
     """Engines are expensive to create, so each one is made once."""
-    if name not in _cache:
-        _cache[name] = ENGINES[name]()
-    return _cache[name]
+    with _cache_lock:
+        if name not in _cache:
+            _cache[name] = ENGINES[name]()
+        return _cache[name]

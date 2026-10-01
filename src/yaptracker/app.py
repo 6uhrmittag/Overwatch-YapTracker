@@ -76,10 +76,9 @@ def _watch_for_overwatch(dev: bool) -> None:
 
     runtime.changes = changes = config.change_detector()
 
-    def on_frame(frame) -> None:
-        # Changed bands go to OCR once the pipeline exists (#18); a change can start a match.
-        if changes.update(frame.image) and runtime.matches is not None:
-            runtime.matches.chat_changed()
+    def on_frame(frame) -> None:  # not while paused: the watcher drops those frames (#20)
+        if changes.update(frame.image) and runtime.reader is not None:
+            runtime.reader.offer(frame.image)  # new text: read, dedup and store it (#108)
 
     def on_alive() -> None:
         if runtime.matches is not None:
@@ -187,6 +186,8 @@ def _open_store() -> Callable[[], None]:
     from yaptracker.capture.health import CaptureHealth
     from yaptracker.debug import DebugSamples
     from yaptracker.matches import MatchTracker
+    from yaptracker.ocr import engine as ocr
+    from yaptracker.reader import ChatReader
     from yaptracker.store.repo import Store
 
     def missed_end() -> None:
@@ -199,8 +200,19 @@ def _open_store() -> Callable[[], None]:
         runtime.store = Store.open()
         runtime.matches = MatchTracker(runtime.store, runtime.pause, on_missed_end=missed_end)
         runtime.health = CaptureHealth(runtime.store)
+        runtime.reader = ChatReader(
+            lambda image: ocr.get(config.ocr_engine()).read(image),
+            runtime.store,
+            runtime.matches,
+            identity=config.identity,
+            colours=config.channel_colours,
+            paused=lambda: runtime.pause.paused,
+        )
+        runtime.reader.start()
 
     def close_store() -> None:
+        if runtime.reader is not None:
+            runtime.reader.stop()  # capture has stopped; the last frame is stored first
         if runtime.health is not None:
             runtime.health.stop()
         if runtime.matches is not None:

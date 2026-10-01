@@ -6,6 +6,7 @@ from yaptracker.capture.watcher import CaptureWatcher
 from yaptracker.debug import DebugSamples
 from yaptracker.matches import MatchTracker
 from yaptracker.pause import Pause
+from yaptracker.reader import ChatReader
 from yaptracker.store.repo import Store
 
 PAUSE_HOTKEY = "Ctrl+Alt+P"
@@ -19,3 +20,4 @@ store: Store | None = None  # the database, open while the app runs (#15)
 matches: MatchTracker | None = None  # sessions and matches (#21), with the store
 health: CaptureHealth | None = None  # gap records (#75), with the store
 debug: DebugSamples | None = None  # the hard moments, kept as test material (#63)
+reader: ChatReader | None = None  # live chat into the database (#108), with the store
