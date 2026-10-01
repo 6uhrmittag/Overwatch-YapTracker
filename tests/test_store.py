@@ -14,9 +14,9 @@ def store(tmp_path):
     s.close()
 
 
-def test_a_new_database_has_schema_v1_in_wal_mode(tmp_path):
+def test_a_new_database_has_the_latest_schema_in_wal_mode(tmp_path):
     conn = db.connect(tmp_path / "yaptracker.db", tmp_path / "backups")
-    assert db.version(conn) == db.LATEST == 1
+    assert db.version(conn) == db.LATEST == 2
     assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     assert {"sessions", "matches", "players", "player_aliases", "chat_messages", "capture_gaps",
@@ -59,15 +59,36 @@ def test_a_migration_backs_up_the_database_first(tmp_path, monkeypatch):
     store.add_message(ts=1.0, channel="match", text="before the update")
     store.close()
 
+    latest = db.LATEST
     monkeypatch.setattr(db, "MIGRATIONS", [*schema.MIGRATIONS, "ALTER TABLE players ADD COLUMN x;"])
-    monkeypatch.setattr(db, "LATEST", 2)
+    monkeypatch.setattr(db, "LATEST", latest + 1)
     conn = db.connect(path, backups)
-    assert db.version(conn) == 2
+    assert db.version(conn) == latest + 1
     (copy,) = backups.iterdir()
-    assert copy.name.startswith("yaptracker-v1-")
+    assert copy.name.startswith(f"yaptracker-v{latest}-")
     with sqlite3.connect(copy) as old:
         assert old.execute("SELECT text FROM chat_messages").fetchall() == [("before the update",)]
-        assert old.execute("SELECT version FROM schema_version").fetchone() == (1,)
+        assert old.execute("SELECT version FROM schema_version").fetchone() == (latest,)
+
+
+def test_a_v1_database_gets_the_role_column_and_keeps_its_yaps(tmp_path, monkeypatch):
+    path, backups = tmp_path / "yaptracker.db", tmp_path / "backups"
+    with monkeypatch.context() as v1_app:  # what's on Marv's PC since #92
+        v1_app.setattr(db, "MIGRATIONS", schema.MIGRATIONS[:1])
+        v1_app.setattr(db, "LATEST", 1)
+        old = db.connect(path, backups)
+        old.execute("INSERT INTO chat_messages (ts, channel, text) VALUES (1.0, 'match', 'gg')")
+        old.close()
+    store = Store.open(path, backups)
+    store.add_message(ts=2.0, channel="team", speaker_raw="tortillaTank", text="hi", role="me")
+    assert [(m.text, m.role) for m in store.search("gg") + store.search("hi")] == [
+        ("gg", None),
+        ("hi", "me"),
+    ]
+    with pytest.raises(sqlite3.IntegrityError):
+        store.add_message(ts=3.0, channel="match", text="x", role="boss")
+    store.close()
+    assert len(list(backups.iterdir())) == 1
 
 
 def test_a_database_from_a_newer_app_is_never_touched(tmp_path):
