@@ -160,6 +160,36 @@ html, body { background: var(--yt-night); }
   .yt-yapper { display: flex; align-items: center; gap: 14px; padding: 12px 6px; border-bottom: 1px solid var(--yt-line); }
   .yt-yapper:last-child { border-bottom: 0; }
   .yt-yapper-name { font: 800 italic 22px var(--yt-display); text-transform: uppercase; }
+  .yt-yapper { cursor: pointer; border-radius: 10px; }
+  .yt-yapper:hover { background: var(--yt-panel-raised); }
+
+  /* Profile (#25, Profile mockup) */
+  .yt-profile-main { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+  .yt-profile-main > .yt-btn--quiet { align-self: flex-start; padding: 0; height: auto; }
+  .yt-profile-name { font: 800 italic 64px/1 var(--yt-display); text-transform: uppercase; }
+  .yt-verdict { height: 48px; padding: 0 18px 0 14px; display: flex; align-items: center; gap: 8px; border-radius: 999px; cursor: pointer; font: 800 16px var(--yt-body); text-transform: uppercase; letter-spacing: .5px; transition: transform .15s; background: var(--yt-panel); color: var(--yt-text-soft); border: 2px solid var(--yt-line-strong); box-shadow: 0 3px 0 #0b0d12; }
+  .yt-verdict-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .yt-verdict--friend .yt-verdict-dot { background: #ffc83d; }
+  .yt-verdict--fun .yt-verdict-dot { background: #b98cff; }
+  .yt-verdict--neutral .yt-verdict-dot { background: #7d8699; }
+  .yt-verdict--avoid .yt-verdict-dot { background: #ff5c66; }
+  .yt-verdict.is-on { box-shadow: 0 4px 0 rgba(0,0,0,.45); border-color: currentColor; }
+  .yt-verdict.is-on .yt-verdict-dot { background: currentColor; }
+  .yt-verdict--friend.is-on { background: #ffc83d; color: #2a1d00; transform: rotate(-4deg) scale(1.06); }
+  .yt-verdict--fun.is-on { background: #b98cff; color: #1d0b3a; transform: rotate(3deg) scale(1.06); }
+  .yt-verdict--neutral.is-on { background: #7d8699; color: #12151c; transform: rotate(-2deg) scale(1.06); }
+  .yt-verdict--avoid.is-on { background: #ff5c66; color: #2b0508; transform: rotate(4deg) scale(1.06); }
+  .yt-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .yt-tile { padding: 14px 16px; border-radius: 16px; background: var(--yt-panel); border: 1px solid var(--yt-line); }
+  .yt-tile-value { font: 800 36px/1.1 var(--yt-display); }
+  .yt-meter-level { font-weight: 800; color: var(--yt-accent); }
+  .yt-meter { height: 18px; border-radius: 999px; background: var(--yt-panel-inset); border: 2px solid var(--yt-line); overflow: hidden; }
+  .yt-meter-fill { height: 100%; border-radius: 999px; background: repeating-linear-gradient(-45deg, #ff9c2a 0 12px, #ffb45a 12px 24px); }
+  .yt-meter-scale { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--yt-faint); }
+  .yt-notes { padding: 4px 18px; border-radius: 16px; background: var(--yt-panel); border: 2px solid var(--yt-line-strong); min-height: 180px; font-size: 16px; }
+  .yt-profile-yaps { width: 420px; flex-shrink: 0; overflow-y: auto; }
+  .yt-match-title { margin-top: 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--yt-muted); }
+  .yt-their-yap { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; border-radius: 10px; background: var(--yt-panel-inset); }
 
   /* Orange banner for things worth a look, e.g. a new window size (#84) */
   .yt-banner { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px; background: #2e2210; border: 1px solid #5c4216; color: var(--yt-text); font-size: 15px; font-weight: 700; }

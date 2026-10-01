@@ -1,36 +1,20 @@
 """Yappers (#24): everyone you've met, with their verdict, when you last met and how much they
 said. Search by name (fuzzy: "noodel" finds NoodleBonk), filter by verdict, sort."""
 
-import time
+from collections.abc import Callable
 
 from nicegui import ui
 from rapidfuzz import fuzz
 
 from yaptracker import config, runtime
-from yaptracker.ui.components import VERDICTS, sticker
+from yaptracker.ui.components import VERDICTS, sticker, when
+from yaptracker.ui.profile import profile
 from yaptracker.ui.views import count
 
 FOUND = 60  # rapidfuzz WRatio: typos and half names still find someone
 _FILTERS = {"all": "Everyone", **{k: label for k, (label, _) in VERDICTS.items()},
             "none": "No verdict yet"}  # fmt: skip
 _SORTS = {"last": "Last met", "times": "Times met"}
-
-
-def when(ts: float | None, now: float | None = None) -> str:
-    """'today', 'yesterday', 'Tuesday' within a week, else 'Sep 28'."""
-    if ts is None:
-        return "never"
-    now = time.time() if now is None else now
-    day, today = time.localtime(ts), time.localtime(now)
-    days = (time.mktime(today[:3] + (0, 0, 0, 0, 0, -1)) -
-            time.mktime(day[:3] + (0, 0, 0, 0, 0, -1))) // 86400  # fmt: skip
-    if days <= 0:
-        return "today"
-    if days == 1:
-        return "yesterday"
-    if days < 7:
-        return time.strftime("%A", day)
-    return time.strftime("%b %d", day).replace(" 0", " ")
 
 
 def matching(players: list, names: list[tuple[int, str]], query: str) -> list:
@@ -47,6 +31,23 @@ def matching(players: list, names: list[tuple[int, str]], query: str) -> list:
 
 
 def yappers() -> None:
+    """The list; a click on someone opens their profile in its place (#25)."""
+    view = ui.element("div").classes("yt-view")
+
+    def show_list() -> None:
+        view.clear()
+        with view:
+            _list(open_profile)
+
+    def open_profile(player_id: int) -> None:
+        view.clear()
+        with view:
+            profile(player_id, on_back=show_list)
+
+    show_list()
+
+
+def _list(open_profile: Callable[[int], None]) -> None:
     state = {"query": "", "filter": "all", "sort": "last"}
     with ui.element("header").classes("yt-header"):
         ui.label("Yappers").classes("yt-h1")
@@ -113,7 +114,9 @@ def yappers() -> None:
                 ).classes("yt-hint").mark("yapper-none")
                 return
             for player in players:
-                with ui.element("div").classes("yt-yapper").mark("yapper"):
+                row = ui.element("div").classes("yt-yapper").mark("yapper")
+                row.on("click", lambda pid=player.id: open_profile(pid))
+                with row:
                     ui.label(player.display_name).classes("yt-yapper-name")
                     if player.verdict:
                         sticker(player.verdict)

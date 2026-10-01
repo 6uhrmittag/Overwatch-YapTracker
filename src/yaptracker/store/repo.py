@@ -181,6 +181,32 @@ class Store:
         )
         return [PlayerRow(*row) for row in rows]
 
+    def player(self, player_id: int) -> PlayerRow | None:
+        found = [p for p in self.players() if p.id == player_id]
+        return found[0] if found else None
+
+    def aliases(self, player_id: int) -> list[str]:
+        rows = self._read(
+            "SELECT alias FROM player_aliases WHERE player_id = ? ORDER BY alias", (player_id,)
+        )
+        return [alias for (alias,) in rows]
+
+    def player_messages(self, player_id: int) -> list[Message]:
+        """Everything they said, newest first (the profile groups it by match, #25)."""
+        rows = self._read(
+            f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE player_id = ? "
+            "ORDER BY ts DESC, id DESC",
+            (player_id,),
+        )
+        return [Message(*row) for row in rows]
+
+    def set_notes(self, player_id: int, notes: str) -> None:
+        self._write("UPDATE players SET notes = ? WHERE id = ?", (notes, player_id))
+
+    def match_started(self, match_id: int) -> float | None:
+        rows = self._read("SELECT started_at FROM matches WHERE id = ?", (match_id,))
+        return rows[0][0] if rows else None
+
     def set_verdict(self, player_id: int, verdict: str | None) -> None:
         self._write("UPDATE players SET verdict = ? WHERE id = ?", (verdict, player_id))
 
