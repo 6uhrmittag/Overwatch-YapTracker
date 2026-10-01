@@ -74,3 +74,18 @@ def test_frames_are_dropped_while_paused():
     wait_for(lambda: watcher.frames >= 3)
     watcher.stop()
     assert seen == [] and watcher.last_frame is None
+
+
+def test_match_signals_keep_running_while_paused():
+    class WithSignals(FakeSource):
+        def frames(self):
+            for i in range(self.count):
+                yield Frame(i * 0.25, np.zeros((4, 4, 3), np.uint8), {"heroselect": np.zeros(1)})
+
+    chat, signals = [], []
+    watcher = CaptureWatcher(lambda: 42, lambda hwnd: WithSignals(3), chat.append, poll_s=10,
+                             paused=lambda: True, on_signals=signals.append)  # fmt: skip
+    watcher.start()
+    wait_for(lambda: len(signals) >= 3)
+    watcher.stop()
+    assert chat == [] and len(signals) == 3  # chat dropped, match signals still read (#93)

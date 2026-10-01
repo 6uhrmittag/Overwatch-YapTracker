@@ -1,7 +1,7 @@
 """What every frame source delivers to the pipeline."""
 
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 import numpy as np
@@ -53,6 +53,8 @@ def default_chat_region(width: int, height: int) -> Region:
 class Frame:
     ts: float  # seconds since the source started
     image: np.ndarray  # height x width x 3, uint8, BGR (what OCR and WGC capture use)
+    # Small crops elsewhere in the window, about once a second: hero select, end screens (#93).
+    signals: dict[str, np.ndarray] = field(default_factory=dict)
 
 
 class CaptureStalled(RuntimeError):

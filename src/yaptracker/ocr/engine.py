@@ -26,6 +26,10 @@ class OcrEngine(Protocol):
         """Lines of text in a BGR image, top to bottom. Blocks: from UI code use run.io_bound."""
         ...
 
+    def read_line(self, image: np.ndarray) -> str:
+        """The text of an image that holds exactly one line (a signal strip, #93). Fast."""
+        ...
+
 
 @dataclass
 class _Word:
@@ -90,6 +94,11 @@ class RapidOcrEngine:
             )
         return group_lines(words)
 
+    def read_line(self, image: np.ndarray) -> str:
+        # Recognition only: text detection would scale a 60 px strip up to 736 px (~20x slower).
+        result, _ = self._ocr(image, use_det=False, use_cls=False, use_rec=True)
+        return " ".join(text for text, _score in result or [])
+
 
 class WindowsOcrEngine:
     """Windows.Media.Ocr via winsdk: ~10x faster, but loses lines on bright backgrounds (#11)."""
@@ -142,6 +151,9 @@ class WindowsOcrEngine:
         ]
         # Windows OCR reports no confidence; 1.0 means "unknown", not "certain".
         return group_lines(words)
+
+    def read_line(self, image: np.ndarray) -> str:
+        return " ".join(line.text for line in self.read(image))  # it's fast enough as it is
 
 
 ENGINES: dict[str, Callable[[], OcrEngine]] = {

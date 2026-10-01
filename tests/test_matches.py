@@ -31,9 +31,9 @@ def matches(store):
 def test_first_chat_of_the_evening_starts_session_1_match_1(store):
     tracker = MatchTracker(store, Pause())
     play(tracker, T0, 60)
-    assert tracker.status() == (1, None, None)  # capturing, nobody typed yet
+    assert tracker.status()[:3] == (1, None, None)  # capturing, nobody typed yet
     tracker.chat_changed(T0 + 60)
-    assert tracker.status() == (1, 1, T0 + 60)
+    assert tracker.status()[:3] == (1, 1, T0 + 60)
     assert [m[3] for m in matches(store)] == ["gap"]
 
 
@@ -101,3 +101,30 @@ def test_an_ended_match_makes_the_next_chat_a_new_match(store):
     tracker.end_match(T0 + 30, outcome="victory")
     tracker.chat_changed(T0 + 40)
     assert store._read("SELECT outcome FROM matches ORDER BY id") == [("victory",), (None,)]
+
+
+def test_hero_select_brings_mode_and_map(store):
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    tracker.new_match(T0 + 5, source="heroselect", mode="UNRANKED", map_name="ESPERANCA")
+    assert tracker.status().map_name == "ESPERANCA"
+    assert store._read("SELECT source, mode, map FROM matches") == [
+        ("heroselect", "UNRANKED", "ESPERANCA")
+    ]
+
+
+def test_hero_select_takes_over_a_match_that_lobby_chat_just_started(store):
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    tracker.chat_changed(T0 + 10)  # people chat in the lobby
+    tracker.new_match(T0 + 40, source="heroselect", mode="UNRANKED", map_name="ESPERANCA")
+    assert store._read("SELECT source, started_at, map FROM matches") == [
+        ("heroselect", T0 + 10, "ESPERANCA")
+    ]
+
+
+def test_hero_select_after_a_long_chat_match_is_the_next_match(store):
+    tracker = MatchTracker(store, Pause())
+    play(tracker, T0, 600, chat_every=30)
+    tracker.new_match(T0 + 600, source="heroselect", mode="UNRANKED", map_name="EICHENWALDE")
+    assert [m[3] for m in matches(store)] == ["gap", "heroselect"]

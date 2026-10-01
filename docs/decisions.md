@@ -22,3 +22,4 @@ One line each, newest at the bottom. Link the issue.
 - 2026-09-30 — Milestone boundaries don't stop work: leftover `human` issues move to the next milestone, the milestone closes, work continues.
 - 2026-09-30 — `MILESTONE` = the milestone being worked on: M0 and M1 are closed, so releases are `v0.2.x` from now on (the last `v0.0.x` is `v0.0.44`).
 - 2026-09-30 — Skip unchanged frames by a *text mask* (thin bright strokes with a dark outline, letter-sized blobs, steady for 2 frames), per line band; only new text pixels count. On a real 2-min slice: 89 % of frames skipped, every new chat line caught within 0.25 s (#17).
+- 2026-10-01 — Match start = hero-select banner `ASSEMBLE YOUR TEAM` (top left, whole-text fuzzy match, recognition-only OCR on a 1-line strip ≈ 0.4 % of a core); mode + map read once from the corner; `PREPARE TO …` only as backup when no match runs. On a real 23-min recording: exactly the 2 matches, no false starts (#93).

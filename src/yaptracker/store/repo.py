@@ -72,10 +72,27 @@ class Store:
     def end_session(self, session_id: int, ts: float) -> None:
         self._write("UPDATE sessions SET ended_at = ? WHERE id = ?", (ts, session_id))
 
-    def start_match(self, session_id: int, ts: float, source: str) -> int:
+    def start_match(
+        self,
+        session_id: int,
+        ts: float,
+        source: str,
+        mode: str | None = None,
+        map_name: str | None = None,
+    ) -> int:
         return self._write(
-            "INSERT INTO matches (session_id, started_at, source) VALUES (?, ?, ?)",
-            (session_id, ts, source),
+            "INSERT INTO matches (session_id, started_at, source, mode, map) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (session_id, ts, source, mode, map_name),
+        )
+
+    def set_match_source(
+        self, match_id: int, source: str, mode: str | None, map_name: str | None
+    ) -> None:
+        """A match started by chat turned out to be a hero-select start (#93)."""
+        self._write(
+            "UPDATE matches SET source = ?, mode = ?, map = ? WHERE id = ?",
+            (source, mode, map_name, match_id),
         )
 
     def end_match(self, match_id: int, ts: float, outcome: str | None = None) -> None:
