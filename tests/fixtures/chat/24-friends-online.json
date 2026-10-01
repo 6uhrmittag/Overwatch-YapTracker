@@ -1,0 +1,84 @@
+{
+ "source": "shaped like Marv's live capture of 2026-10-01 (#22, #101): boxes approximate, names fake",
+ "ocr": [
+  {
+   "text": "[gremlin.exe] started playing Overwatch.",
+   "confidence": 0.991,
+   "box": [
+    66,
+    20,
+    410,
+    23
+   ]
+  },
+  {
+   "text": "1 friend playing Overwatch.",
+   "confidence": 0.986,
+   "box": [
+    66,
+    59,
+    300,
+    23
+   ]
+  },
+  {
+   "text": "You have joined a group!",
+   "confidence": 0.993,
+   "box": [
+    66,
+    98,
+    262,
+    23
+   ]
+  },
+  {
+   "text": "[tortillaTank]: one more?",
+   "confidence": 0.989,
+   "box": [
+    67,
+    137,
+    262,
+    23
+   ]
+  },
+  {
+   "text": "3 friends playing Overwatch.",
+   "confidence": 0.984,
+   "box": [
+    66,
+    176,
+    318,
+    23
+   ]
+  }
+ ],
+ "expected": [
+  {
+   "kind": "system",
+   "channel": "system",
+   "text": "[gremlin.exe] started playing Overwatch.",
+   "speaker": "gremlin.exe"
+  },
+  {
+   "kind": "system",
+   "channel": "system",
+   "text": "1 friend playing Overwatch."
+  },
+  {
+   "kind": "system",
+   "channel": "system",
+   "text": "You have joined a group!"
+  },
+  {
+   "kind": "message",
+   "channel": "unknown",
+   "text": "one more?",
+   "speaker": "tortillaTank"
+  },
+  {
+   "kind": "system",
+   "channel": "system",
+   "text": "3 friends playing Overwatch."
+  }
+ ]
+}

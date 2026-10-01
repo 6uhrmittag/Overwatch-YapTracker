@@ -76,3 +76,13 @@ def test_comms_line_with_nothing_after_the_colon_is_kept_not_a_crash():
     # Real shape (#88): the message text sat on the next visual line and wasn't joined.
     (line,) = parse([_line("Ana (Ana) to Bo (Zarya):", 10)])
     assert (line.kind, line.speaker, line.target, line.text) == ("comms", "Ana", "Bo", "")
+
+
+def test_friends_online_is_a_system_line_without_a_name():
+    lines = [_line("1 friend playing Overwatch.", 10), _line("12 friends playing Overwatch.", 50),
+             _line("[1friend]: playing Overwatch.", 90)]  # fmt: skip
+    assert [(p.kind, p.channel, p.speaker) for p in parse(lines)] == [
+        ("system", "system", None),
+        ("system", "system", None),
+        ("message", "unknown", "1friend"),
+    ]
