@@ -14,6 +14,7 @@ import cv2
 import numpy as np
 
 from yaptracker.capture.source import Region
+from yaptracker.ocr.engine import OcrLine
 from yaptracker.parser import ChatLine
 
 # Hue in degrees. Match orange and system yellow are Overwatch's defaults; team follows the
@@ -65,6 +66,36 @@ def icon_shape(image: np.ndarray, head: Region) -> str | None:
 
 
 TEAM_DISTANCE = 30.0  # degrees: a people icon this close to the team colour is team chat
+
+
+GLUED_DISTANCE = 30.0  # degrees: a trailing word this far from the line's colour is background
+
+
+def cut_glued(lines: list[OcrLine], image: np.ndarray, known: dict[str, float] | None = None,
+              hue=text_hue) -> list[OcrLine]:  # fmt: skip
+    """Background text glued to the end of a line on a bright frame ("gg 512", "boy 型 2325",
+    #172) is cut: trailing words whose colour is far from the line's first word (the name is
+    there) and from every chat colour. The first word always stays."""
+    chat = list((known or {}).values())
+    result = []
+    for line in lines:
+        keep = list(line.parts)
+        own = hue(image, keep[0][1]) if keep else None
+        refs = ([own] if own is not None else []) + chat
+        while len(keep) > 1 and refs:
+            last = hue(image, keep[-1][1])
+            if last is None or any(_distance(last, ref) <= GLUED_DISTANCE for ref in refs):
+                break
+            keep.pop()
+        if len(keep) == len(line.parts):
+            result.append(line)
+            continue
+        x0, y0 = min(b.x for _, b in keep), min(b.y for _, b in keep)
+        x1 = max(b.x + b.width for _, b in keep)
+        y1 = max(b.y + b.height for _, b in keep)
+        result.append(replace(line, text=" ".join(t for t, _ in keep), parts=tuple(keep),
+                              box=Region(x0, y0, x1 - x0, y1 - y0)))  # fmt: skip
+    return result
 
 
 def _distance(a: float, b: float) -> float:
