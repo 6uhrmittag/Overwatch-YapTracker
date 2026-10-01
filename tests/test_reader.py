@@ -120,3 +120,14 @@ def test_a_failing_ocr_is_logged_and_the_chat_still_counts_for_the_match(store, 
     reader.stop()
     assert "reading the chat failed" in caplog.text
     assert tracker.match_id is not None
+
+
+def test_every_read_frame_goes_to_the_debug_samples_with_its_ocr(store):
+    image, seen = BLACK.copy(), []
+    reader, _ = reader_for(store, {id(image): [line("[zappy]: gl hf", confidence=0.7)]},
+                           on_read=lambda *args: seen.append(args))  # fmt: skip
+    reader.read_frame(1000.0, image)
+    ((ts, frame, ocr, lines, new),) = seen
+    assert (ts, frame is image, ocr[0].text, lines[0].speaker) == (1000.0, True, "[zappy]: gl hf",
+                                                                    "zappy")  # fmt: skip
+    assert [y.best.text for y in new] == ["gl hf"]

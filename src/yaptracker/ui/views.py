@@ -375,8 +375,10 @@ def settings() -> None:
                         f"Debug samples: {size:.1f} MB, kept 14 days and 1 GB at most"
                     ).classes("yt-meta").mark("debug-size")
                     ui.label(
-                        "Match starts and ends, and screens I might have missed, so they can be "
-                        "fixed later. Other players' names are in there: it never leaves this PC."
+                        "Match starts and ends, screens I might have missed and chat I found hard, "
+                        "so they can be fixed later. Other players' names are in there: it never "
+                        f"leaves this PC. {runtime.SAVE_HOTKEY.replace('+', ' ')} keeps the last "
+                        "20 s of chat on purpose."
                     ).classes("yt-hint")
             with ui.element("section").classes("yt-card").mark("about"):
                 with ui.element("div").classes("yt-card-head"):

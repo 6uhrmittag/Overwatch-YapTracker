@@ -1,5 +1,6 @@
-"""Debug samples (#63): what is kept, when, and that it never grows past its limits."""
+"""Debug samples (#63, #110): what is kept, when, and that it never grows past its limits."""
 
+import json
 import time
 
 import numpy as np
@@ -108,3 +109,49 @@ def test_a_start_without_an_end_screen_counts_as_a_missed_end(tmp_path):
     tracker.new_match(2500.0)  # Ctrl+Alt+M is the user's call, not a miss
     assert missed == [True]
     store.close()
+
+
+def chat_frame(text="[NoodleBonk]: gg", confidence=0.99, kind="message", channel="match"):
+    """(image, ocr, parsed lines, new yaps) as the chat reader hands them over (#110)."""
+    from yaptracker.capture.source import Region
+    from yaptracker.dedup import Yap
+    from yaptracker.ocr.engine import OcrLine
+    from yaptracker.parser import ChatLine
+
+    box = Region(64, 10, 300, 24)
+    line = ChatLine(kind, channel, text, confidence, box, speaker="NoodleBonk")
+    yap = Yap(1, 0.0)
+    yap.add(line)
+    image = np.full((395, 615, 3), 40, np.uint8)
+    return image, [OcrLine(text, confidence, box)], [line], [yap] if kind == "message" else []
+
+
+def test_a_shaky_chat_line_saves_the_last_20_seconds_of_chat(samples, clock):
+    for t in range(0, 40, 2):  # 40 s of fine chat ...
+        clock.now = NOON + t
+        assert samples.chat_read(clock.now, *chat_frame()) is None
+    clock.now = NOON + 40
+    sample = samples.chat_read(clock.now, *chat_frame("[NoodleBonk]: g9", confidence=0.6))
+    assert sample.name == "12-00-40-chat"
+    frames = json.loads((sample / "sample.json").read_text(encoding="utf-8"))
+    assert frames["why"] == "low-confidence"
+    assert len(frames["frames"]) == 11  # 20 s back, every 2 s
+    assert frames["frames"][-1]["parsed"][0]["text"] == "[NoodleBonk]: g9"
+    assert files(sample)[-2].endswith(".png")  # the hard frame lossless, context as JPEG
+
+
+def test_hard_chat_is_sampled_once_a_minute_and_map_text_never(samples, clock):
+    assert samples.chat_read(clock.now, *chat_frame("PORTUGAL", kind="unknown")) is None
+    assert samples.chat_read(clock.now, *chat_frame("[x]: ok", channel="unknown")) is not None
+    clock.now += 30
+    assert samples.chat_read(clock.now, *chat_frame("[x]: ok", channel="unknown")) is None
+    clock.now += 31
+    sample = samples.chat_read(clock.now, *chat_frame("Name (Ana) hi", kind="unknown"))
+    assert json.loads((sample / "sample.json").read_text(encoding="utf-8"))["why"] == "unparsed"
+
+
+def test_the_hotkey_saves_on_purpose_and_a_pause_forgets(samples, clock):
+    samples.chat_read(clock.now, *chat_frame())
+    assert samples.save_chat().name.endswith("-chat")  # Ctrl+Alt+S, nothing hard needed
+    samples.on_signals({}, paused=True)
+    assert samples.save_chat() is None

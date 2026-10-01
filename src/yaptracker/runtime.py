@@ -11,6 +11,7 @@ from yaptracker.store.repo import Store
 
 PAUSE_HOTKEY = "Ctrl+Alt+P"
 NEW_MATCH_HOTKEY = "Ctrl+Alt+M"  # manual override only; matches split themselves (#21)
+SAVE_HOTKEY = "Ctrl+Alt+S"  # optional: keep the last 20 s of chat as a debug sample (#110)
 
 pause = Pause()
 watcher: CaptureWatcher | None = None  # None in tests and before startup
