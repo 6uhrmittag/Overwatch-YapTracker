@@ -1,0 +1,210 @@
+{
+  "format": "yaptracker-export",
+  "format_version": 1,
+  "exported_at": "2026-10-01T22:00:00+02:00",
+  "app_version": "0.4.example",
+  "anonymized": false,
+  "sessions": [
+    {
+      "id": 1,
+      "started_at": "2026-10-01T20:03:00+02:00",
+      "ended_at": "2026-10-01T20:35:00+02:00",
+      "matches": [
+        {
+          "id": 1,
+          "number": 1,
+          "started_at": "2026-10-01T20:05:00+02:00",
+          "ended_at": "2026-10-01T20:16:00+02:00",
+          "outcome": "victory",
+          "map": "ESPERANÇA",
+          "mode": "UNRANKED",
+          "detected_by": "heroselect",
+          "incomplete": false,
+          "messages": [
+            {
+              "id": 1,
+              "time": "2026-10-01T20:06:10+02:00",
+              "channel": "match",
+              "speaker": "NoodleBonk",
+              "player_id": 1,
+              "role": null,
+              "hero": null,
+              "text": "gl hf wahoo",
+              "ocr_confidence": 0.98,
+              "flagged": null,
+              "has_glyphs": false
+            },
+            {
+              "id": 2,
+              "time": "2026-10-01T20:06:31+02:00",
+              "channel": "team",
+              "speaker": "tortillaTank",
+              "player_id": null,
+              "role": "me",
+              "hero": null,
+              "text": "i go lucio",
+              "ocr_confidence": 0.98,
+              "flagged": null,
+              "has_glyphs": false
+            },
+            {
+              "id": 3,
+              "time": "2026-10-01T20:07:02+02:00",
+              "channel": "team",
+              "speaker": "MoonPebble",
+              "player_id": 3,
+              "role": "crew",
+              "hero": "Kiriko",
+              "text": "Group up!",
+              "ocr_confidence": 0.98,
+              "flagged": null,
+              "has_glyphs": false
+            },
+            {
+              "id": 4,
+              "time": "2026-10-01T20:09:45+02:00",
+              "channel": "match",
+              "speaker": "NoodleBonk",
+              "player_id": 1,
+              "role": null,
+              "hero": null,
+              "text": "that rein was cracked ◇",
+              "ocr_confidence": 0.98,
+              "flagged": null,
+              "has_glyphs": true
+            },
+            {
+              "id": 5,
+              "time": "2026-10-01T20:12:03+02:00",
+              "channel": "team",
+              "speaker": "MoonPebble",
+              "player_id": 3,
+              "role": "crew",
+              "hero": null,
+              "text": "kiri, I got you",
+              "ocr_confidence": 0.98,
+              "flagged": null,
+              "has_glyphs": false
+            },
+            {
+              "id": 6,
+              "time": "2026-10-01T20:16:40+02:00",
+              "channel": "system",
+              "speaker": null,
+              "player_id": null,
+              "role": null,
+              "hero": null,
+              "text": "Endorsement Received!",
+              "ocr_confidence": null,
+              "flagged": null,
+              "has_glyphs": false
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "number": 2,
+          "started_at": "2026-10-01T20:20:00+02:00",
+          "ended_at": "2026-10-01T20:31:00+02:00",
+          "outcome": "defeat",
+          "map": "ROUTE 66",
+          "mode": "UNRANKED",
+          "detected_by": "heroselect",
+          "incomplete": true,
+          "messages": [
+            {
+              "id": 7,
+              "time": "2026-10-01T20:21:05+02:00",
+              "channel": "system",
+              "speaker": "gremlin.exe",
+              "player_id": null,
+              "role": null,
+              "hero": null,
+              "text": "[gremlin.exe] joined the game.",
+              "ocr_confidence": null,
+              "flagged": null,
+              "has_glyphs": false
+            },
+            {
+              "id": 8,
+              "time": "2026-10-01T20:23:12+02:00",
+              "channel": "match",
+              "speaker": "gremlin.exe",
+              "player_id": 2,
+              "role": null,
+              "hero": null,
+              "text": "ez",
+              "ocr_confidence": 0.95,
+              "flagged": "overwatch",
+              "has_glyphs": false
+            },
+            {
+              "id": 9,
+              "time": "2026-10-01T20:29:50+02:00",
+              "channel": "match",
+              "speaker": "NoodleBonk",
+              "player_id": 1,
+              "role": null,
+              "hero": null,
+              "text": "gg wp, wahoo",
+              "ocr_confidence": 0.99,
+              "flagged": null,
+              "has_glyphs": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "messages_outside_matches": [],
+  "players": [
+    {
+      "id": 1,
+      "display_name": "NoodleBonk",
+      "verdict": "friend",
+      "notes": "Hype Lúcio, says wahoo after every boop.\nGreet with a wahoo.",
+      "first_met": "2026-09-29T20:40:00+02:00",
+      "last_met": "2026-10-01T20:29:50+02:00",
+      "aliases": [
+        "NoodIeBonk"
+      ],
+      "matches": 2,
+      "messages": 3,
+      "callouts": 0,
+      "flagged_messages": 0
+    },
+    {
+      "id": 2,
+      "display_name": "gremlin.exe",
+      "verdict": "avoid",
+      "notes": "",
+      "first_met": "2026-10-01T20:21:00+02:00",
+      "last_met": "2026-10-01T20:23:12+02:00",
+      "aliases": [],
+      "matches": 1,
+      "messages": 1,
+      "callouts": 0,
+      "flagged_messages": 1
+    },
+    {
+      "id": 3,
+      "display_name": "MoonPebble",
+      "verdict": null,
+      "notes": "",
+      "first_met": "2026-09-28T19:00:00+02:00",
+      "last_met": "2026-10-01T20:12:03+02:00",
+      "aliases": [],
+      "matches": 1,
+      "messages": 1,
+      "callouts": 1,
+      "flagged_messages": 0
+    }
+  ],
+  "capture_gaps": [
+    {
+      "started_at": "2026-10-01T20:25:00+02:00",
+      "ended_at": "2026-10-01T20:26:30+02:00",
+      "reason": "no_frames"
+    }
+  ]
+}

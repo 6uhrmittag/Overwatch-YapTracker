@@ -5,6 +5,7 @@
 - **Your data is yours.** Do with an export whatever you like.
 - **The format is free to use** (MIT, like the rest of YapTracker). Read it, write it, build on it; no need to ask.
 - The JSON Schema is [`export.schema.json`](export.schema.json). Every export YapTracker's tests make is checked against it.
+- An example from a made-up evening, JSON and Markdown: [`examples/export/`](../examples/export/) (made by `tools/make_example_export.py`).
 - Other players' names are in there, as read from chat. Think before you publish one, or switch on **Anonymize names**.
 
 ## Basics
