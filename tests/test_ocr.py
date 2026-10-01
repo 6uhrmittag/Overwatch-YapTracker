@@ -73,7 +73,7 @@ def test_german_looking_lines_are_read_again_english_ones_not():
     for text in [
         "[Kokirk]: Schone GruBe an alle, gg!",
         "[Björn]: GroBe, FuBe, Arger",
-        "[VoidCrowned]: SuB :3",
+        "[MoonPebble]: SuB :3",
         "[Fubball]: Gruf Gott",
         "Ich heile dich!",
         "[Zoe]: Ubermorgen wieder?",
