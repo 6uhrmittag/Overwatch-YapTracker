@@ -22,6 +22,7 @@ class OcrLine:
     text: str
     confidence: float  # 0..1
     box: Region  # in chat-box pixels
+    parts: tuple[tuple[str, Region], ...] = ()  # the words left to right, for icons between (#128)
 
 
 class OcrEngine(Protocol):
@@ -69,6 +70,10 @@ def group_lines(words: list[_Word]) -> list[OcrLine]:
                 text=" ".join(w.text for w in line),
                 confidence=sum(w.confidence for w in line) / len(line),
                 box=Region(round(x0), round(y0), round(x1 - x0), round(y1 - y0)),
+                parts=tuple(
+                    (w.text, Region(round(w.x), round(w.y), round(w.width), round(w.height)))
+                    for w in line
+                ),
             )
         )
     return result

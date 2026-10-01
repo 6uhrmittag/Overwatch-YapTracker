@@ -122,3 +122,13 @@ def test_said_again_later_and_still_on_screen_is_stored_once_more_not_every_fram
     for t in (399.5, 401.25, 402.75, 406.5):  # the same line, still on screen
         stored += len(dedup.update(t, [yap("Group up!", "zappy", kind="comms")])[0])
     assert stored == 1
+
+
+def test_an_older_line_read_more_exactly_doesnt_steal_the_match():
+    """#134: "Group up! ◇" long ago, "Group up!" now: the line on screen is the new one."""
+    dedup = Dedup()
+    dedup.update(300.0, [yap("Group up! ◇", "zappy", kind="comms")])
+    stored = len(dedup.update(399.0, [yap("Group up!", "zappy", kind="comms")])[0])
+    for t in (400.5, 402.0):  # the same line, now read with its icon
+        stored += len(dedup.update(t, [yap("Group up! ◇", "zappy", kind="comms")])[0])
+    assert stored == 1

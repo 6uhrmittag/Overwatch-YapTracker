@@ -37,6 +37,25 @@ unexpected layouts, hidden controls or clever navigation.
   handles calibration; defaults for everything else.
 - **Hotkeys are shown next to the buttons they trigger** (keycap chips).
 
+## Self-explaining
+
+There is no user guide: the app *is* the guide, plus a short README quick start.
+So every screen has to answer "what is this and what do I do?" on its own.
+
+- **Every empty view says what will appear and when.** "Play a match and the
+  people who yap will show up here." Never a blank card.
+- **Every setting has a one-line hint** underneath: what it changes and when
+  you'd touch it. If you can't write the hint, the setting probably shouldn't exist.
+- **Every state is visible.** Listening, paused, waiting for Overwatch, recording
+  lost: always shown in words on Live, never only as a colour or an icon.
+- **Errors say what to do next,** not what broke. "Overwatch isn't in borderless
+  windowed — switch it in Video settings" beats "Capture failed".
+- **Nothing is only reachable by hotkey.** Every hotkey has a visible button
+  (with its keycap chip).
+- **Icons in the rail and icon-only buttons have a tooltip** with the plain word.
+- **No feature needs a manual.** If a PR needs a paragraph of explanation for the
+  user, the UI isn't done yet: add a hint, better copy, or a sensible default.
+
 ## Colours
 
 | Token | Hex | Use |
@@ -141,4 +160,5 @@ Short, warm, a little cheeky. Never mean about players, never blames the user.
 ## Every UI PR
 
 Includes a screenshot of the changed screen in the PR body. Compare against
-the mockup before opening the PR.
+the mockup before opening the PR, and check the **Self-explaining** rules above:
+empty state, hints, visible state, no hotkey-only actions.

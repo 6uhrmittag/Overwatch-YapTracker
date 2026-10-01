@@ -85,4 +85,9 @@ V2 = """
 ALTER TABLE chat_messages ADD COLUMN role TEXT CHECK (role IN ('me', 'crew'));
 """
 
-MIGRATIONS = [V1, V2]
+# The line had an emoji or icon OCR couldn't spell, marked as ◇ in the text (#128).
+V3 = """
+ALTER TABLE chat_messages ADD COLUMN has_glyphs INTEGER NOT NULL DEFAULT 0;
+"""
+
+MIGRATIONS = [V1, V2, V3]

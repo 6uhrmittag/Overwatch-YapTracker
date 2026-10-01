@@ -22,6 +22,7 @@ class Message:
     ocr_confidence: float | None
     flagged: str | None
     role: str | None = None  # 'me' / 'crew' (#74)
+    has_glyphs: int = 0  # an emoji or icon, shown as ◇ (#128)
 
 
 @dataclass(frozen=True)
@@ -33,7 +34,8 @@ class Stats:
 
 
 _MESSAGE_COLUMNS = (
-    "id, match_id, ts, channel, speaker_raw, player_id, hero, text, ocr_confidence, flagged, role"
+    "id, match_id, ts, channel, speaker_raw, player_id, hero, text, ocr_confidence, flagged, role, "
+    "has_glyphs"
 )
 
 
@@ -147,12 +149,14 @@ class Store:
         ocr_confidence: float | None = None,
         flagged: str | None = None,
         role: str | None = None,
+        has_glyphs: bool = False,
     ) -> int:
         return self._write(
             "INSERT INTO chat_messages (match_id, ts, channel, speaker_raw, hero, text, "
-            "ocr_confidence, flagged, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (match_id, ts, channel, speaker_raw, hero, text, ocr_confidence, flagged, role),
-        )
+            "ocr_confidence, flagged, role, has_glyphs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (match_id, ts, channel, speaker_raw, hero, text, ocr_confidence, flagged, role,
+             int(has_glyphs)),
+        )  # fmt: skip
 
     def update_message(
         self,
@@ -165,13 +169,15 @@ class Store:
         ocr_confidence: float | None = None,
         flagged: str | None = None,
         role: str | None = None,
+        has_glyphs: bool = False,
     ) -> None:
         """A better reading of a stored line (#18); the full-text index follows by trigger."""
         self._write(
             "UPDATE chat_messages SET channel = ?, speaker_raw = ?, hero = ?, text = ?, "
-            "ocr_confidence = ?, flagged = ?, role = ? WHERE id = ?",
-            (channel, speaker_raw, hero, text, ocr_confidence, flagged, role, message_id),
-        )
+            "ocr_confidence = ?, flagged = ?, role = ?, has_glyphs = ? WHERE id = ?",
+            (channel, speaker_raw, hero, text, ocr_confidence, flagged, role, int(has_glyphs),
+             message_id),
+        )  # fmt: skip
 
     def messages(self, match_id: int) -> list[Message]:
         rows = self._read(

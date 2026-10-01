@@ -94,6 +94,10 @@ html, body { background: var(--yt-night); }
   .yt-line-name:empty { display: none; }
   .yt-line-text { min-width: 0; font-size: 16px; line-height: 1.4; color: var(--yt-text); overflow-wrap: anywhere; }
   .yt-line--system .yt-line-text { color: var(--yt-system); font-style: italic; }
+  .yt-line { cursor: pointer; }
+  .yt-line:hover { background: var(--yt-panel-raised); }
+  .yt-glyph { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; margin: 0 2px; padding: 0 4px; border-radius: 6px; background: #2a2236; color: #e7a6ff; font-size: 12px; font-style: normal; vertical-align: 1px; }
+  .yt-picture .yt-picture-image { min-width: 480px; image-rendering: pixelated; border-radius: 8px; }
   .yt-card--placeholder { background: transparent; border: 2px dashed var(--yt-line-strong); }
 
   /* Status pill */

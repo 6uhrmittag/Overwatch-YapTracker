@@ -14,7 +14,7 @@ ENABLED = False  # set by `python -m yaptracker --dev`
 _LINES = [
     ((255, 174, 77), "[NoodleBonk]: WAHOOOO"),
     ((255, 174, 77), "[tortillaTank]: not the wahoo guy again lmao"),
-    ((124, 227, 139), "SirPeelsALot (Reinhardt): Group up!"),
+    ((124, 227, 139), "SirPeelsALot (Reinhardt): Group up!", "icon"),  # a comms icon (#128)
     ((124, 227, 139), "[Bapricot]: drop the lamp on me pls"),
     ((255, 214, 90), "[gremlin.exe] started playing Overwatch."),
     ((255, 174, 77), "[NoodleBonk]: it is literally the first fight"),
@@ -34,8 +34,12 @@ def screenshot(width: int = 2560, height: int = 1440) -> Image.Image:
     region = default_chat_region(width, height)
     font = ImageFont.load_default(size=round(height / 52))
     y = region.y + region.height - len(_LINES) * font.size * 1.6
-    for colour, text in _LINES:
+    for colour, text, *icon in _LINES:
         draw.text((region.x + 20, y), text, fill=colour, font=font, stroke_width=2, stroke_fill=0)
+        if icon:  # a white-grey chat icon after the text, like Overwatch's comms icons
+            x = region.x + 20 + draw.textlength(text, font=font) + font.size * 0.4
+            draw.rounded_rectangle((x, y + 1, x + font.size * 0.9, y + font.size * 1.1),
+                                   radius=font.size // 4, fill=(225, 225, 230))  # fmt: skip
         y += font.size * 1.6
     return img
 
