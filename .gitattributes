@@ -8,3 +8,4 @@
 *.ico binary
 *.woff2 binary
 *.ttf binary
+*.onnx binary

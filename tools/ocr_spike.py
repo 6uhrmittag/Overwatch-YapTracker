@@ -1,6 +1,9 @@
-"""OCR engine spike (#11): score engines on chat crops against a hand-made ground truth.
+"""OCR engine spike (#11, #118): score engines on chat crops against a hand-made ground truth.
 
     python tools/ocr_spike.py CROPS_DIR TRUTH.json [--winocr NAME=FILE ...]
+                              [--rec NAME=MODEL.onnx:DICT.txt ...] [--scales 2]
+
+--rec swaps only the recognition model (same detection), e.g. a Latin one for umlauts (#118).
 
 TRUTH.json maps crop file names to the visual lines they show (wrapped lines separately, half-cut
 top line and the open chat's input line left out). Windows OCR runs on Windows only, so its output
@@ -84,17 +87,26 @@ def main() -> None:
     parser.add_argument("crops", type=Path)
     parser.add_argument("truth", type=Path)
     parser.add_argument("--winocr", action="append", default=[], metavar="NAME=FILE")
+    parser.add_argument("--rec", action="append", default=[], metavar="NAME=MODEL:DICT")
+    parser.add_argument("--scales", default="1,1.5,2", help="upscale factors for RapidOCR")
     args = parser.parse_args()
     truth = json.loads(args.truth.read_text(encoding="utf-8"))
 
     from rapidocr_onnxruntime import RapidOCR
 
-    engine = RapidOCR()
+    one_thread = {"intra_op_num_threads": 1, "inter_op_num_threads": 1}  # as the app runs it
+    models = {"RapidOCR": RapidOCR(**one_thread)}
+    for spec in args.rec:
+        label, files = spec.split("=", 1)
+        model, keys = files.split(":", 1)
+        models[label] = RapidOCR(rec_model_path=model, rec_keys_path=keys, **one_thread)
     engines = {}
-    for scale in (1, 1.5, 2):
-        engines[f"RapidOCR {scale}x"] = {
-            crop: rapid_lines(engine, cv2.imread(str(args.crops / crop)), scale) for crop in truth
-        }
+    for label, engine in models.items():
+        for scale in (float(s) for s in args.scales.split(",")):
+            engines[f"{label} {scale:g}x"] = {
+                crop: rapid_lines(engine, cv2.imread(str(args.crops / crop)), scale)
+                for crop in truth
+            }
     for spec in args.winocr:
         label, file = spec.split("=", 1)
         engines[label] = parse_winocr(Path(file))

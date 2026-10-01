@@ -4,6 +4,7 @@ import sys
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 import numpy as np
@@ -69,6 +70,34 @@ def group_lines(words: list[_Word]) -> list[OcrLine]:
     return result
 
 
+# Recognition model with a Latin alphabet (#118): the default one has no ä ö ü ß é at all.
+_MODELS = Path(__file__).parent / "models"
+LATIN_REC = _MODELS / "latin_PP-OCRv5_rec_mobile.onnx"
+LATIN_KEYS = _MODELS / "ppocrv5_latin_dict.txt"
+
+
+def _has_accent(text: str) -> bool:
+    return any(ord(c) > 127 and c.isalpha() for c in text)
+
+
+class _ReadTwice:
+    """Recognition with both models on the same line crops (#118).
+
+    The default model is best at English (it reads "I" and "o" where the Latin one sees "l" and
+    "0", and skips the team icon), the Latin one has the umlauts. A line the Latin model reads
+    with such letters is taken from it, every other line from the default model.
+    """
+
+    def __init__(self, default, latin) -> None:
+        self.default, self._latin = default, latin
+
+    def __call__(self, crops, return_word_box: bool = False):
+        ours, ours_s = self.default(crops, return_word_box)
+        latin, latin_s = self._latin(crops, return_word_box)
+        picked = [b if _has_accent(b[0]) else a for a, b in zip(ours, latin, strict=True)]
+        return picked, ours_s + latin_s
+
+
 class RapidOcrEngine:
     """RapidOCR (ONNX, CPU) on the 2x upscaled image - 1x drops the spaces between words."""
 
@@ -81,7 +110,10 @@ class RapidOcrEngine:
 
         # One thread: by default onnxruntime spreads each read over every core and burns ~3x the
         # CPU doing it (measured, #108): a spike on all cores while the game is running.
-        self._ocr = RapidOCR(intra_op_num_threads=1, inter_op_num_threads=1)
+        one_thread = {"intra_op_num_threads": 1, "inter_op_num_threads": 1}
+        self._ocr = RapidOCR(**one_thread)
+        latin = RapidOCR(rec_model_path=str(LATIN_REC), rec_keys_path=str(LATIN_KEYS), **one_thread)
+        self._ocr.text_rec = _ReadTwice(self._ocr.text_rec, latin.text_rec)
 
     def read(self, image: np.ndarray) -> list[OcrLine]:
         import cv2
@@ -99,7 +131,8 @@ class RapidOcrEngine:
 
     def read_line(self, image: np.ndarray) -> str:
         # Recognition only: text detection would scale a 60 px strip up to 736 px (~20x slower).
-        result, _ = self._ocr(image, use_det=False, use_cls=False, use_rec=True)
+        # The default model alone: signal strips are English capitals (#93, #94).
+        result, _ = self._ocr.text_rec.default(image)
         return " ".join(text for text, _score in result or [])
 
 
