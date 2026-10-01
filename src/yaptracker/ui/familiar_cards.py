@@ -5,8 +5,9 @@ from collections.abc import Callable
 
 from nicegui import ui
 
+from yaptracker import runtime
 from yaptracker.familiar import Card
-from yaptracker.ui.components import button, count, sticker, when
+from yaptracker.ui.components import button, count, spicy_mark, sticker, when
 
 
 def familiar_card(card: Card, on_open: Callable[[], None], on_dismiss: Callable[[], None]) -> None:
@@ -33,6 +34,23 @@ def familiar_card(card: Card, on_open: Callable[[], None], on_dismiss: Callable[
                      f"{count(card.yaps, 'yap', 'yaps')}").classes("yt-face-meta")  # fmt: skip
             if card.note:
                 ui.label(f"\u201c{card.note}\u201d").classes("yt-face-note")
+            if card.spicy:
+                _heads_up(card)
             with ui.element("div").classes("yt-row"):
                 button("Open profile", on_open, "primary").mark("face-open")
                 button("Got it", on_dismiss).mark("face-ok")
+
+
+def _heads_up(card: Card) -> None:
+    """Spicy history (#77): an orange heads-up and a suggestion. Never a verdict by itself."""
+    with ui.element("div").classes("yt-row yt-heads-up").mark("face-heads-up"):
+        spicy_mark()
+        ui.label(f"Heads-up: last time {count(card.spicy, 'spicy yap', 'spicy yaps')}")
+        ui.element("div").classes("yt-grow")
+        if card.verdict != "avoid":
+            nope = button("Set verdict: Nope?", lambda: suggest_nope(), "quiet")
+            nope.mark("face-nope")
+
+    def suggest_nope() -> None:
+        runtime.store.set_verdict(card.player_id, "avoid")
+        nope.set_visibility(False)

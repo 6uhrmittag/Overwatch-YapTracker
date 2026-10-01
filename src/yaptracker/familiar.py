@@ -26,6 +26,7 @@ class Card:
     yaps: int
     last_met: float | None
     shown_at: float
+    spicy: int = 0  # flagged lines before this match: a heads-up, never a verdict (#77)
 
 
 class FamiliarFaces:
@@ -53,12 +54,12 @@ class FamiliarFaces:
         player = self._store.player(player_id)
         if player is None or self._identity().role(player.display_name) is not None:
             return None  # me, or my crew
-        matches, yaps, last_met = self._store.met_before(player_id, match_id)
+        matches, yaps, last_met, spicy = self._store.met_before(player_id, match_id)
         if matches == 0:
             return None  # first time you meet them: nothing to greet yet
         note = (player.notes or "").strip().splitlines()
         card = Card(player_id, player.display_name, player.verdict, note[0] if note else "",
-                    matches, yaps, last_met, self._clock())  # fmt: skip
+                    matches, yaps, last_met, self._clock(), spicy)  # fmt: skip
         with self._lock:
             self._cards = [c for c in self._cards if c.player_id != player_id] + [card]
         return card

@@ -37,6 +37,7 @@ class PlayerRow:
     last_seen: float | None
     matches: int
     yaps: int
+    spicy: int = 0  # flagged lines: [Report] by Overwatch or marked by you (#77)
 
 
 @dataclass(frozen=True)
@@ -176,7 +177,7 @@ class Store:
         """Every player with how often you met them and how much they said."""
         rows = self._read(
             "SELECT p.id, p.display_name, p.verdict, p.notes, p.first_seen, p.last_seen, "
-            "COUNT(DISTINCT c.match_id), COUNT(c.id) "
+            "COUNT(DISTINCT c.match_id), COUNT(c.id), COUNT(c.flagged) "
             "FROM players p LEFT JOIN chat_messages c ON c.player_id = p.id GROUP BY p.id"
         )
         return [PlayerRow(*row) for row in rows]
@@ -200,14 +201,20 @@ class Store:
         )
         return [Message(*row) for row in rows]
 
-    def met_before(self, player_id: int, match_id: int | None) -> tuple[int, int, float | None]:
-        """(matches, yaps, last time) with this player before the given match (#26)."""
+    def met_before(
+        self, player_id: int, match_id: int | None
+    ) -> tuple[int, int, float | None, int]:
+        """(matches, yaps, last time, spicy yaps) with this player before the given match."""
         (row,) = self._read(
-            "SELECT COUNT(DISTINCT match_id), COUNT(*), MAX(ts) FROM chat_messages "
-            "WHERE player_id = ? AND match_id IS NOT ?",
+            "SELECT COUNT(DISTINCT match_id), COUNT(*), MAX(ts), COUNT(flagged) "
+            "FROM chat_messages WHERE player_id = ? AND match_id IS NOT ?",
             (player_id, match_id),
         )
         return row
+
+    def set_flag(self, message_id: int, flagged: str | None) -> None:
+        """Mark a line as spicy ('manual') or take it back (None) (#77)."""
+        self._write("UPDATE chat_messages SET flagged = ? WHERE id = ?", (flagged, message_id))
 
     def set_notes(self, player_id: int, notes: str) -> None:
         self._write("UPDATE players SET notes = ? WHERE id = ?", (notes, player_id))
@@ -317,6 +324,11 @@ class Store:
             (channel, speaker_raw, hero, text, ocr_confidence, flagged, role, int(has_glyphs),
              player_id, message_id),
         )  # fmt: skip
+
+    def message(self, message_id: int) -> Message | None:
+        rows = self._read(f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE id = ?",
+                          (message_id,))  # fmt: skip
+        return Message(*rows[0]) if rows else None
 
     def messages(self, match_id: int) -> list[Message]:
         rows = self._read(

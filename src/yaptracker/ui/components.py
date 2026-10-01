@@ -66,6 +66,23 @@ _STAR = (
 )
 _FLAT = '<circle cx="12" cy="12" r="8.5"/><path d="M8.5 15h7M9 9.5h.01M15 9.5h.01"/>'
 _NO_ENTRY = '<circle cx="12" cy="12" r="8.5"/><path d="M6 18L18 6"/>'
+# A small chili for spicy yaps (#77): inline SVG, no emoji (docs/ui.md).
+CHILI = (
+    '<svg class="yt-chili" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">'
+    '<path d="M14.5 4c1.6.2 2.8 1.2 3.2 2.6" fill="none" stroke="#7ce38b" stroke-width="2.4" '
+    'stroke-linecap="round"/><path d="M17.5 7.5c1.8 3.6.6 8.4-3.6 11.2-3 2-6.8 2.4-9.4 1.3 '
+    '3.6-1.4 6-3.7 7.4-7 .9-2 1.4-3.9 2.2-5.3 1-.8 2.3-.8 3.4-.2z" fill="#ff5c66"/></svg>'
+)
+
+
+SPICY = f'<span class="yt-spicy" title="Spicy: flagged by Overwatch or by you">{CHILI}</span>'
+
+
+def spicy_mark() -> None:
+    """The chili with a tooltip, after a spicy line."""
+    ui.html(SPICY, sanitize=False)
+
+
 VERDICTS = {
     "friend": ("Bestie", _HEART),
     "fun": ("Fun", _STAR),

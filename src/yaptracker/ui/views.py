@@ -12,7 +12,14 @@ from yaptracker.capture.watcher import fps
 from yaptracker.glyphs import GLYPH
 from yaptracker.store.backups import last_backup
 from yaptracker.ui.calibrate import calibrate
-from yaptracker.ui.components import button, count, saved_chip, set_button_label, switch
+from yaptracker.ui.components import (
+    SPICY,
+    button,
+    count,
+    saved_chip,
+    set_button_label,
+    switch,
+)
 from yaptracker.ui.crew import crew_card
 from yaptracker.ui.familiar_cards import familiar_card
 from yaptracker.ui.lookup import lookup_card
@@ -83,18 +90,34 @@ def _chat_line(message, started_at: float | None) -> dict:
 
 
 def _show_picture(message) -> None:
-    path = runtime.pictures.path(message.id, message.ts) if runtime.pictures else None
-    if path is None or not path.exists():
+    """A click on a line: its picture (#120, #128) and the spicy switch (#77)."""
+    message = runtime.store.message(message.id) if runtime.store else None
+    if message is None:
         return
+    path = runtime.pictures.path(message.id, message.ts) if runtime.pictures else None
     with ui.dialog() as dialog, ui.element("section").classes("yt-card yt-picture"):
         with ui.element("div").classes("yt-card-body"):
-            ui.image(path).classes("yt-picture-image").mark("line-picture")
-            ui.label("The line as it looked in Overwatch.").classes("yt-hint")
+            if path is not None and path.exists():
+                ui.image(path).classes("yt-picture-image").mark("line-picture")
+                ui.label("The line as it looked in Overwatch.").classes("yt-hint")
+            spicy = message.flagged is not None
+            ui.label(
+                "Overwatch marked this line ([Report])." if message.flagged == "overwatch"
+                else "You marked this line as spicy." if spicy
+                else "A bit much? Mark it, and you get a heads-up when they're back."
+            ).classes("yt-hint")  # fmt: skip
+
+            def toggle() -> None:
+                runtime.store.set_flag(message.id, None if spicy else "manual")
+                dialog.close()
+
+            button("Not spicy" if spicy else "Mark as spicy", toggle).mark("spicy-toggle")
+    dialog.on_value_change(lambda e: None if e.value else dialog.delete())  # gone once closed
     dialog.open()
 
 
 def _fill_line(row: dict, message) -> None:
-    shown = (message.speaker_raw, message.role, message.text)
+    shown = (message.speaker_raw, message.role, message.text, message.flagged)
     if shown == row["shown"]:
         return
     row["shown"] = shown
@@ -104,7 +127,10 @@ def _fill_line(row: dict, message) -> None:
     row["name"].set_text(f"{who}:" if who else "")
     # Escaped text; an emoji or icon OCR couldn't spell shows as a ◇ chip (#128).
     chip = f'<span class="yt-glyph" title="An emoji or icon: click for the picture">{GLYPH}</span>'
-    row["text"].set_content(html.escape(message.text, quote=False).replace(GLYPH, chip))
+    text = html.escape(message.text, quote=False).replace(GLYPH, chip)
+    if message.flagged:  # spicy (#77): a small chili, no judgement
+        text += " " + SPICY
+    row["text"].set_content(text)
 
 
 # Pill colour per Live state: trouble shares the orange of paused - a heads-up, not an alarm.

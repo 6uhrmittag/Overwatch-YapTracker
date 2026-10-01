@@ -7,7 +7,7 @@ from collections.abc import Callable
 from nicegui import ui
 
 from yaptracker import runtime
-from yaptracker.ui.components import VERDICTS, button, count, saved_chip, when
+from yaptracker.ui.components import VERDICTS, button, count, saved_chip, spicy_mark, when
 
 # Yap-o-meter: yaps per match together.
 _LEVELS = [(1, "Silent type"), (3, "Casual yapper"), (8, "Certified yapper"),
@@ -54,6 +54,13 @@ def profile(player_id: int, on_back: Callable[[], None]) -> None:
                     with ui.element("div").classes("yt-tile"):
                         ui.label(str(value)).classes("yt-tile-value")
                         ui.label(label).classes("yt-meta")
+            if player.spicy:  # a heads-up, never a verdict (#77)
+                with ui.element("div").classes("yt-row yt-heads-up").mark("spicy-count"):
+                    spicy_mark()
+                    ui.label(
+                        f"{count(player.spicy, 'spicy yap', 'spicy yaps')}: flagged by Overwatch "
+                        "or by you. Your call what that means."
+                    )
             level, fill = yap_level(player.yaps, player.matches)
             with ui.element("div").classes("yt-row"):
                 ui.label("Yap-o-meter").classes("yt-h2")
@@ -161,10 +168,12 @@ def _merge_dialog(player_id: int, name: str) -> None:
         store.merge_players(player_id, target_id)
         if runtime.players is not None:
             runtime.players.reload()
+        client = ui.context.client  # before closing: a closed dialog deletes itself
         dialog.close()
-        ui.context.client.yt_show("yappers", player_id=target_id)
+        client.yt_show("yappers", player_id=target_id)
 
     pick()
+    dialog.on_value_change(lambda e: None if e.value else dialog.delete())  # gone once closed
     dialog.open()
 
 
@@ -191,4 +200,6 @@ def _yaps(player_id: int) -> None:
             with ui.element("div").classes("yt-their-yap"):
                 ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
                 ui.label(message.text).classes("yt-line-text")
+                if message.flagged:
+                    spicy_mark()
     ui.label(count(len(messages), "yap", "yaps") + " in total").classes("yt-meta")
