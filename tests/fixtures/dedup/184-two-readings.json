@@ -1,0 +1,814 @@
+{
+ "source": "Real 4K HDR chat frames, 2026-10-01 (#184): OCR only, every name replaced by a made-up one.",
+ "sequences": {
+  "ww": [
+   {
+    "t": 0.0,
+    "ocr": [
+     {
+      "text": "tortillaTank (Sombra) to MoonPebble (Sierra):",
+      "confidence": 0.983,
+      "box": [
+       96,
+       479,
+       780,
+       38
+      ]
+     },
+     {
+      "text": "Thanks!",
+      "confidence": 0.993,
+      "box": [
+       100,
+       524,
+       128,
+       30
+      ]
+     }
+    ]
+   },
+   {
+    "t": 1.52,
+    "ocr": [
+     {
+      "text": "tortillaTank (Sombra) to MoonPebble (Sierra):",
+      "confidence": 0.997,
+      "box": [
+       96,
+       479,
+       780,
+       38
+      ]
+     },
+     {
+      "text": "Thanks!",
+      "confidence": 0.991,
+      "box": [
+       99,
+       524,
+       129,
+       30
+      ]
+     }
+    ]
+   },
+   {
+    "t": 3.45,
+    "ocr": [
+     {
+      "text": "P ◇",
+      "confidence": 0.94,
+      "box": [
+       154,
+       98,
+       26,
+       36
+      ]
+     },
+     {
+      "text": "tortillaTank (Sombra) to MoonPebble (Ska",
+      "confidence": 0.942,
+      "box": [
+       98,
+       480,
+       758,
+       36
+      ]
+     },
+     {
+      "text": "Thanks!",
+      "confidence": 0.998,
+      "box": [
+       100,
+       524,
+       127,
+       30
+      ]
+     }
+    ]
+   },
+   {
+    "t": 9.14,
+    "ocr": [
+     {
+      "text": "zxzxzxzx (zxzxz). zxzx!",
+      "confidence": 0.784,
+      "box": [
+       102,
+       40,
+       455,
+       23
+      ]
+     },
+     {
+      "text": "[tortillaTank]: anyone got pizza for meee?",
+      "confidence": 0.994,
+      "box": [
+       98,
+       86,
+       699,
+       43
+      ]
+     },
+     {
+      "text": "[MoonPebble]: Heyy glhf f <3",
+      "confidence": 0.906,
+      "box": [
+       98,
+       146,
+       456,
+       42
+      ]
+     },
+     {
+      "text": "[SunnyBagel]: glhf !!",
+      "confidence": 0.992,
+      "box": [
+       100,
+       206,
+       326,
+       40
+      ]
+     },
+     {
+      "text": "[tortillaTank]: : WW",
+      "confidence": 0.894,
+      "box": [
+       100,
+       268,
+       302,
+       34
+      ]
+     },
+     {
+      "text": "PotatoKnight (Moira): Enemy Sigma!",
+      "confidence": 0.999,
+      "box": [
+       98,
+       328,
+       512,
+       38
+      ]
+     },
+     {
+      "text": "tortillaTank (Sombra) to MoonPebble",
+      "confidence": 0.998,
+      "box": [
+       98,
+       388,
+       638,
+       34
+      ]
+     },
+     {
+      "text": "(Sierra): Thanks!",
+      "confidence": 0.998,
+      "box": [
+       104,
+       432,
+       264,
+       35
+      ]
+     },
+     {
+      "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+      "confidence": 0.997,
+      "box": [
+       90,
+       526,
+       640,
+       38
+      ]
+     }
+    ]
+   },
+   {
+    "t": 14.33,
+    "ocr": [
+     {
+      "text": ":ZxzX :zXzXzX zxzX",
+      "confidence": 0.57,
+      "box": [
+       256,
+       132,
+       299,
+       22
+      ]
+     },
+     {
+      "text": "tortillaTank]: : anyone got pizza for meee?",
+      "confidence": 0.971,
+      "box": [
+       104,
+       179,
+       691,
+       39
+      ]
+     },
+     {
+      "text": "[MoonPebble]: Heyy glhf <3",
+      "confidence": 0.974,
+      "box": [
+       98,
+       237,
+       460,
+       41
+      ]
+     },
+     {
+      "text": "[SunnyBagel]: glhf !!",
+      "confidence": 0.994,
+      "box": [
+       100,
+       298,
+       324,
+       40
+      ]
+     },
+     {
+      "text": "[tortillaTank]: : WW",
+      "confidence": 0.957,
+      "box": [
+       102,
+       362,
+       300,
+       32
+      ]
+     },
+     {
+      "text": "PotatoKnight (Moira): Enemy Sigma!",
+      "confidence": 0.99,
+      "box": [
+       97,
+       418,
+       511,
+       39
+      ]
+     },
+     {
+      "text": "tortillaTank (Sombra) to MoonPebble (Sierra):",
+      "confidence": 0.996,
+      "box": [
+       98,
+       479,
+       777,
+       36
+      ]
+     },
+     {
+      "text": "Thanks!",
+      "confidence": 1.0,
+      "box": [
+       102,
+       524,
+       124,
+       30
+      ]
+     }
+    ]
+   },
+   {
+    "t": 15.84,
+    "ocr": [
+     {
+      "text": "zxzxzxzx (zxzxz). zxzx!",
+      "confidence": 0.759,
+      "box": [
+       104,
+       132,
+       452,
+       22
+      ]
+     },
+     {
+      "text": "[tortillaTank]: : anyone got pizza for meee?",
+      "confidence": 0.977,
+      "box": [
+       102,
+       180,
+       693,
+       38
+      ]
+     },
+     {
+      "text": "[MoonPebble]: Heyy glhf <3",
+      "confidence": 0.998,
+      "box": [
+       98,
+       237,
+       460,
+       41
+      ]
+     },
+     {
+      "text": "[SunnyBagel] : glhf !!",
+      "confidence": 0.962,
+      "box": [
+       100,
+       298,
+       324,
+       40
+      ]
+     },
+     {
+      "text": "[tortillaTank] WW",
+      "confidence": 0.897,
+      "box": [
+       103,
+       362,
+       298,
+       32
+      ]
+     },
+     {
+      "text": "PotatoKnight  (Moira): Enemy Sigma!",
+      "confidence": 0.953,
+      "box": [
+       97,
+       420,
+       511,
+       36
+      ]
+     },
+     {
+      "text": "tortillaTank (Sombra) to MoonPebble (Sierra):",
+      "confidence": 0.995,
+      "box": [
+       98,
+       478,
+       776,
+       37
+      ]
+     },
+     {
+      "text": "Thanks!",
+      "confidence": 0.999,
+      "box": [
+       101,
+       524,
+       125,
+       30
+      ]
+     }
+    ]
+   },
+   {
+    "t": 19.42,
+    "ocr": [
+     {
+      "text": "zxzxzxzx (zxzxz). zxzx!",
+      "confidence": 0.787,
+      "box": [
+       104,
+       132,
+       453,
+       23
+      ]
+     },
+     {
+      "text": "[tortillaTank]: anyone got pizza for meee?",
+      "confidence": 0.986,
+      "box": [
+       99,
+       178,
+       697,
+       40
+      ]
+     },
+     {
+      "text": "[MoonPebble]: Heyy glhf <3",
+      "confidence": 0.982,
+      "box": [
+       98,
+       236,
+       462,
+       43
+      ]
+     },
+     {
+      "text": "[SunnyBagel]: glhf !!",
+      "confidence": 0.993,
+      "box": [
+       100,
+       298,
+       324,
+       38
+      ]
+     },
+     {
+      "text": "[tortillaTank]: ww",
+      "confidence": 0.993,
+      "box": [
+       102,
+       362,
+       302,
+       32
+      ]
+     },
+     {
+      "text": "PotatoKnight (Moira): Enemy Sigma!",
+      "confidence": 1.0,
+      "box": [
+       95,
+       418,
+       515,
+       38
+      ]
+     },
+     {
+      "text": "tortillaTank (Sombra) to MoonPebble (Sierra):",
+      "confidence": 0.998,
+      "box": [
+       96,
+       478,
+       780,
+       37
+      ]
+     },
+     {
+      "text": "Thanks!",
+      "confidence": 0.989,
+      "box": [
+       100,
+       524,
+       126,
+       29
+      ]
+     }
+    ]
+   }
+  ],
+  "fun-game": [
+   {
+    "t": 0.0,
+    "ocr": [
+     {
+      "text": "-zxzxzxzX",
+      "confidence": 0.508,
+      "box": [
+       101,
+       134,
+       177,
+       15
+      ]
+     },
+     {
+      "text": "[BoltBucket]: i am the last person to make sormeone",
+      "confidence": 0.986,
+      "box": [
+       100,
+       177,
+       774,
+       41
+      ]
+     },
+     {
+      "text": "stop having fun haah",
+      "confidence": 0.998,
+      "box": [
+       97,
+       222,
+       336,
+       38
+      ]
+     },
+     {
+      "text": "[Pickle]: Can i?",
+      "confidence": 0.998,
+      "box": [
+       100,
+       282,
+       254,
+       40
+      ]
+     },
+     {
+      "text": "[MoonPebble]: gg y'all",
+      "confidence": 0.996,
+      "box": [
+       98,
+       341,
+       370,
+       44
+      ]
+     },
+     {
+      "text": "[BoltBucket]: gg",
+      "confidence": 0.999,
+      "box": [
+       100,
+       400,
+       204,
+       45
+      ]
+     },
+     {
+      "text": "[tortillaTank]: i luv u puuupsss",
+      "confidence": 0.992,
+      "box": [
+       100,
+       464,
+       510,
+       36
+      ]
+     },
+     {
+      "text": "[MoonPebble]: glhf next :3 ◇",
+      "confidence": 0.951,
+      "box": [
+       100,
+       524,
+       426,
+       34
+      ]
+     }
+    ]
+   },
+   {
+    "t": 0.87,
+    "ocr": [
+     {
+      "text": "-zxzxzxzX",
+      "confidence": 0.509,
+      "box": [
+       101,
+       134,
+       177,
+       15
+      ]
+     },
+     {
+      "text": "[BoltBucket]: i am the last person to make sormeone",
+      "confidence": 0.987,
+      "box": [
+       100,
+       177,
+       775,
+       41
+      ]
+     },
+     {
+      "text": "stop having fun haah",
+      "confidence": 0.998,
+      "box": [
+       97,
+       222,
+       336,
+       38
+      ]
+     },
+     {
+      "text": "[Pickle]: Can i?",
+      "confidence": 0.998,
+      "box": [
+       100,
+       282,
+       254,
+       40
+      ]
+     },
+     {
+      "text": "[MoonPebble]: gg y'all",
+      "confidence": 0.996,
+      "box": [
+       98,
+       341,
+       370,
+       44
+      ]
+     },
+     {
+      "text": "[BoltBucket]: gg",
+      "confidence": 0.999,
+      "box": [
+       100,
+       400,
+       204,
+       45
+      ]
+     },
+     {
+      "text": "[tortillaTank]: i luv u puuupsss",
+      "confidence": 0.997,
+      "box": [
+       100,
+       465,
+       508,
+       34
+      ]
+     },
+     {
+      "text": "[MoonPebble] : glhf next :3 ◇",
+      "confidence": 0.946,
+      "box": [
+       100,
+       524,
+       428,
+       34
+      ]
+     }
+    ]
+   },
+   {
+    "t": 4.76,
+    "ocr": [
+     {
+      "text": "Zxz -zxzXXz XzX",
+      "confidence": 0.551,
+      "box": [
+       98,
+       42,
+       240,
+       17
+      ]
+     },
+     {
+      "text": "[BoltBucket]: i am the last person to make",
+      "confidence": 0.998,
+      "box": [
+       100,
+       84,
+       617,
+       42
+      ]
+     },
+     {
+      "text": "someone stop having fun haah",
+      "confidence": 0.994,
+      "box": [
+       95,
+       130,
+       497,
+       40
+      ]
+     },
+     {
+      "text": "[Pickle]: Can i?",
+      "confidence": 0.999,
+      "box": [
+       100,
+       190,
+       253,
+       38
+      ]
+     },
+     {
+      "text": "[MoonPebble]: gg y'all",
+      "confidence": 0.998,
+      "box": [
+       99,
+       251,
+       367,
+       38
+      ]
+     },
+     {
+      "text": "[BoltBucket]: gg",
+      "confidence": 0.994,
+      "box": [
+       100,
+       308,
+       206,
+       47
+      ]
+     },
+     {
+      "text": "[tortillaTank]: i luv u puuupsss",
+      "confidence": 0.997,
+      "box": [
+       100,
+       370,
+       510,
+       39
+      ]
+     },
+     {
+      "text": "[MoonPebble]: glhf next :3",
+      "confidence": 0.982,
+      "box": [
+       98,
+       430,
+       434,
+       40
+      ]
+     },
+     {
+      "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+      "confidence": 0.997,
+      "box": [
+       90,
+       526,
+       640,
+       38
+      ]
+     }
+    ]
+   },
+   {
+    "t": 10.08,
+    "ocr": [
+     {
+      "text": "NE",
+      "confidence": 0.817,
+      "box": [
+       614,
+       0,
+       44,
+       38
+      ]
+     },
+     {
+      "text": "...!",
+      "confidence": 0.563,
+      "box": [
+       68,
+       48,
+       43,
+       38
+      ]
+     },
+     {
+      "text": "ickle]: Can i? DESTINATION 五",
+      "confidence": 0.949,
+      "box": [
+       122,
+       53,
+       701,
+       150
+      ]
+     },
+     {
+      "text": "[MoonPebble]: gg y'all TRAINNO",
+      "confidence": 0.963,
+      "box": [
+       97,
+       172,
+       788,
+       102
+      ]
+     },
+     {
+      "text": "[BoltBucket]: gg 512",
+      "confidence": 0.985,
+      "box": [
+       100,
+       248,
+       768,
+       76
+      ]
+     },
+     {
+      "text": "[tortillaTank]: i luv u puuupsss 1732",
+      "confidence": 0.93,
+      "box": [
+       101,
+       300,
+       748,
+       78
+      ]
+     },
+     {
+      "text": "[MoonPebble]. glhf next :3 15",
+      "confidence": 0.854,
+      "box": [
+       98,
+       375,
+       712,
+       67
+      ]
+     },
+     {
+      "text": "[kittycat]: pickle ur a goid boy 型 2325",
+      "confidence": 0.856,
+      "box": [
+       98,
+       412,
+       704,
+       94
+      ]
+     },
+     {
+      "text": "8 ◇",
+      "confidence": 0.583,
+      "box": [
+       295,
+       507,
+       18,
+       12
+      ]
+     },
+     {
+      "text": "[tortillaTank] fun game :3 236",
+      "confidence": 0.997,
+      "box": [
+       99,
+       505,
+       670,
+       66
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

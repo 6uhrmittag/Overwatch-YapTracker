@@ -86,3 +86,41 @@ def test_friends_online_is_a_system_line_without_a_name():
         ("system", "system", None),
         ("message", "unknown", "1friend"),
     ]
+
+
+def test_a_lost_colon_is_chat_not_a_system_line():
+    """#184: "[Name] WW" was taken as a system line; only a few phrases really are."""
+    from yaptracker.parser import _classify
+
+    for said in ("WW", "fun game :3", "luv u"):
+        line = _classify(f"[Pickle] {said}", 0.9, Region(0, 0, 10, 10))
+        assert (line.kind, line.speaker, line.text) == ("message", "Pickle", said)
+    for system in ("started playing Overwatch.", "joined the game.", "left the game.",
+                   "invited you to a group!"):  # fmt: skip
+        assert _classify(f"[Pickle] {system}", 0.9, Region(0, 0, 10, 10)).kind == "system"
+    assert _classify("[Pickle]: : WW", 0.9, Region(0, 0, 10, 10)).text == "WW"
+    assert _classify("[Pickle]: :3", 0.9, Region(0, 0, 10, 10)).text == ":3"  # an emoticon
+
+
+def test_real_readings_of_one_line_are_stored_once():
+    """#184 replay: "[Me]: : WW", "[Me] WW" and "[Me]: ww" across frames are one line."""
+    import json
+
+    from yaptracker.dedup import Dedup
+    from yaptracker.identity import Identity
+
+    fixture = json.loads((Path(__file__).parent / "fixtures" / "dedup" /
+                          "184-two-readings.json").read_text(encoding="utf-8"))  # fmt: skip
+    me = Identity(me=("tortillaTank#1234",))
+    for name, frames in fixture["sequences"].items():
+        dedup, stored = Dedup(), []
+        for frame in frames:
+            ocr = [OcrLine(o["text"], o["confidence"], Region(*o["box"])) for o in frame["ocr"]]
+            new, _ = dedup.update(frame["t"], me.apply(parse(ocr)))
+            stored += [y.best for y in new]
+        mine = [(y.kind, y.text.lower()) for y in stored if y.speaker == "tortillaTank"]
+        assert all(kind != "system" for kind, _ in mine), name
+        if name == "ww":
+            assert [t for _, t in mine].count("ww") == 1
+        else:
+            assert any(t.startswith("fun game :3") for _, t in mine)  # chat, not system
