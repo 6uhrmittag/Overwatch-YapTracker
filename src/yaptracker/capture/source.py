@@ -55,8 +55,15 @@ class Frame:
     image: np.ndarray  # height x width x 3, uint8, BGR (what OCR and WGC capture use)
 
 
+class CaptureStalled(RuntimeError):
+    """The window is there but no frame arrived for a while; the capture needs a restart (#75)."""
+
+
 class FrameSource(Protocol):
-    """Yields frames of the chat region in time order. Live capture (WGC) and replay both fit."""
+    """Yields frames of the chat region in time order. Live capture (WGC) and replay both fit.
+
+    A live source may raise CaptureStalled from frames() when pictures stop arriving.
+    """
 
     def frames(self) -> Iterator[Frame]: ...
 

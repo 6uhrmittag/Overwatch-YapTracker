@@ -7,7 +7,7 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 
-from yaptracker.capture.source import Frame, Region
+from yaptracker.capture.source import CaptureStalled, Frame, Region
 
 log = logging.getLogger(__name__)
 _END = object()
@@ -16,8 +16,15 @@ _END = object()
 class WgcFrameSource:
     """Frames of one window at up to `fps`, cropped to the chat box before anything is copied."""
 
-    def __init__(self, hwnd: int, region_for: Callable[[int, int], Region], fps: float = 4.0):
+    def __init__(
+        self,
+        hwnd: int,
+        region_for: Callable[[int, int], Region],
+        fps: float = 4.0,
+        stall_s: float = 10.0,
+    ):
         self._queue: queue.Queue = queue.Queue(maxsize=2)  # a slow reader gets the newest frames
+        self._stall_s = stall_s
         self._closed = threading.Event()
         self._start = time.monotonic()
         self._region_for = region_for
@@ -59,7 +66,15 @@ class WgcFrameSource:
                     self._queue.get_nowait()  # drop the oldest frame
 
     def frames(self) -> Iterator[Frame]:
-        while (item := self._queue.get()) is not _END:
+        while True:
+            try:
+                item = self._queue.get(timeout=self._stall_s)
+            except queue.Empty:
+                raise CaptureStalled(
+                    f"no picture from the window for {self._stall_s:.0f} s"
+                ) from None
+            if item is _END:
+                return
             yield item
 
     def close(self) -> None:

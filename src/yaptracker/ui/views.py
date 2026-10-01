@@ -26,6 +26,18 @@ def _empty_card(title: str, hint: str) -> None:
             ui.label(hint).classes("yt-hint")
 
 
+# Why capture stopped, for the Live banner (#75). Orange heads-up, not a red alarm.
+_WHY = {
+    "crash": "capture stopped",
+    "no_frames": "no picture from Overwatch",
+    "window_lost": "lost the Overwatch window",
+}
+
+
+# Pill colour per Live state: trouble shares the orange of paused - a heads-up, not an alarm.
+_PILLS = {"paused": "paused", "trouble": "paused", "listening": "listening", "waiting": "waiting"}
+
+
 def live() -> None:
     watcher = runtime.watcher
     with ui.element("header").classes("yt-header"):
@@ -43,6 +55,8 @@ def live() -> None:
             "Pause", lambda: toggle_pause(), keycap=runtime.PAUSE_HOTKEY.replace("+", " ")
         )
         pause_button.mark("pause")
+    with ui.element("div").classes("yt-banner yt-hidden").mark("health") as health_banner:
+        health_text = ui.label().classes("yt-grow")
     with ui.element("div").classes("yt-banner yt-hidden").mark("size-hint") as size_hint:
         size_text = ui.label().classes("yt-grow")
         button("Got it", lambda: size_checked(), "quiet").mark("size-ok")
@@ -90,16 +104,19 @@ def live() -> None:
     def refresh() -> None:
         paused = runtime.pause.paused
         capturing = watcher is not None and watcher.state == "capturing"
-        state = "paused" if paused else ("listening" if capturing else "waiting")
+        gap = runtime.health.gap if runtime.health else None
+        broken = gap is not None and gap.reason != "paused"  # the game runs, capture doesn't
+        state = (
+            "paused" if paused else "trouble" if broken else "listening" if capturing else "waiting"
+        )
         pill.classes(
-            add=f"yt-pill--{state}",
-            remove=" ".join(
-                f"yt-pill--{s}" for s in ("paused", "listening", "waiting") if s != state
-            ),
+            add=f"yt-pill--{_PILLS[state]}",
+            remove=" ".join(f"yt-pill--{p}" for p in set(_PILLS.values()) if p != _PILLS[state]),
         )
         status.set_text(
             {
                 "paused": "Paused",
+                "trouble": "Not recording",
                 "listening": "Listening for yaps",
                 "waiting": "Waiting for Overwatch",
             }[state]
@@ -115,6 +132,7 @@ def live() -> None:
         hint.set_text(
             {
                 "paused": "Ears covered. Nothing is being saved.",
+                "trouble": "Overwatch is running, but I can't see it right now. Trying again.",
                 "listening": "Ears open. Nobody's typing right now.",
                 "waiting": "Waiting for Overwatch. I'll be right here.",
             }[state]
@@ -133,6 +151,14 @@ def live() -> None:
                 match_info.set_text(
                     f"Session {session_no} \u00b7 Match {match_no} \u00b7 {elapsed}"
                 )
+        if broken:  # paused has its own pill (#20)
+            since = time.strftime("%H:%M", time.localtime(gap.since))
+            health_text.set_text(
+                f"Not recording since {since} ({_WHY[gap.reason]}), trying again\u2026"
+            )
+            health_banner.classes(remove="yt-hidden")
+        else:
+            health_banner.classes(add="yt-hidden")
         size = runtime.window_size
         if capturing and size and config.size_needs_check(*size):
             size_text.set_text(

@@ -4,6 +4,7 @@ import multiprocessing
 import os
 import sys
 import threading
+from collections.abc import Callable
 
 import numpy as np
 from nicegui import app, ui
@@ -92,51 +93,65 @@ def _watch_for_overwatch(dev: bool) -> None:
         runtime.window_size = (width, height)  # the Live view hints when this changes (#84)
         return config.chat_region(width, height)
 
-    if dev:
-        runtime.window_size = (2560, 1440)  # the demo stands in for a 1440p Overwatch window
-        runtime.watcher = CaptureWatcher(
-            lambda: 1, lambda _: demo.DemoFrameSource(), on_frame, paused=paused, on_alive=on_alive
-        )
-    elif sys.platform == "win32":
+    def make_watcher() -> CaptureWatcher:
+        common = {"paused": paused, "on_alive": on_alive, "health": runtime.health}
+        if dev:
+            runtime.window_size = (2560, 1440)  # the demo stands in for a 1440p Overwatch window
+            return CaptureWatcher(lambda: 1, lambda _: demo.DemoFrameSource(), on_frame, **common)
         from yaptracker.capture.wgc import WgcFrameSource
         from yaptracker.capture.window import find_overwatch
+
+        return CaptureWatcher(
+            find_overwatch, lambda hwnd: WgcFrameSource(hwnd, region_for), on_frame, **common
+        )
+
+    if not dev and sys.platform != "win32":
+        return  # native mode only exists on Windows; Linux uses --dev
+
+    def start_capture() -> None:  # after the store is open: gaps and matches need it
+        runtime.watcher = make_watcher()
+        runtime.watcher.start()
+
+    def stop_capture() -> None:
+        if runtime.watcher is not None:
+            runtime.watcher.stop()
+
+    app.on_startup(start_capture)
+    app.on_shutdown(stop_capture)
+    if not dev:
         from yaptracker.hotkeys import HotkeyListener
 
-        runtime.watcher = CaptureWatcher(
-            find_overwatch,
-            lambda hwnd: WgcFrameSource(hwnd, region_for),
-            on_frame,
-            paused=paused,
-            on_alive=on_alive,
-        )
         hotkeys = HotkeyListener(
             {runtime.PAUSE_HOTKEY: runtime.pause.toggle, runtime.NEW_MATCH_HOTKEY: new_match}
         )
         app.on_startup(hotkeys.start)
         app.on_shutdown(hotkeys.stop)
-    else:
-        return  # native mode only exists on Windows; Linux uses --dev
-    app.on_startup(runtime.watcher.start)
-    app.on_shutdown(runtime.watcher.stop)
 
 
-def _open_store() -> None:
-    """The database opens with the app (the smoke test too: it proves SQLite + FTS5 in the exe)."""
+def _open_store() -> Callable[[], None]:
+    """The database opens with the app (the smoke test too: it proves SQLite + FTS5 in the exe).
+
+    Returns the close function; run() registers it last, after capture has stopped writing.
+    """
+    from yaptracker.capture.health import CaptureHealth
     from yaptracker.matches import MatchTracker
     from yaptracker.store.repo import Store
 
     def open_store() -> None:
         runtime.store = Store.open()
         runtime.matches = MatchTracker(runtime.store, runtime.pause)
+        runtime.health = CaptureHealth(runtime.store)
 
     def close_store() -> None:
+        if runtime.health is not None:
+            runtime.health.stop()
         if runtime.matches is not None:
             runtime.matches.stop()
         if runtime.store is not None:
             runtime.store.close()
 
     app.on_startup(open_store)
-    app.on_shutdown(close_store)
+    return close_store
 
 
 def run(
@@ -148,10 +163,11 @@ def run(
 ) -> None:
     shell.register_static_files()
     demo.ENABLED = dev
-    _open_store()
+    close_store = _open_store()
     if not (dev or smoke_test):
         start_with_windows.apply_at_start(autostart)
     _watch_for_overwatch(dev)
+    app.on_shutdown(close_store)
     if smoke_test:
         _arm_smoke_test()
     common = {
