@@ -1,0 +1,55 @@
+"""What the capture really delivers (#187): frames per second from Windows vs. what we asked
+for, and the time each frame costs in YapTracker's own callback. Once a minute in the log, and
+live in Settings -> About."""
+
+import collections
+import logging
+import threading
+import time
+from collections.abc import Callable
+
+log = logging.getLogger(__name__)
+
+
+class CaptureStats:
+    def __init__(self, asked_fps: float = 4.0, clock: Callable[[], float] = time.monotonic,
+                 log_every_s: float = 60.0) -> None:  # fmt: skip
+        self.asked_fps, self._clock, self._log_every_s = asked_fps, clock, log_every_s
+        self._lock = threading.Lock()
+        self._recent: collections.deque[float] = collections.deque()  # arrival times, last 10 s
+        self._minute_start: float | None = None
+        self._minute_frames, self._minute_spent = 0, 0.0
+
+    def frame(self, spent_s: float) -> None:
+        """A frame arrived from Windows; our callback spent `spent_s` on it."""
+        now = self._clock()
+        with self._lock:
+            self._recent.append(now)
+            while self._recent and now - self._recent[0] > 10:
+                self._recent.popleft()
+            if self._minute_start is None:
+                self._minute_start = now
+            self._minute_frames += 1
+            self._minute_spent += spent_s
+            elapsed = now - self._minute_start
+            if elapsed < self._log_every_s:
+                return
+            rate, per_frame = (
+                self._minute_frames / elapsed,
+                self._minute_spent / self._minute_frames,
+            )
+            self._minute_start, self._minute_frames, self._minute_spent = now, 0, 0.0
+        log.info("capture: %.1f frames/s from Windows (asked for %g), %.1f ms per frame here",
+                 rate, self.asked_fps, per_frame * 1000)  # fmt: skip
+
+    def per_second(self) -> float | None:
+        """Frames per second over the last 10 s; None when nothing arrived lately."""
+        now = self._clock()
+        with self._lock:
+            recent = [t for t in self._recent if now - t <= 10]
+        if len(recent) < 2:
+            return None
+        return (len(recent) - 1) / max(1e-6, recent[-1] - recent[0])
+
+
+CAPTURE = CaptureStats()

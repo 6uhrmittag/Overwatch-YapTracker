@@ -13,7 +13,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from yaptracker import channels, glyphs
+from yaptracker import channels, glyphs, priority
 from yaptracker.dedup import Dedup, Yap
 from yaptracker.identity import Identity
 from yaptracker.ocr.engine import OcrLine
@@ -96,6 +96,7 @@ class ChatReader:
             self._thread.join(timeout=10)  # an OCR call may be running; the store closes next
 
     def _run(self) -> None:
+        priority.lower_this_thread()  # OCR waits for the game, not the other way round (#187)
         while True:
             with self._wake:
                 while self._pending is None and not self._stop:

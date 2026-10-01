@@ -37,6 +37,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     logs.setup()  # also catches stdout/stderr: the windowed exe has no console
+    # Below-normal priority and efficiency mode first: the window's child process runs this too.
+    from yaptracker import priority
+
+    priority.lower_process()  # the game gets the CPU when it needs it (#187)
     # The native window runs in a spawned child process; in the exe that child starts here.
     multiprocessing.freeze_support()
     args = build_parser().parse_args(argv)

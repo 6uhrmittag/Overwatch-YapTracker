@@ -8,6 +8,7 @@ from nicegui import run, ui
 from PIL import Image
 
 from yaptracker import __version__, config, logs, paths, runtime
+from yaptracker.capture.stats import CAPTURE
 from yaptracker.capture.watcher import fps
 from yaptracker.glyphs import GLYPH
 from yaptracker.store.backups import last_backup
@@ -538,6 +539,12 @@ def settings() -> None:
                     ui.label("About").classes("yt-h2")
                 with ui.element("div").classes("yt-card-body"):
                     ui.label(f"YapTracker {__version__}").classes("yt-meta")
+                    rate, asked = CAPTURE.per_second(), CAPTURE.asked_fps  # really delivered (#187)
+                    ui.label(
+                        f"Capture: {rate:.1f} frames/s from Windows (asked for {asked:g})"
+                        if rate is not None
+                        else "Capture: not running right now"
+                    ).classes("yt-meta").mark("capture-rate")
                     ui.label("Everything stays on this PC. No cloud, no telemetry.").classes(
                         "yt-hint"
                     )
