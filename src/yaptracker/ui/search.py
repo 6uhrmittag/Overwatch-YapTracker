@@ -12,6 +12,8 @@ from nicegui import ui
 from yaptracker import runtime
 from yaptracker.glyphs import GLYPH
 from yaptracker.ui.components import count, switch
+from yaptracker.ui.picker import LinePicker
+from yaptracker.ui.snap_dialog import snap_dialog
 from yaptracker.ui.yappers import matching
 
 SHOWN = 100  # newest first; more words or a filter find older ones
@@ -36,9 +38,19 @@ def marked_html(marked: str) -> str:
 
 def search() -> None:
     state = {"text": "", "who": "", "channel": "", "span": "any", "callouts": False}
+
+    def open_snap(chosen: list) -> None:  # lines from search for a yap snap (#155)
+        words = state["text"].strip()
+        snap_dialog(chosen, f"From a search for \u201c{words}\u201d" if words else "From a search",
+                    started_at=None)  # fmt: skip
+
+    picker = LinePicker(open_snap)
     with ui.element("header").classes("yt-header"):
         ui.label("Search").classes("yt-h1")
         found = ui.label().classes("yt-meta").mark("search-count")
+        ui.element("div").classes("yt-grow")
+        picker.start_button()
+    picker.bar()
     with ui.element("div").classes("yt-row yt-filters"):
         words = (
             ui.input(placeholder="What was said? e.g. rein")
@@ -80,6 +92,7 @@ def search() -> None:
         segment(channels, _CHANNELS, "channel")
         segment(spans, _SPANS, "span")
         body.clear()
+        picker.clear_rows()
         found.set_text("")
         store = runtime.store
         if store is None:
@@ -108,7 +121,7 @@ def search() -> None:
                 ui.label("Nobody said that. Yet.").classes("yt-hint").mark("search-none")
                 return
             for hit in hits:
-                _result(hit)
+                picker.add(hit.message, _result(hit, picker))
         found.set_text(
             f"newest {SHOWN} shown" if len(hits) == SHOWN else count(len(hits), "yap", "yaps")
         )
@@ -126,17 +139,21 @@ def search() -> None:
     render()
 
 
-def _result(hit) -> None:
+def _result(hit, picker: LinePicker) -> ui.element:
+    """One found yap; a click opens its match, or picks it for a snap (#155)."""
     message = hit.message
     channel = message.channel if message.channel in _NAMES else "chat"
-    row = ui.element("div").classes(f"yt-line yt-line--{channel} yt-result").mark("search-hit")
-    if message.match_id is not None:
-        row.on(
-            "click",
-            lambda: ui.context.client.yt_show(
-                "sessions", session_id=hit.session_id, match_id=message.match_id
-            ),
-        )
+    row = ui.element("div").classes(f"yt-line yt-line--{channel} yt-result")
+    row.mark(f"search-hit hit-{message.id}")
+
+    def clicked(e) -> None:
+        if picker.clicked(message, bool((e.args or {}).get("shiftKey"))):
+            return
+        if message.match_id is not None:
+            ui.context.client.yt_show("sessions", session_id=hit.session_id,
+                                      match_id=message.match_id)  # fmt: skip
+
+    row.on("click", clicked, ["shiftKey"])
     with row:
         day = time.strftime("%a %b %d, %H:%M", time.localtime(message.ts)).replace(" 0", " ")
         ui.label(day).classes("yt-line-time yt-line-when")
@@ -148,3 +165,4 @@ def _result(hit) -> None:
         if hit.match_number:
             where = f"Match {hit.match_number}" + (f" on {hit.map.title()}" if hit.map else "")
             ui.label(where).classes("yt-meta yt-result-where")
+    return row

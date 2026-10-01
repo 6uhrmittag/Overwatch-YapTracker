@@ -87,7 +87,10 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
         if message.role == "crew":
             ui.label("crew").classes("yt-crew-badge")
         text = ui.html("", sanitize=False).classes("yt-line-text")
-    line.on("click", on_click or (lambda: show_picture(message)))  # how it looked (#120, #128)
+    if on_click:  # picking lines for a snap (#64): on_click(shift)
+        line.on("click", lambda e: on_click(bool((e.args or {}).get("shiftKey"))), ["shiftKey"])
+    else:
+        line.on("click", lambda: show_picture(message))  # how it looked (#120, #128)
     row = {"name": name, "text": text, "shown": None, "line": line}
     _fill_line(row, message)
     return row
