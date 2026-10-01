@@ -9,8 +9,10 @@ import time
 from nicegui import ui
 
 from yaptracker import runtime
+from yaptracker.snaps import MAX_LINES
 from yaptracker.ui.components import button, count, when
-from yaptracker.ui.views import _OUTCOMES, _WHY, chat_line
+from yaptracker.ui.snap_dialog import snap_dialog
+from yaptracker.ui.views import _OUTCOMES, _WHY, chat_line, show_picture
 
 _GAP_WHY = {**_WHY, "paused": "paused", "app_not_running": "YapTracker wasn't running"}
 
@@ -123,6 +125,7 @@ def _title(match, number: int) -> str:
 
 def _transcript(match, number: int, back) -> None:
     store = runtime.store
+    picking: dict = {"on": False, "picked": {}}  # message id -> message, while making a snap
     with ui.element("header").classes("yt-header"):
         button("\u2190 All matches", back, "quiet").mark("back-to-matches")
         ui.label(_title(match, number)).classes("yt-h1")
@@ -130,6 +133,47 @@ def _transcript(match, number: int, back) -> None:
             ui.label(_OUTCOMES.get(match.outcome, match.outcome)).classes(
                 f"yt-outcome yt-outcome--{match.outcome}"
             )
+        ui.element("div").classes("yt-grow")
+        start = button("Make a yap snap", lambda: pick(True), "quiet").mark("snap-start")
+    with ui.element("div").classes("yt-snap-bar yt-hidden").mark("snap-bar") as bar:
+        picked_text = ui.label().classes("yt-grow")
+        button("Cancel", lambda: pick(False), "quiet").mark("snap-cancel")
+        make = button("Make the snap", lambda: open_snap(), "primary").mark("snap-make")
+    rows: dict[int, dict] = {}
+
+    def pick(on: bool) -> None:
+        picking["on"] = on
+        for row in rows.values():
+            row["line"].classes(remove="yt-line--picked")
+        picking["picked"].clear()
+        bar.classes(**{"remove" if on else "add": "yt-hidden"})
+        start.classes(**{"add" if on else "remove": "yt-hidden"})
+        show_count()
+
+    def show_count() -> None:
+        n = len(picking["picked"])
+        picked_text.set_text(f"{n} of {MAX_LINES} picked: click the lines you want on the snap")
+        make.props(**{"add" if n == 0 else "remove": "disabled"})
+
+    def clicked(message) -> None:
+        if not picking["on"]:
+            show_picture(message)
+            return
+        picked, line = picking["picked"], rows[message.id]["line"]
+        if message.id in picked:
+            del picked[message.id]
+            line.classes(remove="yt-line--picked")
+        elif len(picked) < MAX_LINES:
+            picked[message.id] = message
+            line.classes(add="yt-line--picked")
+        show_count()
+
+    def open_snap() -> None:
+        chosen = sorted(picking["picked"].values(), key=lambda m: (m.ts, m.id))
+        day = time.strftime("%a %b %d, %Y", time.localtime(match.started_at)).replace(" 0", " ")
+        mode = f" \u00b7 {match.mode.title()}" if match.mode else ""
+        snap_dialog(chosen, f"{_title(match, number)}{mode} \u00b7 {day}")
+
     verdicts = {p.id: p.verdict for p in store.players()}
     messages = store.messages(match.id)
     gaps = store.gaps_between(match.started_at, _match_end(match))
@@ -147,4 +191,5 @@ def _transcript(match, number: int, back) -> None:
                         "yt-gap-line"
                     ).mark("gap-line")
                 else:
-                    chat_line(item, match.started_at, verdicts.get(item.player_id))
+                    rows[item.id] = chat_line(item, match.started_at, verdicts.get(item.player_id),
+                                              on_click=lambda m=item: clicked(m))  # fmt: skip

@@ -69,12 +69,16 @@ _OUTCOMES = {"victory": "won", "defeat": "lost", "draw": "draw"}
 _CHANNELS = {"team": "Team", "match": "Match", "group": "Group", "system": "System"}
 
 
-def chat_line(message, started_at: float | None, verdict: str | None = None) -> dict:
+def chat_line(message, started_at: float | None, verdict: str | None = None, on_click=None) -> dict:
     """One chat row (Live feed, transcripts #29): time in the match, channel, who (you for own
     lines, a crew tag for crew), text. Known players get their verdict colour (docs/ui.md)."""
     channel = message.channel if message.channel in _CHANNELS else "chat"
     known = f" yt-line--known yt-known--{verdict}" if verdict else ""
-    with ui.element("div").classes(f"yt-line yt-line--{channel}{known}").mark("chat-line") as line:
+    with (
+        ui.element("div")
+        .classes(f"yt-line yt-line--{channel}{known}")
+        .mark(f"chat-line line-{message.id}") as line
+    ):
         seconds = max(0, int(message.ts - started_at)) if started_at else 0
         ui.label(f"{seconds // 60}:{seconds % 60:02d}").classes("yt-line-time")
         ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
@@ -82,13 +86,13 @@ def chat_line(message, started_at: float | None, verdict: str | None = None) -> 
         if message.role == "crew":
             ui.label("crew").classes("yt-crew-badge")
         text = ui.html("", sanitize=False).classes("yt-line-text")
-    line.on("click", lambda: _show_picture(message))  # how the line looked (#120, #128)
-    row = {"name": name, "text": text, "shown": None}
+    line.on("click", on_click or (lambda: show_picture(message)))  # how it looked (#120, #128)
+    row = {"name": name, "text": text, "shown": None, "line": line}
     _fill_line(row, message)
     return row
 
 
-def _show_picture(message) -> None:
+def show_picture(message) -> None:
     """A click on a line: its picture (#120, #128) and the spicy switch (#77)."""
     message = runtime.store.message(message.id) if runtime.store else None
     if message is None:
