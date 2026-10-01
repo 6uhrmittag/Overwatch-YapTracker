@@ -148,6 +148,25 @@ class Store:
             (match_id, ts, channel, speaker_raw, hero, text, ocr_confidence, flagged, role),
         )
 
+    def update_message(
+        self,
+        message_id: int,
+        *,
+        channel: str,
+        text: str,
+        speaker_raw: str | None = None,
+        hero: str | None = None,
+        ocr_confidence: float | None = None,
+        flagged: str | None = None,
+        role: str | None = None,
+    ) -> None:
+        """A better reading of a stored line (#18); the full-text index follows by trigger."""
+        self._write(
+            "UPDATE chat_messages SET channel = ?, speaker_raw = ?, hero = ?, text = ?, "
+            "ocr_confidence = ?, flagged = ?, role = ? WHERE id = ?",
+            (channel, speaker_raw, hero, text, ocr_confidence, flagged, role, message_id),
+        )
+
     def messages(self, match_id: int) -> list[Message]:
         rows = self._read(
             f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE match_id = ? ORDER BY ts, id",
