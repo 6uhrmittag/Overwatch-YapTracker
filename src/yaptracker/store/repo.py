@@ -66,6 +66,18 @@ class MatchRow:
 
 
 @dataclass(frozen=True)
+class Hit:
+    """A search result (#30): the line, where it was said, and its text with the found words
+    between \x01 and \x02 (the view turns them into highlights)."""
+
+    message: Message
+    marked: str
+    session_id: int | None
+    match_number: int | None
+    map: str | None
+
+
+@dataclass(frozen=True)
 class Stats:
     messages: int
     sessions: int
@@ -82,6 +94,11 @@ _MESSAGE_COLUMNS = (
 def _fts_query(text: str) -> str:
     """Every word as a quoted FTS5 phrase, so user input can't break the query syntax."""
     return " ".join('"' + word.replace('"', '""') + '"' for word in text.split())
+
+
+def _fts_prefixes(text: str) -> str:
+    """Like _fts_query, but every word also finds longer ones: "rein" finds "reinhardt"."""
+    return " ".join(f"{word}*" for word in _fts_query(text).split())
 
 
 class Store:
@@ -398,6 +415,50 @@ class Store:
             (_fts_query(text), limit),
         )
         return [Message(*row) for row in rows]
+
+    def find(
+        self,
+        text: str,
+        *,
+        channel: str | None = None,
+        player_ids: list[int] | None = None,
+        since: float | None = None,
+        limit: int = 100,
+    ) -> list[Hit]:
+        """Search all chat (#30), newest first. Words match what was said and who said it, also
+        as the start of a longer word; empty text with a filter lists everything it lets through."""
+        where, params = [], []
+        if channel:
+            where.append("m.channel = ?")
+            params.append(channel)
+        if player_ids is not None:
+            where.append(f"m.player_id IN ({', '.join('?' * len(player_ids))})")
+            params.extend(player_ids)
+        if since is not None:
+            where.append("m.ts >= ?")
+            params.append(since)
+        columns = ", ".join(f"m.{c.strip()}" for c in _MESSAGE_COLUMNS.split(","))
+        place = (
+            "mt.session_id, (SELECT COUNT(*) FROM matches x WHERE x.session_id = mt.session_id "
+            "AND x.id <= mt.id), mt.map"
+        )
+        if text.strip():
+            source = "chat_fts JOIN chat_messages m ON m.id = chat_fts.rowid"
+            marked = "highlight(chat_fts, 0, char(1), char(2))"
+            where.insert(0, "chat_fts MATCH ?")
+            params.insert(0, _fts_prefixes(text))
+        elif where:
+            source, marked = "chat_messages m", "m.text"
+        else:
+            return []
+        rows = self._read(
+            f"SELECT {columns}, {marked}, {place} FROM {source} "
+            f"LEFT JOIN matches mt ON mt.id = m.match_id WHERE {' AND '.join(where)} "
+            "ORDER BY m.ts DESC, m.id DESC LIMIT ?",
+            (*params, limit),
+        )
+        n = len(_MESSAGE_COLUMNS.split(","))
+        return [Hit(Message(*row[:n]), *row[n:]) for row in rows]
 
     # Capture gaps (#75) -----------------------------------------------------------------------
 

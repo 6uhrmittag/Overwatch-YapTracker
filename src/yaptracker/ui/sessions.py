@@ -28,7 +28,8 @@ def _match_end(match) -> float:
     return match.ended_at or match.last_yap or match.started_at
 
 
-def sessions() -> None:
+def sessions(session_id: int | None = None, match_id: int | None = None) -> None:
+    """The list; with a session and match (a search result, #30) that transcript right away."""
     view = ui.element("div").classes("yt-view")
 
     def show_sessions() -> None:
@@ -46,7 +47,14 @@ def sessions() -> None:
         with view:
             _transcript(match, number, lambda: show_session(session))
 
-    show_sessions()
+    store = runtime.store
+    session = next((r for r in store.sessions() if r.id == session_id), None) if store else None
+    matches = store.session_matches(session_id) if session else []
+    number = next((n for n, m in enumerate(matches, start=1) if m.id == match_id), None)
+    if number is not None:
+        show_match(session, matches[number - 1], number)
+    else:
+        show_sessions()
 
 
 def _session_list(open_session) -> None:

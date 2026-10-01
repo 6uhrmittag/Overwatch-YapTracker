@@ -32,14 +32,6 @@ def _header(title: str) -> None:
         ui.label(title).classes("yt-h1")
 
 
-def _empty_card(title: str, hint: str) -> None:
-    with ui.element("section").classes("yt-card"):
-        with ui.element("div").classes("yt-card-head"):
-            ui.label(title).classes("yt-h2")
-        with ui.element("div").classes("yt-card-body"):
-            ui.label(hint).classes("yt-hint")
-
-
 # Why capture stopped, for the Live banner (#75). Orange heads-up, not a red alarm.
 _WHY = {
     "crash": "capture stopped",
@@ -382,11 +374,6 @@ def _live() -> None:
 
     ui.timer(1.0, refresh)
     refresh()
-
-
-def search() -> None:
-    _header("Search")
-    _empty_card("Nothing to search yet", "Every yap ever read will be findable here.")
 
 
 def settings() -> None:
