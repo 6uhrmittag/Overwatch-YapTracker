@@ -52,8 +52,12 @@ class FamiliarFaces:
                 return None
             self._seen[1].add(player_id)
         player = self._store.player(player_id)
-        if player is None or self._identity().role(player.display_name) is not None:
-            return None  # me, or my crew
+        if player is None:
+            return None
+        identity = self._identity()  # read now: names added later count for old players too
+        spellings = [player.display_name, *self._store.aliases(player_id)]
+        if any(identity.role(name) is not None for name in spellings):
+            return None  # me, or my crew, under any spelling I read (#168)
         matches, yaps, last_met, spicy = self._store.met_before(player_id, match_id)
         if matches == 0:
             return None  # first time you meet them: nothing to greet yet

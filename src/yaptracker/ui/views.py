@@ -174,6 +174,13 @@ def _live() -> None:
         pause_button.mark("pause")
     with ui.element("div").classes("yt-banner yt-hidden").mark("health") as health_banner:
         health_text = ui.label().classes("yt-grow")
+    with ui.element("div").classes("yt-banner yt-hidden").mark("no-name") as name_hint:
+        ui.label("I don't know your name yet, so I might greet you as a stranger.").classes(
+            "yt-grow"
+        )
+        button("Add my name", lambda: ui.context.client.yt_show("settings"), "quiet").mark(
+            "add-my-name"
+        )
     with ui.element("div").classes("yt-banner yt-hidden").mark("size-hint") as size_hint:
         size_text = ui.label().classes("yt-grow")
         button("Got it", lambda: size_checked(), "quiet").mark("size-ok")
@@ -359,6 +366,8 @@ def _live() -> None:
             health_banner.classes(remove="yt-hidden")
         else:
             health_banner.classes(add="yt-hidden")
+        # no own name: your own lines would greet you with "Look who's back!" (#168)
+        name_hint.classes(**{"add" if config.identity().me else "remove": "yt-hidden"})
         size = runtime.window_size
         check_size = bool(capturing and size and config.size_needs_check(*size))
         if check_size:

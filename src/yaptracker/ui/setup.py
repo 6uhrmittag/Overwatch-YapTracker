@@ -11,7 +11,7 @@ from nicegui import ui
 
 from yaptracker import autostart, config, runtime
 from yaptracker.ui.calibrate import calibrate
-from yaptracker.ui.components import button, stepper, switch
+from yaptracker.ui.components import button, set_button_label, stepper, switch
 from yaptracker.ui.crew import crew_card
 
 STEPS = ("Find Overwatch", "Draw the chat box", "Who are you?")
@@ -68,7 +68,7 @@ def _overwatch_status() -> tuple[bool, str, str]:
     return True, seen, "Borderless windowed, perfect. That's all I need."
 
 
-def setup_wizard(on_done: Callable[[], None]) -> None:
+def setup_wizard(on_done: Callable[[], None], start: int = 1) -> None:
     body = ui.element("div").classes("yt-view").mark("setup")
 
     def go(step: int) -> None:
@@ -115,8 +115,20 @@ def setup_wizard(on_done: Callable[[], None]) -> None:
                "\u201cLook who's back!\u201d.", 3)  # fmt: skip
         crew_card()
         startup_card()
+        with ui.element("div").classes("yt-banner yt-hidden").mark("no-name") as nudge:
+            ui.label("Add at least your own name, otherwise I'll greet you as a stranger.").classes(
+                "yt-grow"
+            )
         with ui.element("div").classes("yt-actions"):
             button("Back", lambda: go(2), "quiet")
-            button("All set - go play!", lambda: finish("done"), "primary").mark("setup-done")
+            done = button("All set - go play!", lambda: all_set(), "primary").mark("setup-done")
 
-    go(1)
+        def all_set() -> None:
+            """Without your own name, your own lines would get a "Look who's back!" (#168)."""
+            if config.identity().me or "yt-hidden" not in nudge.classes:
+                finish("done")
+                return
+            nudge.classes(remove="yt-hidden")
+            set_button_label(done, "Go play without my name")
+
+    go(start)

@@ -53,12 +53,15 @@ def crew_card() -> None:
             ).classes("yt-hint")
             lists = ui.element("div").classes("yt-crew-lists")
 
+    chips: dict[str, ui.element] = {}
+    fields: dict[str, ui.element] = {}
+
     def save() -> None:
         config.save_identity(names["me"], names["crew"])
         status.clear()
         with status:
             saved_chip()
-        render()
+        show_names()
 
     def add(key: str, value: str) -> None:
         name = value.strip()
@@ -71,33 +74,37 @@ def crew_card() -> None:
         names[key].remove(name)
         save()
 
-    def render() -> None:
-        lists.clear()
-        with lists:
-            for key, label, first, more, hint in _FIELDS:
-                with ui.element("div").classes("yt-crew-list"):
-                    ui.label(label).classes("yt-label")
-                    with ui.element("div").classes("yt-name-chips"):
-                        for name in names[key]:
-                            with ui.element("span").classes("yt-name-chip"):
-                                ui.label(name)
-                                _remove_button(name, lambda key=key, name=name: remove(key, name))
-                    with ui.element("div").classes("yt-row yt-crew-add"):
-                        field = ui.element("input").classes("yt-input yt-grow")
-                        field.props(f'type="text" placeholder="{more if names[key] else first}" '
-                                    f'aria-label="{label}"').mark(f"add-{key}")  # fmt: skip
+    def show_names() -> None:
+        """Only the chips change: the field stays as it is, focused, ready for the next name."""
+        for key, _, first, more, _ in _FIELDS:
+            chips[key].clear()
+            with chips[key]:
+                for name in names[key]:
+                    with ui.element("span").classes("yt-name-chip"):
+                        ui.label(name)
+                        _remove_button(name, lambda key=key, name=name: remove(key, name))
+            fields[key].props(f'placeholder="{more if names[key] else first}"')
 
-                        def take(e, key=key) -> None:
-                            add(key, e.args)
+    with lists:
+        for key, label, _, _, hint in _FIELDS:
+            with ui.element("div").classes("yt-crew-list"):
+                ui.label(label).classes("yt-label")
+                chips[key] = ui.element("div").classes("yt-name-chips")
+                with ui.element("div").classes("yt-row yt-crew-add"):
+                    field = ui.element("input").classes("yt-input yt-grow")
+                    field.props(f'type="text" aria-label="{label}"').mark(f"add-{key}")
+                    fields[key] = field
 
-                        field.on("keydown.enter", take, js_handler=_TAKE)
-                        field.on("blur", take, js_handler=_TAKE_TYPED)  # typed, then clicked away
-                        plus = ui.element("button").classes("yt-btn yt-btn--secondary")
-                        plus.props('type="button"').mark(f"add-{key}-button")
-                        with plus:
-                            ui.label("Add").classes("yt-btn-label")
-                        plus.on("click", take, js_handler=_TAKE_FIELD)
-                    if hint:
-                        ui.label(hint).classes("yt-hint")
+                    def take(e, key=key) -> None:
+                        add(key, e.args)
 
-    render()
+                    field.on("keydown.enter", take, js_handler=_TAKE)
+                    field.on("blur", take, js_handler=_TAKE_TYPED)  # typed, then clicked away
+                    plus = ui.element("button").classes("yt-btn yt-btn--secondary")
+                    plus.props('type="button"').mark(f"add-{key}-button")
+                    with plus:
+                        ui.label("Add").classes("yt-btn-label")
+                    plus.on("click", take, js_handler=_TAKE_FIELD)
+                if hint:
+                    ui.label(hint).classes("yt-hint")
+    show_names()

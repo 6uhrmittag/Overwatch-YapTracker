@@ -116,3 +116,13 @@ async def test_got_it_and_the_compact_nope_card(user: User, store, monkeypatch):
     user.find(marker="face-ok").click()
     await user.should_not_see(marker="face-ok")
     await user.should_see(marker="face-avoid")
+
+
+def test_never_a_card_for_me_or_crew_under_any_spelling_also_added_later(store):
+    """#168: the names were typed in after the players existed, and only an alias matches."""
+    void, now = met(store, "VoidCrowned", 3)  # read long before "Void" went into My crew
+    store.add_alias(void, "Void")
+    names = {"crew": ()}
+    faces = FamiliarFaces(store, lambda: Identity(crew=names["crew"]), clock=Clock())
+    names["crew"] = ("Void",)  # added in Settings now; FamiliarFaces reads it at every line
+    assert faces.heard(void, now) is None
