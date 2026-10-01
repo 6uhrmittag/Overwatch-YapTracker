@@ -21,7 +21,7 @@
 | `format`, `format_version` | `"yaptracker-export"`, `1` |
 | `exported_at` | when the export was made |
 | `app_version` | the YapTracker that made it, e.g. `0.4.160` |
-| `anonymized` | `false`: names are as read. `true`: every name is a pseudonym like `Player-7f3a` (the same in every file of this export, random per export), also inside the text; your notes and the other spellings are left out |
+| `anonymized` | `false`: names are as read. `true`: every name is a pseudonym like `Player-7f3a` (the same in every file of this export, random per export), also inside the text (as whole words, the names read in the same match); your notes and the other spellings are left out |
 | `sessions` | evenings of play, oldest first, each with its `matches` and their `messages` |
 | `messages_outside_matches` | chat read while no match was running (rare) |
 | `players` | everyone you met: verdict, notes, spellings, counts |
