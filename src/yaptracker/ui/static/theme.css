@@ -220,6 +220,10 @@ html, body { background: var(--yt-night); }
   .yt-line--picked { background: rgba(255,156,42,.16); box-shadow: inset 3px 0 0 var(--yt-accent); }
   .yt-snap { width: min(900px, 92vw); max-width: none !important; }
   .yt-snap-preview { width: 100%; border-radius: 12px; }
+  .yt-snap-looks { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px 0; border-top: 1px solid var(--yt-line); }
+  .yt-wrap { flex-wrap: wrap; }
+  .yt-snap-colour { width: 128px; }
+  .yt-snap-looks .yt-seg-item { white-space: nowrap; padding: 0 14px; }
   /* Search (#30) */
   .yt-search--who { min-width: 220px; }
   .yt-line-when { width: 128px; }

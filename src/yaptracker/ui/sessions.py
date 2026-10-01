@@ -172,7 +172,7 @@ def _transcript(match, number: int, back) -> None:
         chosen = sorted(picking["picked"].values(), key=lambda m: (m.ts, m.id))
         day = time.strftime("%a %b %d, %Y", time.localtime(match.started_at)).replace(" 0", " ")
         mode = f" \u00b7 {match.mode.title()}" if match.mode else ""
-        snap_dialog(chosen, f"{_title(match, number)}{mode} \u00b7 {day}")
+        snap_dialog(chosen, f"{_title(match, number)}{mode} \u00b7 {day}", match.started_at)
 
     verdicts = {p.id: p.verdict for p in store.players()}
     messages = store.messages(match.id)
