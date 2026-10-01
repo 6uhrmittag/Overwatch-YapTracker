@@ -17,8 +17,12 @@ import numpy as np
 BANDS = 10  # ~one chat line each for the default box (395 px high at 1440p)
 
 
-def text_mask(image: np.ndarray) -> np.ndarray:
+def text_mask(image: np.ndarray, scale: float | None = None) -> np.ndarray:
     """Boolean mask of chat-text pixels in a BGR chat-box image.
+
+    `scale`: the text size against 1440p (window height / 1440). Without it, the crop height
+    tells (the default box is 395 px at 1440p), which is wrong for the taller strip read
+    outside matches (#176).
 
     Text = thin bright strokes with a dark outline, in *letter-sized* blobs. Scene edges also
     make thin bright strokes, but as long lines, so blobs that aren't letter-sized are dropped.
@@ -36,7 +40,7 @@ def text_mask(image: np.ndarray) -> np.ndarray:
     )[1]
     strokes = cv2.bitwise_and(cv2.subtract(bright, wide), near_dark)
 
-    scale = image.shape[0] / 395  # the default chat box at 1440p is 395 px high
+    scale = scale or image.shape[0] / 395  # the default chat box at 1440p is 395 px high
     count, labels, stats, _ = cv2.connectedComponentsWithStats(strokes, connectivity=8)
     w, h, area = (
         stats[:, cv2.CC_STAT_WIDTH],
@@ -64,9 +68,9 @@ class ChangeDetector:
     _reference: np.ndarray | None = field(default=None, repr=False)
     _pending: np.ndarray | None = field(default=None, repr=False)
 
-    def update(self, image: np.ndarray) -> list[tuple[int, int]]:
+    def update(self, image: np.ndarray, scale: float | None = None) -> list[tuple[int, int]]:
         """Changed bands as (top, bottom) rows; empty list = unchanged, skip OCR."""
-        mask = text_mask(image)
+        mask = text_mask(image, scale)
         if self._reference is None or self._reference.shape != mask.shape:
             self._reference, self._pending = np.zeros_like(mask), None
         new = mask & ~_grow(self._reference)  # grown, so 1-2 px jitter isn't "new"

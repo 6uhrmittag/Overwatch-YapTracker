@@ -53,6 +53,8 @@ _NAMELESS_SYSTEM = (
     r"You left the group",
     r"You endorsed .+",
     r"\d+ friends? playing Overwatch",  # "1 friend playing Overwatch." (#101)
+    r"Endorsement Received",  # after a match, in the menu (#176)
+    r"\S+'s group wants to stay as a team",
 )
 _SYSTEM_PLAIN = re.compile(r"^(?:" + "|".join(_NAMELESS_SYSTEM) + ")")
 _INPUT = re.compile(r"^\[(Match|Team|Group)\](?!" + _COLON + ")")

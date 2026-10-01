@@ -230,6 +230,7 @@ html, body { background: var(--yt-night); }
   .yt-wrap { flex-wrap: wrap; }
   .yt-snap-colour { width: 128px; }
   .yt-snap-looks .yt-seg-item { white-space: nowrap; padding: 0 14px; }
+  .yt-end-line { border-style: solid; border-color: var(--yt-line-strong); color: var(--yt-muted); }  /* after the result (#176) */
   /* Search (#30) */
   .yt-search--who { min-width: 220px; }
   .yt-line-when { width: 128px; }
