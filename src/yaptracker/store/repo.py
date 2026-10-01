@@ -200,6 +200,15 @@ class Store:
         )
         return [Message(*row) for row in rows]
 
+    def met_before(self, player_id: int, match_id: int | None) -> tuple[int, int, float | None]:
+        """(matches, yaps, last time) with this player before the given match (#26)."""
+        (row,) = self._read(
+            "SELECT COUNT(DISTINCT match_id), COUNT(*), MAX(ts) FROM chat_messages "
+            "WHERE player_id = ? AND match_id IS NOT ?",
+            (player_id, match_id),
+        )
+        return row
+
     def set_notes(self, player_id: int, notes: str) -> None:
         self._write("UPDATE players SET notes = ? WHERE id = ?", (notes, player_id))
 

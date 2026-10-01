@@ -55,7 +55,7 @@ def root() -> None:
 
     buttons: dict[str, ui.element] = {}
 
-    def show(key: str) -> None:
+    def show(key: str, **kwargs) -> None:
         for view_key, button in buttons.items():
             if view_key == key:
                 button.classes(add="is-active").props('aria-current="page"')
@@ -63,7 +63,10 @@ def root() -> None:
                 button.classes(remove="is-active").props(remove="aria-current")
         content.clear()
         with content:
-            next(v for v in VIEWS if v.key == key).render()
+            next(v for v in VIEWS if v.key == key).render(**kwargs)
+
+    # Other views can switch views: a familiar-face card opens the profile (#26).
+    ui.context.client.yt_show = show
 
     with ui.element("div").classes("yt-app"):
         with ui.element("nav").classes("yt-rail").props('aria-label="Main"'):

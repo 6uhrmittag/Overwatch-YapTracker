@@ -7,9 +7,8 @@ from nicegui import ui
 from rapidfuzz import fuzz
 
 from yaptracker import config, runtime
-from yaptracker.ui.components import VERDICTS, sticker, when
+from yaptracker.ui.components import VERDICTS, count, sticker, when
 from yaptracker.ui.profile import profile
-from yaptracker.ui.views import count
 
 FOUND = 60  # rapidfuzz WRatio: typos and half names still find someone
 _FILTERS = {"all": "Everyone", **{k: label for k, (label, _) in VERDICTS.items()},
@@ -30,8 +29,9 @@ def matching(players: list, names: list[tuple[int, str]], query: str) -> list:
     return sorted(found, key=lambda p: -best[p.id])
 
 
-def yappers() -> None:
-    """The list; a click on someone opens their profile in its place (#25)."""
+def yappers(player_id: int | None = None) -> None:
+    """The list; a click on someone opens their profile in its place (#25). With a player id
+    (a familiar-face card, #26), their profile opens right away."""
     view = ui.element("div").classes("yt-view")
 
     def show_list() -> None:
@@ -44,7 +44,10 @@ def yappers() -> None:
         with view:
             profile(player_id, on_back=show_list)
 
-    show_list()
+    if player_id is not None:
+        open_profile(player_id)
+    else:
+        show_list()
 
 
 def _list(open_profile: Callable[[int], None]) -> None:

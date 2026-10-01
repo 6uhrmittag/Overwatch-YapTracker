@@ -137,3 +137,8 @@ def when(ts: float | None, now: float | None = None) -> str:
     if days < 7:
         return time.strftime("%A", day)
     return time.strftime("%b %d", day).replace(" 0", " ")
+
+
+def count(n: int, one: str, many: str) -> str:
+    """'1 match', '2 matches', '0 yaps'."""
+    return f"{n} {one if n == 1 else many}"

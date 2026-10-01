@@ -190,3 +190,17 @@ def test_every_line_belongs_to_a_player_except_mine(store):
             assert m.player_id is None
         else:
             assert names[m.player_id] == m.speaker_raw
+
+
+def test_a_friend_coming_online_is_no_familiar_face(store):
+    """#26: "[x] started playing Overwatch." is the friends list, not someone in the match."""
+    online, typed = BLACK.copy(), BLACK.copy()
+    reads = {id(online): [line("[gremlin.exe] started playing Overwatch.")],
+             id(typed): [line("[gremlin.exe] started playing Overwatch."),
+                         line("[gremlin.exe]: hi again", y=50)]}  # fmt: skip
+    heard = []
+    reader, _ = reader_for(store, reads, on_player=lambda player, match: heard.append(player))
+    reader.read_frame(1000.0, online)
+    assert heard == []
+    reader.read_frame(1001.0, typed)
+    assert len(heard) == 1
