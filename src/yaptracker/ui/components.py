@@ -1,5 +1,6 @@
 """Shared building blocks from the style kit (docs/ui/mockup/Kit.dc.html)."""
 
+import time
 from collections.abc import Callable, Sequence
 from typing import Literal
 
@@ -119,3 +120,20 @@ def switch(
 
     row.on("click", flip)
     return row
+
+
+def when(ts: float | None, now: float | None = None) -> str:
+    """'today', 'yesterday', 'Tuesday' within a week, else 'Sep 28'."""
+    if ts is None:
+        return "never"
+    now = time.time() if now is None else now
+    day, today = time.localtime(ts), time.localtime(now)
+    days = (time.mktime(today[:3] + (0, 0, 0, 0, 0, -1)) -
+            time.mktime(day[:3] + (0, 0, 0, 0, 0, -1))) // 86400  # fmt: skip
+    if days <= 0:
+        return "today"
+    if days == 1:
+        return "yesterday"
+    if days < 7:
+        return time.strftime("%A", day)
+    return time.strftime("%b %d", day).replace(" 0", " ")

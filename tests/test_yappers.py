@@ -8,7 +8,7 @@ from nicegui.testing import User, user_simulation
 from yaptracker import config, runtime
 from yaptracker.store.repo import Store
 from yaptracker.ui import shell
-from yaptracker.ui.yappers import when
+from yaptracker.ui.components import when
 
 NOW = time.time()
 
