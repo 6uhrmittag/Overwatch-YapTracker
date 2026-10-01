@@ -64,7 +64,7 @@ class ChatReader:
         self._players = players  # who said it (#23)
         self._on_player = on_player  # a familiar face may be back (#26)
         self._speakers: dict[int, tuple[str | None, int | None]] = {}  # yap id -> (speaker, player)
-        self._min_gap_s = min_gap_s
+        self.min_gap_s = min_gap_s  # Settings can change it while running (#152)
         self._last_read = -math.inf  # monotonic time of the last read's start
         self._dedup = Dedup()
         self._stored: dict[int, int] = {}  # yap id -> chat_messages id
@@ -102,7 +102,7 @@ class ChatReader:
                 if self._pending is None:  # stopping, and the last frame is done
                     return
                 # Too soon after the last read: wait, newer frames replace the pending one.
-                wait = self._last_read + self._min_gap_s - time.monotonic()
+                wait = self._last_read + self.min_gap_s - time.monotonic()
                 if wait > 0 and not self._stop:
                     self._wake.wait(wait)
                     continue

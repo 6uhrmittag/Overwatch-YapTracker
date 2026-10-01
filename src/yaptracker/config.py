@@ -111,6 +111,21 @@ def save_ocr_engine(name: str, path: Path | None = None) -> None:
     _save(path, data)
 
 
+READ_GAPS = (1.5, 3.0)  # seconds between two reads of the chat box (#138, #152)
+
+
+def read_every_s(path: Path | None = None) -> float:
+    chosen = _load(path or paths.config_file()).get("read_every_s", READ_GAPS[0])
+    return chosen if chosen in READ_GAPS else READ_GAPS[0]
+
+
+def save_read_every_s(seconds: float, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["read_every_s"] = seconds
+    _save(path, data)
+
+
 HOTKEYS = {
     "pause": "Ctrl+Alt+P",  # auto-resumes at the next match
     "new_match": "Ctrl+Alt+M",  # manual override only; matches split themselves (#21)

@@ -61,6 +61,10 @@ class DailyBackup:
         backups = daily_backups(self._folder)
         if (backups and backups[0][0] >= self._today()) or self._busy():
             return None
+        return self.now()
+
+    def now(self) -> Path:
+        """Back up now (#152): today's backup, made again if there is one already."""
         self._folder.mkdir(parents=True, exist_ok=True)
         target = self._folder / f"yaptracker-{self._today().isoformat()}.db"
         started = time.perf_counter()
