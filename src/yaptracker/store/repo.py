@@ -38,6 +38,7 @@ class PlayerRow:
     matches: int
     yaps: int
     spicy: int = 0  # flagged lines: [Report] by Overwatch or marked by you (#77)
+    callouts: int = 0  # comms-wheel lines ("Enemy Sombra!"): not counted as yaps (#182)
 
 
 @dataclass(frozen=True)
@@ -252,7 +253,9 @@ class Store:
         """Every player with how often you met them and how much they said."""
         rows = self._read(
             "SELECT p.id, p.display_name, p.verdict, p.notes, p.first_seen, p.last_seen, "
-            "COUNT(DISTINCT c.match_id), COUNT(c.id), COUNT(c.flagged) "
+            # yaps are typed lines; comms-wheel callouts (the lines with a hero) apart (#182)
+            "COUNT(DISTINCT c.match_id), COUNT(c.id) - COUNT(c.hero), COUNT(c.flagged), "
+            "COUNT(c.hero) "
             "FROM players p LEFT JOIN chat_messages c ON c.player_id = p.id GROUP BY p.id"
         )
         return [PlayerRow(*row) for row in rows]
@@ -267,21 +270,33 @@ class Store:
         )
         return [alias for (alias,) in rows]
 
-    def player_messages(self, player_id: int) -> list[Message]:
-        """Everything they said, newest first (the profile groups it by match, #25)."""
+    def player_messages(self, player_id: int, callouts: bool = False) -> list[Message]:
+        """What they typed, newest first (the profile groups it by match, #25); with
+        `callouts`, their comms-wheel lines too (#182)."""
+        typed = "" if callouts else " AND hero IS NULL"
         rows = self._read(
-            f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE player_id = ? "
+            f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE player_id = ?{typed} "
             "ORDER BY ts DESC, id DESC",
             (player_id,),
         )
         return [Message(*row) for row in rows]
 
+    def player_heroes(self, player_id: int) -> list[str]:
+        """The heroes their callouts named, most used first ("Seen as Kiriko, Lucio", #182)."""
+        rows = self._read(
+            "SELECT hero FROM chat_messages WHERE player_id = ? AND hero IS NOT NULL "
+            "GROUP BY hero ORDER BY COUNT(*) DESC, hero",
+            (player_id,),
+        )
+        return [hero for (hero,) in rows]
+
     def met_before(
         self, player_id: int, match_id: int | None
     ) -> tuple[int, int, float | None, int]:
-        """(matches, yaps, last time, spicy yaps) with this player before the given match."""
+        """(matches, yaps, last time, spicy yaps) with this player before the given match.
+        Callouts count for the matches (they were there), not as yaps (#182)."""
         (row,) = self._read(
-            "SELECT COUNT(DISTINCT match_id), COUNT(*), MAX(ts), COUNT(flagged) "
+            "SELECT COUNT(DISTINCT match_id), COUNT(*) - COUNT(hero), MAX(ts), COUNT(flagged) "
             "FROM chat_messages WHERE player_id = ? AND match_id IS NOT ?",
             (player_id, match_id),
         )
@@ -431,10 +446,12 @@ class Store:
         channel: str | None = None,
         player_ids: list[int] | None = None,
         since: float | None = None,
+        callouts: bool = False,
         limit: int = 100,
     ) -> list[Hit]:
         """Search all chat (#30), newest first. Words match what was said and who said it, also
-        as the start of a longer word; empty text with a filter lists everything it lets through."""
+        as the start of a longer word; empty text with a filter lists everything it lets through.
+        Typed lines only, unless `callouts` (comms-wheel lines, #182)."""
         where, params = [], []
         if channel:
             where.append("m.channel = ?")
@@ -459,6 +476,8 @@ class Store:
             source, marked = "chat_messages m", "m.text"
         else:
             return []
+        if not callouts:
+            where.append("m.hero IS NULL")
         rows = self._read(
             f"SELECT {columns}, {marked}, {place} FROM {source} "
             f"LEFT JOIN matches mt ON mt.id = m.match_id WHERE {' AND '.join(where)} "

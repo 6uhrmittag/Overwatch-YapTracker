@@ -88,7 +88,9 @@ class MatchTracker:
             elif ended is not None:
                 if ts - (ended if last is None else max(last, ended)) >= AFTER_END_GAP_S:
                     self._start_match(ts, "endscreen")
-            elif last is not None and ts - last >= QUIET_GAP_S:
+            elif last is not None and ts - max(last, self.match_started_at) >= QUIET_GAP_S:
+                # quiet since the match started, not since old chat: hero select can start a
+                # match long after the last line of the one before
                 self._start_match(ts, "gap")
             self._last_chat = ts
 

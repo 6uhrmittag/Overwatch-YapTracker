@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 websockets = pytest.importorskip("websockets")
-BROWSER = next((b for b in ("chromium", "chromium-browser", "google-chrome") if shutil.which(b)),
+BROWSER = next((b for b in ("google-chrome", "chromium", "chromium-browser") if shutil.which(b)),
                None)  # fmt: skip
 pytestmark = pytest.mark.skipif(BROWSER is None, reason="no Chromium/Chrome installed")
 SRC = Path(__file__).parents[1] / "src"
@@ -96,8 +96,8 @@ class Page:
     async def call(self, method: str, **params):
         self.n += 1
         await self.ws.send(json.dumps({"id": self.n, "method": method, "params": params}))
-        while True:
-            message = json.loads(await self.ws.recv())
+        while True:  # never hang a test run: a stuck browser fails it instead
+            message = json.loads(await asyncio.wait_for(self.ws.recv(), 20))
             if message.get("id") == self.n:
                 return message.get("result", {})
 
@@ -145,16 +145,29 @@ async def until(check, seconds: float = 10) -> None:
         await asyncio.sleep(0.1)
 
 
-async def browse(steps) -> None:
-    port = free_port()
-    # No --user-data-dir: snap's Chromium can't reach pytest's /tmp folders.
-    browser = subprocess.Popen(
-        [BROWSER, "--headless=new", "--no-sandbox", "--disable-gpu",
-         f"--remote-debugging-port={port}", "--window-size=1280,900", "about:blank"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )  # fmt: skip
+def profile_folder(tmp_path: Path) -> Path:
+    """A fresh browser profile: a second Chrome on a shared one can hand off and never answer.
+    Snap's Chromium may only write below ~/snap/chromium, not to pytest's /tmp folders."""
+    if BROWSER != "google-chrome" and (Path.home() / "snap" / "chromium").exists():
+        return Path.home() / "snap" / "chromium" / "common" / f"yaptracker-test-{tmp_path.name}"
+    return tmp_path / "browser"
+
+
+async def browse(steps, tmp_path: Path) -> None:
+    port, profile = free_port(), profile_folder(tmp_path)
+    log = tmp_path / "browser.log"
+    with log.open("wb") as out:
+        browser = subprocess.Popen(
+            [BROWSER, "--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run",
+             f"--user-data-dir={profile}", f"--remote-debugging-port={port}",
+             "--window-size=1280,900", "about:blank"],
+            stdout=out, stderr=subprocess.STDOUT,
+        )  # fmt: skip
     try:
-        wait_for(f"http://127.0.0.1:{port}/json/version")
+        try:
+            wait_for(f"http://127.0.0.1:{port}/json/version", seconds=60)
+        except OSError as error:
+            raise AssertionError(f"{BROWSER} didn't start: {log.read_text()[-2000:]}") from error
         tabs = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json"))
         url = next(t for t in tabs if t["type"] == "page")["webSocketDebuggerUrl"]
         async with websockets.connect(url, max_size=None) as ws:
@@ -162,6 +175,7 @@ async def browse(steps) -> None:
     finally:
         browser.kill()
         browser.wait(10)
+        shutil.rmtree(profile, ignore_errors=True)
 
 
 def test_names_typed_in_a_real_browser_are_saved_and_survive_a_restart(tmp_path):
@@ -189,14 +203,17 @@ def test_names_typed_in_a_real_browser_are_saved_and_survive_a_restart(tmp_path)
         text = await page.text()
         assert all(name in text for name in ("Void", "Mossyfox", "Bapricot", "Marv#2718"))
 
-    app.start()
-    try:
-        asyncio.run(browse(steps))
-    finally:
+    async def both(page: Page) -> None:
+        # One browser for both halves: a second Chrome on the same default profile can hand
+        # off to the killed one and never open its debugging port.
+        await steps(page)
         app.stop()
+        app.start()
+        await after_restart(page)
+
     app.start()
     try:
-        asyncio.run(browse(after_restart))
+        asyncio.run(browse(both, tmp_path))
     finally:
         app.stop()
     assert app.saved()["crew"] == ["Void", "Mossyfox", "Bapricot"]  # each once, in order

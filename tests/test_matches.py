@@ -164,3 +164,16 @@ def test_hero_select_after_a_long_chat_match_is_the_next_match(store):
     play(tracker, T0, 600, chat_every=30)
     tracker.new_match(T0 + 600, source="heroselect", mode="UNRANKED", map_name="EICHENWALDE")
     assert [m[3] for m in matches(store)] == ["gap", "heroselect"]
+
+
+def test_hero_select_long_after_the_last_chat_keeps_its_first_chat(store):
+    """#181: 20:43 last chat, 20:47 hero select, 20:48 first chat: still the same match."""
+    tracker = MatchTracker(store, Pause())
+    play(tracker, T0, 60, chat_every=20)  # the match before, chatting
+    tracker.end_match(T0 + 60, "victory")
+    play(tracker, T0 + 60, 240)  # menu and queue: nobody types
+    tracker.new_match(T0 + 300, source="heroselect", mode="UNRANKED", map_name="ESPERANÇA")
+    play(tracker, T0 + 300, QUIET_GAP_S - 200)
+    tracker.chat_changed(T0 + 300 + 75)  # > 5 min after the last chat, 75 s into the match
+    tracker.chat_changed(T0 + QUIET_GAP_S + 200)
+    assert [m[3] for m in matches(store)] == ["gap", "heroselect"]

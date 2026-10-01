@@ -200,6 +200,8 @@ html, body { background: var(--yt-night); }
   .yt-profile-yaps { width: 420px; flex-shrink: 0; overflow-y: auto; }
   .yt-match-title { margin-top: 10px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--yt-muted); }
   .yt-their-yap { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; border-radius: 10px; background: var(--yt-panel-inset); }
+  .yt-their-yaps { display: flex; flex-direction: column; gap: 8px; }
+  .yt-their-yap--callout { opacity: .6; font-size: 14px; }  /* comms wheel (#182) */
 
   /* Familiar faces (#26, Live mockup): impossible to miss on a second monitor */
   .yt-faces { display: flex; flex-direction: column; gap: 14px; }
