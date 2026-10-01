@@ -14,7 +14,7 @@ permissions:
 
 env:
   # v0.<milestone>.<run_number> - bump when a milestone is closed.
-  MILESTONE: "2"
+  MILESTONE: "3"
 
 jobs:
   test:
