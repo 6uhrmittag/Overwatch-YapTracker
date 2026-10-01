@@ -6,7 +6,7 @@ import numpy as np
 from nicegui import ui
 from PIL import Image
 
-from yaptracker import __version__, autostart, config, paths, runtime
+from yaptracker import __version__, autostart, config, logs, paths, runtime
 from yaptracker.capture.watcher import fps
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import button, saved_chip, set_button_label, switch
@@ -258,6 +258,10 @@ def settings() -> None:
             with ui.element("section").classes("yt-card").mark("data"):
                 with ui.element("div").classes("yt-card-head"):
                     ui.label("Your data").classes("yt-h2")
+                    ui.element("div").classes("yt-grow")
+                    open_logs = button("Open logs", logs.open_folder).mark("open-logs")
+                    if not logs.folder_opens():
+                        open_logs.props('disabled title="Opens Explorer, so only on Windows"')
                 with ui.element("div").classes("yt-card-body"):
                     ui.label(str(paths.data_dir())).classes("yt-meta yt-mono")
                     if runtime.store is not None:

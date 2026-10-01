@@ -6,6 +6,7 @@ window's child process gets its own small window.log, new at every start, becaus
 can't rotate a file that another process holds open.
 """
 
+import io
 import logging
 import multiprocessing.spawn
 import os
@@ -19,10 +20,13 @@ BACKUPS = 4  # yaptracker.log + .1 ... .4 = 5 files
 FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 
 
-class ToLog:
+class ToLog(io.TextIOBase):
     """Stands in for the missing console: every complete line goes to a logger."""
 
+    encoding = "utf-8"
+
     def __init__(self, logger: logging.Logger, level: int) -> None:
+        super().__init__()
         self._logger, self._level = logger, level
         self._partial = ""
         self._busy = False
@@ -40,11 +44,8 @@ class ToLog:
             self._busy = False
         return len(text)
 
-    def flush(self) -> None:
-        pass
-
-    def isatty(self) -> bool:
-        return False
+    def writable(self) -> bool:
+        return True
 
 
 def setup(argv: list[str] | None = None) -> None:
