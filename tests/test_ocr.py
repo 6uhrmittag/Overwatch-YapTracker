@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -31,6 +33,26 @@ def test_rapidocr_reads_the_demo_chat():
     assert len(lines) == 6
     assert "wahoo guy again" in lines[1].text
     assert all(a.box.y < b.box.y for a, b in zip(lines, lines[1:], strict=False))
+
+
+def test_rapidocr_reads_german_umlauts_and_still_reads_english():
+    """#118: the default model turned this into "Schone GruBe"; the Latin one has the letters."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    fonts = Path(__file__).parents[1] / "src" / "yaptracker" / "ui" / "static" / "fonts"
+    font = ImageFont.truetype(str(fonts / "nunito-sans-latin.woff2"), 22)  # has the umlauts
+    img = Image.new("RGB", (615, 120), (40, 44, 52))
+    draw = ImageDraw.Draw(img)
+    for y, colour, text in [
+        (20, (255, 174, 77), "[Björn]: Schöne Grüße an alle, gg!"),
+        (60, (124, 227, 139), "[NoodleBonk]: not the wahoo guy again"),
+    ]:
+        draw.text((14, y), text, fill=colour, font=font, stroke_width=2, stroke_fill=(10, 10, 10))
+    lines = ocr.get("rapidocr").read(np.ascontiguousarray(np.asarray(img)[:, :, ::-1]))
+    assert [line.text for line in lines] == [
+        "[Björn]: Schöne Grüße an alle, gg!",
+        "[NoodleBonk]: not the wahoo guy again",
+    ]
 
 
 def test_engine_setting_falls_back_when_the_engine_cant_run_here(tmp_path, monkeypatch):

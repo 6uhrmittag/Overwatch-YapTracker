@@ -9,8 +9,9 @@
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File ocr_spike_winocr.ps1 -Dir C:\Temp\crops -Scale 2 > winocr-2x.txt
+    -Lang de-DE picks the German recognizer (#118); default: English if installed.
 #>
-param([string]$Dir, [int]$Scale = 1)
+param([string]$Dir, [int]$Scale = 1, [string]$Lang = '')
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime]
@@ -20,7 +21,7 @@ $asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
 function Await($op, [Type]$t) { $task = $asTask.MakeGenericMethod($t).Invoke($null, @($op)); $task.Wait(-1) | Out-Null; $task.Result }
 $langs = [Windows.Media.Ocr.OcrEngine]::AvailableRecognizerLanguages | ForEach-Object { $_.LanguageTag }
 Write-Output ("LANGS " + ($langs -join ','))
-$lang = if ($langs -contains 'en-US') { 'en-US' } elseif ($langs -contains 'en-GB') { 'en-GB' } else { $langs[0] }
+$lang = if ($Lang) { $Lang } elseif ($langs -contains 'en-US') { 'en-US' } elseif ($langs -contains 'en-GB') { 'en-GB' } else { $langs[0] }
 $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage([Windows.Globalization.Language]::new($lang))
 Write-Output "USING $lang"
 Get-ChildItem $Dir -Filter *.png | Sort-Object Name | ForEach-Object {
