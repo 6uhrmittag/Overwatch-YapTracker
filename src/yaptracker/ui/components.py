@@ -54,6 +54,38 @@ def stepper(steps: Sequence[str], current: int) -> None:
                 item.props('aria-current="step"')
 
 
+# Verdict stickers (docs/ui.md): stored value -> label and icon (Kit mockup). Colours in CSS.
+_HEART = (
+    '<path d="M12 21s-7.5-4.6-9.5-9.3C1 8.1 3.3 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 '
+    '3.7 0 6 3.6 4.5 7.2C19.5 16.4 12 21 12 21z" fill="currentColor" stroke="none"/>'
+)
+_STAR = (
+    '<path d="M12 2l2.6 6.3L21 9l-5 4.3L17.6 20 12 16.6 6.4 20 8 13.3 3 9l6.4-.7z" '
+    'fill="currentColor" stroke="none"/>'
+)
+_FLAT = '<circle cx="12" cy="12" r="8.5"/><path d="M8.5 15h7M9 9.5h.01M15 9.5h.01"/>'
+_NO_ENTRY = '<circle cx="12" cy="12" r="8.5"/><path d="M6 18L18 6"/>'
+VERDICTS = {
+    "friend": ("Bestie", _HEART),
+    "fun": ("Fun", _STAR),
+    "neutral": ("Meh", _FLAT),
+    "avoid": ("Nope", _NO_ENTRY),
+}
+
+
+def sticker(verdict: str) -> ui.element:
+    """A tilted verdict sticker: Bestie / Fun / Meh / Nope."""
+    label, icon = VERDICTS[verdict]
+    with ui.element("span").classes(f"yt-sticker yt-sticker--{verdict}") as element:
+        ui.html(
+            f'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+            f'stroke-width="2.6" stroke-linecap="round" aria-hidden="true">{icon}</svg>',
+            sanitize=False,
+        )
+        ui.label(label)
+    return element
+
+
 def saved_chip() -> None:
     with ui.element("span").classes("yt-chip yt-chip--ok"):
         ui.html(CHECK, sanitize=False)

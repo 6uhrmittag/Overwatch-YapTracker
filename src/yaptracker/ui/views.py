@@ -325,11 +325,6 @@ def _live() -> None:
     refresh()
 
 
-def yappers() -> None:
-    _header("Yappers")
-    _empty_card("Nobody yet", "Play a match and the people who yap will show up here.")
-
-
 def sessions() -> None:
     _header("Sessions")
     _empty_card("No sessions yet", "Every evening of play lands here, match by match.")

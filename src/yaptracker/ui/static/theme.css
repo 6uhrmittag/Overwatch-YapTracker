@@ -145,6 +145,22 @@ html, body { background: var(--yt-night); }
   .yt-step--current .yt-step-dot { background: var(--yt-accent); border-color: var(--yt-accent); color: var(--yt-ground); }
   .yt-step-line { width: 28px; height: 2px; background: var(--yt-line-strong); }
 
+  /* Verdict stickers (docs/ui.md): pill, 2 px ink border, uppercase 800, hard shadow, tilted */
+  .yt-sticker { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 9px; border-radius: 999px; border: 2px solid currentColor; font-weight: 800; font-size: 14px; font-style: normal; text-transform: uppercase; box-shadow: 0 3px 0 rgba(0,0,0,.45); }
+  .yt-sticker--friend { background: #ffc83d; color: #2a1d00; transform: rotate(-5deg); }
+  .yt-sticker--fun { background: #b98cff; color: #1d0b3a; transform: rotate(3deg); }
+  .yt-sticker--neutral { background: #7d8699; color: #12151c; transform: rotate(-2deg); }
+  .yt-sticker--avoid { background: #ff5c66; color: #2b0508; transform: rotate(4deg); }
+
+  /* Yappers (#24) */
+  .yt-search { min-width: 320px; padding: 2px 14px; border-radius: 14px; background: var(--yt-panel-inset); border: 1px solid var(--yt-line-strong); }
+  .yt-filters { flex-wrap: wrap; }
+  .yt-filters .yt-seg { flex-shrink: 0; }
+  .yt-filters .yt-seg-item { white-space: nowrap; padding-left: 14px; padding-right: 14px; }
+  .yt-yapper { display: flex; align-items: center; gap: 14px; padding: 12px 6px; border-bottom: 1px solid var(--yt-line); }
+  .yt-yapper:last-child { border-bottom: 0; }
+  .yt-yapper-name { font: 800 italic 22px var(--yt-display); text-transform: uppercase; }
+
   /* Orange banner for things worth a look, e.g. a new window size (#84) */
   .yt-banner { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px; background: #2e2210; border: 1px solid #5c4216; color: var(--yt-text); font-size: 15px; font-weight: 700; }
 
