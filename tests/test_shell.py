@@ -364,3 +364,17 @@ async def test_live_streams_the_chat_of_this_match(user: User, monkeypatch, tmp_
     await user.should_see("0 yaps · 0 yappers", retries=50)
     await user.should_not_see("WAHOOOO")
     store.close()
+
+
+async def test_settings_shows_the_last_daily_backup(user: User):
+    from yaptracker import paths
+
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see("No daily backup yet")
+    paths.backup_dir().mkdir(parents=True, exist_ok=True)
+    (paths.backup_dir() / "yaptracker-2026-10-01.db").write_bytes(b"x")  # written just now
+    user.find(marker="nav-live").click()
+    user.find(marker="nav-settings").click()
+    await user.should_see("Last backup: today")
+    await user.should_see("· 1 kept")

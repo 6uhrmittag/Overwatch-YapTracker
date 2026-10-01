@@ -40,6 +40,10 @@ The app goes to `%LOCALAPPDATA%\YapTracker\app` and is replaced on every update.
 
 Setup, calibration and hotkeys will be documented here for v1.0.
 
+### Backups and restoring
+
+YapTracker copies its database once a day (never during a match) to `%LOCALAPPDATA%\YapTracker\data\backups\yaptracker-<date>.db` and keeps the last 7 days plus one per week for 4 weeks; Settings → Your data → **Open backups** shows them. To restore one: close YapTracker, copy the backup over `%LOCALAPPDATA%\YapTracker\data\yaptracker.db` (keep the old file somewhere first, just in case), start YapTracker again.
+
 ## Privacy
 
 Chat logs contain other players' names and messages. They are stored only on your
