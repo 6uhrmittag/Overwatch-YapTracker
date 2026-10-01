@@ -96,8 +96,8 @@ class Page:
     async def call(self, method: str, **params):
         self.n += 1
         await self.ws.send(json.dumps({"id": self.n, "method": method, "params": params}))
-        while True:
-            message = json.loads(await self.ws.recv())
+        while True:  # never hang a test run: a stuck browser fails it instead
+            message = json.loads(await asyncio.wait_for(self.ws.recv(), 20))
             if message.get("id") == self.n:
                 return message.get("result", {})
 
@@ -189,14 +189,17 @@ def test_names_typed_in_a_real_browser_are_saved_and_survive_a_restart(tmp_path)
         text = await page.text()
         assert all(name in text for name in ("Void", "Mossyfox", "Bapricot", "Marv#2718"))
 
-    app.start()
-    try:
-        asyncio.run(browse(steps))
-    finally:
+    async def both(page: Page) -> None:
+        # One browser for both halves: a second Chrome on the same default profile can hand
+        # off to the killed one and never open its debugging port.
+        await steps(page)
         app.stop()
+        app.start()
+        await after_restart(page)
+
     app.start()
     try:
-        asyncio.run(browse(after_restart))
+        asyncio.run(browse(both))
     finally:
         app.stop()
     assert app.saved()["crew"] == ["Void", "Mossyfox", "Bapricot"]  # each once, in order
