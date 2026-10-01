@@ -8,7 +8,7 @@ Shapes seen on real 2560x1440 screenshots (brackets wrap the name, not the chann
   Name (Hero) to Other (Hero): text
   Name (Hero) wants to stop the robot!  ... without a colon
   [Name] started playing Overwatch.     system (bracketed name, no colon)
-  You have joined a group!              system without a name
+  You have joined a group!              system without a name (_NAMELESS_SYSTEM)
   [Match] ...                           input line of the open chat box -> ignored
 Long messages wrap onto a closer-spaced line without icon; those are joined.
 """
@@ -31,9 +31,16 @@ _COMMS = re.compile(
 )
 _COMMS_START = re.compile(r"^[^\s\[\]()]+\s*\([^)]+\)")
 _SYSTEM_NAMED = re.compile(r"^\[(?P<name>[^\]]+)\]\s+(?P<text>[^:：\s].*)$")
-_SYSTEM_PLAIN = re.compile(
-    r"^You (have joined a group|have left the group|left the group|endorsed .+)"
+# System lines without a [Name] (yellow i icon). Each is how a line starts; add new ones here as
+# the debug samples (#63) show them.
+_NAMELESS_SYSTEM = (
+    r"You have joined a group",
+    r"You have left the group",
+    r"You left the group",
+    r"You endorsed .+",
+    r"\d+ friends? playing Overwatch",  # "1 friend playing Overwatch." (#101)
 )
+_SYSTEM_PLAIN = re.compile(r"^(?:" + "|".join(_NAMELESS_SYSTEM) + ")")
 _INPUT = re.compile(r"^\[(Match|Team|Group)\](?!" + _COLON + ")")
 _REPORT = re.compile(r"\s*\[Report\]\s*$")
 
