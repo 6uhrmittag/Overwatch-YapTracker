@@ -2,8 +2,8 @@
 
 data\\lines\\<yyyy-mm>\\<message id>.webp, lossless and in colour, cut from the very frame the
 stored reading came from. Lossless WebP rather than PNG: real lines with the game behind them
-are ~8 kB instead of ~11 kB (measured, #120). OCR can't spell a heart; the picture still shows it. Local only, like
-the database. At most 2 GB by default: the oldest months go first.
+are ~8 kB instead of ~11 kB (measured, #120). OCR can't spell a heart; the picture still
+shows it. Local only, like the database. At most 2 GB by default: the oldest months go first.
 """
 
 import shutil

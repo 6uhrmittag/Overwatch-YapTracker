@@ -50,12 +50,14 @@ class ChatReader:
         clock: Callable[[], float] = time.time,
         on_read: Callable[..., object] = lambda ts, image, ocr, lines, new: None,
         min_gap_s: float = MIN_GAP_S,
+        pictures=None,
     ) -> None:
         self._read, self._store, self._matches = read, store, matches
         self._identity, self._colours, self._paused, self._clock = (
             identity, colours, paused, clock
         )  # fmt: skip
         self._on_read = on_read  # debug samples of hard chat moments (#110)
+        self._pictures = pictures  # the picture of every stored line (#120)
         self._min_gap_s = min_gap_s
         self._last_read = -math.inf  # monotonic time of the last read's start
         self._dedup = Dedup()
@@ -120,12 +122,19 @@ class ChatReader:
             self._stored[yap.id] = self._store.add_message(
                 ts=ts, match_id=self._matches.match_id, **_fields(yap.best)
             )
+            self._keep_picture(yap, image)
         for yap in improved:
             if yap.id in self._stored:
                 self._store.update_message(self._stored[yap.id], **_fields(yap.best))
+                if yap.best is yap.last:  # read better in this very frame: its picture, too
+                    self._keep_picture(yap, image)
         self._count(time.thread_time() - started)
         self._on_read(ts, image, ocr, lines, new)
         return new
+
+    def _keep_picture(self, yap: Yap, image: np.ndarray) -> None:
+        if self._pictures is not None:
+            self._pictures.save(self._stored[yap.id], yap.first_seen, image, yap.last.box)
 
     def _count(self, spent: float) -> None:
         self.read_frames += 1

@@ -379,7 +379,7 @@ def settings() -> None:
                     ).mark("pictures-switch")
                     pictures = runtime.pictures.size_bytes() / 1_000_000 if runtime.pictures else 0
                     ui.label(
-                        f"Line pictures: {pictures:.0f} MB, 2 GB at most. Each chat line as it "
+                        f"Line pictures: {pictures:.1f} MB, 2 GB at most. Each chat line as it "
                         "looked, so hearts and icons OCR can't spell are kept."
                     ).classes("yt-meta").mark("pictures-size")
                     ui.label(

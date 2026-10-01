@@ -193,6 +193,7 @@ def _open_store() -> Callable[[], None]:
     """
     from yaptracker.capture.health import CaptureHealth
     from yaptracker.debug import DebugSamples
+    from yaptracker.lines import LinePictures
     from yaptracker.matches import MatchTracker
     from yaptracker.ocr import engine as ocr
     from yaptracker.reader import ChatReader
@@ -206,6 +207,8 @@ def _open_store() -> Callable[[], None]:
     def open_store() -> None:
         runtime.debug = DebugSamples(paths.debug_dir(), config.debug_samples)
         runtime.debug.clean_up()  # 14 days / 1 GB, also after a long break
+        runtime.pictures = LinePictures(paths.lines_dir(), config.line_pictures)
+        runtime.pictures.clean_up()  # 2 GB, oldest months first
         runtime.store = Store.open()
         runtime.backups = DailyBackup(
             runtime.store.backup_to,
@@ -223,6 +226,7 @@ def _open_store() -> Callable[[], None]:
             colours=config.channel_colours,
             paused=lambda: runtime.pause.paused,
             on_read=runtime.debug.chat_read,
+            pictures=runtime.pictures,
         )
         runtime.reader.start()
 
