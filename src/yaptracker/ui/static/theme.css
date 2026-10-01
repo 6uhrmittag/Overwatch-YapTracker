@@ -207,6 +207,13 @@ html, body { background: var(--yt-night); }
   .yt-outcome--draw { background: var(--yt-panel-inset); color: var(--yt-muted); }
   .yt-incomplete { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; text-transform: uppercase; background: #2e2210; color: #ffd08a; }
   .yt-transcript { gap: 2px; }
+  /* Hotkeys (#32) */
+  .yt-hotkeys { display: flex; flex-direction: column; }
+  .yt-hotkey { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--yt-line); }
+  .yt-hotkey:last-child { border-bottom: 0; }
+  .yt-hotkey-name { font-weight: 800; font-size: 16px; }
+  .yt-hotkey-note { max-width: 300px; color: #ffd08a; font-size: 13px; font-weight: 700; text-align: right; }
+  .yt-keycap--big { min-width: 120px; padding: 6px 12px; font-size: 14px; text-align: center; }
   /* Search (#30) */
   .yt-search--who { min-width: 220px; }
   .yt-line-when { width: 128px; }

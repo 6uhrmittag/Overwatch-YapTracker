@@ -29,22 +29,43 @@ def parse(combo: str) -> tuple[int, int]:
     raise ValueError(f"unsupported key in hotkey {combo!r}")
 
 
+# Ctrl+Alt is AltGr on German keyboards: these would also eat a character you type in chat.
+ALTGR = {"q": "@", "e": "\u20ac", "7": "{", "8": "[", "9": "]", "0": "}"}
+
+
+def check(combo: str) -> str | None:
+    """Why this combo can't be a global hotkey, or None if it can."""
+    try:
+        parse(combo)
+    except (KeyError, ValueError):
+        return "Letters, digits or F1-F24, with Ctrl and/or Alt."
+    mods = {part.strip().lower() for part in combo.split("+")[:-1]}
+    if not mods & {"ctrl", "alt"} and not combo.split("+")[-1].strip().lower().startswith("f"):
+        return "Needs Ctrl or Alt, or you couldn't type that key anywhere else."
+    return None
+
+
 class HotkeyListener:
     """Calls the callback on its own thread whenever the combo is pressed anywhere in Windows."""
 
     def __init__(self, bindings: dict[str, Callable[[], None]]) -> None:
         self._bindings = list(bindings.items())
+        self._thread: threading.Thread | None = None
         self._thread_id: int | None = None
         self._ready = threading.Event()
-        self.failed: list[str] = []  # combos another app already owns; shown in the UI later
+        self.failed: list[str] = []  # combos another app already owns; Settings shows them (#32)
 
     def start(self) -> None:
-        threading.Thread(target=self._run, name="hotkeys", daemon=True).start()
+        self._thread = threading.Thread(target=self._run, name="hotkeys", daemon=True)
+        self._thread.start()
         self._ready.wait(5)
 
     def stop(self) -> None:
+        """Unregisters everything before it returns, so a new listener can take the same keys."""
         if self._thread_id is not None:
             ctypes.windll.user32.PostThreadMessageW(self._thread_id, _WM_QUIT, 0, 0)
+        if self._thread is not None:
+            self._thread.join(5)
 
     def _run(self) -> None:
         user32, kernel32 = ctypes.windll.user32, ctypes.windll.kernel32
