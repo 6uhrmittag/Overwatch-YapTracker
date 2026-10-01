@@ -1,5 +1,7 @@
 """The window: icon rail and view switching, via NiceGUI's simulated user (no browser)."""
 
+import asyncio
+
 import pytest
 from nicegui.testing import User, user_simulation
 
@@ -300,3 +302,29 @@ def test_installs_from_before_the_wizard_count_as_set_up(tmp_path):
     assert config.setup_state(path) is None
     config.save_chat_region(2560, 1440, Region(55, 510, 615, 395), path)
     assert config.setup_state(path) == "done"
+
+
+async def test_calibrate_takes_the_screenshot_from_the_running_game(user: User, monkeypatch):
+    import numpy as np
+
+    from yaptracker import demo, runtime
+    from yaptracker.capture.watcher import CaptureWatcher
+
+    game = np.ascontiguousarray(np.asarray(demo.screenshot())[:, :, ::-1])
+    taken = []
+    watcher = CaptureWatcher(lambda: None, lambda _: None)
+    watcher.state = "capturing"
+    monkeypatch.setattr(watcher, "snapshot", lambda timeout=2.0: taken.append(1) or game)
+    monkeypatch.setattr(runtime, "watcher", watcher)
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    user.find(marker="calibrate").click()
+    await user.should_see("This is Overwatch right now.")
+    await user.should_see("615 × 395 px at 55, 510")  # the usual box, pre-filled
+    user.find(marker="take-new").click()
+    await user.should_see(marker="use-file")
+    for _ in range(50):
+        if len(taken) == 2:
+            break
+        await asyncio.sleep(0.05)
+    assert len(taken) == 2

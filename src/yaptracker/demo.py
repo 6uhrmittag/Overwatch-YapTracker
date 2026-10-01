@@ -56,5 +56,9 @@ class DemoFrameSource:
         while not self._closed.wait(self._interval):
             yield Frame(time.monotonic() - start, self._chat)
 
+    def snapshot(self, timeout: float = 2.0) -> np.ndarray:
+        """The whole demo "game window", like WGC's snapshot (#112)."""
+        return np.ascontiguousarray(np.asarray(screenshot())[:, :, ::-1])
+
     def close(self) -> None:
         self._closed.set()

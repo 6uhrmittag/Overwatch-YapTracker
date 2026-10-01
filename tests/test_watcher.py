@@ -89,3 +89,13 @@ def test_match_signals_keep_running_while_paused():
     wait_for(lambda: len(signals) >= 3)
     watcher.stop()
     assert chat == [] and len(signals) == 3  # chat dropped, match signals still read (#93)
+
+
+def test_a_snapshot_only_while_capturing():
+    from yaptracker.demo import DemoFrameSource
+
+    source = DemoFrameSource()
+    watcher = CaptureWatcher(lambda: 1, lambda _: source, lambda frame: None)
+    assert watcher.snapshot() is None  # waiting for the game
+    watcher.state, watcher._source = "capturing", source
+    assert watcher.snapshot().shape == (1440, 2560, 3)  # the whole "window", for Calibrate (#112)

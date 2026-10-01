@@ -1,12 +1,16 @@
-"""Settings -> Calibrate: drag a box around the chat on a screenshot (docs/ui/mockup/Setup)."""
+"""Settings -> Calibrate: drag a box around the chat on a screenshot (docs/ui/mockup/Setup).
+
+While Overwatch is captured, the screenshot comes straight from the game window (#112).
+"""
 
 from collections.abc import Callable
 from io import BytesIO
 
-from nicegui import events, ui
+import numpy as np
+from nicegui import background_tasks, events, run, ui
 from PIL import Image
 
-from yaptracker import config, demo
+from yaptracker import config, demo, runtime
 from yaptracker.ui.box_editor import BoxEditor
 from yaptracker.ui.components import button
 from yaptracker.ui.read_preview import ReadPreview
@@ -43,6 +47,8 @@ def calibrate(on_done: Callable[[bool], None], steps: Callable[[], None] | None 
     """on_done(saved) returns to where calibration was opened from; `steps` draws the setup
     wizard's progress in the header (#76)."""
     state: dict = {"image": None, "editor": None}
+    watcher = runtime.watcher
+    live = watcher is not None and watcher.state == "capturing"
 
     with ui.element("header").classes("yt-header"):
         with ui.element("div"):
@@ -66,14 +72,28 @@ def calibrate(on_done: Callable[[bool], None], steps: Callable[[], None] | None 
                         "Be generous - a bit too big is fine, I'll ignore the empty parts. "
                         "Too small and I'll miss the long yaps."
                     ).classes("yt-text-soft")
+                    if live:
+                        ui.label(
+                            "This is Overwatch right now. Chat faded? Press Enter in the game, "
+                            "then take a new one."
+                        ).classes("yt-hint")
                 preview = ReadPreview()
+                if live:
+                    button(
+                        "Use a screenshot file", lambda: upload.run_method("pickFiles"), "quiet"
+                    ).mark("use-file")
             with ui.element("div").classes("yt-actions"):
                 upload = (
                     ui.upload(auto_upload=True, on_upload=lambda e: _load_upload(e))
                     .props('accept="image/*"')
                     .classes("yt-hidden")
                 )
-                button("New screenshot", lambda: upload.run_method("pickFiles"))
+                if live:
+                    button(
+                        "Take a new one", lambda: background_tasks.create(take_screenshot())
+                    ).mark("take-new")
+                else:
+                    button("New screenshot", lambda: upload.run_method("pickFiles"))
                 save_button = button("Yep, that's the chat →", lambda: save(), "primary")
                 save_button.mark("save")
 
@@ -114,6 +134,18 @@ def calibrate(on_done: Callable[[bool], None], steps: Callable[[], None] | None 
         refresh_crop()
         save_button.props(remove="disabled")
 
+    async def take_screenshot() -> None:
+        frame = await run.io_bound(watcher.snapshot)
+        if frame is None:  # minimised, or capture just broke
+            if state["image"] is None:
+                with shot:
+                    ui.label(
+                        "Overwatch didn't send a picture. Bring it up once, or use a screenshot "
+                        "file."
+                    ).classes("yt-hint")
+            return
+        show(Image.fromarray(np.ascontiguousarray(frame[:, :, ::-1])))
+
     async def _load_upload(e: events.UploadEventArguments) -> None:
         show(Image.open(BytesIO(await e.file.read())).convert("RGB"))
         upload.reset()
@@ -125,7 +157,10 @@ def calibrate(on_done: Callable[[bool], None], steps: Callable[[], None] | None 
             config.save_channel_colours(preview.learned_colours)
         on_done(True)
 
-    if demo.ENABLED:
+    if live:
+        save_button.props("disabled")
+        background_tasks.create(take_screenshot(), name="calibration screenshot")
+    elif demo.ENABLED:
         show(demo.screenshot())
     else:
         save_button.props("disabled")
