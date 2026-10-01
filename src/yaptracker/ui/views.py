@@ -41,6 +41,12 @@ _WHY = {
     "no_frames": "no picture from Overwatch",
     "window_lost": "lost the Overwatch window",
 }
+# ... and what to do about it (#137): mostly nothing, it fixes itself.
+_TODO = {
+    "crash": "I'm restarting it. If this keeps coming back, Settings \u2192 Open logs shows why.",
+    "no_frames": "Is Overwatch minimised? Bring it up once, I keep trying.",
+    "window_lost": "I'm looking for it again, nothing to do.",
+}
 
 
 def _backup_text() -> str:
@@ -258,7 +264,7 @@ def _live() -> None:
             skipped = f", {runtime.changes.skipped_share:.0%} skipped" if runtime.changes else ""
             meta.set_text(f"{meter():.1f} fps{skipped}")
         else:
-            meta.set_text((watcher.last_error or "") if watcher else "")
+            meta.set_text("")  # the banner says what's wrong and what to do; details are in the log
         hint.set_text(
             {
                 "paused": "Ears covered. Nothing is being saved.",
@@ -288,7 +294,7 @@ def _live() -> None:
         if broken:  # paused has its own pill (#20)
             since = time.strftime("%H:%M", time.localtime(gap.since))
             health_text.set_text(
-                f"Not recording since {since} ({_WHY[gap.reason]}), trying again\u2026"
+                f"Not recording since {since} ({_WHY[gap.reason]}). {_TODO[gap.reason]}"
             )
             health_banner.classes(remove="yt-hidden")
         else:
@@ -364,6 +370,11 @@ def settings() -> None:
                         ui.label(
                             "Not calibrated yet. I'll use the usual spot, which fits 16:9 screens."
                         ).classes("yt-hint")
+                    else:
+                        ui.label(
+                            "Chat moved, or lines come out cut off? Calibrate again: one click "
+                            "while Overwatch runs."
+                        ).classes("yt-hint")
             crew_card()
             startup_card()
             with ui.element("section").classes("yt-card").mark("data"):
@@ -394,10 +405,13 @@ def settings() -> None:
                         "Keep line pictures", config.line_pictures(), config.save_line_pictures
                     ).mark("pictures-switch")
                     pictures = runtime.pictures.size_bytes() / 1_000_000 if runtime.pictures else 0
+                    ui.label(f"Line pictures: {pictures:.1f} MB, 2 GB at most").classes(
+                        "yt-meta"
+                    ).mark("pictures-size")
                     ui.label(
-                        f"Line pictures: {pictures:.1f} MB, 2 GB at most. Each chat line as it "
-                        "looked, so hearts and icons OCR can't spell are kept."
-                    ).classes("yt-meta").mark("pictures-size")
+                        "Each chat line as it looked, so hearts and icons OCR can't spell are kept "
+                        "(click a line in Live). Switch off only if disk space is tight."
+                    ).classes("yt-hint")
                     ui.label(
                         "A copy goes to the backups folder every day (never during a match) and "
                         "before every database update. Updating YapTracker never touches this "
@@ -423,9 +437,24 @@ def settings() -> None:
                     ui.label(
                         "Match starts and ends, screens I might have missed and chat I found hard, "
                         "so they can be fixed later. Other players' names are in there: it never "
-                        f"leaves this PC. {runtime.SAVE_HOTKEY.replace('+', ' ')} keeps the last "
-                        "20 s of chat on purpose."
+                        "leaves this PC."
                     ).classes("yt-hint")
+                    with ui.element("div").classes("yt-row"):
+                        button(
+                            "Save the last 20 s",
+                            lambda: save_chat(),
+                            keycap=runtime.SAVE_HOTKEY.replace("+", " "),
+                        ).mark("save-chat")
+                        saved_chat = ui.label().classes("yt-hint").mark("save-chat-result")
+
+                    def save_chat() -> None:
+                        sample = runtime.debug.save_chat() if runtime.debug else None
+                        saved_chat.set_text(
+                            f"Kept in {sample.parent.name}\\{sample.name}."
+                            if sample
+                            else "Nothing read in the last 20 s: play a bit, then press it."
+                        )
+
             with ui.element("section").classes("yt-card").mark("about"):
                 with ui.element("div").classes("yt-card-head"):
                     ui.label("About").classes("yt-h2")

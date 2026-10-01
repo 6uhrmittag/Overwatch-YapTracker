@@ -36,6 +36,10 @@ class ReadPreview:
             self._crop = ui.image().classes("yt-crop").props("no-spinner no-transition")
             self._info = ui.label().classes("yt-meta").mark("crop-info")
             self._engines = ui.element("div").classes("yt-seg")
+            ui.label(
+                "RapidOCR reads best. Windows OCR is quicker but loses lines on bright "
+                "backgrounds: only for when RapidOCR won't start."
+            ).classes("yt-hint").mark("engine-hint")
             self._lines = ui.element("div").classes("yt-read-lines").mark("read-lines")
         self._render_engines()
 
@@ -75,7 +79,9 @@ class ReadPreview:
             lines = await run.io_bound(lambda: ocr.get(name).read(bgr))
         except Exception as error:  # shown in the card, not swallowed: e.g. no OCR language
             if request == self._request:
-                self._set_hint(f"{ocr.LABELS[name]} didn't work here: {error}")
+                self._set_hint(
+                    f"{ocr.LABELS[name]} didn't work here ({error}). Pick the other one above."
+                )
             raise
         if request != self._request:
             return  # the box moved again while this read was running
