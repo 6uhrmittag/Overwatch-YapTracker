@@ -229,6 +229,11 @@ def _open_store() -> Callable[[], None]:
         runtime.matches = MatchTracker(runtime.store, runtime.pause, on_missed_end=missed_end)
         runtime.health = CaptureHealth(runtime.store)
         runtime.familiar = FamiliarFaces(runtime.store, config.identity)
+        runtime.players = PlayerMatcher(
+            runtime.store,
+            config.identity,
+            on_shaky=lambda name: runtime.debug.save_chat("new-player"),
+        )
         runtime.reader = ChatReader(
             lambda image: ocr.get(config.ocr_engine()).read(image),
             runtime.store,
@@ -238,11 +243,7 @@ def _open_store() -> Callable[[], None]:
             paused=lambda: runtime.pause.paused,
             on_read=runtime.debug.chat_read,
             pictures=runtime.pictures,
-            players=PlayerMatcher(
-                runtime.store,
-                config.identity,
-                on_shaky=lambda name: runtime.debug.save_chat("new-player"),
-            ),
+            players=runtime.players,
             on_player=runtime.familiar.heard,
         )
         runtime.reader.start()

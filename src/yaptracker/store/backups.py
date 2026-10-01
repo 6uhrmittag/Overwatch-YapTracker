@@ -88,6 +88,19 @@ class DailyBackup:
             self._stop.wait(CHECK_EVERY_S)
 
 
+KEEP_MERGE_BACKUPS = 10
+
+
+def before_merge(backup: Callable[[Path], None], folder: Path) -> Path:
+    """A copy right before two players are merged (#28), so a merge can always be undone."""
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / f"yaptracker-before-merge-{time.strftime('%Y%m%d-%H%M%S')}.db"
+    backup(target)
+    for old in sorted(folder.glob("yaptracker-before-merge-*.db"))[:-KEEP_MERGE_BACKUPS]:
+        old.unlink()
+    return target
+
+
 def last_backup(folder: Path) -> tuple[float, int] | None:
     """(time of the newest daily backup, how many are kept) for Settings."""
     backups = daily_backups(folder)
