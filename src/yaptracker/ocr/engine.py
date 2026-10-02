@@ -1,5 +1,7 @@
 """OCR engines behind one interface. RapidOCR is the default, Windows OCR the fallback (#11)."""
 
+import contextlib
+import logging
 import re
 import sys
 import threading
@@ -11,6 +13,8 @@ from typing import Protocol
 import numpy as np
 
 from yaptracker.capture.source import Region
+
+log = logging.getLogger(__name__)
 
 
 class OcrUnavailable(RuntimeError):
@@ -158,15 +162,25 @@ class RapidOcrEngine:
     name = "rapidocr"
     label = "RapidOCR"
 
-    def __init__(self) -> None:
+    def __init__(self, device: int | None = None) -> None:
+        """`device`: a DXGI adapter index to run on with DirectML (#208), None for the CPU."""
         from rapidocr_onnxruntime import RapidOCR  # imported lazily: loading the models takes ~1 s
 
         # One thread: by default onnxruntime spreads each read over every core and burns ~3x the
         # CPU doing it (measured, #108): a spike on all cores while the game is running.
-        one_thread = {"intra_op_num_threads": 1, "inter_op_num_threads": 1}
-        self._ocr = RapidOCR(**one_thread)
-        latin = RapidOCR(rec_model_path=str(LATIN_REC), rec_keys_path=str(LATIN_KEYS), **one_thread)
+        options = {"intra_op_num_threads": 1, "inter_op_num_threads": 1}
+        if device is not None:
+            options.update(det_use_dml=True, cls_use_dml=True, rec_use_dml=True)
+        with _on_adapter(device):
+            self._ocr = RapidOCR(**options)
+            latin = RapidOCR(rec_model_path=str(LATIN_REC), rec_keys_path=str(LATIN_KEYS),
+                             **options)  # fmt: skip
+        if device is not None and self.provider() != "DmlExecutionProvider":
+            raise OcrUnavailable("DirectML isn't in this build of onnxruntime")
         self._ocr.text_rec = _ReadTwice(self._ocr.text_rec, latin.text_rec)
+
+    def provider(self) -> str:
+        return self._ocr.text_det.infer.session.get_providers()[0]
 
     def read(
         self, image: np.ndarray, accents: bool = False, scale: float = UPSCALE
@@ -258,6 +272,7 @@ ENGINES: dict[str, Callable[[], OcrEngine]] = {
 }
 LABELS = {RapidOcrEngine.name: RapidOcrEngine.label, WindowsOcrEngine.name: WindowsOcrEngine.label}
 DEFAULT = RapidOcrEngine.name
+_RAPID = RapidOcrEngine.name  # the engine that can run on the graphics card (#208)
 
 
 def available() -> list[str]:
@@ -268,9 +283,111 @@ _cache: dict[str, OcrEngine] = {}
 _cache_lock = threading.Lock()  # capture (signals) and the chat reader may both ask first
 
 
+@contextlib.contextmanager
+def _on_adapter(device: int | None):
+    """RapidOCR gives DirectML no device_id, so it runs on adapter 0, which can be an iGPU:
+    while its sessions are made, ask for the chosen adapter (#208)."""
+    if device is None:
+        yield
+        return
+    from rapidocr_onnxruntime.utils import infer_engine
+
+    original = infer_engine.OrtInferSession._get_ep_list
+
+    def with_device(session):
+        return [(ep, {**opts, "device_id": device}) if ep == "DmlExecutionProvider" else (ep, opts)
+                for ep, opts in original(session)]  # fmt: skip
+
+    infer_engine.OrtInferSession._get_ep_list = with_device
+    try:
+        yield
+    finally:
+        infer_engine.OrtInferSession._get_ep_list = original
+
+
+class _GpuOrCpu:
+    """RapidOCR on the graphics card, and on the CPU as soon as that fails once (#208)."""
+
+    name, label = RapidOcrEngine.name, RapidOcrEngine.label
+
+    def __init__(self, gpu: OcrEngine, cpu: Callable[[], OcrEngine]) -> None:
+        self._gpu, self._cpu = gpu, cpu
+
+    def _call(self, method: str, *args, **kwargs):
+        global _gpu_problem
+        if self._gpu is not None:
+            try:
+                return getattr(self._gpu, method)(*args, **kwargs)
+            except Exception as error:  # e.g. a driver reset: carry on on the CPU, and say so
+                log.warning("OCR on the graphics card failed, back to the CPU: %s", error)
+                self._gpu, _gpu_problem = None, f"stopped working ({error})"
+        return getattr(self._cpu(), method)(*args, **kwargs)
+
+    def read(self, image, accents=False, scale=UPSCALE):
+        return self._call("read", image, accents=accents, scale=scale)
+
+    def read_line(self, image):
+        return self._call("read_line", image)
+
+
+_gpu_wanted = False
+_gpu_problem: str | None = None  # why OCR isn't on the graphics card although wanted
+_gpu_name: str | None = None
+
+
+def use_gpu(on: bool) -> None:
+    """Settings -> Use GPU for OCR (#208). Takes effect with the next read."""
+    global _gpu_wanted
+    with _cache_lock:
+        _gpu_wanted = on
+
+
+def gpu_status() -> str:
+    """For Settings: where RapidOCR reads right now."""
+    if not _gpu_wanted:
+        return "Reading on the CPU."
+    if _gpu_problem:
+        return f"Reading on the CPU: the graphics card {_gpu_problem}."
+    if _gpu_name:
+        return f"Reading on the {_gpu_name}."
+    return "Reading on the graphics card from the next chat line."
+
+
+def _gpu_engine() -> OcrEngine:
+    """The GPU RapidOCR (made once), or the CPU one with the reason kept for Settings."""
+    global _gpu_problem, _gpu_name
+    if "rapidocr-gpu" not in _cache:
+        from yaptracker import gpu
+
+        card, engine = gpu.dedicated(), None
+        if card is None:
+            _gpu_problem = "isn't there (no dedicated GPU found)"
+        else:
+            try:
+                engine = RapidOcrEngine(device=card.index)
+                _gpu_name, _gpu_problem = card.name, None
+                log.info("OCR on %s (DirectML, adapter %d)", card.name, card.index)
+            except Exception as error:
+                _gpu_problem = f"can't be used ({error})"
+                log.warning("OCR can't use %s, reading on the CPU: %s", card.name, error)
+        _cache["rapidocr-gpu"] = _GpuOrCpu(engine, _cpu_rapidocr)
+    return _cache["rapidocr-gpu"]
+
+
+def _cpu_rapidocr() -> OcrEngine:
+    with _cache_lock:  # from the reader thread, while the capture thread may ask too
+        return _cpu_engine(_RAPID)
+
+
+def _cpu_engine(name: str) -> OcrEngine:
+    if name not in _cache:
+        _cache[name] = ENGINES[name]()
+    return _cache[name]
+
+
 def get(name: str) -> OcrEngine:
     """Engines are expensive to create, so each one is made once."""
     with _cache_lock:
-        if name not in _cache:
-            _cache[name] = ENGINES[name]()
-        return _cache[name]
+        if name == _RAPID and _gpu_wanted:
+            return _gpu_engine()
+        return _cpu_engine(name)

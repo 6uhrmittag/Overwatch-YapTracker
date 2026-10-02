@@ -56,6 +56,11 @@ jobs:
           "VERSION=$version" >> $env:GITHUB_ENV
           "version=$version" >> $env:GITHUB_OUTPUT
       - run: pip install .[dev] pyinstaller
+      - name: OCR on the GPU is possible (DirectML build of onnxruntime, CPU unchanged, #208)
+        run: |
+          pip uninstall -y onnxruntime
+          pip install onnxruntime-directml
+          python -c "import onnxruntime as o; p = o.get_available_providers(); print(o.__version__, p); assert 'DmlExecutionProvider' in p"
       - name: Windows-only tests (Windows OCR, WGC capture, hotkeys, autostart)
         run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py tests/test_hotkeys_windows.py tests/test_autostart_windows.py tests/test_process_windows.py tests/test_priority_windows.py -v
       - run: pyinstaller --noconfirm packaging/yaptracker.spec
@@ -64,6 +69,8 @@ jobs:
           foreach ($f in 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'licenses/nicegui') {
             if (-not (Test-Path "dist/YapTracker/$f")) { throw "dist/YapTracker/$f missing" }
           }
+          $dml = Get-ChildItem dist/YapTracker -Recurse -Filter DirectML.dll  # GPU OCR (#208)
+          if (-not $dml) { throw "DirectML.dll missing from the app" }
       - name: Smoke test (window opens and loads the page)
         timeout-minutes: 5
         run: ./tools/smoke-test.ps1 -Exe dist/YapTracker/YapTracker.exe

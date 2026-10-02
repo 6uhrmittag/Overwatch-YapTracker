@@ -159,6 +159,18 @@ def save_hotkey(action: str, combo: str, path: Path | None = None) -> None:
     _save(path, data)
 
 
+def ocr_gpu(path: Path | None = None) -> bool:
+    """Settings -> Use GPU for OCR (#208): off unless switched on."""
+    return bool(_load(path or paths.config_file()).get("ocr_gpu", False))
+
+
+def save_ocr_gpu(on: bool, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["ocr_gpu"] = on
+    _save(path, data)
+
+
 def channel_colours(path: Path | None = None) -> dict[str, float]:
     """Text hue per channel as learned at calibration, e.g. {"team": 72.0, "system": 56.0}."""
     return _load(path or paths.config_file()).get("channel_colours", {})

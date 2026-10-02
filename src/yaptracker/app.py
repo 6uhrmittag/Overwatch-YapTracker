@@ -78,6 +78,9 @@ def _arm_smoke_test() -> None:
 
 def _watch_for_overwatch(dev: bool) -> None:
     """Capture runs by itself from app start: waits for Overwatch, follows it (#16)."""
+    from yaptracker.ocr import engine as ocr
+
+    ocr.use_gpu(config.ocr_gpu())  # Settings -> Use GPU for OCR (#208)
 
     def paused() -> bool:
         return runtime.pause.paused
