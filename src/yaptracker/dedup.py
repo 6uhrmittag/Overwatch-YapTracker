@@ -21,6 +21,7 @@ from rapidfuzz import fuzz
 
 from yaptracker.identity import clean
 from yaptracker.parser import ChatLine
+from yaptracker.quality import GOOD
 
 YAP_KINDS = ("message", "comms", "system")
 SAME = 85  # fuzzy ratio of "speaker: text" for two readings of the same line
@@ -73,13 +74,24 @@ class Yap:
 
     @property
     def best(self) -> ChatLine:
-        best = max(self.readings, key=lambda k: (self.readings[k], self.lines[k].confidence))
-        return self.lines[best]
+        """A good reading beats weak ones however often those were read, so a bright frame
+        can't flip it back (#195); then the most frequent, then the best scored."""
+
+        def rank(k: str) -> tuple:
+            q = self.lines[k].quality
+            return (q >= GOOD, self.readings[k], q)
+
+        return self.lines[max(self.readings, key=rank)]
+
+    @property
+    def weak(self) -> bool:
+        """No good reading yet: worth reading again while it's on screen (#195)."""
+        return self.best.quality < GOOD
 
     def add(self, line: ChatLine) -> None:
         k = key(line)
         self.readings[k] += 1
-        if k not in self.lines or line.confidence > self.lines[k].confidence:
+        if k not in self.lines or line.quality > self.lines[k].quality:
             self.lines[k] = line
         self.match_keys.add(match_key(line))
         self.last = line

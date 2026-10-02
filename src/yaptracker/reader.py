@@ -14,7 +14,7 @@ from collections.abc import Callable
 import numpy as np
 
 from yaptracker import channels, glyphs, priority
-from yaptracker.dedup import YAP_KINDS, Dedup, Yap, match_key
+from yaptracker.dedup import FADE_S, YAP_KINDS, Dedup, Yap, match_key
 from yaptracker.identity import Identity
 from yaptracker.ocr.engine import OcrLine
 from yaptracker.parser import ChatLine, parse
@@ -24,6 +24,7 @@ LOAD_LOG_S = 60.0  # how often the reading cost goes to the log
 # At most one read per 1.5 s (#115): 9 of 10 reads find nothing new, and a line stays on screen
 # for ~9 s, so it is still read several times. The newest frame waits, older ones are dropped.
 MIN_GAP_S = 1.5
+REREADS = 3  # extra reads for a line still on screen without a good reading (#195)
 
 
 def _fields(line: ChatLine) -> dict:
@@ -68,6 +69,8 @@ class ChatReader:
         self._seen_colours: dict[str, float] = {}  # channel colours learned while reading (#173)
         self._read_match: int | None = None  # the match of the last read
         self._on_screen: set[str] = set()  # match keys of the lines in the last read (#179)
+        self._reread_until, self._rereads_left = -math.inf, 0  # read weak lines again (#195)
+        self._weak: set[int] = set()  # yaps that already got their re-reads
         self._save_colours = save_colours  # the group colour is rare: kept for next time (#80)
         self.min_gap_s = min_gap_s  # Settings can change it while running (#152)
         self._last_read = -math.inf  # monotonic time of the last read's start
@@ -152,6 +155,7 @@ class ChatReader:
                 log.info("%d line(s) still on screen from match %d", len(old), previous)
         self._read_match = current
         self._on_screen = {match_key(line) for line in lines if line.kind in YAP_KINDS}
+        self._want_reread(ts, lines)
         for yap in new:
             player = self._player(yap, ts)
             match_id = previous if yap.id in old else current
@@ -171,6 +175,27 @@ class ChatReader:
         self._count(time.thread_time() - started)
         self._on_read(ts, image, ocr, lines, new)
         return new
+
+    def wants_reread(self) -> bool:
+        """A line on screen has no good reading yet: offer frames even without new text."""
+        return self._rereads_left > 0 and self._clock() < self._reread_until
+
+    def _want_reread(self, ts: float, lines: list) -> None:
+        """Called after each read. A weak line seen in it gets REREADS more reads while it can
+        still be on screen; reads in that time use them up, a good reading ends them."""
+        seen = {id(line) for line in lines}
+        weak = [yap for yap in self._dedup.recent if id(yap.last) in seen and yap.weak]
+        self._weak &= {yap.id for yap in self._dedup.recent}
+        if not weak:
+            self._rereads_left = 0
+            return
+        if ts < self._reread_until:
+            self._rereads_left -= 1
+        for yap in weak:
+            if yap.id not in self._weak:
+                self._weak.add(yap.id)
+                self._reread_until = max(self._reread_until, yap.first_seen + FADE_S)
+                self._rereads_left = REREADS
 
     def _player(self, yap: Yap, ts: float) -> int | None:
         """The player for the yap's best reading; linked again only when the speaker changed."""

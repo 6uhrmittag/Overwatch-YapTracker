@@ -87,7 +87,9 @@ def _watch_for_overwatch(dev: bool) -> None:
     def on_frame(frame) -> None:  # not while paused: the watcher drops those frames (#20)
         size = runtime.window_size
         text_scale = size[1] / 1440 if size else None  # the strip outside matches is taller
-        if changes.update(frame.image, text_scale) and runtime.reader is not None:
+        changed = changes.update(frame.image, text_scale)
+        again = runtime.reader is not None and runtime.reader.wants_reread()  # weak lines (#195)
+        if (changed or again) and runtime.reader is not None:
             runtime.reader.offer(frame.image)  # new text: read, dedup and store it (#108)
 
     def on_alive() -> None:
