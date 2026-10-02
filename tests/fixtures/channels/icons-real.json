@@ -1,0 +1,653 @@
+{
+ "about": "Measured icon stats of real chat lines (#228): no pictures, no names. Truth: what the icon is, checked by eye: Void's crops; Marv's 4K HDR samples (comms lines = team; system lines: the round i disc = system, the small dot of \"You ...\" lines = system-dot, the group icon of \"...'s group wants to stay\" = group; his magenta two-people icons = group).",
+ "icons": [
+  {
+   "source": "void-1080p",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.8,
+   "height": 0.533,
+   "fill": 0.49,
+   "middle": 0.833
+  },
+  {
+   "source": "void-1080p",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.958,
+   "height": 0.708,
+   "fill": 0.476,
+   "middle": 0.714
+  },
+  {
+   "source": "void-1080p",
+   "truth": "group",
+   "blobs": 4,
+   "width": 0.667,
+   "height": 0.567,
+   "fill": 0.474,
+   "middle": 0.679
+  },
+  {
+   "source": "void-1080p",
+   "truth": "group",
+   "blobs": 4,
+   "width": 0.625,
+   "height": 0.531,
+   "fill": 0.474,
+   "middle": 0.679
+  },
+  {
+   "source": "void-1080p",
+   "truth": "system",
+   "blobs": 1,
+   "width": 0.467,
+   "height": 0.5,
+   "fill": 0.752,
+   "middle": 0.778
+  },
+  {
+   "source": "void-1080p",
+   "truth": "system",
+   "blobs": 1,
+   "width": 0.467,
+   "height": 0.5,
+   "fill": 0.752,
+   "middle": 0.778
+  },
+  {
+   "source": "void-1080p",
+   "truth": "match",
+   "blobs": 1,
+   "width": 0.294,
+   "height": 0.324,
+   "fill": 0.636,
+   "middle": 1.0
+  },
+  {
+   "source": "void-1080p",
+   "truth": "match",
+   "blobs": 1,
+   "width": 0.357,
+   "height": 0.393,
+   "fill": 0.636,
+   "middle": 1.0
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "group",
+   "blobs": 1,
+   "width": 0.794,
+   "height": 0.824,
+   "fill": 0.639,
+   "middle": 0.89
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "group",
+   "blobs": 1,
+   "width": 0.7,
+   "height": 0.9,
+   "fill": 0.661,
+   "middle": 0.825
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.923,
+   "height": 0.667,
+   "fill": 0.558,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.857,
+   "height": 0.619,
+   "fill": 0.559,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.947,
+   "height": 0.684,
+   "fill": 0.569,
+   "middle": 0.838
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.947,
+   "height": 0.684,
+   "fill": 0.572,
+   "middle": 0.838
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system-dot",
+   "blobs": 1,
+   "width": 0.375,
+   "height": 0.375,
+   "fill": 0.833,
+   "middle": 1.0
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system-dot",
+   "blobs": 1,
+   "width": 0.375,
+   "height": 0.375,
+   "fill": 0.833,
+   "middle": 1.0
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "group",
+   "blobs": 2,
+   "width": 0.7,
+   "height": 0.767,
+   "fill": 0.627,
+   "middle": 1.0
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.923,
+   "height": 0.667,
+   "fill": 0.565,
+   "middle": 0.838
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.947,
+   "height": 0.684,
+   "fill": 0.569,
+   "middle": 0.838
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.947,
+   "height": 0.684,
+   "fill": 0.559,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.972,
+   "height": 0.722,
+   "fill": 0.569,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.941,
+   "height": 0.765,
+   "fill": 0.605,
+   "middle": 0.842
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system",
+   "blobs": 1,
+   "width": 0.579,
+   "height": 0.579,
+   "fill": 0.7,
+   "middle": 0.656
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.9,
+   "height": 0.65,
+   "fill": 0.56,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 4,
+   "width": 1.488,
+   "height": 0.805,
+   "fill": 0.719,
+   "middle": 0.984
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.857,
+   "height": 0.619,
+   "fill": 0.558,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.857,
+   "height": 0.619,
+   "fill": 0.558,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system",
+   "blobs": 1,
+   "width": 0.55,
+   "height": 0.55,
+   "fill": 0.717,
+   "middle": 0.656
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.879,
+   "height": 0.788,
+   "fill": 0.599,
+   "middle": 0.836
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 5,
+   "width": 0.921,
+   "height": 0.658,
+   "fill": 0.513,
+   "middle": 0.829
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.973,
+   "height": 0.703,
+   "fill": 0.565,
+   "middle": 0.838
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 3,
+   "width": 1.486,
+   "height": 0.4,
+   "fill": 0.422,
+   "middle": 0.463
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.944,
+   "height": 0.722,
+   "fill": 0.592,
+   "middle": 0.842
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.857,
+   "height": 0.619,
+   "fill": 0.558,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.9,
+   "height": 0.65,
+   "fill": 0.56,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 1,
+   "width": 1.5,
+   "height": 1.0,
+   "fill": 0.985,
+   "middle": 0.908
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.944,
+   "height": 0.722,
+   "fill": 0.579,
+   "middle": 0.833
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.9,
+   "height": 0.65,
+   "fill": 0.558,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.914,
+   "height": 0.743,
+   "fill": 0.6,
+   "middle": 0.833
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.972,
+   "height": 0.722,
+   "fill": 0.569,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.878,
+   "height": 0.634,
+   "fill": 0.558,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.912,
+   "height": 0.765,
+   "fill": 0.61,
+   "middle": 0.855
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.947,
+   "height": 0.684,
+   "fill": 0.558,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.857,
+   "height": 0.619,
+   "fill": 0.559,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system-dot",
+   "blobs": 1,
+   "width": 0.375,
+   "height": 0.375,
+   "fill": 0.833,
+   "middle": 1.0
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system-dot",
+   "blobs": 1,
+   "width": 0.316,
+   "height": 0.316,
+   "fill": 0.833,
+   "middle": 1.0
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.923,
+   "height": 0.667,
+   "fill": 0.571,
+   "middle": 0.846
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.923,
+   "height": 0.667,
+   "fill": 0.558,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 1,
+   "width": 0.364,
+   "height": 0.121,
+   "fill": 0.542,
+   "middle": 0.5
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.947,
+   "height": 0.684,
+   "fill": 0.559,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.923,
+   "height": 0.667,
+   "fill": 0.559,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.947,
+   "height": 0.684,
+   "fill": 0.559,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 2,
+   "width": 1.2,
+   "height": 0.822,
+   "fill": 0.328,
+   "middle": 0.644
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.944,
+   "height": 0.722,
+   "fill": 0.579,
+   "middle": 0.833
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.912,
+   "height": 0.765,
+   "fill": 0.596,
+   "middle": 0.836
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "team",
+   "blobs": 6,
+   "width": 0.973,
+   "height": 0.703,
+   "fill": 0.558,
+   "middle": 0.831
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system",
+   "blobs": 1,
+   "width": 0.537,
+   "height": 0.537,
+   "fill": 0.719,
+   "middle": 0.656
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "group",
+   "blobs": 2,
+   "width": 0.774,
+   "height": 0.581,
+   "fill": 0.669,
+   "middle": 0.984
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system-dot",
+   "blobs": 1,
+   "width": 0.375,
+   "height": 0.375,
+   "fill": 0.833,
+   "middle": 1.0
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system-dot",
+   "blobs": 1,
+   "width": 0.375,
+   "height": 0.375,
+   "fill": 0.833,
+   "middle": 1.0
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system-dot",
+   "blobs": 1,
+   "width": 0.293,
+   "height": 0.293,
+   "fill": 0.833,
+   "middle": 1.0
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "group",
+   "blobs": 2,
+   "width": 0.781,
+   "height": 0.562,
+   "fill": 0.662,
+   "middle": 0.984
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system",
+   "blobs": 1,
+   "width": 0.5,
+   "height": 0.5,
+   "fill": 0.717,
+   "middle": 0.656
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system",
+   "blobs": 1,
+   "width": 0.55,
+   "height": 0.55,
+   "fill": 0.717,
+   "middle": 0.656
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system",
+   "blobs": 1,
+   "width": 0.55,
+   "height": 0.55,
+   "fill": 0.717,
+   "middle": 0.656
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system",
+   "blobs": 1,
+   "width": 0.55,
+   "height": 0.55,
+   "fill": 0.717,
+   "middle": 0.656
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system",
+   "blobs": 1,
+   "width": 0.564,
+   "height": 0.564,
+   "fill": 0.717,
+   "middle": 0.656
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system",
+   "blobs": 1,
+   "width": 0.55,
+   "height": 0.55,
+   "fill": 0.717,
+   "middle": 0.656
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system",
+   "blobs": 1,
+   "width": 0.537,
+   "height": 0.537,
+   "fill": 0.717,
+   "middle": 0.656
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system-dot",
+   "blobs": 1,
+   "width": 0.353,
+   "height": 0.353,
+   "fill": 0.833,
+   "middle": 1.0
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "system-dot",
+   "blobs": 1,
+   "width": 0.375,
+   "height": 0.375,
+   "fill": 0.833,
+   "middle": 1.0
+  },
+  {
+   "source": "marv-4k-hdr",
+   "truth": "group",
+   "blobs": 2,
+   "width": 0.914,
+   "height": 0.514,
+   "fill": 0.707,
+   "middle": 0.905
+  }
+ ]
+}
