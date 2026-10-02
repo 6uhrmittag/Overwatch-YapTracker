@@ -18,29 +18,40 @@ class CaptureStats:
         self._lock = threading.Lock()
         self._recent: collections.deque[float] = collections.deque()  # arrival times, last 10 s
         self._minute_start: float | None = None
-        self._minute_frames, self._minute_spent = 0, 0.0
+        self._minute_frames, self._minute_spent, self._minute_skipped = 0, 0.0, 0
+        self.cannot: list[str] = []  # what this Windows can't do for the capture (#216)
+
+    def skipped(self) -> None:
+        """A frame arrived too soon after the last one and was let go untouched (#216)."""
+        now = self._clock()
+        with self._lock:
+            self._arrived(now)
+            self._minute_skipped += 1
 
     def frame(self, spent_s: float) -> None:
         """A frame arrived from Windows; our callback spent `spent_s` on it."""
         now = self._clock()
         with self._lock:
-            self._recent.append(now)
-            while self._recent and now - self._recent[0] > 10:
-                self._recent.popleft()
-            if self._minute_start is None:
-                self._minute_start = now
+            self._arrived(now)
             self._minute_frames += 1
             self._minute_spent += spent_s
             elapsed = now - self._minute_start
             if elapsed < self._log_every_s:
                 return
-            rate, per_frame = (
-                self._minute_frames / elapsed,
-                self._minute_spent / self._minute_frames,
-            )
+            used, skipped = self._minute_frames, self._minute_skipped
+            rate, per_frame = (used + skipped) / elapsed, self._minute_spent / used
             self._minute_start, self._minute_frames, self._minute_spent = now, 0, 0.0
-        log.info("capture: %.1f frames/s from Windows (asked for %g), %.1f ms per frame here",
-                 rate, self.asked_fps, per_frame * 1000)  # fmt: skip
+            self._minute_skipped = 0
+        extra = f", {skipped / elapsed:.1f}/s of them skipped" if skipped else ""
+        log.info("capture: %.1f frames/s from Windows (asked for %g), %.1f ms per frame here%s",
+                 rate, self.asked_fps, per_frame * 1000, extra)  # fmt: skip
+
+    def _arrived(self, now: float) -> None:
+        self._recent.append(now)
+        while self._recent and now - self._recent[0] > 10:
+            self._recent.popleft()
+        if self._minute_start is None:
+            self._minute_start = now
 
     def per_second(self) -> float | None:
         """Frames per second over the last 10 s; None when nothing arrived lately."""
