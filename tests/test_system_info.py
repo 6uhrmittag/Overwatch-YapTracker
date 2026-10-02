@@ -34,7 +34,7 @@ def test_the_start_block(monkeypatch, caplog):
         "system: YapTracker v0.0.0.dev0 | Windows 11 Pro 24H2 (build 26100.4061)",
         "system: CPU Intel(R) Core(TM) i7-13700K, 16 cores / 24 threads | RAM 32 GB",
         "system: GPU 0 NVIDIA GeForce RTX 4090 (24 GB) | GPU 1 AMD Radeon(TM) Graphics (iGPU)",
-        "system: settings: OCR RapidOCR, GPU OCR off, read every 1.5 s, debug samples on",
+        "system: settings: OCR RapidOCR, read every 1.5 s, debug samples on",
     ]  # the same card listed twice by Windows counts once
 
 
@@ -50,14 +50,14 @@ def test_the_display_line():
 def test_settings_are_logged_again_when_they_change(caplog):
     with caplog.at_level(logging.INFO, logger="yaptracker.system_info"):
         system_info.log_settings()
-        config.save_ocr_gpu(True)
-        config.save_ocr_gpu(True)  # saved again, unchanged: no new line
         config.save_read_every_s(3.0)
+        config.save_read_every_s(3.0)  # saved again, unchanged: no new line
+        config.save_debug_samples(False)
         config.save_identity(["Pickle"], ["Waffle"])  # not a setting of the line: no new line
     assert [r.getMessage().split("settings: ")[1] for r in caplog.records] == [
-        "OCR RapidOCR, GPU OCR off, read every 1.5 s, debug samples on",
-        "OCR RapidOCR, GPU OCR on, read every 1.5 s, debug samples on",
-        "OCR RapidOCR, GPU OCR on, read every 3 s, debug samples on",
+        "OCR RapidOCR, read every 1.5 s, debug samples on",
+        "OCR RapidOCR, read every 3 s, debug samples on",
+        "OCR RapidOCR, read every 3 s, debug samples off",
     ]
 
 

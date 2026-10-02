@@ -1,5 +1,6 @@
 """Start the NiceGUI app: native window on Windows, browser mode with --dev."""
 
+import logging
 import multiprocessing
 import os
 import sys
@@ -21,6 +22,7 @@ WINDOW_SIZE = (1280, 800)
 DEV_HOST = "0.0.0.0"
 DEV_PORT = 8080
 SMOKE_TEST_TIMEOUT_S = 90
+log = logging.getLogger(__name__)
 
 
 def capture_region(box, height: int, match_running: bool):
@@ -80,7 +82,9 @@ def _watch_for_overwatch(dev: bool) -> None:
     """Capture runs by itself from app start: waits for Overwatch, follows it (#16)."""
     from yaptracker.ocr import engine as ocr
 
-    ocr.use_gpu(config.ocr_gpu())  # Settings -> Use GPU for OCR (#208)
+    if config.drop_ocr_gpu():
+        log.warning("Use GPU for OCR was on: it's gone in v1 (#219), reading on the CPU")
+    ocr.warm_up(config.ocr_engine())  # loaded in the background: nobody waits for it (#219)
 
     def paused() -> bool:
         return runtime.pause.paused
@@ -107,11 +111,15 @@ def _watch_for_overwatch(dev: bool) -> None:
     from yaptracker.ocr import engine as ocr
     from yaptracker.signals import EndScreen, HeroSelect, signal_regions
 
+    # The capture thread reads the signal strips: never wait for a model load there (#219).
     def read_line(image) -> str:
-        return ocr.get(config.ocr_engine()).read_line(image)
+        engine = ocr.ready(config.ocr_engine())
+        return engine.read_line(image) if engine is not None else ""
 
     def read_lines(image) -> list[str]:  # the hero-select corner: map names like ESPERANÇA
-        engine, scale = ocr.get(config.ocr_engine()), runtime.ocr_scale()
+        engine, scale = ocr.ready(config.ocr_engine()), runtime.ocr_scale()
+        if engine is None:
+            return []
         return [line.text for line in engine.read(image, accents=True, scale=scale)]
 
     def hero_select_started(mode: str | None, map_name: str | None) -> None:
@@ -136,9 +144,7 @@ def _watch_for_overwatch(dev: bool) -> None:
     end_screen = EndScreen(read_line, match_over)
 
     def fps_state() -> str:  # one row each of the FPS test (#187)
-        if runtime.pause.paused:
-            return "paused"
-        return "gpu-ocr" if ocr.reading_on_gpu() else "running"
+        return "paused" if runtime.pause.paused else "running"
 
     fps_meter = FpsMeter(read_line, fps_state)  # Overwatch's own FPS counter, into the log (#212)
 

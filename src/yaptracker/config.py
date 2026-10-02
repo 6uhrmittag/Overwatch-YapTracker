@@ -165,16 +165,15 @@ def save_hotkey(action: str, combo: str, path: Path | None = None) -> None:
     _save(path, data)
 
 
-def ocr_gpu(path: Path | None = None) -> bool:
-    """Settings -> Use GPU for OCR (#208): off unless switched on."""
-    return bool(_load(path or paths.config_file()).get("ocr_gpu", False))
-
-
-def save_ocr_gpu(on: bool, path: Path | None = None) -> None:
+def drop_ocr_gpu(path: Path | None = None) -> bool:
+    """GPU OCR is out of v1 (#219): forget a "Use GPU for OCR" left on. True if it was on."""
     path = path or paths.config_file()
     data = _load(path)
-    data["ocr_gpu"] = on
+    if "ocr_gpu" not in data:
+        return False
+    was_on = bool(data.pop("ocr_gpu"))
     _save(path, data)
+    return was_on
 
 
 def channel_colours(path: Path | None = None) -> dict[str, float]:

@@ -91,7 +91,7 @@ Chat logs, line pictures and debug samples contain other players' names and mess
 - **Group chat** gets its own channel once YapTracker has seen the `[Group]` chat box open once; until then those lines say "Chat".
 - **Matches** start at hero select and end at VICTORY / DEFEAT. If one is missed, a quiet gap starts the next one; **New match** fixes the rest.
 - **Only who typed:** players who never chat aren't logged (type their name in **Who's that?** to add them). No match stats, no full lobbies.
-- **CPU:** reading chat on the CPU costs about 16–18 % of one core over a 1440p recording, and an estimated 25 % at 4K. **Settings → Reading → Use GPU for OCR** reads on your graphics card instead (about a fifth of the CPU per read); it's off by default because the game uses that card too. Whether YapTracker costs any FPS is still being measured.
+- **CPU:** reading chat costs about 16–18 % of one core over a 1440p recording, and an estimated 25 % at 4K. It always reads on the CPU, never on your graphics card: that's the game's. Whether YapTracker costs any FPS is still being measured.
 - Windows only.
 
 ## License
