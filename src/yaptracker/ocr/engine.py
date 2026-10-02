@@ -342,6 +342,11 @@ def use_gpu(on: bool) -> None:
         _gpu_wanted = on
 
 
+def reading_on_gpu() -> bool:
+    """For the FPS log (#212): chat reads go to the graphics card (wanted, and it didn't fail)."""
+    return _gpu_wanted and _gpu_problem is None
+
+
 def gpu_status() -> str:
     """For Settings: where RapidOCR reads right now."""
     if not _gpu_wanted:

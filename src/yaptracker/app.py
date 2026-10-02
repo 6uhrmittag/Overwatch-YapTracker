@@ -103,6 +103,7 @@ def _watch_for_overwatch(dev: bool) -> None:
         if runtime.matches is not None:
             runtime.matches.new_match()
 
+    from yaptracker.game_fps import FpsMeter, overlay_regions
     from yaptracker.ocr import engine as ocr
     from yaptracker.signals import EndScreen, HeroSelect, signal_regions
 
@@ -134,11 +135,23 @@ def _watch_for_overwatch(dev: bool) -> None:
     )
     end_screen = EndScreen(read_line, match_over)
 
+    def fps_state() -> str:  # one row each of the FPS test (#187)
+        if runtime.pause.paused:
+            return "paused"
+        return "gpu-ocr" if ocr.reading_on_gpu() else "running"
+
+    fps_meter = FpsMeter(read_line, fps_state)  # Overwatch's own FPS counter, into the log (#212)
+
+    def crops_for(width: int, height: int) -> dict:
+        return {**signal_regions(width, height), **overlay_regions(width, height)}
+
     def on_signals(frame) -> None:  # also while paused: the next match ends a pause (#20)
         if runtime.debug is not None:  # first, so a start/end sample has what was just read
             runtime.debug.on_signals(frame.signals, paused=runtime.pause.paused)
         hero_select.update(frame.signals)
         end_screen.update(frame.signals)
+        if runtime.window_size is not None:
+            fps_meter.update(frame.signals, runtime.window_size[1])
 
     def region_for(width: int, height: int):
         runtime.window_size = (width, height)  # the Live view hints when this changes (#84)
@@ -160,7 +173,7 @@ def _watch_for_overwatch(dev: bool) -> None:
 
         return CaptureWatcher(
             find_overwatch,
-            lambda hwnd: WgcFrameSource(hwnd, region_for, signals_for=signal_regions),
+            lambda hwnd: WgcFrameSource(hwnd, region_for, signals_for=crops_for),
             on_frame,
             **common,
         )
