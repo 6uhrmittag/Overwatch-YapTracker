@@ -55,6 +55,7 @@ class MatchTracker:
         self._lock = threading.Lock()  # capture thread, hotkey thread and UI all call in
         self.session_id: int | None = None
         self.match_id: int | None = None
+        self.previous_match_id: int | None = None  # the match before, in this session (#179)
         self.match_started_at: float | None = None
         self.match_map: str | None = None
         self.match_ended_at: float | None = None
@@ -165,6 +166,7 @@ class MatchTracker:
             self._store.end_session(self.session_id, self._last_alive)
         self.session_id = self._store.start_session(ts)
         self.match_id = self.match_started_at = self.match_map = self._last_chat = None
+        self.previous_match_id = None
         self.match_ended_at = self.match_outcome = None
 
     def _start_match(
@@ -176,6 +178,7 @@ class MatchTracker:
             self._store.end_match(self.match_id, self._last_chat or ts)
             if source != "hotkey":
                 self._on_missed_end()
+        self.previous_match_id = self.match_id  # where lines still on screen belong (#179)
         self.match_id = self._store.start_match(self.session_id, ts, source, mode, map_name)
         log.info("match %d started (%s, %s, %s)", self.match_id, source, mode, map_name)
         self.match_started_at, self.match_map, self._match_source = ts, map_name, source

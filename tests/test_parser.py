@@ -121,6 +121,7 @@ def test_real_readings_of_one_line_are_stored_once():
         mine = [(y.kind, y.text.lower()) for y in stored if y.speaker == "tortillaTank"]
         assert all(kind != "system" for kind, _ in mine), name
         if name == "ww":
-            assert [t for _, t in mine].count("ww") == 1
+            # typed before the sample starts: in the reopened history, so not new here (#179)
+            assert [t for _, t in mine].count("ww") <= 1
         else:
             assert any(t.startswith("fun game :3") for _, t in mine)  # chat, not system

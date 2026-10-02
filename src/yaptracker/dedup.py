@@ -25,6 +25,9 @@ from yaptracker.parser import ChatLine
 YAP_KINDS = ("message", "comms", "system")
 SAME = 85  # fuzzy ratio of "speaker: text" for two readings of the same line
 FADE_S = 10.0  # a line is visible for ~9 s after it first appears (measured on real frames)
+# After the chat box closes, the history it showed stays up to ~16 s after the last frame with
+# its prompt (54 samples, 2026-10-01), then fades (#179).
+HISTORY_S = 20.0
 KEEP = 40  # recent lines to match against; an open chat box shows about 8
 
 
@@ -90,10 +93,15 @@ class Dedup:
         self._keep, self._fade_s = keep, fade_s
         self.recent: list[Yap] = []
         self._next_id = 1
+        self._open_until = -1.0  # the history stays on screen for a while after the chat closes
 
     def update(self, ts: float, lines: list[ChatLine]) -> tuple[list[Yap], list[Yap]]:
         """(new, improved): yaps first seen in this frame, and earlier ones read better now."""
-        chat_open = any(line.kind == "input" for line in lines)
+        if any(line.kind == "input" for line in lines):
+            self._open_until = ts + HISTORY_S
+        # Sending a line closes the chat box, but the history it showed fades only later (#179):
+        # "[x]: Hello!" from 20 s ago is still the same line, not a new one.
+        chat_open = ts <= self._open_until
         lines = [line for line in lines if line.kind in YAP_KINDS]
         pairs = self._align([match_key(line) for line in lines])
         pairs = [p for n, p in enumerate(pairs) if self._valid(ts, pairs, n, chat_open)]

@@ -14,7 +14,7 @@ from collections.abc import Callable
 import numpy as np
 
 from yaptracker import channels, glyphs, priority
-from yaptracker.dedup import Dedup, Yap
+from yaptracker.dedup import YAP_KINDS, Dedup, Yap, match_key
 from yaptracker.identity import Identity
 from yaptracker.ocr.engine import OcrLine
 from yaptracker.parser import ChatLine, parse
@@ -66,6 +66,8 @@ class ChatReader:
         self._on_player = on_player  # a familiar face may be back (#26)
         self._speakers: dict[int, tuple[str | None, int | None]] = {}  # yap id -> (speaker, player)
         self._seen_colours: dict[str, float] = {}  # channel colours learned while reading (#173)
+        self._read_match: int | None = None  # the match of the last read
+        self._on_screen: set[str] = set()  # match keys of the lines in the last read (#179)
         self._save_colours = save_colours  # the group colour is rare: kept for next time (#80)
         self.min_gap_s = min_gap_s  # Settings can change it while running (#152)
         self._last_read = -math.inf  # monotonic time of the last read's start
@@ -137,16 +139,28 @@ class ChatReader:
         known = {**saved, **self._seen_colours}
         lines = self._identity().apply(channels.assign(parsed, image, known))
         new, improved = self._dedup.update(ts, lines)
+        before = self._matches.match_id
         if new:
             self._matches.chat_changed(ts)  # first: a new match may start with this yap
+        # The first read of a match that began without this chat can still show lines of the
+        # match before (#179): those that were on screen in the read before it belong there.
+        current, previous = self._matches.match_id, self._matches.previous_match_id
+        old = set()
+        if current == before and current != self._read_match and previous is not None:
+            old = {yap.id for yap in new if match_key(yap.best) in self._on_screen}
+            if old:
+                log.info("%d line(s) still on screen from match %d", len(old), previous)
+        self._read_match = current
+        self._on_screen = {match_key(line) for line in lines if line.kind in YAP_KINDS}
         for yap in new:
             player = self._player(yap, ts)
+            match_id = previous if yap.id in old else current
             self._stored[yap.id] = self._store.add_message(
-                ts=ts, match_id=self._matches.match_id, player_id=player, **_fields(yap.best)
+                ts=ts, match_id=match_id, player_id=player, **_fields(yap.best)
             )
             self._keep_picture(yap, image)
             if yap.best.channel != "system":  # "[x] started playing" is a friend online, not here
-                self._on_player(player, self._matches.match_id)
+                self._on_player(player, match_id)
         for yap in improved:
             if yap.id in self._stored:
                 self._store.update_message(

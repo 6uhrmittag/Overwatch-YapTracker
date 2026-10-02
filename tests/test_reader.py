@@ -204,3 +204,40 @@ def test_a_friend_coming_online_is_no_familiar_face(store):
     assert heard == []
     reader.read_frame(1001.0, typed)
     assert len(heard) == 1
+
+
+CHAT_CLOSED = Path(__file__).parent / "fixtures" / "dedup" / "179-chat-closed.json"
+
+
+def test_after_sending_a_line_the_history_on_screen_is_not_new(store):
+    """#179 replay: a hello, the chat opened (history shows), a line sent (history still shows,
+    prompt gone): only the sent line is new. It was stored with a second hello and four old
+    post-game lines."""
+    frames = json.loads(CHAT_CLOSED.read_text(encoding="utf-8"))["frames"]
+    shots = [(frame["t"], BLACK.copy(), frame["ocr"]) for frame in frames]
+    reads = {id(image): [OcrLine(o["text"], o["confidence"], Region(*o["box"])) for o in ocr]
+             for _, image, ocr in shots}  # fmt: skip
+    reader, tracker = reader_for(store, reads, identity=lambda: Identity(me=("tortillaTank",)))
+    for t, image, _ in shots:
+        reader.read_frame(1000.0 + t, image)
+    assert [m.text for m in store.messages(tracker.match_id)] == ["Hello!", "haili gaaaang"]
+
+
+def test_lines_on_screen_when_a_match_starts_stay_with_the_match_before(store):
+    """#179: a line that was already on screen before hero select is the old match's; one typed
+    after it is the new match's."""
+    frames = [BLACK.copy() for _ in range(4)]
+    game, gg, glhf = "[Pickle]: what a game", "[Pickle]: gg", "[Moon]: gl hf"
+    reads = {id(frames[0]): [line(gg, 300)],
+             id(frames[1]): [line(game, 260), line(gg, 300)],
+             id(frames[2]): [line(game, 300)],
+             id(frames[3]): [line(game, 260), line(glhf, 300)]}  # fmt: skip
+    reader, tracker = reader_for(store, reads)
+    reader.read_frame(1000.0, frames[0])  # "gg" in match 1
+    reader.read_frame(1001.0, frames[1])  # "what a game" above it: not new, but on screen
+    first = tracker.match_id
+    tracker.new_match(1300.0, source="heroselect")  # the next match, minutes later
+    reader.read_frame(1302.0, frames[2])  # "gg" gone, "what a game" read as new
+    reader.read_frame(1304.0, frames[3])  # typed in hero select
+    assert [m.text for m in store.messages(first)] == ["gg", "what a game"]
+    assert [m.text for m in store.messages(tracker.match_id)] == ["gl hf"]

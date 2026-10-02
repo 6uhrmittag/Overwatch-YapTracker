@@ -1,0 +1,180 @@
+{
+ "source": "Real 4K chat, 2026-10-01 20:37 (#179): a hello, then the chat opened and sent. OCR only, names made up.",
+ "frames": [
+  {
+   "t": 0.0,
+   "ocr": [
+    {
+     "text": "FizzyTea (Kiriko): Hello!",
+     "confidence": 0.998,
+     "box": [
+      94,
+      522,
+      390,
+      39
+     ]
+    }
+   ]
+  },
+  {
+   "t": 17.28,
+   "ocr": [
+    {
+     "text": "[tortillaTank]: what does this meaannnn",
+     "confidence": 0.986,
+     "box": [
+      100,
+      66,
+      662,
+      37
+     ]
+    },
+    {
+     "text": "[tortillaTank]: git diff ",
+     "confidence": 0.968,
+     "box": [
+      98,
+      124,
+      363,
+      44
+     ]
+    },
+    {
+     "text": "[tortillaTank]: OMG THANK YOUUU",
+     "confidence": 0.986,
+     "box": [
+      100,
+      186,
+      606,
+      38
+     ]
+    },
+    {
+     "text": "Endorsement Received!",
+     "confidence": 1.0,
+     "box": [
+      112,
+      250,
+      383,
+      31
+     ]
+    },
+    {
+     "text": "You endorsed SturdyHero!",
+     "confidence": 0.997,
+     "box": [
+      98,
+      312,
+      461,
+      32
+     ]
+    },
+    {
+     "text": "You endorsed BlueLlama!",
+     "confidence": 0.998,
+     "box": [
+      98,
+      372,
+      423,
+      32
+     ]
+    },
+    {
+     "text": "FizzyTea (Kiriko): Hello!",
+     "confidence": 1.0,
+     "box": [
+      96,
+      431,
+      386,
+      36
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 0.996,
+     "box": [
+      90,
+      525,
+      641,
+      38
+     ]
+    }
+   ]
+  },
+  {
+   "t": 19.96,
+   "ocr": [
+    {
+     "text": "[tortillaTank]: git diff",
+     "confidence": 0.984,
+     "box": [
+      98,
+      158,
+      358,
+      41
+     ]
+    },
+    {
+     "text": "[tortillaTank]: OMG THANK YOUUU",
+     "confidence": 0.973,
+     "box": [
+      100,
+      218,
+      606,
+      38
+     ]
+    },
+    {
+     "text": "Endorsement Received!",
+     "confidence": 0.983,
+     "box": [
+      112,
+      282,
+      383,
+      31
+     ]
+    },
+    {
+     "text": "You endorsed SturdyHero!",
+     "confidence": 0.979,
+     "box": [
+      98,
+      344,
+      461,
+      32
+     ]
+    },
+    {
+     "text": "You endorsed BlueLlama!",
+     "confidence": 0.996,
+     "box": [
+      98,
+      404,
+      424,
+      32
+     ]
+    },
+    {
+     "text": "FizzyTea (Kiriko): Hello!",
+     "confidence": 1.0,
+     "box": [
+      96,
+      462,
+      386,
+      36
+     ]
+    },
+    {
+     "text": "[tortillaTank]: haili gaaaang",
+     "confidence": 0.981,
+     "box": [
+      98,
+      520,
+      476,
+      43
+     ]
+    }
+   ]
+  }
+ ]
+}
