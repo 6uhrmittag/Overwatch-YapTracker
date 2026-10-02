@@ -81,8 +81,8 @@ jobs:
           foreach ($f in 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'licenses/nicegui') {
             if (-not (Test-Path "dist/YapTracker/$f")) { throw "dist/YapTracker/$f missing" }
           }
-          $dml = Get-ChildItem dist/YapTracker -Recurse -Filter DirectML.dll  # GPU OCR (#208)
-          if (-not $dml) { throw "DirectML.dll missing from the app" }
+          $dml = Get-ChildItem dist/YapTracker -Recurse -Filter DirectML.dll  # no GPU OCR (#219)
+          if ($dml) { throw "DirectML.dll is in the app, but GPU OCR is out of v1" }
       - name: Smoke test (window opens and loads the page)
         timeout-minutes: 5
         run: ./tools/smoke-test.ps1 -Exe dist/YapTracker/YapTracker.exe
