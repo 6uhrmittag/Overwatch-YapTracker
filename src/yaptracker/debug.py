@@ -160,6 +160,24 @@ class DebugSamples:
         self.clean_up()
         return sample
 
+    def correction(self, message, text: str, picture: Path | None) -> Path | None:
+        """A line fixed by hand (#227): what OCR read, what it really says, and its picture.
+        Plain files in debug/corrections/, so the day/size clean-up leaves them alone: they're
+        hand-checked ground truth for the next OCR change."""
+        if not self._enabled():
+            return None
+        folder = self._folder / "corrections"
+        folder.mkdir(parents=True, exist_ok=True)
+        stem = f"{time.strftime('%Y-%m-%d-%H%M%S', time.localtime(message.ts))}-{message.id}"
+        record = {"id": message.id, "ts": message.ts, "channel": message.channel,
+                  "speaker": message.speaker_raw, "ocr": message.original_text or message.text,
+                  "fixed": text}  # fmt: skip
+        target = folder / f"{stem}.json"
+        target.write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
+        if picture is not None and picture.exists():
+            shutil.copy(picture, folder / f"{stem}{picture.suffix}")
+        return target
+
     def clean_up(self) -> None:
         """Day folders older than 14 days go, then the oldest samples until under the cap."""
         if not self._folder.exists():

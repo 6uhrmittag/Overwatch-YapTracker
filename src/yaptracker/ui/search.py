@@ -12,7 +12,7 @@ from nicegui import ui
 from yaptracker import runtime
 from yaptracker.glyphs import GLYPH
 from yaptracker.ui.components import count, switch
-from yaptracker.ui.line_actions import delete_button
+from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark
 from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.snap_dialog import snap_dialog
 from yaptracker.ui.yappers import matching
@@ -162,9 +162,11 @@ def _result(hit, picker: LinePicker) -> ui.element:
         who = message.speaker_raw if channel != "system" else ""
         who = "you" if who and message.role == "me" else who
         ui.label(f"{who}:" if who else "").classes(f"yt-line-name yt-ch-{channel}")
-        ui.html(marked_html(hit.marked), sanitize=False).classes("yt-line-text")
+        text = ui.html(marked_html(hit.marked), sanitize=False).classes("yt-line-text")
+        edited = edited_mark(message)
         if hit.match_number:
             where = f"Match {hit.match_number}" + (f" on {hit.map.title()}" if hit.map else "")
             ui.label(where).classes("yt-meta yt-result-where")
-    delete_button(row, lambda: [message.id])  # (#227)
+    edit_button(row, message.id, text, edited)  # quick fixes (#227)
+    delete_button(row, lambda: [message.id])
     return row

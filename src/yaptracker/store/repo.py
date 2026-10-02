@@ -23,6 +23,8 @@ class Message:
     flagged: str | None
     role: str | None = None  # 'me' / 'crew' (#74)
     has_glyphs: int = 0  # an emoji or icon, shown as ◇ (#128)
+    edited_at: float | None = None  # fixed by hand (#227); the OCR reading is in original_text
+    original_text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -88,7 +90,7 @@ class Stats:
 
 _MESSAGE_COLUMNS = (
     "id, match_id, ts, channel, speaker_raw, player_id, hero, text, ocr_confidence, flagged, role, "
-    "has_glyphs"
+    "has_glyphs, edited_at, original_text"
 )
 
 
@@ -302,6 +304,22 @@ class Store:
         )
         return row
 
+    def edit_message(self, message_id: int, text: str, ts: float) -> None:
+        """Fixed by hand (#227): the first OCR reading is kept, search follows the new text."""
+        self._write(
+            "UPDATE chat_messages SET original_text = COALESCE(original_text, text), text = ?, "
+            "edited_at = ? WHERE id = ?",
+            (text, ts, message_id),
+        )
+
+    def unedit_message(self, message_id: int, text: str, edited_at: float | None) -> None:
+        """Undo an edit: the text and mark as they were before."""
+        self._write(
+            "UPDATE chat_messages SET text = ?, edited_at = ?, "
+            "original_text = CASE WHEN ? IS NULL THEN NULL ELSE original_text END WHERE id = ?",
+            (text, edited_at, edited_at, message_id),
+        )
+
     def delete_message(self, message_id: int, ts: float) -> None:
         """Hidden everywhere from now on, kept in the table (#227)."""
         self._write("UPDATE chat_messages SET deleted_at = ? WHERE id = ?", (ts, message_id))
@@ -414,9 +432,11 @@ class Store:
         has_glyphs: bool = False,
         player_id: int | None = None,
     ) -> None:
-        """A better reading of a stored line (#18); the full-text index follows by trigger."""
+        """A better reading of a stored line (#18); the full-text index follows by trigger.
+        A line fixed by hand keeps its text (#227)."""
         self._write(
-            "UPDATE chat_messages SET channel = ?, speaker_raw = ?, hero = ?, text = ?, "
+            "UPDATE chat_messages SET channel = ?, speaker_raw = ?, hero = ?, "
+            "text = CASE WHEN edited_at IS NULL THEN ? ELSE text END, "
             "ocr_confidence = ?, flagged = ?, role = ?, has_glyphs = ?, player_id = ? "
             "WHERE id = ?",
             (channel, speaker_raw, hero, text, ocr_confidence, flagged, role, int(has_glyphs),
