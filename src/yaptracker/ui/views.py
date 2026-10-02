@@ -97,14 +97,17 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
         seconds = max(0, int(message.ts - started_at)) if started_at else 0
         ui.label(f"{seconds // 60}:{seconds % 60:02d}").classes("yt-line-time")
         ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
-        name = ui.label().classes(f"yt-line-name yt-ch-{channel}")
-        clickable_name(name, message)  # verdict, note, profile in one click (#220)
-        if message.role == "crew":
-            ui.label("crew").classes("yt-crew-badge")
-        text = ui.html("", sanitize=False).classes("yt-line-text")
-        if message.hero:
-            ui.label(f"\u00b7 as {message.hero}").classes("yt-line-hero")
-        times = ui.label().classes("yt-line-times yt-hidden").mark("repeat-count")
+        # Name, chips, text and hero flow like one sentence: in a narrow window the text wraps
+        # under the name, never a few letters per line (#226).
+        with ui.element("div").classes("yt-line-body"):
+            name = ui.label().classes(f"yt-line-name yt-ch-{channel}")
+            clickable_name(name, message)  # verdict, note, profile in one click (#220)
+            if message.role == "crew":
+                ui.label("crew").classes("yt-crew-badge")
+            text = ui.html("", sanitize=False).classes("yt-line-text")
+            if message.hero:
+                ui.label(f"\u00b7 as {message.hero}").classes("yt-line-hero")
+            times = ui.label().classes("yt-line-times yt-hidden").mark("repeat-count")
     if on_click:  # picking lines for a snap (#64): on_click(shift)
         line.on("click", lambda e: on_click(bool((e.args or {}).get("shiftKey"))), ["shiftKey"])
     else:
@@ -186,15 +189,18 @@ def _live() -> None:
         with ui.element("div").classes("yt-pill yt-pill--waiting").mark("status") as pill:
             ui.element("span").classes("yt-pill-dot")
             status = ui.label("Waiting for Overwatch")
-        match_info = ui.label().classes("yt-meta").mark("match-info")
-        meta = ui.label().classes("yt-hint").mark("status-meta")
-        ui.element("div").classes("yt-grow")
-        peek = button("Show what I see", lambda: toggle_preview(), "quiet").mark("toggle-preview")
-        button("New match", lambda: new_match(), keycap=runtime.keycap("new_match")).mark(
-            "new-match"
-        )
-        pause_button = button("Pause", lambda: toggle_pause(), keycap=runtime.keycap("pause"))
-        pause_button.mark("pause")
+        # One line each, cut with an ellipsis in a narrow window (#226); fps also in the tooltip
+        with ui.element("div").classes("yt-header-status"):
+            match_info = ui.label().classes("yt-meta yt-ellipsis").mark("match-info")
+            meta = ui.label().classes("yt-hint yt-ellipsis yt-status-meta").mark("status-meta")
+        with ui.element("div").classes("yt-header-actions"):  # a row of their own when narrow
+            peek = button("Show what I see", lambda: toggle_preview(), "quiet")
+            peek.mark("toggle-preview")
+            button("New match", lambda: new_match(), keycap=runtime.keycap("new_match")).mark(
+                "new-match"
+            )
+            pause_button = button("Pause", lambda: toggle_pause(), keycap=runtime.keycap("pause"))
+            pause_button.mark("pause")
     with ui.element("div").classes("yt-banner yt-hidden").mark("health") as health_banner:
         health_text = ui.label().classes("yt-grow")
     with ui.element("div").classes("yt-banner yt-hidden").mark("no-name") as name_hint:
@@ -363,6 +369,11 @@ def _live() -> None:
             meta.set_text(f"{meter():.1f} fps{skipped}")
         else:
             meta.set_text("")  # the banner says what's wrong and what to do; details are in the log
+        # In a narrow window the fps line is hidden: the pill's tooltip still has it (#226).
+        if meta.text:
+            pill.props(f'title="{meta.text}"')
+        else:
+            pill.props(remove="title")
         hint.set_text(
             {
                 "paused": "Ears covered. Nothing is being saved.",

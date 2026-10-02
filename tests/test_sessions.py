@@ -80,7 +80,7 @@ def test_gaps_that_overlap_count_touching_ones_dont(store):
 def shown(row) -> str:
     """What a transcript row says: a chat line's text, or a divider's label."""
     if "chat-line" in row._markers:
-        return next(c.content for c in row.default_slot.children if hasattr(c, "content"))
+        return next(c.content for c in row.descendants() if hasattr(c, "content"))
     return row.text
 
 

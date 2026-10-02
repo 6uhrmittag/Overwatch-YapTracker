@@ -36,6 +36,9 @@ unexpected layouts, hidden controls or clever navigation.
 - **No settings needed after first start.** The setup wizard (Setup mockup)
   handles calibration; defaults for everything else.
 - **Hotkeys are shown next to the buttons they trigger** (keycap chips).
+- **Works from 720 px wide; tested at half of a 1920 screen** (next to OverLooker, #226). Never a
+  horizontal scrollbar: below 1100 px Live is one column (newest familiar face on top), text cuts
+  with an ellipsis or wraps as whole words.
 
 ## Self-explaining
 
