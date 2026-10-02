@@ -25,7 +25,7 @@ def reading_card() -> None:
             )
             gpu_status = ui.label().classes("yt-meta").mark("reading-gpu-status")
             ui.label(
-                "RapidOCR on your graphics card: about a quarter of the CPU per read. Off by "
+                "RapidOCR on your graphics card: about a fifth of the CPU per read. Off by "
                 "default, because the game uses that card too."
             ).classes("yt-hint")
             with ui.element("div").classes("yt-row yt-filters"):
