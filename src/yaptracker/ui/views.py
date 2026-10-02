@@ -8,6 +8,7 @@ from nicegui import run, ui
 from PIL import Image
 
 from yaptracker import __version__, config, logs, paths, runtime, system_info
+from yaptracker.capture.black import SAY as BLACK_SAY
 from yaptracker.capture.stats import CAPTURE
 from yaptracker.capture.watcher import fps
 from yaptracker.glyphs import GLYPH
@@ -211,6 +212,8 @@ def _live() -> None:
             pause_button.mark("pause")
     with ui.element("div").classes("yt-banner yt-hidden").mark("health") as health_banner:
         health_text = ui.label().classes("yt-grow")
+    with ui.element("div").classes("yt-banner yt-hidden").mark("black-picture") as black_hint:
+        ui.label(BLACK_SAY).classes("yt-grow")  # (#217)
     with ui.element("div").classes("yt-banner yt-hidden").mark("no-name") as name_hint:
         ui.label("I don't know your name yet, so I might greet you as a stranger.").classes(
             "yt-grow"
@@ -418,6 +421,8 @@ def _live() -> None:
             health_banner.classes(remove="yt-hidden")
         else:
             health_banner.classes(add="yt-hidden")
+        black = runtime.black is not None and runtime.black.black
+        black_hint.classes(**{"remove" if black else "add": "yt-hidden"})
         # no own name: your own lines would greet you with "Look who's back!" (#168)
         name_hint.classes(**{"add" if config.identity().me else "remove": "yt-hidden"})
         size = runtime.window_size

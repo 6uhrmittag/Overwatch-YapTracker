@@ -11,6 +11,8 @@ from nicegui import background_tasks, events, run, ui
 from PIL import Image
 
 from yaptracker import config, demo, runtime
+from yaptracker.capture.black import SAY as BLACK_SAY
+from yaptracker.capture.black import is_black
 from yaptracker.ui.box_editor import BoxEditor
 from yaptracker.ui.components import button
 from yaptracker.ui.read_preview import ReadPreview
@@ -93,7 +95,9 @@ def calibrate(on_done: Callable[[bool], None], steps: Callable[[], None] | None 
                         "Take a new one", lambda: background_tasks.create(take_screenshot())
                     ).mark("take-new")
                 else:
-                    button("New screenshot", lambda: upload.run_method("pickFiles"))
+                    button("Pick a screenshot file", lambda: upload.run_method("pickFiles")).mark(
+                        "pick-file"
+                    )
                 save_button = button("Yep, that's the chat →", lambda: save(), "primary")
                 save_button.mark("save")
 
@@ -136,6 +140,13 @@ def calibrate(on_done: Callable[[bool], None], steps: Callable[[], None] | None 
 
     async def take_screenshot() -> None:
         frame = await run.io_bound(watcher.snapshot)
+        if is_black(frame):  # exclusive Fullscreen: not a picture to draw on (#217)
+            if state["image"] is None:
+                with shot:
+                    ui.label(f"{BLACK_SAY} Or use a screenshot file.").classes("yt-hint").mark(
+                        "black-snapshot"
+                    )
+            return
         if frame is None:  # minimised, or capture just broke
             if state["image"] is None:
                 with shot:
@@ -165,4 +176,8 @@ def calibrate(on_done: Callable[[bool], None], steps: Callable[[], None] | None 
     else:
         save_button.props("disabled")
         with shot:
-            ui.label("Pick a screenshot of Overwatch with chat visible.").classes("yt-hint")
+            ui.label(
+                "I can't see Overwatch right now (not running, minimised or in Fullscreen). "
+                "Start it in Borderless Windowed and I'll take the picture myself, or pick a "
+                "screenshot file."
+            ).classes("yt-hint").mark("not-live")

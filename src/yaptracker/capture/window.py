@@ -30,3 +30,19 @@ def has_title_bar(hwnd: int) -> bool:
     user32.GetWindowLongW.restype = ctypes.c_long
     user32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
     return user32.GetWindowLongW(hwnd, -16) & ws_caption == ws_caption  # GWL_STYLE
+
+
+def in_front(hwnd: int) -> bool:
+    """The window is the one the user is looking at (foreground)."""
+    user32 = ctypes.windll.user32
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    return bool(hwnd) and user32.GetForegroundWindow() == hwnd
+
+
+def exclusive_fullscreen(hwnd: int) -> bool:
+    """Overwatch in front in exclusive Fullscreen (#217): Windows' own notification state says
+    a Direct3D full-screen app runs. Borderless windowed doesn't count."""
+    state = ctypes.c_int(0)
+    if ctypes.windll.shell32.SHQueryUserNotificationState(ctypes.byref(state)) != 0:
+        return False
+    return state.value == 3 and in_front(hwnd)  # QUNS_RUNNING_D3D_FULL_SCREEN
