@@ -407,7 +407,7 @@ lookup · `Ctrl+Alt+M` new match (override only) · `Ctrl+Alt+P` pause
       (app already running via autostart; capture, matches, sessions automatic)
 - [ ] Any time span that wasn't recorded shows up as a gap record, not a silent hole
 - [ ] No measurable FPS drop in Overwatch; YapTracker averages ≤ 15% of one CPU core
-      over an evening (target: powerful gaming PCs; dedicated GPU only as tested opt-in, #115)
+      over an evening (target: powerful gaming PCs; CPU only - GPU OCR failed the real test and is out of v1, #219)
 - [ ] Update via `tools/update.ps1` works from any v0 pre-release to v1.0.0
 - [ ] README: setup, calibration, hotkeys, known limits, tested resolution
 - [ ] `v1.0.0` released, M5 closed, everything else is `parked`
