@@ -50,9 +50,11 @@ def test_with_the_group_colour_known_group_lines_are_group():
     assert "team" in learned
 
 
-def test_without_it_they_stay_unknown_rather_than_a_guess():
+def test_the_two_people_icon_is_group_even_before_its_colour_is_known():
+    """#228: shape and size decide (two people, 3-4 blobs, narrower than team), colour only
+    confirms. Until #228 this stayed unknown until the group colour was learned (#80)."""
     image, ocr = frame([("group", "[Pickle]: nyello", MAGENTA)])
-    assert [line.channel for line in channels.assign(parse(ocr), image, {})] == ["unknown"]
+    assert [line.channel for line in channels.assign(parse(ocr), image, {})] == ["group"]
 
 
 def test_the_reader_keeps_a_learned_group_colour_for_next_time():

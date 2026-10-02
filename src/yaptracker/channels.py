@@ -9,7 +9,7 @@ comms-wheel lines are team, system lines are system. Calibration saves them.
 """
 
 import re
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 import cv2
 import numpy as np
@@ -22,6 +22,10 @@ from yaptracker.parser import ChatLine
 # friendly colour, which Overwatch ships blue.
 DEFAULT_HUES = {"match": 30.0, "system": 56.0, "team": 200.0}
 MAX_DISTANCE = 10.0  # degrees; further from every known colour -> leave the channel unknown
+SYSTEM_FILL = 0.68  # the round system icon fills ~0.72-0.83 of its box, the diamond ~0.56-0.64
+SYSTEM_HOLE = 0.85  # share of the icon's middle that's bright: below it, there's an i inside
+ICON_HUE = 30.0  # degrees: blobs this close to the line's text colour are its icon
+GROUP_DISTANCE = 20.0  # degrees: a two-people icon in a team- or match-like colour isn't group
 _MIN_PIXELS = 50
 
 
@@ -35,14 +39,20 @@ def text_hue(image: np.ndarray, box: Region) -> float | None:
     return float(np.median(text[:, 0]) * 2) if len(text) >= _MIN_PIXELS else None
 
 
-def icon_shape(image: np.ndarray, head: Region) -> str | None:
-    """The icon left of the text: "match" (diamond), "team" (three people), "people" (two or
-    three people: group chat, or a blurred team icon), None (hidden by the background).
+@dataclass(frozen=True)
+class IconStats:
+    """The icon left of a line, measured: sizes relative to the text height (#173, #228)."""
 
-    Sizes are relative to the text height, measured on 1440p and 4K HDR frames (#173): the
-    diamond is one blob ~0.25-0.5 of it, square; the team icon ~6 blobs (heads and bodies),
-    ~1.1-1.4x as wide as high; the group icon (two people) up to 4 blobs, about square. On a
-    bright background the team icon's blobs merge and it looks like the group one."""
+    blobs: int  # bright, saturated parts in the line's colour
+    width: float
+    height: float
+    fill: float  # share of the icon's box that's bright
+    middle: float  # share of the box's middle ninth that's bright (the system i is dark)
+
+
+def icon_stats(image: np.ndarray, head: Region, hue: float | None = None) -> IconStats | None:
+    """Measure the icon left of the text. `hue`: the line's text colour; only blobs in that
+    colour count, so bright background next to the icon doesn't look like more people."""
     h = head.height
     x0, x1 = max(0, int(head.x - 1.6 * h)), max(0, int(head.x - 0.1 * h))
     if h <= 0 or x1 - x0 < 0.5 * h:
@@ -52,18 +62,55 @@ def icon_shape(image: np.ndarray, head: Region) -> str | None:
         return None
     hsv = cv2.cvtColor(cell, cv2.COLOR_BGR2HSV)
     mask = ((hsv[:, :, 2] > 170) & (hsv[:, :, 1] > 60)).astype(np.uint8)
-    _, _, stats, _ = cv2.connectedComponentsWithStats(mask)
-    blobs = [s for s in stats[1:] if s[4] >= max(4, (h / 10) ** 2)]
-    if not blobs:
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(mask)
+    big = [i for i in range(1, count) if stats[i][4] >= max(4, (h / 10) ** 2)]
+    if hue is not None:
+        own = [
+            i
+            for i in big
+            if hue_distance(float(np.median(hsv[:, :, 0][labels == i]) * 2), hue) <= ICON_HUE
+        ]
+        big = own or big  # fmt: skip  # never all of them: a washed-out icon still counts
+    if not big:
         return None
+    blobs = [stats[i] for i in big]
     left, top = min(s[0] for s in blobs), min(s[1] for s in blobs)
-    width = (max(s[0] + s[2] for s in blobs) - left) / h
-    height = (max(s[1] + s[3] for s in blobs) - top) / h
-    if len(blobs) == 1 and 0.2 <= width <= 0.55 and 0.2 <= height <= 0.55:
-        return "match" if abs(width - height) <= 0.12 else None
-    if 0.65 <= width <= 1.1 and 0.55 <= height <= 0.92:
-        return "team" if len(blobs) >= 5 and width / height >= 1.1 else "people"
+    right, bottom = max(s[0] + s[2] for s in blobs), max(s[1] + s[3] for s in blobs)
+    bw, bh = right - left, bottom - top
+    middle = mask[top + bh // 3 : top + 2 * bh // 3 + 1, left + bw // 3 : left + 2 * bw // 3 + 1]
+    return IconStats(len(blobs), bw / h, bh / h, sum(int(s[4]) for s in blobs) / max(1, bw * bh),
+                     float(middle.mean()) if middle.size else 1.0)  # fmt: skip
+
+
+def classify_icon(icon: IconStats | None) -> str | None:
+    """ "match" (diamond), "system" (round i), "team" (three people), "group" (two people),
+    "people" (people, too blurred to count), None (hidden or something else).
+
+    Measured on Marv's 1440p and 4K HDR frames and Void's 1080p ones (#173, #228), biggest
+    first: team ~6 blobs, 0.8-1.0 of the text height wide and wider than high; group 3-4 blobs,
+    0.6-0.75; the system disc and the diamond one blob each, 0.3-0.6. The disc is full (fill
+    ~0.72-0.83) but for the dark i in its middle; the diamond fills ~0.56-0.64 and has no hole,
+    which keeps a blurred diamond on a bright background from looking like a disc."""
+    if icon is None:
+        return None
+    w, h = icon.width, icon.height
+    if icon.blobs == 1 and 0.2 <= w <= 0.6 and 0.2 <= h <= 0.6:
+        if abs(w - h) > 0.12:
+            return None
+        return "system" if icon.fill >= SYSTEM_FILL and icon.middle < SYSTEM_HOLE else "match"
+    if 0.5 <= h <= 0.92:
+        if icon.blobs >= 5 and 0.75 <= w <= 1.1 and w / h >= 1.1:
+            return "team"
+        if 3 <= icon.blobs <= 4 and 0.5 <= w < 0.8:
+            return "group"
+        if 0.6 <= w <= 1.1:
+            return "people"
     return None
+
+
+def icon_shape(image: np.ndarray, head: Region, hue: float | None = None) -> str | None:
+    """The channel the icon left of the text shows (see classify_icon)."""
+    return classify_icon(icon_stats(image, head, hue))
 
 
 TEAM_DISTANCE = 30.0  # degrees: a people icon this close to the team colour is team chat
@@ -119,12 +166,25 @@ def learn(lines: list[ChatLine], image: np.ndarray) -> dict[str, float]:
             channel = "group"
         if line.kind == "input" and (prompt := _PROMPT.match(line.text)):
             channel = prompt[1].lower()
+        hue = text_hue(image, line.box)
         if line.kind == "message":
-            shape = icon_shape(image, line.head or line.box)
-            channel = shape if shape in ("match", "team") else None
-        if channel and (hue := text_hue(image, line.box)) is not None:
+            shape = icon_shape(image, line.head or line.box, hue)
+            channel = shape if shape in ("match", "team") else None  # group: by colour (#80)
+        if channel and hue is not None:
             samples.setdefault(channel, []).append(hue)
     return {channel: float(np.median(hues)) for channel, hues in samples.items()}
+
+
+def _group_colour(hue: float | None, learned: dict[str, float]) -> bool:
+    """A two-people icon is group chat if its colour isn't the team's or match's (#228)."""
+    if hue is None:
+        return False
+    if "group" in learned:
+        return hue_distance(hue, learned["group"]) <= TEAM_DISTANCE
+    # not team's, not match's, and not system yellow: on HDR every channel turns that yellow
+    others = [learned.get("team"), learned.get("match", DEFAULT_HUES["match"]),
+              DEFAULT_HUES["system"]]  # fmt: skip
+    return all(ref is None or hue_distance(hue, ref) > GROUP_DISTANCE for ref in others)
 
 
 def assign(
@@ -135,11 +195,19 @@ def assign(
     hues = {**DEFAULT_HUES, **learned}
     result = []
     for line in lines:
-        shape = icon_shape(image, line.head or line.box) if line.kind == "message" else None
-        if shape in ("match", "team"):
+        hue = text_hue(image, line.box) if line.kind == "message" else None
+        shape = icon_shape(image, line.head or line.box, hue) if line.kind == "message" else None
+        if shape == "group" and not _group_colour(hue, learned):
+            shape = "people"  # colour only confirms: on HDR every channel is the same yellow
+        if shape == "system" and (hue is None or hue_distance(hue, DEFAULT_HUES["system"]) > 20):
+            shape = None  # system is always yellow (#228)
+        if shape in ("match", "team", "group"):
             result.append(replace(line, channel=shape))
             continue
-        hue = text_hue(image, line.box) if line.kind == "message" else None
+        if shape == "system":  # "[Name] was invited to the group.": a phrase the list lacks
+            text = f"[{line.speaker}] {line.text}" if line.speaker else line.text
+            result.append(replace(line, kind="system", channel="system", text=text))
+            continue
         # A people icon is a team icon blurred by the background, or the group icon: team only
         # in team colours. Group chat needs its own colour first (#80), so it stays unknown here.
         if (shape == "people" and hue is not None and "team" in learned

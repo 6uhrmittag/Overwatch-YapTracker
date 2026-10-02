@@ -41,6 +41,7 @@ _NAMED_SYSTEM = (
     r"(?:has )?left the (?:game|group)\b",
     r"is now (?:online|offline|the group leader)\b",
     r"invited you\b",
+    r"was invited to the group\b",  # Void's crop (#228)
     r"(?:accepted|declined) your\b",
 )
 _SYSTEM_PHRASE = re.compile(r"^(?:" + "|".join(_NAMED_SYSTEM) + ")", re.IGNORECASE)
