@@ -64,7 +64,7 @@ def test_the_reader_keeps_a_learned_group_colour_for_next_time():
             return lambda *a, **k: 1
 
     class Matches:
-        match_id = 1
+        match_id, previous_match_id, match_started_at = 1, None, 0.0
 
         def chat_changed(self, ts):
             pass
