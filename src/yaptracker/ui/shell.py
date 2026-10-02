@@ -8,6 +8,7 @@ from nicegui import app, ui
 
 from yaptracker import runtime
 from yaptracker.ui import icons, search, sessions, views, yappers
+from yaptracker.ui.quick_verdict import UndoBar
 
 STATIC_DIR = Path(__file__).parent / "static"
 STATIC_URL = "/static"
@@ -84,6 +85,7 @@ def root() -> None:
                 if view.bottom:
                     buttons[view.key] = _rail_button(view, show)
         content = ui.element("main").classes("yt-main")
+    ui.context.client.yt_undo = UndoBar()  # Saved + Undo after quick verdicts and notes (#220)
 
     show(VIEWS[0].key)
 
