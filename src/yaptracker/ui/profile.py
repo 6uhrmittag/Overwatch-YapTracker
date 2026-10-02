@@ -16,7 +16,7 @@ from yaptracker.ui.components import (
     switch,
     when,
 )
-from yaptracker.ui.line_actions import delete_button
+from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark
 
 # Yap-o-meter: yaps per match together.
 _LEVELS = [(1, "Silent type"), (3, "Casual yapper"), (8, "Certified yapper"),
@@ -222,11 +222,13 @@ def _yaps(player_id: int, callouts: bool = False) -> None:
             callout = " yt-their-yap--callout" if message.hero else ""
             with ui.element("div").classes("yt-their-yap" + callout) as line:
                 ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
-                ui.label(message.text).classes("yt-line-text")
+                text = ui.label(message.text).classes("yt-line-text")
+                edited = edited_mark(message)
                 if message.hero:
                     ui.label(f"as {message.hero}").classes("yt-meta")
                 if message.flagged:
                     spicy_mark()
-            delete_button(line, lambda m=message: [m.id])  # (#227)
+            edit_button(line, message.id, text, edited)  # quick fixes (#227)
+            delete_button(line, lambda m=message: [m.id])
     typed = sum(1 for m in messages if not m.hero)
     ui.label(count(typed, "yap", "yaps") + " in total").classes("yt-meta")

@@ -106,6 +106,7 @@ html, body { background: var(--yt-night); }
   .yt-line-body > * + * { margin-left: 8px; }
   .yt-line-body > .yt-line-name:empty + * { margin-left: 0; }  /* system lines have no name */
   .yt-line-body > .yt-crew-badge, .yt-line-body > .yt-line-times { display: inline-block; }
+  .yt-line-body > .yt-line-edit { display: block; margin: 4px 0 0; }  /* the fix field (#227) */
   .yt-line-name:empty { display: none; }
   /* Known players: a 3 px underline in their verdict colour and a faint gold row tint (docs/ui.md) */
   .yt-line--known { background: rgba(255,200,61,.06); }
@@ -368,7 +369,11 @@ html, body { background: var(--yt-night); }
   /* Quick fixes on a line (#227): shown on hover, at the line's right end */
   .yt-line-act { margin-left: auto; flex-shrink: 0; align-self: center; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--yt-line-strong); background: var(--yt-panel); color: var(--yt-muted); font: 800 12px var(--yt-body); text-transform: uppercase; cursor: pointer; opacity: 0; transition: opacity .15s; }
   .yt-line:hover .yt-line-act, .yt-their-yap:hover .yt-line-act, .yt-line-act:focus-visible { opacity: 1; }
-  .yt-line-act:hover { color: var(--yt-danger); border-color: var(--yt-danger); }
+  .yt-line-act:hover { color: var(--yt-text); border-color: var(--yt-text-soft); }
+  .yt-line-act + .yt-line-act:hover { color: var(--yt-danger); border-color: var(--yt-danger); }
+  .yt-line-act + .yt-line-act { margin-left: 6px; }  /* Delete after Edit */
+  .yt-line-edited { font-size: 12px; font-weight: 700; color: var(--yt-faint); cursor: help; }
+  .yt-line-edit { flex: 1 1 16ch; min-width: 16ch; padding: 0 10px; border-radius: 10px; background: var(--yt-panel-inset); border: 1px solid var(--yt-accent); }
 
   /* Text can be selected and copied (#221); the chrome around it can't. */
   button, .yt-rail, .yt-btn, .yt-seg, .yt-sticker, .yt-verdict, .yt-quick, .yt-keycap, .yt-chip,

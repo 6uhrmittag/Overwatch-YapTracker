@@ -25,7 +25,7 @@ from yaptracker.ui.crew import crew_card
 from yaptracker.ui.exports import export_card
 from yaptracker.ui.familiar_cards import familiar_card
 from yaptracker.ui.hotkeys import hotkeys_card
-from yaptracker.ui.line_actions import delete_button
+from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark, show_mark
 from yaptracker.ui.lookup import lookup_card
 from yaptracker.ui.quick_verdict import CLICK_NOT_DRAG, clickable_name
 from yaptracker.ui.reading import reading_card
@@ -108,6 +108,7 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
             if message.role == "crew":
                 ui.label("crew").classes("yt-crew-badge")
             text = ui.html("", sanitize=False).classes("yt-line-text")
+            edited = edited_mark(message)  # fixed by hand (#227)
             if message.hero:
                 ui.label(f"\u00b7 as {message.hero}").classes("yt-line-hero")
             times = ui.label().classes("yt-line-times yt-hidden").mark("repeat-count")
@@ -117,7 +118,8 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
         # how it looked (#120, #128); not when the click ends a text selection (#221)
         line.on("click", lambda: show_picture(message), js_handler=CLICK_NOT_DRAG)
     row = {"name": name, "text": text, "shown": None, "line": line, "count": times, "times": 1,
-           "ids": [message.id]}  # fmt: skip
+           "ids": [message.id], "edited": edited}  # fmt: skip
+    edit_button(line, message.id, text, edited)  # a misread line: fixed in place (#227)
     delete_button(line, lambda: row["ids"])  # a doubled or wrong line: gone in one click (#227)
     _fill_line(row, message)
     return row
@@ -151,10 +153,11 @@ def show_picture(message) -> None:
 
 
 def _fill_line(row: dict, message) -> None:
-    shown = (message.speaker_raw, message.role, message.text, message.flagged)
+    shown = (message.speaker_raw, message.role, message.text, message.flagged, message.edited_at)
     if shown == row["shown"]:
         return
     row["shown"] = shown
+    show_mark(row["edited"], message.edited_at is not None, message.original_text)
     # System lines carry the name in their text ("[gremlin.exe] started playing Overwatch.").
     who = message.speaker_raw if message.channel != "system" else ""
     who = "you" if who and message.role == "me" else who
