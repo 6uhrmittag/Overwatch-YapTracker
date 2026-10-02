@@ -318,6 +318,23 @@ html, body { background: var(--yt-night); }
   .yt-crew-badge { margin-right: 6px; padding: 1px 7px; border-radius: 999px; background: var(--yt-panel-raised); border: 1px solid var(--yt-line-strong); font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--yt-muted); }
   .yt-conf { flex-shrink: 0; font-size: 13px; font-weight: 700; color: var(--yt-faint); }
   .yt-conf--low { color: var(--yt-danger); }
+
+  /* Quick verdicts (#220): the profile's stickers, small and dimmed until hovered or chosen. */
+  .yt-quick { display: flex; gap: 6px; flex-shrink: 0; }
+  .yt-quick-v { padding: 3px 9px; border-radius: 999px; border: 2px solid var(--yt-line-strong); background: var(--yt-panel); color: var(--yt-muted); font: 800 12px var(--yt-body); text-transform: uppercase; cursor: pointer; opacity: .55; transition: transform .15s, opacity .15s; }
+  .yt-quick-v:hover, .yt-quick-v.is-on { opacity: 1; box-shadow: 0 3px 0 rgba(0,0,0,.45); border-color: currentColor; }
+  .yt-quick-v--friend:hover, .yt-quick-v--friend.is-on { background: #ffc83d; color: #2a1d00; transform: rotate(-5deg); }
+  .yt-quick-v--fun:hover, .yt-quick-v--fun.is-on { background: #b98cff; color: #1d0b3a; transform: rotate(3deg); }
+  .yt-quick-v--neutral:hover, .yt-quick-v--neutral.is-on { background: #7d8699; color: #12151c; transform: rotate(-2deg); }
+  .yt-quick-v--avoid:hover, .yt-quick-v--avoid.is-on { background: #ff5c66; color: #2b0508; transform: rotate(4deg); }
+  .yt-line-name--who { cursor: pointer; }
+  .yt-line-name--who:hover { text-decoration: underline; text-underline-offset: 4px; }
+  .yt-who { background: var(--yt-panel-raised); border: 1px solid var(--yt-line-strong); border-radius: 16px; }
+  .yt-who-body { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; min-width: 300px; }
+  .yt-who-name { font: 800 italic 22px var(--yt-display); text-transform: uppercase; }
+  .yt-who-note { padding: 0 10px; border-radius: 12px; background: var(--yt-panel-inset); border: 1px solid var(--yt-line-strong); }
+  .yt-undo { position: fixed; left: 0; right: 0; margin: 0 auto; width: fit-content; bottom: 24px; z-index: 6000; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 14px; border-radius: 16px; background: var(--yt-panel-raised); border: 1px solid var(--yt-line-strong); box-shadow: 0 6px 0 rgba(0,0,0,.35); animation: yt-pop .3s ease-out; }
+  .yt-undo-text { font-weight: 700; }
 }
 
 @keyframes yt-pop {
@@ -337,3 +354,4 @@ html, body { background: var(--yt-night); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+

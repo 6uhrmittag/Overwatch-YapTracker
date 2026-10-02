@@ -9,6 +9,7 @@ from rapidfuzz import fuzz
 from yaptracker import config, runtime
 from yaptracker.ui.components import VERDICTS, count, sticker, when
 from yaptracker.ui.profile import profile
+from yaptracker.ui.quick_verdict import quick_buttons, set_verdict
 
 FOUND = 60  # rapidfuzz WRatio: typos and half names still find someone
 _FILTERS = {"all": "Everyone", **{k: label for k, (label, _) in VERDICTS.items()},
@@ -132,6 +133,9 @@ def _list(open_profile: Callable[[int], None]) -> None:
                     yaps = count(player.yaps, "yap", "yaps")
                     met = when(player.last_seen)
                     ui.label(f"last met {met} \u00b7 {matches} \u00b7 {yaps}").classes("yt-meta")
+                    if crew.role(player.display_name) is None:  # not you, not crew (#220)
+                        pick = lambda v, pid=player.id: set_verdict(pid, v, render)  # noqa: E731
+                        quick_buttons(player.verdict, pick)
 
     def on_search(e) -> None:
         state["query"] = e.value or ""

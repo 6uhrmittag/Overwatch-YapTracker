@@ -26,6 +26,7 @@ from yaptracker.ui.exports import export_card
 from yaptracker.ui.familiar_cards import familiar_card
 from yaptracker.ui.hotkeys import hotkeys_card
 from yaptracker.ui.lookup import lookup_card
+from yaptracker.ui.quick_verdict import clickable_name
 from yaptracker.ui.reading import reading_card
 from yaptracker.ui.setup import setup_wizard, startup_card
 
@@ -97,6 +98,7 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
         ui.label(f"{seconds // 60}:{seconds % 60:02d}").classes("yt-line-time")
         ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
         name = ui.label().classes(f"yt-line-name yt-ch-{channel}")
+        clickable_name(name, message)  # verdict, note, profile in one click (#220)
         if message.role == "crew":
             ui.label("crew").classes("yt-crew-badge")
         text = ui.html("", sanitize=False).classes("yt-line-text")
