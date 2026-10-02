@@ -330,36 +330,15 @@ class _GpuOrCpu:
         return self._call("read_line", image)
 
 
-_gpu_wanted = False
-_gpu_problem: str | None = None  # why OCR isn't on the graphics card although wanted
+_gpu_problem: str | None = None  # why OCR isn't on the graphics card (#208, parked by #219)
 _gpu_name: str | None = None
 
 
-def use_gpu(on: bool) -> None:
-    """Settings -> Use GPU for OCR (#208). Takes effect with the next read."""
-    global _gpu_wanted
-    with _cache_lock:
-        _gpu_wanted = on
-
-
-def reading_on_gpu() -> bool:
-    """For the FPS log (#212): chat reads go to the graphics card (wanted, and it didn't fail)."""
-    return _gpu_wanted and _gpu_problem is None
-
-
-def gpu_status() -> str:
-    """For Settings: where RapidOCR reads right now."""
-    if not _gpu_wanted:
-        return "Reading on the CPU."
-    if _gpu_problem:
-        return f"Reading on the CPU: the graphics card {_gpu_problem}."
-    if _gpu_name:
-        return f"Reading on the {_gpu_name}."
-    return "Reading on the graphics card from the next chat line."
-
-
 def _gpu_engine() -> OcrEngine:
-    """The GPU RapidOCR (made once), or the CPU one with the reason kept for Settings."""
+    """The GPU RapidOCR (made once), or the CPU one with the reason kept.
+
+    Not reachable since #219: on both test PCs it made Overwatch stutter or freeze. Kept for a
+    later version with a low-priority GPU queue (see the parked issue)."""
     global _gpu_problem, _gpu_name
     if "rapidocr-gpu" not in _cache:
         from yaptracker import gpu
@@ -380,19 +359,59 @@ def _gpu_engine() -> OcrEngine:
 
 
 def _cpu_rapidocr() -> OcrEngine:
-    with _cache_lock:  # from the reader thread, while the capture thread may ask too
-        return _cpu_engine(_RAPID)
+    return get(_RAPID)
 
 
-def _cpu_engine(name: str) -> OcrEngine:
-    if name not in _cache:
-        _cache[name] = ENGINES[name]()
-    return _cache[name]
+_making: dict[str, threading.Event] = {}  # engines being made right now, by name
 
 
 def get(name: str) -> OcrEngine:
-    """Engines are expensive to create, so each one is made once."""
+    """The engine, made once. Blocks while it's being made (~1 s): only from threads that may
+    wait (the chat reader, io_bound UI code). The lock is never held while a model loads (#219),
+    so ready() stays instant for the capture thread."""
+    while True:
+        with _cache_lock:
+            if name in _cache:
+                return _cache[name]
+            making = _making.get(name)
+            if making is None:
+                making = _making[name] = threading.Event()
+                mine = True
+            else:
+                mine = False
+        if not mine:
+            making.wait()
+            continue  # made by the other thread, or it failed: then try here (and raise)
+        try:
+            engine = ENGINES[name]()
+            with _cache_lock:
+                _cache[name] = engine
+            return engine
+        finally:
+            with _cache_lock:
+                _making.pop(name, None)
+            making.set()
+
+
+def ready(name: str) -> OcrEngine | None:
+    """The engine if it's made, else None at once (and it gets made in the background).
+    For the capture thread: a match signal can miss a second, the capture can't stall (#219)."""
     with _cache_lock:
-        if name == _RAPID and _gpu_wanted:
-            return _gpu_engine()
-        return _cpu_engine(name)
+        if name in _cache:
+            return _cache[name]
+        busy = name in _making
+    if not busy:
+        warm_up(name)
+    return None
+
+
+def warm_up(name: str) -> None:
+    """Make the engine in a background thread, so nobody waits for it later."""
+
+    def make() -> None:
+        try:
+            get(name)
+        except Exception as error:  # e.g. Windows OCR without a language: the reader says so
+            log.warning("OCR engine %s can't start: %s", name, error)
+
+    threading.Thread(target=make, name=f"load OCR {name}", daemon=True).start()

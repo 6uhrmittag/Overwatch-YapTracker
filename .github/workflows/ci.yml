@@ -71,11 +71,8 @@ jobs:
           "VERSION=$version" >> $env:GITHUB_ENV
           "version=$version" >> $env:GITHUB_OUTPUT
       - run: pip install .[dev] pyinstaller
-      - name: OCR on the GPU is possible (DirectML build of onnxruntime, CPU unchanged, #208)
-        run: |
-          pip uninstall -y onnxruntime
-          pip install onnxruntime-directml
-          python -c "import onnxruntime as o; p = o.get_available_providers(); print(o.__version__, p); assert 'DmlExecutionProvider' in p"
+      - name: Plain onnxruntime, no DirectML in the app (GPU OCR is out of v1, #219)
+        run: python -c "import onnxruntime as o; p = o.get_available_providers(); print(o.__version__, p); assert 'DmlExecutionProvider' not in p"
       - name: Windows-only tests (Windows OCR, WGC capture, hotkeys, autostart, system info)
         run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py tests/test_hotkeys_windows.py tests/test_autostart_windows.py tests/test_process_windows.py tests/test_priority_windows.py tests/test_system_info_windows.py -v
       - run: pyinstaller --noconfirm packaging/yaptracker.spec

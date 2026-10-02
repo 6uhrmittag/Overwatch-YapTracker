@@ -70,7 +70,7 @@ def parse_fps(text: str) -> int | None:
 class FpsMeter:
     """Reads the overlay every few seconds and logs each minute: median, p10, n and the state.
 
-    `state()` says what YapTracker is doing ("running", "paused", "gpu-ocr"); a new state starts
+    `state()` says what YapTracker is doing ("running", "paused"); a new state starts
     a new minute, so every log line is one row of the A/B/C test."""
 
     def __init__(

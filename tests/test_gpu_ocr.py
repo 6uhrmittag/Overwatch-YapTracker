@@ -1,9 +1,13 @@
-"""Use GPU for OCR (#208): off by default, falls back to the CPU by itself, says where it reads."""
+"""GPU OCR is out of v1 (#219): no switch, a left-on setting is dropped, engines load in the
+background and never under a lock the capture thread needs."""
+
+import threading
+import time
 
 import pytest
 from nicegui.testing import User, user_simulation
 
-from yaptracker import config, gpu
+from yaptracker import config, gpu, paths
 from yaptracker.ocr import engine as ocr
 from yaptracker.ui import shell
 
@@ -11,14 +15,14 @@ from yaptracker.ui import shell
 @pytest.fixture(autouse=True)
 def _fresh(monkeypatch):
     monkeypatch.setattr(ocr, "_cache", {})
+    monkeypatch.setattr(ocr, "_making", {})
     monkeypatch.setattr(ocr, "_gpu_problem", None)
     monkeypatch.setattr(ocr, "_gpu_name", None)
-    yield
-    ocr.use_gpu(False)
 
 
 class FakeEngine:
-    def __init__(self, label, fail=False):
+    def __init__(self, label, fail=False, slow_s=0.0):
+        time.sleep(slow_s)
         self.label, self.fail, self.reads = label, fail, 0
 
     def read(self, image, accents=False, scale=2.0):
@@ -31,34 +35,50 @@ class FakeEngine:
         return self.label
 
 
-def test_off_by_default_and_the_cpu_engine_is_used():
-    assert config.ocr_gpu() is False
-    assert ocr.gpu_status() == "Reading on the CPU."
-
-
-def test_no_dedicated_card_means_cpu_and_says_why(monkeypatch):
-    monkeypatch.setattr(gpu, "dedicated", lambda: None)
+def test_a_gpu_setting_left_on_is_dropped_and_reading_stays_on_the_cpu(monkeypatch):
+    paths.config_file().parent.mkdir(parents=True, exist_ok=True)
+    paths.config_file().write_text('{"ocr_gpu": true, "read_every_s": 3.0}', encoding="utf-8")
+    assert config.drop_ocr_gpu() is True
+    assert config.drop_ocr_gpu() is False and config.read_every_s() == 3.0  # the rest stays
+    card = gpu.Adapter(0, "NVIDIA GeForce RTX 4090", 24 * 1024**3)
+    monkeypatch.setattr(gpu, "dedicated", lambda: card)
     monkeypatch.setitem(ocr.ENGINES, "rapidocr", lambda: FakeEngine("cpu"))
-    ocr.use_gpu(True)
-    assert ocr.get("rapidocr").read(None) == ["cpu"]
-    assert (
-        ocr.gpu_status()
-        == "Reading on the CPU: the graphics card isn't there (no dedicated GPU found)."
-    )
+    assert ocr.get("rapidocr").read(None) == ["cpu"]  # a card is there; the CPU reads anyway
 
 
-def test_a_card_that_fails_mid_evening_hands_over_to_the_cpu(monkeypatch):
+def test_a_model_loading_never_blocks_the_capture_thread(monkeypatch):
+    monkeypatch.setitem(ocr.ENGINES, "rapidocr", lambda: FakeEngine("cpu", slow_s=0.5))
+    started = time.monotonic()
+    assert ocr.ready("rapidocr") is None  # not made yet: the capture skips this tick
+    assert ocr.ready("rapidocr") is None  # and doesn't start a second one
+    assert time.monotonic() - started < 0.1
+    got = []
+    reader = threading.Thread(target=lambda: got.append(ocr.get("rapidocr")))  # may wait
+    reader.start()
+    reader.join(5)
+    assert got and ocr.ready("rapidocr") is got[0]  # one engine, made once
+
+
+def test_an_engine_that_fails_to_load_raises_for_who_waits(monkeypatch):
+    def broken():
+        raise ocr.OcrUnavailable("Windows has no OCR language installed")
+
+    monkeypatch.setitem(ocr.ENGINES, "windows", broken)
+    with pytest.raises(ocr.OcrUnavailable):
+        ocr.get("windows")
+    assert ocr.ready("windows") is None  # and the capture just skips
+
+
+def test_the_parked_gpu_engine_still_falls_back_to_the_cpu(monkeypatch):
+    """The DirectML code stays for later (#219): if it's ever used again, a failing card hands
+    over to the CPU after one failed read."""
     card = gpu.Adapter(0, "NVIDIA GeForce RTX 4090", 24 * 1024**3)
     monkeypatch.setattr(gpu, "dedicated", lambda: card)
     failing = FakeEngine("gpu", fail=True)
     monkeypatch.setattr(ocr, "RapidOcrEngine", lambda device=None: failing)
     monkeypatch.setitem(ocr.ENGINES, "rapidocr", lambda: FakeEngine("cpu"))
-    ocr.use_gpu(True)
-    engine = ocr.get("rapidocr")
-    assert ocr.gpu_status() == "Reading on the NVIDIA GeForce RTX 4090."
-    assert engine.read(None) == ["cpu"]  # the GPU read failed: this frame is read on the CPU
-    assert engine.read(None) == ["cpu"] and failing.reads == 1  # and the GPU isn't tried again
-    assert ocr.gpu_status().startswith("Reading on the CPU: the graphics card stopped working")
+    engine = ocr._gpu_engine()
+    assert engine.read(None) == ["cpu"] and engine.read(None) == ["cpu"] and failing.reads == 1
 
 
 def test_the_dedicated_card_is_the_one_with_its_own_memory(monkeypatch):
@@ -76,12 +96,9 @@ async def user():
         yield user
 
 
-async def test_the_switch_in_settings(user: User, monkeypatch):
+async def test_settings_has_no_gpu_switch(user: User):
     config.save_setup_state("done")
-    monkeypatch.setattr(gpu, "dedicated", lambda: None)
     await user.open("/")
     user.find(marker="nav-settings").click()
-    await user.should_see("Reading on the CPU.")
-    user.find(marker="reading-gpu").click()
-    assert config.ocr_gpu() is True and ocr._gpu_wanted
-    await user.should_see("Reading on the graphics card from the next chat line.")
+    await user.should_see("Read the chat")
+    await user.should_not_see("Use GPU for OCR")

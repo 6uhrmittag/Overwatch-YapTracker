@@ -112,7 +112,7 @@ def test_a_pause_closes_the_minute_so_each_line_is_one_state(caplog):
 
 
 def test_overlay_off_reads_nothing_and_logs_nothing(caplog):
-    clock, state = Clock(), {"now": "gpu-ocr"}
+    clock, state = Clock(), {"now": "running"}
     fps, calls = meter(clock, [], state)
     with caplog.at_level(logging.INFO, logger="yaptracker.game_fps"):
         for _ in range(130):
