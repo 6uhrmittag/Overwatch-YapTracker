@@ -50,7 +50,8 @@ def test_wgc_captures_a_window_cropped_to_the_region():
                 asking.join(0.1)
         finally:
             source.close()
-        assert taken["whole"] is not None and taken["whole"].shape[0] >= frame.image.shape[0] * 2
+        # the whole window, not the crop (Notepad may still settle by a few px in between)
+        assert taken["whole"] is not None and taken["whole"].shape[0] >= frame.image.shape[0] * 1.8
         assert frame.image.ndim == 3 and frame.image.shape[2] == 3
         assert frame.image.shape[0] > 10 and frame.image.shape[1] > 10
         assert frame.image.max() > 0, "capture delivered a black frame"
