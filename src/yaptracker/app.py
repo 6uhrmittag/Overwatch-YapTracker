@@ -148,6 +148,18 @@ def _watch_for_overwatch(dev: bool) -> None:
 
     fps_meter = FpsMeter(read_line, fps_state)  # Overwatch's own FPS counter, into the log (#212)
 
+    def overwatch_in_front() -> bool:
+        window = runtime.watcher.window if runtime.watcher is not None else None
+        if window is None or sys.platform != "win32":
+            return False
+        from yaptracker.capture.window import in_front
+
+        return in_front(window)
+
+    from yaptracker.capture.black import BlackPicture
+
+    runtime.black = BlackPicture(overwatch_in_front)  # exclusive Fullscreen, said in words (#217)
+
     def crops_for(width: int, height: int) -> dict:
         return {**signal_regions(width, height), **overlay_regions(width, height)}
 
@@ -158,6 +170,7 @@ def _watch_for_overwatch(dev: bool) -> None:
         end_screen.update(frame.signals)
         if runtime.window_size is not None:
             fps_meter.update(frame.signals, runtime.window_size[1])
+        runtime.black.update(frame.signals.get("overview"))
 
     found = {"hwnd": None}  # the display line follows with the game's first frame (#214)
 

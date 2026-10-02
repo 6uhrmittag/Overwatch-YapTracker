@@ -10,6 +10,7 @@ from collections.abc import Callable
 from nicegui import ui
 
 from yaptracker import autostart, config, runtime
+from yaptracker.capture.black import SAY as BLACK_SAY
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import button, set_button_label, stepper, switch
 from yaptracker.ui.crew import crew_card
@@ -48,6 +49,18 @@ def _windowed() -> bool:
     return has_title_bar(watcher.window)
 
 
+def _fullscreen() -> bool:
+    """Exclusive Fullscreen: Windows says so, or the picture stayed black (#217)."""
+    if runtime.black is not None and runtime.black.black:
+        return True
+    watcher = runtime.watcher
+    if sys.platform != "win32" or watcher is None or watcher.window is None:
+        return False
+    from yaptracker.capture.window import exclusive_fullscreen
+
+    return exclusive_fullscreen(watcher.window)
+
+
 def _overwatch_status() -> tuple[bool, str, str]:
     """(found, what I see, what to do) for step 1."""
     watcher, size = runtime.watcher, runtime.window_size
@@ -58,6 +71,8 @@ def _overwatch_status() -> tuple[bool, str, str]:
             "Already running? Bring it up once, so I can find its window.",
         )
     seen = f"Found Overwatch at {size[0]}\u00d7{size[1]}."
+    if _fullscreen():  # never "perfect" then (#217)
+        return True, seen, BLACK_SAY
     if _windowed():
         return (
             True,
