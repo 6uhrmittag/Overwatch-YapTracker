@@ -12,7 +12,7 @@ from nicegui import app, ui
 from nicegui.run import io_bound
 
 from yaptracker import autostart as start_with_windows
-from yaptracker import config, demo, paths, runtime
+from yaptracker import config, demo, paths, runtime, system_info
 from yaptracker.capture.watcher import CaptureWatcher
 from yaptracker.ui import shell
 
@@ -153,7 +153,18 @@ def _watch_for_overwatch(dev: bool) -> None:
         if runtime.window_size is not None:
             fps_meter.update(frame.signals, runtime.window_size[1])
 
+    found = {"hwnd": None}  # the display line follows with the game's first frame (#214)
+
+    def open_source(hwnd: int):
+        from yaptracker.capture.wgc import WgcFrameSource
+
+        found["hwnd"] = hwnd
+        return WgcFrameSource(hwnd, region_for, signals_for=crops_for)
+
     def region_for(width: int, height: int):
+        if found["hwnd"] is not None:
+            hwnd, found["hwnd"] = found["hwnd"], None
+            system_info.game_found(hwnd, width, height)
         runtime.window_size = (width, height)  # the Live view hints when this changes (#84)
         running = runtime.matches is None or runtime.matches.running
         return capture_region(config.chat_region(width, height), height, running)
@@ -168,15 +179,9 @@ def _watch_for_overwatch(dev: bool) -> None:
         if dev:
             runtime.window_size = (2560, 1440)  # the demo stands in for a 1440p Overwatch window
             return CaptureWatcher(lambda: 1, lambda _: demo.DemoFrameSource(), on_frame, **common)
-        from yaptracker.capture.wgc import WgcFrameSource
         from yaptracker.capture.window import find_overwatch
 
-        return CaptureWatcher(
-            find_overwatch,
-            lambda hwnd: WgcFrameSource(hwnd, region_for, signals_for=crops_for),
-            on_frame,
-            **common,
-        )
+        return CaptureWatcher(find_overwatch, open_source, on_frame, **common)
 
     if not dev and sys.platform != "win32":
         return  # native mode only exists on Windows; Linux uses --dev
@@ -315,6 +320,8 @@ def run(
 ) -> None:
     shell.register_static_files()
     demo.ENABLED = dev
+    system_info.log_at_start()  # to compare numbers between PCs (#214)
+    config.on_save.append(system_info.log_settings)
     close_store = _open_store()
     if not (dev or smoke_test):
         start_with_windows.apply_at_start(autostart)

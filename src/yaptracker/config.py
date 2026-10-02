@@ -1,6 +1,7 @@
 """User settings in data/config.json. Only what the user changed is stored; the rest is defaults."""
 
 import json
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from math import gcd
 from pathlib import Path
@@ -16,11 +17,16 @@ def _load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
 
 
+on_save: list[Callable[[], None]] = []  # after every save, e.g. the settings line in the log (#214)
+
+
 def _save(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     tmp.replace(path)
+    for listener in on_save:
+        listener()
 
 
 def aspect(width: int, height: int) -> str:
