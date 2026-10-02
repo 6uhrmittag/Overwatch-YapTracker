@@ -21,7 +21,8 @@ YapTracker itself is MIT licensed (see `LICENSE`). The Windows app bundles the c
 | Pillow | Reading images | MIT-CMU |
 | RapidOCR (rapidocr-onnxruntime) incl. PP-OCRv4 models from PaddleOCR | OCR | Apache-2.0 |
 | PaddleOCR PP-OCRv5 Latin recognizer (`ocr/models/`, ONNX from RapidOCR's model hub) | OCR of umlauts and accents | Apache-2.0 |
-| ONNX Runtime | Running the OCR models | MIT |
+| ONNX Runtime (onnxruntime-directml in the Windows app) | Running the OCR models | MIT |
+| DirectML (`DirectML.dll`, comes with onnxruntime-directml) | OCR on the graphics card, if switched on | Microsoft DirectML license (redistributable) |
 | OpenCV (opencv-python) | Image resizing for OCR | Apache-2.0 |
 | Shapely, pyclipper, PyYAML | Used by RapidOCR | BSD-3-Clause, MIT, MIT |
 | winsdk | Windows OCR fallback | MIT |
