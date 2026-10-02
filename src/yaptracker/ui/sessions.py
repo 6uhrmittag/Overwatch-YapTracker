@@ -12,7 +12,7 @@ from yaptracker import runtime
 from yaptracker.ui.components import button, count, when
 from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.snap_dialog import snap_dialog
-from yaptracker.ui.views import _OUTCOMES, _WHY, chat_line, show_picture
+from yaptracker.ui.views import _OUTCOMES, _WHY, chat_line, repeat, same_callout, show_picture
 
 _GAP_WHY = {**_WHY, "paused": "paused", "app_not_running": "YapTracker wasn't running"}
 
@@ -157,7 +157,10 @@ def _transcript(match, number: int, back) -> None:
         with ui.element("div").classes("yt-card-body yt-transcript").mark("transcript"):
             if not events:
                 ui.label("Nobody typed in this match. Suspiciously quiet lobby.").classes("yt-hint")
+            last = None  # the row before, to count repeated callouts
             for _, kind, item in sorted(events, key=lambda e: e[0]):
+                if kind in ("end", "gap"):
+                    last = None  # never count repeats across a divider
                 if kind == "end":
                     result = (
                         f" ({_OUTCOMES.get(item.outcome, item.outcome)})" if item.outcome else ""
@@ -173,7 +176,11 @@ def _transcript(match, number: int, back) -> None:
                     ui.label(f"Not recorded {span} ({_GAP_WHY.get(reason, reason)})").classes(
                         "yt-gap-line"
                     ).mark("gap-line")
+                elif last and same_callout(last[0], item):
+                    repeat(last[1])  # "Enemy Sombra!" x4 (#185)
+                    picker.add(item, last[1]["line"])
                 else:
                     row = chat_line(item, match.started_at, verdicts.get(item.player_id),
                                     on_click=lambda shift, m=item: clicked(m, shift))  # fmt: skip
                     picker.add(item, row["line"])
+                    last = (item, row)
