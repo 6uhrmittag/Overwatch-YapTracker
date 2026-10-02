@@ -179,7 +179,7 @@ class Store:
         """(id, last activity) of the newest session: when it ended, or its newest yap/match."""
         rows = self._read(
             "SELECT s.id, MAX(COALESCE(s.ended_at, s.started_at), "
-            "COALESCE((SELECT MAX(ts) FROM chat_messages c JOIN matches m ON m.id = c.match_id "
+            "COALESCE((SELECT MAX(ts) FROM live_messages c JOIN matches m ON m.id = c.match_id "
             "WHERE m.session_id = s.id), 0), "
             "COALESCE((SELECT MAX(started_at) FROM matches WHERE session_id = s.id), 0)) "
             "FROM sessions s ORDER BY s.id DESC LIMIT 1"
@@ -205,12 +205,12 @@ class Store:
         """Every session with at least one match, newest first (#29)."""
         rows = self._read(
             "SELECT s.id, s.started_at, COALESCE(s.ended_at, MAX(s.started_at, "
-            "COALESCE((SELECT MAX(c.ts) FROM chat_messages c JOIN matches m ON m.id = c.match_id "
+            "COALESCE((SELECT MAX(c.ts) FROM live_messages c JOIN matches m ON m.id = c.match_id "
             "WHERE m.session_id = s.id), 0), "
             "COALESCE((SELECT MAX(COALESCE(ended_at, started_at)) FROM matches "
             "WHERE session_id = s.id), 0))), "
             "(SELECT COUNT(*) FROM matches WHERE session_id = s.id) AS n, "
-            "(SELECT COUNT(*) FROM chat_messages c JOIN matches m ON m.id = c.match_id "
+            "(SELECT COUNT(*) FROM live_messages c JOIN matches m ON m.id = c.match_id "
             "WHERE m.session_id = s.id) "
             "FROM sessions s WHERE n > 0 ORDER BY s.started_at DESC, s.id DESC"
         )
@@ -220,7 +220,7 @@ class Store:
         """The matches of a session in play order, with how much was said (#29)."""
         rows = self._read(
             "SELECT m.id, m.started_at, m.ended_at, m.outcome, m.map, m.mode, COUNT(c.id), "
-            "MAX(c.ts) FROM matches m LEFT JOIN chat_messages c ON c.match_id = m.id "
+            "MAX(c.ts) FROM matches m LEFT JOIN live_messages c ON c.match_id = m.id "
             "WHERE m.session_id = ? GROUP BY m.id ORDER BY m.started_at, m.id",
             (session_id,),
         )
@@ -256,7 +256,7 @@ class Store:
             # yaps are typed lines; comms-wheel callouts (the lines with a hero) apart (#182)
             "COUNT(DISTINCT c.match_id), COUNT(c.id) - COUNT(c.hero), COUNT(c.flagged), "
             "COUNT(c.hero) "
-            "FROM players p LEFT JOIN chat_messages c ON c.player_id = p.id GROUP BY p.id"
+            "FROM players p LEFT JOIN live_messages c ON c.player_id = p.id GROUP BY p.id"
         )
         return [PlayerRow(*row) for row in rows]
 
@@ -275,7 +275,7 @@ class Store:
         `callouts`, their comms-wheel lines too (#182)."""
         typed = "" if callouts else " AND hero IS NULL"
         rows = self._read(
-            f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE player_id = ?{typed} "
+            f"SELECT {_MESSAGE_COLUMNS} FROM live_messages WHERE player_id = ?{typed} "
             "ORDER BY ts DESC, id DESC",
             (player_id,),
         )
@@ -284,7 +284,7 @@ class Store:
     def player_heroes(self, player_id: int) -> list[str]:
         """The heroes their callouts named, most used first ("Seen as Kiriko, Lucio", #182)."""
         rows = self._read(
-            "SELECT hero FROM chat_messages WHERE player_id = ? AND hero IS NOT NULL "
+            "SELECT hero FROM live_messages WHERE player_id = ? AND hero IS NOT NULL "
             "GROUP BY hero ORDER BY COUNT(*) DESC, hero",
             (player_id,),
         )
@@ -297,10 +297,18 @@ class Store:
         Callouts count for the matches (they were there), not as yaps (#182)."""
         (row,) = self._read(
             "SELECT COUNT(DISTINCT match_id), COUNT(*) - COUNT(hero), MAX(ts), COUNT(flagged) "
-            "FROM chat_messages WHERE player_id = ? AND match_id IS NOT ?",
+            "FROM live_messages WHERE player_id = ? AND match_id IS NOT ?",
             (player_id, match_id),
         )
         return row
+
+    def delete_message(self, message_id: int, ts: float) -> None:
+        """Hidden everywhere from now on, kept in the table (#227)."""
+        self._write("UPDATE chat_messages SET deleted_at = ? WHERE id = ?", (ts, message_id))
+
+    def restore_message(self, message_id: int) -> None:
+        """Undo a delete."""
+        self._write("UPDATE chat_messages SET deleted_at = NULL WHERE id = ?", (message_id,))
 
     def set_flag(self, message_id: int, flagged: str | None) -> None:
         """Mark a line as spicy ('manual') or take it back (None) (#77)."""
@@ -422,7 +430,7 @@ class Store:
 
     def messages(self, match_id: int) -> list[Message]:
         rows = self._read(
-            f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE match_id = ? ORDER BY ts, id",
+            f"SELECT {_MESSAGE_COLUMNS} FROM live_messages WHERE match_id = ? ORDER BY ts, id",
             (match_id,),
         )
         return [Message(*row) for row in rows]
@@ -433,7 +441,7 @@ class Store:
             return []
         columns = ", ".join(f"m.{c.strip()}" for c in _MESSAGE_COLUMNS.split(","))
         rows = self._read(
-            f"SELECT {columns} FROM chat_fts JOIN chat_messages m ON m.id = chat_fts.rowid "
+            f"SELECT {columns} FROM chat_fts JOIN live_messages m ON m.id = chat_fts.rowid "
             "WHERE chat_fts MATCH ? ORDER BY rank LIMIT ?",
             (_fts_query(text), limit),
         )
@@ -468,12 +476,12 @@ class Store:
             "AND x.id <= mt.id), mt.map"
         )
         if text.strip():
-            source = "chat_fts JOIN chat_messages m ON m.id = chat_fts.rowid"
+            source = "chat_fts JOIN live_messages m ON m.id = chat_fts.rowid"
             marked = "highlight(chat_fts, 0, char(1), char(2))"
             where.insert(0, "chat_fts MATCH ?")
             params.insert(0, _fts_prefixes(text))
         elif where:
-            source, marked = "chat_messages m", "m.text"
+            source, marked = "live_messages m", "m.text"
         else:
             return []
         if not callouts:
@@ -501,7 +509,7 @@ class Store:
 
     def messages_outside_matches(self) -> list[Message]:
         rows = self._read(
-            f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE match_id IS NULL ORDER BY ts, id"
+            f"SELECT {_MESSAGE_COLUMNS} FROM live_messages WHERE match_id IS NULL ORDER BY ts, id"
         )
         return [Message(*row) for row in rows]
 
@@ -531,7 +539,7 @@ class Store:
 
     def stats(self) -> Stats:
         (row,) = self._read(
-            "SELECT (SELECT COUNT(*) FROM chat_messages), (SELECT COUNT(*) FROM sessions), "
+            "SELECT (SELECT COUNT(*) FROM live_messages), (SELECT COUNT(*) FROM sessions), "
             "(SELECT COUNT(*) FROM matches), (SELECT COUNT(*) FROM players)"
         )
         return Stats(*row)

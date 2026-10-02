@@ -25,6 +25,7 @@ from yaptracker.ui.crew import crew_card
 from yaptracker.ui.exports import export_card
 from yaptracker.ui.familiar_cards import familiar_card
 from yaptracker.ui.hotkeys import hotkeys_card
+from yaptracker.ui.line_actions import delete_button
 from yaptracker.ui.lookup import lookup_card
 from yaptracker.ui.quick_verdict import CLICK_NOT_DRAG, clickable_name
 from yaptracker.ui.reading import reading_card
@@ -77,8 +78,10 @@ def same_callout(a, b) -> bool:
             == (b.speaker_raw, b.hero, b.text))  # fmt: skip
 
 
-def repeat(row: dict) -> None:
+def repeat(row: dict, message_id: int | None = None) -> None:
     row["times"] += 1
+    if message_id is not None:
+        row["ids"].append(message_id)  # deleting the row deletes them all (#227)
     row["count"].set_text(f"\u00d7{row['times']}").classes(remove="yt-hidden")
 
 
@@ -113,7 +116,9 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
     else:
         # how it looked (#120, #128); not when the click ends a text selection (#221)
         line.on("click", lambda: show_picture(message), js_handler=CLICK_NOT_DRAG)
-    row = {"name": name, "text": text, "shown": None, "line": line, "count": times, "times": 1}
+    row = {"name": name, "text": text, "shown": None, "line": line, "count": times, "times": 1,
+           "ids": [message.id]}  # fmt: skip
+    delete_button(line, lambda: row["ids"])  # a doubled or wrong line: gone in one click (#227)
     _fill_line(row, message)
     return row
 
@@ -272,7 +277,7 @@ def _live() -> None:
                 continue
             last = chat["last"]
             if last and same_callout(last[0], message):
-                repeat(last[1])  # the same callout again: counted, not repeated (#185)
+                repeat(last[1], message.id)  # the same callout again: counted, not repeated (#185)
                 chat["rows"][message.id] = last[1]
             else:
                 with lines:

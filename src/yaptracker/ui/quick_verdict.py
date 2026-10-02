@@ -11,7 +11,7 @@ from yaptracker.ui.components import VERDICTS, button, saved_chip
 
 UNDO_S = 5.0
 # Clicks here are the button's own: the row underneath doesn't open the profile.
-_OWN_CLICK = "(e) => { e.stopPropagation(); emit(); }"
+OWN_CLICK = "(e) => { e.stopPropagation(); emit(); }"
 # A click that ends a text selection isn't a click on the name (#221).
 CLICK_NOT_DRAG = "(e) => { e.stopPropagation(); if (window.getSelection().isCollapsed) emit(); }"
 
@@ -91,7 +91,7 @@ def quick_buttons(current: str | None, on_pick: Callable[[str], None]) -> ui.ele
                 b.classes(add="is-on")
             with b:
                 ui.label(label)
-            b.on("click", lambda value=value: on_pick(value), js_handler=_OWN_CLICK)
+            b.on("click", lambda value=value: on_pick(value), js_handler=OWN_CLICK)
     return row
 
 

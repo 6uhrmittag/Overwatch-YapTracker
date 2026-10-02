@@ -16,7 +16,7 @@ def store(tmp_path):
 
 def test_a_new_database_has_the_latest_schema_in_wal_mode(tmp_path):
     conn = db.connect(tmp_path / "yaptracker.db", tmp_path / "backups")
-    assert db.version(conn) == db.LATEST == 3
+    assert db.version(conn) == db.LATEST == 4
     assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     assert {"sessions", "matches", "players", "player_aliases", "chat_messages", "capture_gaps",

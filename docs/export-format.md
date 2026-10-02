@@ -47,7 +47,7 @@
 | `map`, `mode` | as Overwatch shows them on the hero-select screen, e.g. `ESPERANÇA` and `UNRANKED` (the queue), or `null` |
 | `detected_by` | how the start was found: `heroselect` (the "Assemble your team" screen), `endscreen` (first chat after the last match's end), `gap` (first chat after a long quiet), `hotkey` (Ctrl+Alt+M) |
 | `incomplete` | `true` if a capture gap overlaps the match: some chat may be missing |
-| `messages` | oldest first |
+| `messages` | oldest first. Lines you deleted in the app (#227) aren't in the export |
 
 ## messages[]
 

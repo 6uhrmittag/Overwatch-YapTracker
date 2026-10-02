@@ -177,7 +177,7 @@ def _transcript(match, number: int, back) -> None:
                         "yt-gap-line"
                     ).mark("gap-line")
                 elif last and same_callout(last[0], item):
-                    repeat(last[1])  # "Enemy Sombra!" x4 (#185)
+                    repeat(last[1], item.id)  # "Enemy Sombra!" x4 (#185)
                     picker.add(item, last[1]["line"])
                 else:
                     row = chat_line(item, match.started_at, verdicts.get(item.player_id),
