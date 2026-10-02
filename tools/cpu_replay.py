@@ -71,7 +71,8 @@ def main() -> None:
         image = cv2.imread(str(root / "chat" / name))
         started = time.process_time()
         tracker.capture_alive()
-        if changes.update(image):
+        changed = changes.update(image)
+        if changed or reader.wants_reread():  # weak lines are read again (#195), like the app
             pending = image  # the newest change waits for the gap, like the reader thread
         if pending is not None and t - last_read >= MIN_GAP_S:
             reader.read_frame(now["t"], pending)

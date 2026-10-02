@@ -20,6 +20,7 @@ from dataclasses import dataclass, replace
 
 from yaptracker.capture.source import Region
 from yaptracker.ocr.engine import OcrLine
+from yaptracker.quality import reading_quality
 
 _COLON = r"\s*[:：;]\s*"
 _TYPED = re.compile(r"^\[(?P<name>[^\]\s]+)\][^\s:：]?" + _COLON + r"(?P<text>.*)$")
@@ -74,6 +75,11 @@ class ChatLine:
     flagged: bool = False  # Overwatch appended a [Report] link
     role: str | None = None  # "me" / "crew" once the identity is applied (#74)
     head: Region | None = None  # the first row: where the channel icon sits (#173)
+
+    @property
+    def quality(self) -> float:
+        """Confidence minus junk characters (#195): which reading of a line to keep."""
+        return reading_quality(self.text, self.confidence)
 
 
 def _starts_line(text: str) -> bool:
