@@ -335,6 +335,10 @@ html, body { background: var(--yt-night); }
   .yt-who-note { padding: 0 10px; border-radius: 12px; background: var(--yt-panel-inset); border: 1px solid var(--yt-line-strong); }
   .yt-undo { position: fixed; left: 0; right: 0; margin: 0 auto; width: fit-content; bottom: 24px; z-index: 6000; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 14px; border-radius: 16px; background: var(--yt-panel-raised); border: 1px solid var(--yt-line-strong); box-shadow: 0 6px 0 rgba(0,0,0,.35); animation: yt-pop .3s ease-out; }
   .yt-undo-text { font-weight: 700; }
+
+  /* Text can be selected and copied (#221); the chrome around it can't. */
+  button, .yt-rail, .yt-btn, .yt-seg, .yt-sticker, .yt-verdict, .yt-quick, .yt-keycap, .yt-chip,
+  .yt-pill, .yt-switch-row, .yt-line-time, .yt-line-ch, .yt-crew-badge, .yt-line-times { user-select: none; }
 }
 
 @keyframes yt-pop {

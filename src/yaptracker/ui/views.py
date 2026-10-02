@@ -26,7 +26,7 @@ from yaptracker.ui.exports import export_card
 from yaptracker.ui.familiar_cards import familiar_card
 from yaptracker.ui.hotkeys import hotkeys_card
 from yaptracker.ui.lookup import lookup_card
-from yaptracker.ui.quick_verdict import clickable_name
+from yaptracker.ui.quick_verdict import CLICK_NOT_DRAG, clickable_name
 from yaptracker.ui.reading import reading_card
 from yaptracker.ui.setup import setup_wizard, startup_card
 
@@ -108,7 +108,8 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
     if on_click:  # picking lines for a snap (#64): on_click(shift)
         line.on("click", lambda e: on_click(bool((e.args or {}).get("shiftKey"))), ["shiftKey"])
     else:
-        line.on("click", lambda: show_picture(message))  # how it looked (#120, #128)
+        # how it looked (#120, #128); not when the click ends a text selection (#221)
+        line.on("click", lambda: show_picture(message), js_handler=CLICK_NOT_DRAG)
     row = {"name": name, "text": text, "shown": None, "line": line, "count": times, "times": 1}
     _fill_line(row, message)
     return row
