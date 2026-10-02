@@ -90,4 +90,13 @@ V3 = """
 ALTER TABLE chat_messages ADD COLUMN has_glyphs INTEGER NOT NULL DEFAULT 0;
 """
 
-MIGRATIONS = [V1, V2, V3]
+# Quick fixes in the chat (#227): a line can be edited (the OCR reading stays in original_text)
+# and deleted (soft: hidden everywhere, kept in the table). Every read goes through the view.
+V4 = """
+ALTER TABLE chat_messages ADD COLUMN original_text TEXT;
+ALTER TABLE chat_messages ADD COLUMN edited_at REAL;
+ALTER TABLE chat_messages ADD COLUMN deleted_at REAL;
+CREATE VIEW live_messages AS SELECT * FROM chat_messages WHERE deleted_at IS NULL;
+"""
+
+MIGRATIONS = [V1, V2, V3, V4]

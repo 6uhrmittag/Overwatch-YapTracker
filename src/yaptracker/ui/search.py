@@ -12,6 +12,7 @@ from nicegui import ui
 from yaptracker import runtime
 from yaptracker.glyphs import GLYPH
 from yaptracker.ui.components import count, switch
+from yaptracker.ui.line_actions import delete_button
 from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.snap_dialog import snap_dialog
 from yaptracker.ui.yappers import matching
@@ -165,4 +166,5 @@ def _result(hit, picker: LinePicker) -> ui.element:
         if hit.match_number:
             where = f"Match {hit.match_number}" + (f" on {hit.map.title()}" if hit.map else "")
             ui.label(where).classes("yt-meta yt-result-where")
+    delete_button(row, lambda: [message.id])  # (#227)
     return row
