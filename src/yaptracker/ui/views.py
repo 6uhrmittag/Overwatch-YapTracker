@@ -7,7 +7,7 @@ import numpy as np
 from nicegui import run, ui
 from PIL import Image
 
-from yaptracker import __version__, config, logs, paths, runtime
+from yaptracker import __version__, config, logs, paths, runtime, system_info
 from yaptracker.capture.stats import CAPTURE
 from yaptracker.capture.watcher import fps
 from yaptracker.glyphs import GLYPH
@@ -572,9 +572,20 @@ def settings() -> None:
                         if rate is not None
                         else "Capture: not running right now"
                     ).classes("yt-meta").mark("capture-rate")
-                    ui.label("Everything stays on this PC. No cloud, no telemetry.").classes(
-                        "yt-hint"
-                    )
+                    with ui.element("div").mark("system-info"):  # to compare PCs (#214)
+                        for line in system_info.summary():
+                            ui.label(line).classes("yt-meta")
+                    with ui.element("div").classes("yt-row"):
+                        button("Copy system info", lambda: copy_system_info()).mark("copy-system")
+                        copied = ui.label().classes("yt-hint").mark("copy-system-result")
+                    ui.label(
+                        "Your PC, Windows and settings, to compare speed with friends. No names, "
+                        "no chat. Everything stays on this PC. No cloud, no telemetry."
+                    ).classes("yt-hint")
+
+                    def copy_system_info() -> None:
+                        ui.clipboard.write("\n".join(system_info.summary()))
+                        copied.set_text("Copied. Paste it into a chat.")
 
     def open_calibration() -> None:
         body.clear()
