@@ -13,7 +13,7 @@ UNDO_S = 5.0
 # Clicks here are the button's own: the row underneath doesn't open the profile.
 _OWN_CLICK = "(e) => { e.stopPropagation(); emit(); }"
 # A click that ends a text selection isn't a click on the name (#221).
-_CLICK_NOT_DRAG = "(e) => { e.stopPropagation(); if (window.getSelection().isCollapsed) emit(); }"
+CLICK_NOT_DRAG = "(e) => { e.stopPropagation(); if (window.getSelection().isCollapsed) emit(); }"
 
 
 class UndoBar:
@@ -136,4 +136,4 @@ def clickable_name(name: ui.element, message) -> None:
     if message.player_id is None or message.role in ("me", "crew") or message.channel == "system":
         return
     name.classes(add="yt-line-name--who").props('title="Verdict, note, profile"')
-    name.on("click", lambda: who_menu(name, message.player_id), js_handler=_CLICK_NOT_DRAG)
+    name.on("click", lambda: who_menu(name, message.player_id), js_handler=CLICK_NOT_DRAG)

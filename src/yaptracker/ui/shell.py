@@ -53,6 +53,7 @@ def root() -> None:
     """Build the whole window for one client."""
     ui.add_head_html(f'<link rel="stylesheet" href="{STATIC_URL}/theme.css">')
     ui.add_head_html(f'<script defer src="{STATIC_URL}/follow.js"></script>')  # Live follows (#166)
+    ui.add_head_html(f'<script defer src="{STATIC_URL}/copy.js"></script>')  # clean copies (#221)
     ui.colors(primary="#ff9c2a", dark="#12151c", dark_page="#0d1016")
 
     buttons: dict[str, ui.element] = {}

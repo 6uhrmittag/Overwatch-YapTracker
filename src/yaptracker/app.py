@@ -317,6 +317,18 @@ def _open_store() -> Callable[[], None]:
     return close_store
 
 
+def native_window_args(background: bool) -> dict:
+    """pywebview's window settings (they don't apply in --dev's browser)."""
+    return {
+        # Paint the window in the night colour before the page loads - no white flash.
+        "background_color": "#0d1016",
+        # Started with Windows: sit in the taskbar and wait for Overwatch (#45).
+        "minimized": background,
+        # pywebview turns text selection off by default: chat couldn't be copied (#221).
+        "text_select": True,
+    }
+
+
 def run(
     *,
     dev: bool = False,
@@ -346,8 +358,5 @@ def run(
     if dev:
         ui.run(shell.root, host=DEV_HOST, port=DEV_PORT, show=False, **common)
     else:
-        # Paint the native window in the night colour before the page loads - no white flash.
-        app.native.window_args["background_color"] = "#0d1016"
-        # Started with Windows: sit in the taskbar and wait for Overwatch (#45).
-        app.native.window_args["minimized"] = background
+        app.native.window_args.update(native_window_args(background))
         ui.run(shell.root, native=True, window_size=WINDOW_SIZE, **common)
