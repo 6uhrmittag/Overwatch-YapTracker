@@ -104,6 +104,11 @@ html, body { background: var(--yt-night); }
   .yt-known--avoid .yt-line-name { text-decoration-color: #ff5c66; }
   .yt-line-text { min-width: 0; font-size: 16px; line-height: 1.4; color: var(--yt-text); overflow-wrap: anywhere; }
   .yt-line--system .yt-line-text { color: var(--yt-system); font-style: italic; }
+  /* Comms-wheel callouts (#185): there, but quieter than typed chat */
+  .yt-line--callout { opacity: .62; padding-top: 3px; padding-bottom: 3px; }
+  .yt-line--callout .yt-line-name, .yt-line--callout .yt-line-text { font-size: 14px; }
+  .yt-line-hero { flex-shrink: 0; font-size: 13px; color: var(--yt-faint); }
+  .yt-line-times { flex-shrink: 0; padding: 0 7px; border-radius: 999px; background: var(--yt-panel-raised); font-size: 12px; font-weight: 800; color: var(--yt-muted); }
   .yt-line { cursor: pointer; }
   .yt-line:hover { background: var(--yt-panel-raised); }
   .yt-glyph { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; margin: 0 2px; padding: 0 4px; border-radius: 6px; background: #2a2236; color: #e7a6ff; font-size: 12px; font-style: normal; vertical-align: 1px; }

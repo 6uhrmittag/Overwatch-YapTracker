@@ -59,6 +59,13 @@ def test_the_menu_after_a_match_and_the_map_vote_parse_as_chat():
     assert [(p.kind, p.text) for p in parse(lines("vote"))] == [("message", "SEEEEEEEEEEEX")]
 
 
+def shown(row) -> str:
+    """What a transcript row says: a chat line's text, or a divider's label."""
+    if "chat-line" in row._markers:
+        return next(c.content for c in row.default_slot.children if hasattr(c, "content"))
+    return row.text
+
+
 @pytest.fixture
 async def user():
     async with user_simulation(root=shell.root) as user:
@@ -85,8 +92,7 @@ async def test_the_transcript_marks_what_was_said_after_the_result(user: User, t
         user.find(marker=f"match-{match}").click()
         await user.should_see("After the match (won)")
         body = user.find(marker="transcript").elements.pop()
-        order = [row.default_slot.children[-1].content if "chat-line" in row._markers
-                 else row.text for row in body.default_slot.children]  # fmt: skip
+        order = [shown(row) for row in body.default_slot.children]
         assert order == ["gl hf", "After the match (won)", "Perfect team"]
     finally:
         store.close()

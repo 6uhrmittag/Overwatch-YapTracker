@@ -70,14 +70,27 @@ _OUTCOMES = {"victory": "won", "defeat": "lost", "draw": "draw"}
 _CHANNELS = {"team": "Team", "match": "Match", "group": "Group", "system": "System"}
 
 
+def same_callout(a, b) -> bool:
+    """The same comms-wheel callout again ("Enemy Sombra!" x4): shown once with a count (#185)."""
+    return (a is not None and a.hero is not None and (a.speaker_raw, a.hero, a.text)
+            == (b.speaker_raw, b.hero, b.text))  # fmt: skip
+
+
+def repeat(row: dict) -> None:
+    row["times"] += 1
+    row["count"].set_text(f"\u00d7{row['times']}").classes(remove="yt-hidden")
+
+
 def chat_line(message, started_at: float | None, verdict: str | None = None, on_click=None) -> dict:
     """One chat row (Live feed, transcripts #29): time in the match, channel, who (you for own
-    lines, a crew tag for crew), text. Known players get their verdict colour (docs/ui.md)."""
+    lines, a crew tag for crew), text. Known players get their verdict colour (docs/ui.md).
+    Comms-wheel callouts are small and dimmed, with the hero (#185)."""
     channel = message.channel if message.channel in _CHANNELS else "chat"
     known = f" yt-line--known yt-known--{verdict}" if verdict else ""
+    callout = " yt-line--callout" if message.hero else ""
     with (
         ui.element("div")
-        .classes(f"yt-line yt-line--{channel}{known}")
+        .classes(f"yt-line yt-line--{channel}{known}{callout}")
         .mark(f"chat-line line-{message.id}") as line
     ):
         seconds = max(0, int(message.ts - started_at)) if started_at else 0
@@ -87,11 +100,14 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
         if message.role == "crew":
             ui.label("crew").classes("yt-crew-badge")
         text = ui.html("", sanitize=False).classes("yt-line-text")
+        if message.hero:
+            ui.label(f"\u00b7 as {message.hero}").classes("yt-line-hero")
+        times = ui.label().classes("yt-line-times yt-hidden").mark("repeat-count")
     if on_click:  # picking lines for a snap (#64): on_click(shift)
         line.on("click", lambda e: on_click(bool((e.args or {}).get("shiftKey"))), ["shiftKey"])
     else:
         line.on("click", lambda: show_picture(message))  # how it looked (#120, #128)
-    row = {"name": name, "text": text, "shown": None, "line": line}
+    row = {"name": name, "text": text, "shown": None, "line": line, "count": times, "times": 1}
     _fill_line(row, message)
     return row
 
@@ -230,12 +246,12 @@ def _live() -> None:
 
     meter = fps(watcher) if watcher else (lambda: 0.0)
     shown = {"frame": None}
-    chat = {"match": None, "rows": {}}
+    chat = {"match": None, "rows": {}, "last": None}
 
     def refresh_chat() -> None:
         match_id = runtime.matches.match_id if runtime.matches else None
         if match_id != chat["match"]:  # a new match starts with an empty feed
-            chat.update(match=match_id, rows={})
+            chat.update(match=match_id, rows={}, last=None)
             lines.clear()
         if match_id is None or runtime.store is None:
             yap_count.set_text("0 yaps")
@@ -244,11 +260,19 @@ def _live() -> None:
         for message in messages:
             if message.id in chat["rows"]:
                 _fill_line(chat["rows"][message.id], message)  # a better reading came in
+                continue
+            last = chat["last"]
+            if last and same_callout(last[0], message):
+                repeat(last[1])  # the same callout again: counted, not repeated (#185)
+                chat["rows"][message.id] = last[1]
             else:
                 with lines:
-                    chat["rows"][message.id] = chat_line(message, runtime.matches.match_started_at)
-        yappers = {m.speaker_raw for m in messages if m.channel != "system" and m.speaker_raw}
-        yaps, people = count(len(messages), "yap", "yaps"), count(len(yappers), "yapper", "yappers")
+                    row = chat_line(message, runtime.matches.match_started_at)
+                chat["rows"][message.id] = row
+                chat["last"] = (message, row)
+        typed = [m for m in messages if not m.hero]  # callouts aren't yaps (#182)
+        yappers = {m.speaker_raw for m in typed if m.channel != "system" and m.speaker_raw}
+        yaps, people = count(len(typed), "yap", "yaps"), count(len(yappers), "yapper", "yappers")
         yap_count.set_text(f"{yaps} \u00b7 {people}")
 
     def toggle_pause() -> None:
