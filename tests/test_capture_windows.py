@@ -33,6 +33,12 @@ def test_wgc_captures_a_window_cropped_to_the_region():
             hwnd, lambda w, h: Region(0, 0, w // 2, h // 2), fps=4, signals_for=lambda w, h: corner
         )
         try:
+            from yaptracker.capture import wgc
+
+            # Started with only what this Windows can do (#216): on Server 2022 / Windows 10
+            # without the rate setting, gated by us.
+            _, dropped = wgc.capture_options(wgc.windows_build(), 4)
+            assert wgc.CAPTURE.cannot == [wgc.CANNOT[name] for name in dropped]
             frame = next(source.frames())
             # Calibrate's screenshot of the whole window (#112). WGC only sends a frame when
             # the window repaints - Overwatch always does, a resting Notepad needs a nudge.

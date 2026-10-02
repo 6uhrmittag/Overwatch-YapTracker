@@ -388,8 +388,10 @@ def _live() -> None:
                 )
         if broken:  # paused has its own pill (#20)
             since = time.strftime("%H:%M", time.localtime(gap.since))
+            error = watcher.last_error if watcher is not None else None
+            said = f" Windows says: \u201c{error.strip()[:160]}\u201d" if error else ""  # (#216)
             health_text.set_text(
-                f"Not recording since {since} ({_WHY[gap.reason]}). {_TODO[gap.reason]}"
+                f"Not recording since {since} ({_WHY[gap.reason]}).{said} {_TODO[gap.reason]}"
             )
             health_banner.classes(remove="yt-hidden")
         else:
@@ -572,6 +574,11 @@ def settings() -> None:
                         if rate is not None
                         else "Capture: not running right now"
                     ).classes("yt-meta").mark("capture-rate")
+                    if CAPTURE.cannot:  # Windows 10: settings it lacks are left out (#216)
+                        ui.label(
+                            f"This Windows can't {' or '.join(CAPTURE.cannot)}, so I skip the "
+                            "extra frames myself. Windows 11 24H2 does it better."
+                        ).classes("yt-hint").mark("capture-cannot")
                     with ui.element("div").mark("system-info"):  # to compare PCs (#214)
                         for line in system_info.summary():
                             ui.label(line).classes("yt-meta")

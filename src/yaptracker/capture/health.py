@@ -41,7 +41,7 @@ class CaptureHealth:
         with self._lock:
             self.last_frame_at = self._clock()
             if self.gap is not None and self.gap.reason != "paused":
-                self._close()
+                self._close("recording again")
 
     def lost(self, reason: str) -> None:
         """Capture broke; the gap starts at the last picture we had. The first reason wins."""
@@ -56,20 +56,22 @@ class CaptureHealth:
             is_paused = self.gap is not None and self.gap.reason == "paused"
             if on and not is_paused:
                 if self.gap is not None:
-                    self._close()
+                    self._close("paused now")
                 now = self._clock()
                 self.gap = Gap(self._store.open_gap(now, "paused"), "paused", now)
                 log.info("paused")
             elif not on and is_paused:
-                self._close()
+                self._close("recording again")
 
-    def game_closed(self) -> None:
-        """Overwatch is gone: nothing more is being lost."""
+    def game_closed(self, why: str = "Overwatch is gone") -> None:
+        """Overwatch is gone: nothing more is being lost. Not "recording again" (#216)."""
         with self._lock:
             if self.gap is not None:
-                self._close()
+                self._close(f"not recorded, {why}")
 
-    stop = game_closed  # app shutdown: close what's open
+    def stop(self) -> None:
+        """App shutdown: close what's open."""
+        self.game_closed("YapTracker is closing")
 
     def started_late(self, game_started_at: float | None, last_activity: float | None) -> None:
         """Overwatch already ran at app start: what happened since then wasn't recorded.
@@ -88,10 +90,10 @@ class CaptureHealth:
             self._store.close_gap(self._store.open_gap(since, "app_not_running"), now)
             log.warning("not recorded from %s: YapTracker wasn't running", _clock_time(since))
 
-    def _close(self) -> None:
+    def _close(self, what: str) -> None:
         now = self._clock()
         self._store.close_gap(self.gap.id, now)
-        log.info("recording again after %.0f s (%s)", now - self.gap.since, self.gap.reason)
+        log.info("%s after %.0f s (%s)", what, now - self.gap.since, self.gap.reason)
         self.gap = None
 
 
