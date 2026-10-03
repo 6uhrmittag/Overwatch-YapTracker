@@ -3,8 +3,11 @@
 - A **session** is an evening: a new one starts after >= 30 min without capture (also across
   app restarts - the newest session continues if it was active recently).
 - A **match** starts with the first chat change of a session, and again when chat comes back
-  after >= 5 min of silence (source 'gap'). Ctrl+Alt+M forces one ('hotkey'). Hero select
-  (#93) starts one too; the end screens (#94) end it with its outcome.
+  after >= 5 min of silence (source 'gap'). Hero select (#93) starts one too; the end screens
+  (#94) end it with its outcome.
+- By hand (#269), rarely needed: Start match / End match (Ctrl+Alt+M). A start by hand that
+  hero select follows within 3 min is that match; one that never gets a line is dropped when
+  it's ended by hand or the next match starts, so pressing twice or early leaves nothing.
 - After an end, post-game chat ("gg") still belongs to the match. Chat after >= 90 s of quiet
   is the next match (source 'endscreen': the end screen split them).
 - Every match start ends a pause (#20).
@@ -64,6 +67,7 @@ class MatchTracker:
         self.match_ended_at: float | None = None
         self.match_outcome: str | None = None
         self._match_source: str | None = None
+        self._before_hand: tuple | None = None  # where things were before a start by hand
         self._last_alive: float | None = None
         self._last_chat: float | None = None
         # After a restart, the newest session continues if it was active less than 30 min ago.
@@ -113,29 +117,46 @@ class MatchTracker:
             recent_gap_match = (
                 source == "heroselect"
                 and self.match_id is not None
-                and self._match_source in ("gap", "endscreen")
+                and self._match_source in ("gap", "endscreen", "hotkey")
                 and self.match_ended_at is None
                 and ts - self.match_started_at <= ADOPT_GAP_MATCH_S
             )
             if recent_gap_match:
-                self._store.set_match_source(self.match_id, source, mode, map_name)
+                by_hand = self._match_source == "hotkey"  # its start was a guess: hero select's
+                self._store.set_match_source(self.match_id, source, mode, map_name,
+                                             ts if by_hand else None)  # fmt: skip
                 self._match_source, self.match_map = source, map_name
                 self.match_mode = mode
+                if by_hand:
+                    self.match_started_at = ts
                 self._pause.next_match_started()
             else:
                 self._start_match(ts, source, mode, map_name)
+
+    def toggle(self, ts: float | None = None) -> str:
+        """The Start match / End match button and Ctrl+Alt+M (#269): ends the running match,
+        otherwise starts one. "ended" or "started"."""
+        if self.running:
+            self.end_match(ts, by_hand=True)
+            return "ended"
+        self.new_match(ts)
+        return "started"
 
     @property
     def running(self) -> bool:
         """A match has started and its end screen hasn't shown yet."""
         return self.match_id is not None and self.match_ended_at is None
 
-    def end_match(self, ts: float | None = None, outcome: str | None = None) -> None:
+    def end_match(
+        self, ts: float | None = None, outcome: str | None = None, by_hand: bool = False
+    ) -> None:
         """The end screen (#94): the match is over. A later call may still bring the outcome."""
         ts = self._clock() if ts is None else ts
         with self._lock:
             if self.match_id is None:
                 return
+            if by_hand and self.running and self._drop_hand_start():
+                return  # started by hand a moment ago, nothing in it: as if never pressed
             if self.match_ended_at is None:
                 self.match_ended_at, self.match_outcome = ts, outcome
                 self._store.end_match(self.match_id, ts, outcome)
@@ -179,10 +200,15 @@ class MatchTracker:
     ) -> None:
         if self.session_id is None:
             self._new_session(ts)
-        if self.running:
-            self._store.end_match(self.match_id, self._last_chat or ts)
+        if self.running and not self._drop_hand_start():
+            self.match_ended_at = self._last_chat or ts
+            self._store.end_match(self.match_id, self.match_ended_at)
             if source != "hotkey":
                 self._on_missed_end()
+        if source == "hotkey":
+            self._before_hand = (self.match_id, self.previous_match_id, self.match_started_at,
+                                 self.match_map, self.match_mode, self.match_ended_at,
+                                 self.match_outcome, self._match_source)  # fmt: skip
         self.previous_match_id = self.match_id  # where lines still on screen belong (#179)
         self.match_id = self._store.start_match(self.session_id, ts, source, mode, map_name)
         log.info("match %d started (%s, %s, %s)", self.match_id, source, mode, map_name)
@@ -191,3 +217,16 @@ class MatchTracker:
         self._pause.next_match_started()
         if source != "heroselect":
             self._on_missed_start(source)
+
+    def _drop_hand_start(self) -> bool:
+        """The running match was started by hand and never got a line: remove it and go back
+        to where things were (#269). False for any other match, or one with lines."""
+        if self._match_source != "hotkey" or self._before_hand is None:
+            return False
+        if not self._store.drop_match(self.match_id):
+            return False
+        log.info("match %d dropped: started by hand, nothing in it", self.match_id)
+        (self.match_id, self.previous_match_id, self.match_started_at, self.match_map,
+         self.match_mode, self.match_ended_at, self.match_outcome,
+         self._match_source) = self._before_hand  # fmt: skip
+        return True

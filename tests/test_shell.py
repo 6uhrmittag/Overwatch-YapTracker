@@ -205,10 +205,12 @@ async def test_live_says_the_match_state_in_words(user: User, monkeypatch, tmp_p
     await user.open("/")
     await user.should_see("Between matches")
     await user.should_see("In the queue or menu · the next match starts by itself at hero select")
+    await user.should_see("Start match")  # only if hero select was missed (#269)
     tracker.new_match(source="heroselect", mode="UNRANKED", map_name="KING'S ROW")
     await user.should_see("In a match", retries=50)  # the next refresh
     await user.should_see("King's Row · Unranked · 0:0")
     await user.should_see("This match")
+    await user.should_see("End match")  # only if the result screen was missed (#269)
     tracker.end_match(outcome="victory")
     await user.should_see("Match over", retries=50)  # the next refresh
     await user.should_see("waiting for the next one")
