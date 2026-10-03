@@ -19,6 +19,7 @@ import statistics
 from dataclasses import dataclass, replace
 
 from yaptracker.capture.source import Region
+from yaptracker.glyphs import GLYPH
 from yaptracker.ocr.engine import OcrLine
 from yaptracker.quality import reading_quality
 
@@ -59,6 +60,9 @@ _NAMELESS_SYSTEM = (
     r"\S+'s group wants to stay as a team",
 )
 _SYSTEM_PLAIN = re.compile(r"^(?:" + "|".join(_NAMELESS_SYSTEM) + ")")
+# Comms-wheel callouts that end with an icon (#259; seen in Marv's samples: 👍, the group-up
+# arrows, the fall-back arrow, a health cross). "Hello!" and "Enemy X!" have none.
+ICON_CALLOUTS = frozenset({"thanks!", "group up!", "fall back!", "i need healing!"})
 _INPUT = re.compile(r"^\[(Match|Team|Group)\](?!" + _COLON + ")")
 _PROMPT = re.compile(r"^\[?(?P<word>[A-Za-z]{3,6})\](?!\s*" + _COLON + ")")
 _PROMPTS = ("Match", "Team", "Group")
@@ -111,6 +115,9 @@ def _classify(text: str, confidence: float, box: Region) -> ChatLine:
     if m := _COMMS.match(text):
         # Text can be empty: "Name (Hero) to Other (Hero):" with the message on the next line.
         said = (m["text"] or m["action"] or "").strip()
+        # Its icon is always there, even when the picture check missed it (#259).
+        if said.lower() in ICON_CALLOUTS:
+            said = f"{said} {GLYPH}"
         return replace(line, kind="comms", channel="team", speaker=m["name"], hero=m["hero"],
                        target=m["target"], text=said)  # fmt: skip
     if (m := _TYPED.match(text)) or (m := _TYPED_NO_BRACKET.match(text)):

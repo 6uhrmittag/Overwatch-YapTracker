@@ -15,10 +15,11 @@ Matching, checked on real frames (#18):
 
 import re
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from rapidfuzz import fuzz
 
+from yaptracker.glyphs import GLYPH
 from yaptracker.identity import clean
 from yaptracker.parser import ChatLine
 from yaptracker.quality import GOOD
@@ -56,6 +57,11 @@ def match_key(line: ChatLine) -> str:
     )
 
 
+def _plain(text: str) -> str:
+    """The text without its "◇" marks, to compare readings of one line."""
+    return " ".join(text.replace(GLYPH, " ").split())
+
+
 def _stored(line: ChatLine) -> tuple:
     """What a better reading would change in the database."""
     return line.kind, line.speaker, line.hero, line.text, line.flagged
@@ -81,7 +87,17 @@ class Yap:
             q = self.lines[k].quality
             return (q >= GOOD, self.readings[k], q)
 
-        return self.lines[max(self.readings, key=rank)]
+        best = self.lines[max(self.readings, key=rank)]
+        if GLYPH in best.text:
+            return best
+        for line in self.lines.values():  # an icon one good reading saw stays (#259)
+            if (
+                line.quality >= GOOD
+                and GLYPH in line.text
+                and _plain(line.text) == _plain(best.text)
+            ):
+                return replace(best, text=line.text)
+        return best
 
     @property
     def weak(self) -> bool:

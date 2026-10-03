@@ -115,7 +115,7 @@
   {
    "kind": "comms",
    "channel": "team",
-   "text": "I need healing!",
+   "text": "I need healing! ◇",
    "speaker": "tortillaTank",
    "hero": "Sombra"
   }
