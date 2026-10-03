@@ -104,6 +104,13 @@ def _fts_prefixes(text: str) -> str:
     return " ".join(f"{word}*" for word in _fts_query(text).split())
 
 
+def _played(m: str) -> str:
+    """SQL: match `m` was played - it has a line or a result (#270). A match with neither
+    (a press of New match before #269, a lobby that never chatted) is hidden everywhere."""
+    return (f"(EXISTS (SELECT 1 FROM live_messages pl WHERE pl.match_id = {m}.id) "
+            f"OR {m}.outcome IS NOT NULL)")  # fmt: skip
+
+
 class Store:
     """Thread-safe: capture writes from its thread while the UI reads (WAL allows both)."""
 
@@ -196,11 +203,11 @@ class Store:
         return self._read("SELECT COUNT(*) FROM sessions WHERE id <= ?", (session_id,))[0][0]
 
     def match_number(self, match_id: int) -> int:
-        """1 for the first match of its session, 2 for the next..."""
+        """1 for the first match of its session, 2 for the next... Empty ones don't count."""
         return self._read(
-            "SELECT COUNT(*) FROM matches WHERE id <= ? AND session_id = "
-            "(SELECT session_id FROM matches WHERE id = ?)",
-            (match_id, match_id),
+            "SELECT COUNT(*) FROM matches m WHERE m.id <= ? AND m.session_id = "
+            f"(SELECT session_id FROM matches WHERE id = ?) AND (m.id = ? OR {_played('m')})",
+            (match_id, match_id, match_id),
         )[0][0]
 
     def sessions(self) -> list[SessionRow]:
@@ -211,7 +218,7 @@ class Store:
             "WHERE m.session_id = s.id), 0), "
             "COALESCE((SELECT MAX(COALESCE(ended_at, started_at)) FROM matches "
             "WHERE session_id = s.id), 0))), "
-            "(SELECT COUNT(*) FROM matches WHERE session_id = s.id) AS n, "
+            f"(SELECT COUNT(*) FROM matches p WHERE p.session_id = s.id AND {_played('p')}) AS n, "
             "(SELECT COUNT(*) FROM live_messages c JOIN matches m ON m.id = c.match_id "
             "WHERE m.session_id = s.id) "
             "FROM sessions s WHERE n > 0 ORDER BY s.started_at DESC, s.id DESC"
@@ -223,7 +230,8 @@ class Store:
         rows = self._read(
             "SELECT m.id, m.started_at, m.ended_at, m.outcome, m.map, m.mode, COUNT(c.id), "
             "MAX(c.ts) FROM matches m LEFT JOIN live_messages c ON c.match_id = m.id "
-            "WHERE m.session_id = ? GROUP BY m.id ORDER BY m.started_at, m.id",
+            "WHERE m.session_id = ? GROUP BY m.id "
+            "HAVING COUNT(c.id) > 0 OR m.outcome IS NOT NULL ORDER BY m.started_at, m.id",
             (session_id,),
         )
         return [MatchRow(*row) for row in rows]
@@ -491,10 +499,7 @@ class Store:
             where.append("m.ts >= ?")
             params.append(since)
         columns = ", ".join(f"m.{c.strip()}" for c in _MESSAGE_COLUMNS.split(","))
-        place = (
-            "mt.session_id, (SELECT COUNT(*) FROM matches x WHERE x.session_id = mt.session_id "
-            "AND x.id <= mt.id), mt.map"
-        )
+        place = "mt.session_id, mt.id, mt.map"  # mt.id becomes its number below (#270)
         if text.strip():
             source = "chat_fts JOIN live_messages m ON m.id = chat_fts.rowid"
             marked = "highlight(chat_fts, 0, char(1), char(2))"
@@ -513,7 +518,26 @@ class Store:
             (*params, limit),
         )
         n = len(_MESSAGE_COLUMNS.split(","))
-        return [Hit(Message(*row[:n]), *row[n:]) for row in rows]
+        numbers = self._match_numbers({row[n + 1] for row in rows} - {None})
+        return [Hit(Message(*row[:n]), row[n], row[n + 1], numbers.get(row[n + 2]), row[n + 3])
+                for row in rows]  # fmt: skip
+
+    def _match_numbers(self, sessions: set[int]) -> dict[int, int]:
+        """{match id: its number in its session} for those sessions, empty matches not counted
+        (#270). Once per search instead of a count per hit."""
+        if not sessions:
+            return {}
+        rows = self._read(
+            f"SELECT m.id, m.session_id FROM matches m WHERE m.session_id IN "
+            f"({', '.join('?' * len(sessions))}) AND {_played('m')} ORDER BY m.session_id, m.id",
+            tuple(sessions),
+        )
+        numbers: dict[int, int] = {}
+        counts: dict[int, int] = {}
+        for match_id, session_id in rows:
+            counts[session_id] = counts.get(session_id, 0) + 1
+            numbers[match_id] = counts[session_id]
+        return numbers
 
     # Export (#69) -------------------------------------------------------------------------------
 
@@ -523,8 +547,8 @@ class Store:
     def all_matches(self) -> list[tuple]:
         """(id, session_id, started, ended, outcome, map, mode, source) in play order."""
         return self._read(
-            "SELECT id, session_id, started_at, ended_at, outcome, map, mode, source FROM matches "
-            "ORDER BY session_id, started_at, id"
+            "SELECT id, session_id, started_at, ended_at, outcome, map, mode, source "
+            f"FROM matches m WHERE {_played('m')} ORDER BY session_id, started_at, id"
         )
 
     def messages_outside_matches(self) -> list[Message]:
@@ -560,6 +584,6 @@ class Store:
     def stats(self) -> Stats:
         (row,) = self._read(
             "SELECT (SELECT COUNT(*) FROM live_messages), (SELECT COUNT(*) FROM sessions), "
-            "(SELECT COUNT(*) FROM matches), (SELECT COUNT(*) FROM players)"
+            f"(SELECT COUNT(*) FROM matches m WHERE {_played('m')}), (SELECT COUNT(*) FROM players)"
         )
         return Stats(*row)

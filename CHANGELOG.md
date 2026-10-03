@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · No more empty matches (#270)
+- Sessions, search and exports skip matches with no lines and no result, including the ones left by pressing New match before a match.
+
 ### 2026-10-03 · Live says where the match is (#268)
 - Live says whether you're in a match (map, mode, time), the match is over (Victory or Defeat), or you're between matches, where the next one starts by itself at hero select.
 - After the result, the chat card says "Last match" and keeps its lines until the next match starts.
