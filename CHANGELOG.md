@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · Umlauts from the picture (#247)
+- Umlauts are kept even when a line has no German word in it, like "nö", "jüt" or "täääätüüüü": YapTracker spots the dots in the line's picture.
+
 ### 2026-10-03 · Workflow (no issue)
 - Behind the scenes: Claude Code pushes and merges its own PRs once CI is green (CLAUDE.md).
 

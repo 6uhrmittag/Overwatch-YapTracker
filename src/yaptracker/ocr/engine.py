@@ -142,14 +142,20 @@ def has_umlaut_dots(crop: np.ndarray) -> bool:
                            cv2.threshold(hsv[:, :, 1], 70, 1, cv2.THRESH_BINARY)[1])  # fmt: skip
     count, _, stats, _ = cv2.connectedComponentsWithStats(text, connectivity=8)
     h = crop.shape[0]
-    blobs = [tuple(int(v) for v in stats[i][:4]) for i in range(1, count) if stats[i][4] >= 2]
-    dots = [b for b in blobs if b[2] <= 0.22 * h and b[3] <= 0.22 * h]
+    blobs = [tuple(int(v) for v in stats[i][:5]) for i in range(1, count) if stats[i][4] >= 2]
+    # Real umlaut dots in chat crops are 3-4 px squares, nearly filled; the anti-aliased
+    # edges at the top of C, d or ] leave 1-2 px slivers that would pair up (#247: 24 of 80
+    # English 4K frames fired before this).
+    dots = [b for b in blobs if 3 <= b[2] <= 0.22 * h and 3 <= b[3] <= 0.22 * h
+            and b[4] >= 0.7 * b[2] * b[3]]  # fmt: skip
     bodies = [b for b in blobs if b[3] > 0.22 * h]
     for a in dots:
         for b in dots:
             gap = b[0] - (a[0] + a[2])
             if b[0] <= a[0] or not 0 <= gap <= 0.3 * h:
                 continue
+            if min(a[4], b[4]) < 0.5 * max(a[4], b[4]):
+                continue  # one dot twice the other: not a pair
             if abs((a[1] + a[3] / 2) - (b[1] + b[3] / 2)) > 0.1 * h:
                 continue  # not side by side
             left, right, low = a[0], b[0] + b[2], max(a[1] + a[3], b[1] + b[3])

@@ -16,10 +16,11 @@ FONT = Path(__file__).parents[1] / "src" / "yaptracker" / "ui" / "static" / "fon
 GROUNDS = [(40, 44, 52), (90, 110, 150), (150, 90, 60)]  # night, sky, a warm wall
 
 
-def line(text: str, ground=(40, 44, 52), size: int = 30) -> np.ndarray:
-    """One chat line as the recogniser gets it: coloured text with a dark edge."""
+def line(text: str, ground=(40, 44, 52), size: int = 44) -> np.ndarray:
+    """One chat line as the recogniser gets it: coloured text with a dark edge. Nunito's dots
+    are smaller than the game's: at 44 px they're the 3 px squares of real chat crops."""
     font = ImageFont.truetype(str(FONT), size)
-    img = Image.new("RGB", (int(font.getlength(text)) + 20, 48), ground)
+    img = Image.new("RGB", (int(font.getlength(text)) + 20, 70), ground)
     ImageDraw.Draw(img).text((10, 4), text, fill=(255, 174, 77), font=font, stroke_width=1,
                              stroke_fill=(10, 10, 10))  # fmt: skip
     return cv2.cvtColor(np.asarray(img), cv2.COLOR_RGB2BGR)
@@ -41,9 +42,9 @@ def test_i_dots_quotes_and_colons_are_not_umlauts(text):
     assert not has_umlaut_dots(line(text))
 
 
-def read_box(text: str, size: int = 22) -> str:
+def read_box(text: str, size: int = 34) -> str:
     font = ImageFont.truetype(str(FONT), size)
-    img = Image.new("RGB", (615, 80), (40, 44, 52))
+    img = Image.new("RGB", (900, 80), (40, 44, 52))
     ImageDraw.Draw(img).text((14, 20), text, fill=(255, 174, 77), font=font, stroke_width=2,
                              stroke_fill=(10, 10, 10))  # fmt: skip
     (read,) = ocr.get("rapidocr").read(np.ascontiguousarray(np.asarray(img)[:, :, ::-1]))
@@ -59,8 +60,24 @@ def test_short_lines_without_a_german_word_keep_their_umlauts(text):
 def test_marvs_line_gets_its_umlauts_back():
     """The Latin model squeezes long runs of one letter ("ääää"), the default model keeps the
     count: run by run, the counts from one and the umlauts from the other."""
-    read = read_box("[Marv]: täääätüüüütatäääää", size=28)
+    read = read_box("[Marv]: täääätüüüütatäääää", size=38)
     assert "üüüü" in read and read.startswith("[Marv]: t")
+
+
+def test_slivers_on_letter_tops_are_not_dots():
+    """What fired on 24 of 80 English 4K frames: 1-2 px slivers of anti-aliasing on the tops of
+    C, d or ], side by side above a letter. Real umlaut dots are filled 3-4 px squares."""
+    crop = np.full((50, 60, 3), (52, 44, 40), np.uint8)
+    yellow = (77, 174, 255)
+    crop[20:45, 20:40] = yellow  # a letter
+    crop[12:13, 22:24] = crop[12:13, 30:32] = yellow  # 2x1 slivers
+    assert not has_umlaut_dots(crop)
+    crop[12:13, 22:24] = crop[12:13, 30:32] = (52, 44, 40)
+    crop[10:13, 22:25] = crop[10:13, 30:33] = yellow  # two 3x3 dots
+    assert has_umlaut_dots(crop)
+    crop[10:13, 30:33] = (52, 44, 40)
+    crop[8:13, 30:35] = yellow  # one dot much bigger than the other
+    assert not has_umlaut_dots(crop)
 
 
 def test_keep_repeats():
