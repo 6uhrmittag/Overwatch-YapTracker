@@ -20,7 +20,7 @@ YapTracker reads Overwatch's text chat from the screen, keeps a local log of eve
 1. In Overwatch: **Options → Video → Display mode: Borderless Windowed**, and text chat switched on.
 2. Install with the command under [Install & update](#install--update). Answer **Y** to "Start YapTracker with Windows?": from then on it waits quietly until Overwatch starts.
 3. On first start, the setup walks you through three steps: it finds Overwatch, you drag a box around the chat, and you add your own name and your crew (the people you queue with).
-4. Play. Chat appears in **Live**; when someone you've met before types, their card pops up. Nothing needs a key press.
+4. Play. Chat appears in **Live**; when someone you've met before types, their card pops up. Nothing needs a key press: Live says whether you're in a match, the match is over, or you're between matches, and a new match starts by itself at hero select.
 5. Afterwards: **Yappers** for verdicts and notes, **Sessions** for the evening match by match, **Search** for that one line.
 
 Everything else the app explains where you need it. This README is the only written guide.

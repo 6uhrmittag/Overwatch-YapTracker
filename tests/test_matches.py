@@ -99,7 +99,7 @@ def test_post_game_chat_stays_with_the_match_until_90_s_of_quiet(store):
     tracker = MatchTracker(store, Pause())
     play(tracker, T0, 30, chat_every=10)
     tracker.end_match(T0 + 30, outcome="victory")
-    assert tracker.status()[1:] == (1, T0, None, True, "victory")
+    assert tracker.status()[1:6] == (1, T0, None, True, "victory")
     assert not tracker.running
     tracker.chat_changed(T0 + 40)  # "gg"
     tracker.chat_changed(T0 + 40 + AFTER_END_GAP_S - 1)  # "gg wp", still the same match
