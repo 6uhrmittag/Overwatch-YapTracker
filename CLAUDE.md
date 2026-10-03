@@ -239,6 +239,8 @@ of view, like OBS or the Snipping Tool.
 - **No overlay on the game.** The UI is its own window (second monitor or alt-tab).
 - **Local-only.** No telemetry, no cloud, no uploads. Only network call allowed:
   the update script fetching GitHub releases.
+  Decided exception for later (#263, parked): **optional** chat translation via DeepL API Free
+  with the user's own key, off by default, sending only the text of foreign-language lines.
 - **The repo is public.** Never commit screenshots or real chat logs — they
   contain other players' names. Real samples live in `fixtures/private/`
   (gitignored). Committed test fixtures are OCR-output JSON with names replaced.
