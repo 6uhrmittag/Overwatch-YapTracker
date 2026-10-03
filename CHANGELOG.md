@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · Lighter when busy (#249)
+- After a minute above 15 % of a CPU core, YapTracker reads the chat every 3 s instead of every 1.5 s for the next minute. A line stays on screen ~9 s, so nothing is missed, and the game gets the CPU back.
+
 ### 2026-10-03 · Umlauts from the picture (#247)
 - Umlauts are kept even when a line has no German word in it, like "nö", "jüt" or "täääätüüüü": YapTracker spots the dots in the line's picture.
 

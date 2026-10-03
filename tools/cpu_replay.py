@@ -7,6 +7,8 @@ pipeline as the app runs it: change detection on every chat frame (4 fps), OCR -
 dedup -> store on the changed ones (at most one read per MIN_GAP_S, the newest frame waiting),
 and once a second the match signals and debug overviews.
 Prints the CPU share of one core per minute of footage; reading the images doesn't count.
+After a minute above the CPU goal the next one reads every 3 s, like the app (#249);
+--no-busy-gate leaves that out, to compare.
 
 Heavy: real OCR on hundreds of frames. Run it when nobody is playing.
 """
@@ -25,7 +27,7 @@ from yaptracker.debug import DebugSamples
 from yaptracker.matches import MatchTracker
 from yaptracker.ocr.engine import RapidOcrEngine
 from yaptracker.pause import Pause
-from yaptracker.reader import MIN_GAP_S, ChatReader
+from yaptracker.reader import BUSY_GAP_S, CPU_GOAL, MIN_GAP_S, ChatReader
 from yaptracker.signals import EndScreen, HeroSelect, signal_regions
 from yaptracker.store.repo import Store
 
@@ -36,7 +38,10 @@ T0 = 1_000_000.0
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("recording", help="folder name under fixtures/private/frames")
-    root = FRAMES / parser.parse_args().recording
+    parser.add_argument("--no-busy-gate", action="store_true",
+                        help="read every 1.5 s even after a minute above the CPU goal")  # fmt: skip
+    args = parser.parse_args()
+    root = FRAMES / args.recording
     chat = sorted(os.listdir(root / "chat"))
     full = {int(name[:-4]) // 1000: name for name in os.listdir(root / "full")}
     tmp = Path(tempfile.mkdtemp())
@@ -48,6 +53,7 @@ def main() -> None:
 
     tracker = MatchTracker(store, Pause(), clock=clock)
     ocr = RapidOcrEngine()
+
     reader = ChatReader(ocr.read, store, tracker, clock=clock)
     changes = ChangeDetector()
     hero_select = HeroSelect(
@@ -68,13 +74,14 @@ def main() -> None:
     for name in chat:
         t = int(name[:-4]) / 1000
         now["t"], minute = T0 + t, int(t // 60)
+        busy = not args.no_busy_gate and 100 * cpu.get(minute - 1, 0.0) / 60 > CPU_GOAL
         image = cv2.imread(str(root / "chat" / name))
         started = time.process_time()
         tracker.capture_alive()
         changed = changes.update(image)
         if changed or reader.wants_reread():  # weak lines are read again (#195), like the app
             pending = image  # the newest change waits for the gap, like the reader thread
-        if pending is not None and t - last_read >= MIN_GAP_S:
+        if pending is not None and t - last_read >= (BUSY_GAP_S if busy else MIN_GAP_S):
             reader.read_frame(now["t"], pending)
             pending, last_read = None, t
             reads[minute] += 1
