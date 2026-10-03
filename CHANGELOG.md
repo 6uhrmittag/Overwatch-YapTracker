@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · Workflow (no issue)
+- Behind the scenes: Claude Code pushes and merges its own PRs once CI is green (CLAUDE.md).
+
 ### 2026-10-03 · A black game window: the screen instead (#236)
 - If Windows only sends a black picture of the Overwatch window, YapTracker reads the screen Overwatch is on instead and says so in Live. It tries the window again at the next start.
 
