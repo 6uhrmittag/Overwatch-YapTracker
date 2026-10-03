@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · Lighter when busy (#249)
+- After a minute above 15 % of a CPU core, YapTracker reads the chat every 3 s instead of every 1.5 s for the next minute. A line stays on screen ~9 s, so nothing is missed, and the game gets the CPU back.
+
 ### 2026-10-03 · Workflow (no issue)
 - Behind the scenes: Claude Code pushes and merges its own PRs once CI is green (CLAUDE.md).
 

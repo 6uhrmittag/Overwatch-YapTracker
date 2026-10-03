@@ -156,53 +156,6 @@ class _ReadTwice:
         return picked, ours_s + latin_s
 
 
-LINE_HEIGHT = 25  # px of a chat line's text at 1440p (#249), for the row check
-PIECE_GAP = 1.6  # a gap this many line heights wide splits a row (an emoji, a wide space)
-
-
-def text_pieces(image: np.ndarray, text_scale: float | None = None) -> list[tuple] | None:
-    """(x, y, width, height) of each piece of text in a chat-box image, from the text mask
-    (#17); None when the rows don't look like chat lines. Tight, like detection's boxes: the
-    channel icon (#173) is looked for left of them."""
-    from yaptracker.capture.changes import text_mask
-
-    mask = text_mask(image, text_scale)
-    scale = text_scale or image.shape[0] / 395
-    rows = np.flatnonzero(mask.any(axis=1))
-    if len(rows) == 0:
-        return []
-    bands, start = [], rows[0]
-    for a, b in zip(rows[:-1], rows[1:], strict=True):
-        if b - a > 2:  # an empty gap: the next line
-            bands.append((start, a + 1))
-            start = b
-    bands.append((start, rows[-1] + 1))
-    line = LINE_HEIGHT * scale
-    pieces = []
-    for top, bottom in bands:
-        height = bottom - top
-        if height < 0.35 * line:
-            continue  # a stray dot
-        if height > 1.6 * line:
-            return None  # two lines touching, or something else: let detection sort it out
-        columns = np.flatnonzero(mask[top:bottom].any(axis=0))
-        split = np.flatnonzero(np.diff(columns) > PIECE_GAP * height)
-        starts = np.concatenate([[columns[0]], columns[split + 1]])
-        ends = np.concatenate([columns[split], [columns[-1]]]) + 1
-        for x0, x1 in zip(starts, ends, strict=True):
-            pieces.append((int(x0), int(top), int(x1 - x0), int(height)))
-    return pieces
-
-
-PAD_X, PAD_Y = 0.3, 0.0  # of the line height, around each piece for recognition only
-
-
-def _padded(image: np.ndarray, piece: tuple) -> np.ndarray:
-    x, y, w, h = piece
-    pad_x, pad_y = round(PAD_X * h), round(PAD_Y * h)
-    return image[max(0, y - pad_y) : y + h + pad_y, max(0, x - pad_x) : x + w + pad_x]
-
-
 class RapidOcrEngine:
     """RapidOCR (ONNX, CPU) on the upscaled image (2x at 1440p) - 1x drops the spaces."""
 
@@ -247,27 +200,6 @@ class RapidOcrEngine:
             words.append(
                 _Word(text, float(score), min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
             )
-        return group_lines(words)
-
-    def read_rows(
-        self, image: np.ndarray, text_scale: float | None = None, scale: float = UPSCALE
-    ) -> list[OcrLine] | None:
-        """The chat box without the text-detection step (#249): the text mask (#17) finds the
-        rows and the pieces of text in them, and only recognition runs, on all pieces in one
-        batch - about half the CPU of read(). None when the rows look odd (then read())."""
-        import cv2
-
-        pieces = text_pieces(image, text_scale)
-        if pieces is None:
-            return None
-        if not pieces:
-            return []
-        crops = [cv2.resize(_padded(image, piece), None, fx=scale, fy=scale,
-                            interpolation=cv2.INTER_CUBIC) for piece in pieces]  # fmt: skip
-        read, _ = self._ocr.text_rec(crops)
-        words = [_Word(text.strip(), float(score), x, y, w, h)
-                 for (x, y, w, h), (text, score) in zip(pieces, read, strict=True)
-                 if text.strip() and score >= 0.5]  # fmt: skip
         return group_lines(words)
 
     def read_line(self, image: np.ndarray) -> str:

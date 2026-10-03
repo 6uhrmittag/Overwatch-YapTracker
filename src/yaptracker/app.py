@@ -269,18 +269,6 @@ def _watch_for_overwatch(dev: bool) -> None:
         app.on_shutdown(lambda: bind_hotkeys(False))
 
 
-def read_chat(engine, image) -> list:
-    """One chat read (#249): recognition only on the rows the text mask finds, with text
-    detection when the rows look odd or the engine can't do rows (Windows OCR)."""
-    size = runtime.window_size
-    rows = getattr(engine, "read_rows", None)
-    if rows is not None:
-        lines = rows(image, size[1] / 1440 if size else None, scale=runtime.ocr_scale())
-        if lines is not None:
-            return lines
-    return engine.read(image, scale=runtime.ocr_scale())
-
-
 def _open_store() -> Callable[[], None]:
     """The database opens with the app (the smoke test too: it proves SQLite + FTS5 in the exe).
 
@@ -327,7 +315,7 @@ def _open_store() -> Callable[[], None]:
             on_shaky=lambda name: runtime.debug.save_chat("new-player"),
         )
         runtime.reader = ChatReader(
-            lambda image: read_chat(ocr.get(config.ocr_engine()), image),
+            lambda image: ocr.get(config.ocr_engine()).read(image, scale=runtime.ocr_scale()),
             runtime.store,
             runtime.matches,
             identity=config.identity,
