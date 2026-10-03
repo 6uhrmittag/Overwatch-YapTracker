@@ -60,6 +60,8 @@ _NAMELESS_SYSTEM = (
 )
 _SYSTEM_PLAIN = re.compile(r"^(?:" + "|".join(_NAMELESS_SYSTEM) + ")")
 _INPUT = re.compile(r"^\[(Match|Team|Group)\](?!" + _COLON + ")")
+_PROMPT = re.compile(r"^\[?(?P<word>[A-Za-z]{3,6})\](?!\s*" + _COLON + ")")
+_PROMPTS = ("Match", "Team", "Group")
 _REPORT = re.compile(r"\s*\[Report\]\s*$")
 
 
@@ -88,11 +90,23 @@ def _starts_line(text: str) -> bool:
                                        _SYSTEM_PLAIN, _INPUT))  # fmt: skip
 
 
+def _misread_prompt(text: str) -> bool:
+    """The chat field's prompt read badly: "[Mateh] hi", "Match] hi" (#254). The frame check
+    (input_row) is the main guard; this catches a misread prompt it missed. Never a system
+    line like "[Teams] started playing Overwatch."."""
+    from rapidfuzz import fuzz
+
+    m = _PROMPT.match(text)
+    if m is None or _SYSTEM_PHRASE.match(text[m.end() :].strip()):
+        return False
+    return any(fuzz.ratio(m["word"].lower(), p.lower()) >= 80 for p in _PROMPTS)
+
+
 def _classify(text: str, confidence: float, box: Region) -> ChatLine:
     flagged = bool(_REPORT.search(text))
     text = _REPORT.sub("", text)
     line = ChatLine("unknown", "unknown", text, confidence, box, flagged=flagged)
-    if _INPUT.match(text):
+    if _INPUT.match(text) or _misread_prompt(text):
         return replace(line, kind="input")
     if m := _COMMS.match(text):
         # Text can be empty: "Name (Hero) to Other (Hero):" with the message on the next line.
