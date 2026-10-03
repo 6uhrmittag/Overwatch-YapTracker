@@ -85,6 +85,9 @@ made.
    same ticks, so the review and the issue agree.
 4. An issue with unticked boxes and no explanation must not be closed. If a merge
    closed it anyway, reopen it and fix the checklist first.
+5. The PR's **"What you can see now"** bullets are the release notes (#239): short,
+   user-visible, in the app's voice. Add the same bullets to `CHANGELOG.md` (newest first,
+   under today's date) in the PR. Nothing user-visible: one `- Behind the scenes: ...` bullet.
 
 **Labels:**
 | Label | Meaning |

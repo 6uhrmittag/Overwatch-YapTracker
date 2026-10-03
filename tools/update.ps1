@@ -163,6 +163,12 @@ try {
 }
 
 Write-Host "Installed YapTracker $($release.tag_name) in $AppDir (your data stays in $(Join-Path $InstallRoot 'data'))."
+# The release notes' bullets (#239): what's new, right here.
+$news = @(("$($release.body)" -split "`r?`n") | Where-Object { $_ -match '^- ' } | Select-Object -First 6)
+if ($news.Count -gt 0) {
+    Write-Host "What's new in $($release.tag_name):"
+    foreach ($line in $news) { Write-Host "  $line" }
+}
 if (-not $NoStart) {
     $exe = Join-Path $AppDir 'YapTracker.exe'
     if ($fresh) {
