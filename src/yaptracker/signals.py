@@ -80,9 +80,17 @@ def _letters(text: str) -> str:
     return "".join(ch for ch in text.upper() if ch.isalpha())
 
 
+LOOSE = 60  # with "TEAM" in it: a very bright map washes out the middle letters (#275)
+
+
 def is_banner(text: str) -> bool:
-    """A whole-text match: a single read letter must never count as "ASSEMBLE YOUR TEAM"."""
-    return fuzz.ratio(_letters(text), _letters(BANNER_TEXT)) >= MATCH
+    """A whole-text match: a single read letter must never count as "ASSEMBLE YOUR TEAM".
+    On a very bright map (New Junk City after the map vote, 2026-10-02) the middle letters
+    wash out: "ASSTOL NONRTEAME" scores 64.5 and still counts with its "TEAM"; other text at
+    that spot scored at most 42 in the debug samples (#275)."""
+    letters = _letters(text)
+    score = fuzz.ratio(letters, _letters(BANNER_TEXT))
+    return score >= MATCH or (score >= LOOSE and "TEAM" in letters)
 
 
 def is_round_start(text: str) -> bool:

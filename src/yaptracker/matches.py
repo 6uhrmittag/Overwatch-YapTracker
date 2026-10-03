@@ -9,7 +9,8 @@
   hero select follows within 3 min is that match; one that never gets a line is dropped when
   it's ended by hand or the next match starts, so pressing twice or early leaves nothing.
 - After an end, post-game chat ("gg") still belongs to the match. Chat after >= 90 s of quiet
-  is the next match (source 'endscreen': the end screen split them).
+  is the next match whose hero select was missed (source 'gap'; older matches say 'endscreen').
+- YapTracker restarted mid-match (an update): the match its shutdown closed goes on (#275).
 - Every match start ends a pause (#20).
 """
 
@@ -30,6 +31,8 @@ QUIET_GAP_S = 5 * 60
 # over instead of leaving an almost empty match behind (#93).
 ADOPT_GAP_MATCH_S = 3 * 60
 AFTER_END_GAP_S = 90
+# YapTracker restarted mid-match (an update, #275): within this, the match goes on.
+RESUME_MATCH_S = 10 * 60
 
 
 class Status(NamedTuple):
@@ -80,7 +83,10 @@ class MatchTracker:
             if self.session_id is None:
                 if self._resumable and ts - self._resumable[1] < SESSION_GAP_S:
                     self.session_id = self._resumable[0]
+                    closed = self._store.match_closed_by_shutdown(self.session_id)
                     self._store.reopen_session(self.session_id)
+                    if closed is not None and ts - closed[2] < RESUME_MATCH_S:
+                        self._resume(closed, ts)
                 else:
                     self._new_session(ts)
                 self._resumable = None
@@ -97,7 +103,8 @@ class MatchTracker:
                 self._start_match(ts, "gap")
             elif ended is not None:
                 if ts - (ended if last is None else max(last, ended)) >= AFTER_END_GAP_S:
-                    self._start_match(ts, "endscreen")
+                    # chat after a result: hero select was missed, the chat starts it (#275)
+                    self._start_match(ts, "gap")
             elif last is not None and ts - max(last, self.match_started_at) >= QUIET_GAP_S:
                 # quiet since the match started, not since old chat: hero select can start a
                 # match long after the last line of the one before
@@ -230,3 +237,11 @@ class MatchTracker:
          self.match_mode, self.match_ended_at, self.match_outcome,
          self._match_source) = self._before_hand  # fmt: skip
         return True
+
+    def _resume(self, closed: tuple, ts: float) -> None:
+        """The match YapTracker's own shutdown closed goes on after a quick restart (#275):
+        before, the next chat started a second match inside the same game."""
+        self.match_id, self.match_started_at, ended, self.match_map, self.match_mode = closed[:5]
+        self._match_source = closed[5]
+        self._store.reopen_match(self.match_id)
+        log.info("match %d goes on: YapTracker was away %d s", self.match_id, ts - ended)

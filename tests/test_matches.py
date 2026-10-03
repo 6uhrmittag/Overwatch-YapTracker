@@ -106,7 +106,7 @@ def test_post_game_chat_stays_with_the_match_until_90_s_of_quiet(store):
     tracker.chat_changed(T0 + 40 + AFTER_END_GAP_S - 1)  # "gg wp", still the same match
     assert len(matches(store)) == 1
     tracker.chat_changed(T0 + 40 + 2 * AFTER_END_GAP_S)  # back in the lobby: the next match
-    assert [(m[2], m[3]) for m in matches(store)] == [(T0 + 30, "gap"), (None, "endscreen")]
+    assert [(m[2], m[3]) for m in matches(store)] == [(T0 + 30, "gap"), (None, "gap")]  # (#275)
     assert store._read("SELECT outcome FROM matches ORDER BY id") == [("victory",), (None,)]
     assert tracker.running
 
@@ -117,7 +117,7 @@ def test_quiet_after_an_end_counts_even_if_nobody_chatted_in_the_match(store):
     tracker.new_match(T0, source="heroselect")
     tracker.end_match(T0 + 600, outcome="defeat")
     tracker.chat_changed(T0 + 600 + AFTER_END_GAP_S)
-    assert [m[3] for m in matches(store)] == ["heroselect", "endscreen"]
+    assert [m[3] for m in matches(store)] == ["heroselect", "gap"]  # (#275)
 
 
 def test_the_outcome_may_come_after_play_of_the_game(store):

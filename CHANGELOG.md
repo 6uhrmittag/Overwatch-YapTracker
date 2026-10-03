@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · Matches split right (#275)
+- Hero select is seen on very bright maps too (New Junk City after the map vote), so the match starts there, not with the next chat line.
+- Restarting YapTracker mid-match (an update) no longer splits the match in two: it goes on.
+
 ### 2026-10-03 · Unsent typing stays private (#254)
 - What you type in Overwatch's chat box isn't saved until you send it. No more garbled messages from someone called "Mateh".
 
