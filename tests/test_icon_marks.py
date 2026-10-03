@@ -10,7 +10,7 @@ from yaptracker.parser import parse
 
 
 def comms(text, confidence=0.98, y=100):
-    return OcrLine(f"ShinyHero (Moira): {text}", confidence, Region(64, y, 400, 24))
+    return OcrLine(f"Pickle (Moira): {text}", confidence, Region(64, y, 400, 24))
 
 
 @pytest.mark.parametrize("said", ["Group up!", "Group up! ◇", "Thanks!", "Fall back!",
