@@ -3,7 +3,7 @@
 from collections.abc import Callable
 
 from yaptracker import config
-from yaptracker.capture.black import BlackPicture
+from yaptracker.capture.black import BlackPicture, ScreenFallback
 from yaptracker.capture.changes import ChangeDetector
 from yaptracker.capture.health import CaptureHealth
 from yaptracker.capture.watcher import CaptureWatcher
@@ -33,6 +33,7 @@ def keycap(action: str) -> str:
 pause = Pause()
 watcher: CaptureWatcher | None = None  # None in tests and before startup
 black: BlackPicture | None = None  # Windows sends a black picture (#217)
+screen: ScreenFallback | None = None  # the window stayed black: read the screen (#236)
 changes: ChangeDetector | None = None  # frames that would go to OCR (#17)
 window_size: tuple[int, int] | None = None  # of the captured Overwatch window, for #84's hint
 store: Store | None = None  # the database, open while the app runs (#15)

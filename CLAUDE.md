@@ -74,6 +74,10 @@ made.
 3. Prefer `priority`, then `quick-win`, then the lowest issue number.
 4. Comment "Starting" on the issue, work on a branch `issue-<N>-<slug>`, open a
    PR that `Closes #N`.
+5. **Push and merge yourself, unattended (hard rule).** Push the branch, open the PR,
+   and once CI is green (and the closing checklist below is done) squash-merge it with
+   `gh pr merge <PR> --squash --delete-branch`. Don't hand the merge back to Marv and
+   don't wait for his review: he reviews the pre-release. Never force-push.
 
 **Closing an issue — required, every time (Marv tracks progress in the issues):**
 1. **Before merging**, go through the issue's "Done when" checklist and **tick every

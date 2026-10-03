@@ -95,3 +95,38 @@ async def test_leaving_settings_mid_listen_brings_the_hotkeys_back(user: User, m
     user.find(marker="nav-live").click()
     await user.should_see("Pause")
     assert bound == [False, True]
+
+
+# What some keys type, by where they sit (the browser's layout map), on three layouts (#245).
+DVORAK = {"KeyL": "n", "KeyN": "b", "KeyF": "u", "KeyY": "f", "KeyR": "p", "KeyP": "l",
+          "KeyQ": "'", "Digit7": "7"}  # fmt: skip
+QWERTZ = {"KeyY": "z", "KeyZ": "y", "KeyP": "p", "KeyQ": "q", "Digit7": "7",
+          "BracketLeft": "ü", "Semicolon": "ö", "Minus": "ß"}  # fmt: skip
+QWERTY = {"KeyL": "l", "KeyP": "p", "KeyZ": "z", "Digit7": "7"}
+
+
+def key_typing(layout: dict[str, str], letter: str) -> str:
+    """Where the key that types `letter` sits: Windows fires VK_<letter> on that key."""
+    return next(code for code, typed in layout.items() if typed == letter)
+
+
+@pytest.mark.parametrize(("layout", "code", "letter"), [
+    (DVORAK, "KeyL", "N"), (DVORAK, "KeyY", "F"), (DVORAK, "Digit7", "7"),
+    (QWERTZ, "KeyY", "Z"), (QWERTZ, "KeyZ", "Y"), (QWERTZ, "KeyP", "P"),
+    (QWERTY, "KeyL", "L"), (QWERTY, "KeyZ", "Z"),
+])  # fmt: skip
+def test_what_you_press_is_what_is_saved_shown_and_fired(layout, code, letter):
+    from yaptracker.hotkeys import parse
+
+    combo = combo_from(code, ctrl=True, alt=True, shift=False, layout=layout)
+    assert combo == f"Ctrl+Alt+{letter}"  # saved, and shown as "Ctrl Alt N"
+    _, vk = parse(combo)
+    assert key_typing(layout, chr(vk).lower()) == code  # and it fires on the key you pressed
+
+
+def test_umlauts_are_refused_and_other_keys_still_work():
+    with pytest.raises(ValueError, match="can't be hotkeys"):
+        combo_from("BracketLeft", ctrl=True, alt=True, shift=False, layout=QWERTZ)
+    assert combo_from("F9", ctrl=False, alt=False, shift=False, layout=DVORAK) == "F9"
+    assert combo_from("KeyQ", ctrl=True, alt=True, shift=False, layout=DVORAK) is None  # an '
+    assert combo_from("KeyP", ctrl=True, alt=True, shift=False) == "Ctrl+Alt+P"  # no map: QWERTY
