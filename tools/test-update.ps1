@@ -1,14 +1,9 @@
 <#
 .SYNOPSIS
-    Checks for tools/update.ps1 (#238). CI runs it on Windows PowerShell 5.1 and PowerShell 7.
-
-.DESCRIPTION
-    1. The download bar: only the functions are loaded from update.ps1 (nothing else runs),
-       and a few bar lines are checked.
-    2. A real install of the newest release into a temp folder. In CI the output isn't a
-       console, so this also covers the plain-text fallback.
+    Checks the download bar of tools/update.ps1 (#238): only the functions are loaded from
+    update.ps1 (nothing else runs), and a few bar lines are checked. The install itself is
+    tested by .github/workflows/update-script.yml, on Windows PowerShell 5.1 and PowerShell 7.
 #>
-param([switch]$SkipInstall)
 $ErrorActionPreference = 'Stop'
 $script = Join-Path $PSScriptRoot 'update.ps1'
 
@@ -31,11 +26,3 @@ $all = (Get-Content $script -Raw)
 if ($all -match '[^\x00-\x7F]') { throw 'update.ps1 must stay ASCII (Windows PowerShell 5.1)' }
 Write-Host "Bar lines OK on PowerShell $($PSVersionTable.PSVersion)"
 
-if (-not $SkipInstall) {
-    $root = Join-Path ([IO.Path]::GetTempPath()) ('yt-update-test-' + [guid]::NewGuid())
-    $clock = [Diagnostics.Stopwatch]::StartNew()
-    & $script -InstallRoot $root -NoStart -Autostart No
-    if (-not (Test-Path (Join-Path $root 'app\YapTracker.exe'))) { throw 'update.ps1 installed no YapTracker.exe' }
-    Write-Host ('Installed into a temp folder in {0:N1} s' -f $clock.Elapsed.TotalSeconds)
-    Remove-Item -Recurse -Force $root
-}

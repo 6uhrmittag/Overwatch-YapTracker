@@ -46,12 +46,6 @@ jobs:
           cache-dependency-path: pyproject.toml
       - run: pip install .[dev]
       - run: pytest tests/test_capture_windows.py tests/test_system_info_windows.py -v
-      - name: update.ps1 on Windows PowerShell 5.1 and PowerShell 7 (#238)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-update.ps1
-          pwsh -NoProfile -File tools/test-update.ps1
 
   build:
     name: Windows build
