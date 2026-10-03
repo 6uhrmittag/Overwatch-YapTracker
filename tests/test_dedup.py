@@ -31,7 +31,7 @@ def test_four_real_minutes_of_chat_give_each_line_once():
         stored += new
     assert [(y.best.kind, y.best.speaker, y.best.text) for y in stored] == [
         ("comms", "NoodleBonk", "Hello!"),
-        ("comms", "tortillaTank", "Thanks!"),
+        ("comms", "tortillaTank", "Thanks! ◇"),  # its icon (#259)
         ("comms", "MaybeMaybe", "Enemy Tracer!"),
         ("message", "tortillaTank", "tracer come heereee I have cookies"),
         ("comms", "zappy", "wants to stop the robot!"),

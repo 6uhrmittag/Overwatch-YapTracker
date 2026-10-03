@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · Icons stay put (#259)
+- A line's picture now shows the whole row: the channel icon, the full name, the text and the icon at the end, so ◇ always points at something you can see.
+- "Thanks!", "Group up!", "Fall back!" and "I need healing!" always get their ◇, and a ◇ seen once doesn't vanish on a later reading.
+
 ### 2026-10-03 · Unsent typing stays private (#254)
 - What you type in Overwatch's chat box isn't saved until you send it. No more garbled messages from someone called "Mateh".
 
