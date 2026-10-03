@@ -129,10 +129,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: read  # the merged PR's "What you can see now" becomes the notes (#239)
     env:
       VERSION: ${{ needs.build.outputs.version }}
       GH_TOKEN: ${{ github.token }}
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: YapTracker-${{ env.VERSION }}-win64
@@ -141,9 +143,13 @@ jobs:
         run: cd app && zip -qr "../YapTracker-$VERSION-win64.zip" .
       - name: Publish pre-release v${{ env.VERSION }}
         run: |
-          # Release notes = merged PR titles since the previous (pre-)release.
+          # Release notes (#239): what the merged PR says under "What you can see now", in the
+          # app's own words; one merge to main is one release.
           previous=$(gh release list -R "$GITHUB_REPOSITORY" --limit 1 --json tagName --jq '.[0].tagName // ""')
+          gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0] // null' > pr.json
+          python3 tools/release_notes.py --pr pr.json --repo "$GITHUB_REPOSITORY" --tag "v$VERSION" \
+            --previous "$previous" --subject "$(git log -1 --format=%s)" > notes.md
+          cat notes.md
           gh release create "v$VERSION" "YapTracker-$VERSION-win64.zip" \
             -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
-            --title "YapTracker $VERSION" --generate-notes \
-            ${previous:+--notes-start-tag "$previous"}
+            --title "YapTracker $VERSION" --notes-file notes.md

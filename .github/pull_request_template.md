@@ -1,5 +1,10 @@
 ## What you can see now
+<!-- These bullets are the release notes (#239): short, user-visible, in the app's voice
+     (docs/ui.md). Nothing to see? One bullet: "- Behind the scenes: ...". -->
 - 
+
+## Changelog
+- [ ] `CHANGELOG.md`: the same bullets under today's date
 
 ## Done when (copied from the issue, same ticks)
 - [x] …
