@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · Capture modes measured (#229)
+- Behind the scenes: measured how each way of capturing affects the game's FPS in a real match. None caps Overwatch at the refresh rate, so capture stays as it is.
+
 ### 2026-10-03 · Release notes in plain words (#239)
 - Every release now says what's new in plain words, and this changelog keeps the list.
 - After an update, `tools/update.ps1` tells you what's new.
