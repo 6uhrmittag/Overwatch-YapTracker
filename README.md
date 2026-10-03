@@ -61,7 +61,7 @@ Normal play needs none: capture, matches and sessions run by themselves. They're
 | `Ctrl+Alt+M` | New match, only if YapTracker missed a match start |
 | `Ctrl+Alt+S` | Keep the last 20 s of chat as a debug sample |
 
-Change them in **Settings → Hotkeys**: click **Change**, press the new keys. If another app already has a combo, Settings says so next to it.
+Change them in **Settings → Hotkeys**: click **Change**, press the new keys. Any keyboard layout works (QWERTZ, Dvorak…): the letter you press is the one saved and shown. If another app already has a combo, Settings says so next to it.
 
 ## Your data
 
