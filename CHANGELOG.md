@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · Hotkeys on any keyboard (#245)
+- Hotkeys work with any keyboard layout (Dvorak, QWERTZ…): the letter you press is the one saved, shown and used.
+- Ä, Ö, Ü and ß are refused with a hint: Windows can't use them as hotkeys.
+
 ### 2026-10-03 · Lighter on Windows 10 (#248)
 - Windows 10: YapTracker now copies only the chat box from the screen instead of every frame the game draws. That was costing Void a lot of FPS.
 - No more yellow border around Overwatch on Windows 10.
