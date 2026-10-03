@@ -20,6 +20,7 @@ class CaptureStats:
         self._minute_start: float | None = None
         self._minute_frames, self._minute_spent, self._minute_skipped = 0, 0.0, 0
         self.cannot: list[str] = []  # what this Windows can't do for the capture (#216)
+        self.how = "WGC"  # or "GDI, chat box only" without the rate setting (#248)
 
     def skipped(self) -> None:
         """A frame arrived too soon after the last one and was let go untouched (#216)."""
@@ -43,8 +44,9 @@ class CaptureStats:
             self._minute_start, self._minute_frames, self._minute_spent = now, 0, 0.0
             self._minute_skipped = 0
         extra = f", {skipped / elapsed:.1f}/s of them skipped" if skipped else ""
-        log.info("capture: %.1f frames/s from Windows (asked for %g), %.1f ms per frame here%s",
-                 rate, self.asked_fps, per_frame * 1000, extra)  # fmt: skip
+        source = "from Windows" if self.how == "WGC" else f"by {self.how}"
+        log.info("capture: %.1f frames/s %s (asked for %g), %.1f ms per frame here%s",
+                 rate, source, self.asked_fps, per_frame * 1000, extra)  # fmt: skip
 
     def _arrived(self, now: float) -> None:
         self._recent.append(now)

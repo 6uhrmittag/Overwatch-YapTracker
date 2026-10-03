@@ -175,10 +175,17 @@ def _watch_for_overwatch(dev: bool) -> None:
     found = {"hwnd": None}  # the display line follows with the game's first frame (#214)
 
     def open_source(hwnd: int):
-        from yaptracker.capture.wgc import WgcFrameSource
+        from yaptracker.capture.wgc import WgcFrameSource, has_rate_setting, windows_build
 
         found["hwnd"] = hwnd
-        return WgcFrameSource(hwnd, region_for, signals_for=crops_for)
+        build = windows_build()
+        if has_rate_setting(build):
+            return WgcFrameSource(hwnd, region_for, signals_for=crops_for)
+        from yaptracker.capture.gdi import GdiFrameSource
+
+        log.info("capture: Windows build %d has no rate setting: reading the chat box with GDI, "
+                 "only what's on screen (#248)", build)  # fmt: skip
+        return GdiFrameSource(hwnd, region_for, signals_for=crops_for)
 
     def region_for(width: int, height: int):
         if found["hwnd"] is not None:
