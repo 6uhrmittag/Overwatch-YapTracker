@@ -31,6 +31,12 @@ def windows_build() -> int:
     return sys.getwindowsversion().platform_version[2] if sys.platform == "win32" else 0
 
 
+def has_rate_setting(build: int) -> bool:
+    """WGC can be asked for 4 fps (Windows 11 24H2 on). Without it every game frame arrives, and
+    windows-capture copies each one from the graphics card before we can skip it (#248)."""
+    return build >= SINCE["minimum_update_interval"][0]
+
+
 def capture_options(build: int, fps: float) -> tuple[dict, list[str]]:
     """What to ask WGC for on this Windows, and what it can't do (left at Windows' default)."""
     wanted = {"cursor_capture": False, "draw_border": False,

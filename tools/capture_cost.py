@@ -12,8 +12,9 @@ used, and CPU per second and per delivered frame.
     use      WGC window capture, every frame's chat box cropped and copied (no gate)
     gate     WGC window capture with YapTracker's own 4 fps gate (#216), as the app runs today
     burst    a WGC session opened for one frame every 250 ms, then closed
-    gdi      a GDI copy (mss) of only the chat rectangle, 4 times a second (CLAUDE.md capture
+    gdi      a GDI copy of only the chat rectangle, 4 times a second (CLAUDE.md capture
              Fallback 2)
+    source   the app's GDI source: chat box 4/s, signal strips 1/s, a small overview every 5 s
     rate     WGC with Windows' own 4 fps setting, where this Windows has it (11 24H2 and later)
 
 Without the rate setting (Windows 10, Server 2022) "skip" shows whether a frame nobody uses
@@ -139,26 +140,50 @@ def burst(hwnd: int):
 
 def gdi(hwnd: int):
     def run(seconds: float, counts: dict) -> None:
-        import ctypes
-        from ctypes import wintypes
+        from yaptracker.capture.gdi import ScreenGrabber, client_area
 
-        import mss
-        import numpy as np
-
-        rect = wintypes.RECT()
-        ctypes.windll.user32.GetClientRect(hwnd, ctypes.byref(rect))
-        origin = wintypes.POINT(0, 0)
-        ctypes.windll.user32.ClientToScreen(hwnd, ctypes.byref(origin))
-        w, h = rect.right, rect.bottom
+        grabber = ScreenGrabber()
+        sx, sy, w, h = client_area(hwnd)
         x, y, cw, ch = (int(v * s) for v, s in zip(CHAT, (w / 2560, h / 1440) * 2, strict=True))
-        area = {"left": origin.x + x, "top": origin.y + y, "width": cw, "height": ch}
         end = time.monotonic() + seconds
-        with mss.mss() as screen:
+        try:
             while time.monotonic() < end:
-                np.asarray(screen.grab(area))[:, :, :3].copy()
+                grabber.grab(sx + x, sy + y, cw, ch)
                 counts["delivered"] += 1
                 counts["used"] += 1
                 time.sleep(0.25)
+        finally:
+            grabber.close()
+
+    return run
+
+
+def source(hwnd: int):
+    """The whole GDI source as the app runs it: chat box 4/s, signal strips 1/s, overview."""
+
+    def run(seconds: float, counts: dict) -> None:
+        from yaptracker.capture.gdi import GdiFrameSource
+        from yaptracker.capture.source import Region
+        from yaptracker.game_fps import overlay_regions
+        from yaptracker.signals import signal_regions
+
+        def chat(w: int, h: int) -> Region:
+            return Region(*(int(v * s) for v, s in zip(CHAT, (w / 2560, h / 1440) * 2,
+                                                       strict=True)))  # fmt: skip
+
+        def crops(w: int, h: int) -> dict:
+            return {**signal_regions(w, h), **overlay_regions(w, h)}
+
+        src = GdiFrameSource(hwnd, chat, signals_for=crops)
+        end = time.monotonic() + seconds
+        try:
+            for _ in src.frames():
+                counts["delivered"] += 1
+                counts["used"] += 1
+                if time.monotonic() >= end:
+                    break
+        finally:
+            src.close()
 
     return run
 
@@ -177,13 +202,17 @@ def main() -> None:
         time.sleep(1.0)
         modes = [("idle", lambda s, c: time.sleep(s)), ("skip", wgc(hwnd, None, False)),
                  ("use", wgc(hwnd, None, True)), ("gate", wgc(hwnd, 0.225, True)),
-                 ("burst", burst(hwnd)), ("gdi", gdi(hwnd))]  # fmt: skip
+                 ("burst", burst(hwnd)), ("gdi", gdi(hwnd)), ("source", source(hwnd))]  # fmt: skip
         if windows_build() >= 26100:
             modes.append(("rate", wgc(hwnd, None, True, rate_ms=250)))
         print(f"Windows build {windows_build()}, {args.seconds:g} s per mode")
         print(f"{'mode':6} {'delivered/s':>12} {'used/s':>8} {'cpu %':>7} {'cpu ms/frame':>13}")
         for name, run in modes:
-            r = measure(name, args.seconds, run)
+            try:
+                r = measure(name, args.seconds, run)
+            except Exception as error:  # a mode this Windows can't do: say so, go on
+                print(f"{name:6} failed: {error!r}", flush=True)
+                continue
             print(f"{r['mode']:6} {r['delivered/s']:12.1f} {r['used/s']:8.1f} {r['cpu %']:7.1f} "
                   f"{r['cpu ms/frame']:13.2f}", flush=True)  # fmt: skip
     finally:

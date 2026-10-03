@@ -45,11 +45,9 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: pip install .[dev]
-      - run: pytest tests/test_capture_windows.py tests/test_system_info_windows.py -v
+      - run: pytest tests/test_capture_windows.py tests/test_capture_gdi_windows.py tests/test_system_info_windows.py -v
       - name: What capturing costs without the rate setting (#248)
-        run: |
-          pip install mss
-          python tools/capture_cost.py --seconds 10
+        run: python tools/capture_cost.py --seconds 10
 
   build:
     name: Windows build
@@ -78,11 +76,9 @@ jobs:
       - name: Plain onnxruntime, no DirectML in the app (GPU OCR is out of v1, #219)
         run: python -c "import onnxruntime as o; p = o.get_available_providers(); print(o.__version__, p); assert 'DmlExecutionProvider' not in p"
       - name: What capturing costs with the rate setting, for comparison (#248)
-        run: |
-          pip install mss
-          python tools/capture_cost.py --seconds 10
+        run: python tools/capture_cost.py --seconds 10
       - name: Windows-only tests (Windows OCR, WGC capture, hotkeys, autostart, system info)
-        run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py tests/test_hotkeys_windows.py tests/test_autostart_windows.py tests/test_process_windows.py tests/test_priority_windows.py tests/test_system_info_windows.py -v
+        run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py tests/test_hotkeys_windows.py tests/test_autostart_windows.py tests/test_process_windows.py tests/test_priority_windows.py tests/test_system_info_windows.py tests/test_capture_gdi_windows.py -v
       - run: pyinstaller --noconfirm packaging/yaptracker.spec
       - name: Licenses ship with the app
         run: |

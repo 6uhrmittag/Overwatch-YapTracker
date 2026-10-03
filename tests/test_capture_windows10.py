@@ -124,3 +124,26 @@ def test_skipped_frames_count_in_the_rate_not_in_the_cost(caplog):
     (line,) = [r.getMessage() for r in caplog.records]
     assert line == ("capture: 100.0 frames/s from Windows (asked for 4), 2.0 ms per frame here, "
                     "96.0/s of them skipped")  # fmt: skip
+
+
+def test_without_the_rate_setting_the_app_reads_with_gdi():
+    """#248: before Windows 11 24H2 every game frame costs a readback, so GDI reads instead."""
+    from yaptracker.capture.wgc import has_rate_setting
+
+    assert not has_rate_setting(19045)  # Void's Windows 10 22H2
+    assert not has_rate_setting(22631)  # Windows 11 23H2 has no rate setting either
+    assert has_rate_setting(26100)
+
+
+def test_the_log_line_names_gdi(caplog):
+    clock = {"now": 0.0}
+    capture = stats_module.CaptureStats(clock=lambda: clock["now"])
+    capture.how = "GDI, chat box only"
+    with caplog.at_level(logging.INFO, logger="yaptracker.capture.stats"):
+        for i in range(241):
+            clock["now"] = i / 4
+            capture.frame(0.001)
+    (line,) = [r.getMessage() for r in caplog.records]
+    assert (
+        line == "capture: 4.0 frames/s by GDI, chat box only (asked for 4), 1.0 ms per frame here"
+    )
