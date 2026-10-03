@@ -20,7 +20,9 @@ param(
     [switch]$NoStart,
     # Answer for "Start with Windows?" on a fresh install; Ask shows the question once.
     [ValidateSet('Ask', 'Yes', 'No')]
-    [string]$Autostart = 'Ask'
+    [string]$Autostart = 'Ask',
+    # Run this copy as it is, without fetching the newest update.ps1 first (CI tests its own).
+    [switch]$NoSelfUpdate
 )
 
 $ErrorActionPreference = 'Stop'
@@ -32,21 +34,40 @@ function Format-PayloadLine {
     # One line of the download bar (#238), e.g.
     #   Pushing the payload  [=========>----------]  47%  31.2 / 66.4 MB  8.4 MB/s
     # Without a size: a spinner and the MB so far. ASCII only (Windows PowerShell 5.1).
-    param([long]$Done, [long]$Total, [double]$BytesPerSecond, [int]$Tick = 0, [int]$Width = 20)
+    # $Columns: the console's width (#246). The line never wraps: first the bar gets shorter,
+    # then the speed goes, then the MB. 0 = no limit.
+    param([long]$Done, [long]$Total, [double]$BytesPerSecond, [int]$Tick = 0, [int]$Width = 20,
+          [int]$Columns = 0)
     $inv = [Globalization.CultureInfo]::InvariantCulture
     $mb = { param($bytes) ($bytes / 1MB).ToString('0.0', $inv) }
     $speed = '{0} MB/s' -f (& $mb $BytesPerSecond)
     if ($Total -le 0) {
         $spin = '|/-\'[$Tick % 4]
-        return 'Pushing the payload  {0}  {1} MB so far  {2}' -f $spin, (& $mb $Done), $speed
+        $parts = @('Pushing the payload', $spin, ('{0} MB so far' -f (& $mb $Done)), $speed)
+        while ($Columns -gt 0 -and ($parts -join '  ').Length -gt $Columns -and $parts.Count -gt 2) {
+            $parts = $parts[0..($parts.Count - 2)]
+        }
+        return $parts -join '  '
     }
     $share = [Math]::Min(1.0, $Done / $Total)
-    $filled = [int][Math]::Floor($share * $Width)
-    $head = if ($filled -lt $Width) { '>' } else { '' }
-    $track = ('=' * $filled) + $head + ('-' * [Math]::Max(0, $Width - $filled - 1))
     $what = if ($share -ge 1) { 'Payload delivered. ' } elseif ($share -ge 0.9) { 'OVERTIME! Push!    ' } else { 'Pushing the payload' }
-    return '{0}  [{1}]  {2,3}%  {3} / {4} MB  {5}' -f $what, $track, [int][Math]::Floor($share * 100),
-        (& $mb $Done), (& $mb $Total), $speed
+    $tail = @(('{0,3}%' -f [int][Math]::Floor($share * 100)), ('{0} / {1} MB' -f (& $mb $Done), (& $mb $Total)), $speed)
+    while ($true) {
+        $filled = [int][Math]::Floor($share * $Width)
+        $head = if ($filled -lt $Width) { '>' } else { '' }
+        $track = ('=' * $filled) + $head + ('-' * [Math]::Max(0, $Width - $filled - 1))
+        $line = '{0}  [{1}]  {2}' -f $what, $track, ($tail -join '  ')
+        if ($Columns -le 0 -or $line.Length -le $Columns) { return $line }
+        if ($Width -gt 5) { $Width = [Math]::Max(5, $Width - ($line.Length - $Columns)); continue }
+        if ($tail.Count -gt 1) { $tail = $tail[0..($tail.Count - 2)]; continue }
+        if ($what.Length -gt 7) { $what = 'Payload'; continue }  # a very narrow window
+        return $line.Substring(0, $Columns)
+    }
+}
+
+function Get-Columns {
+    # Room for the bar: the console's width, one column spare so the cursor doesn't wrap.
+    try { return [Math]::Max(20, [Console]::WindowWidth - 1) } catch { return 79 }
 }
 
 function Save-WithProgress {
@@ -75,8 +96,9 @@ function Save-WithProgress {
                 $seconds = $clock.Elapsed.TotalSeconds
                 if ($console) {
                     $tick++
-                    $line = Format-PayloadLine $done $total ($done / [Math]::Max($seconds, 0.001)) $tick
-                    [Console]::Write("`r" + $line.PadRight(79))  # padded: a shorter line leaves no rest
+                    $columns = Get-Columns  # read each time: the window can be resized
+                    $line = Format-PayloadLine $done $total ($done / [Math]::Max($seconds, 0.001)) $tick -Columns $columns
+                    [Console]::Write("`r" + $line.PadRight($columns))  # padded: a shorter line leaves no rest
                 } elseif ($total -gt 0 -and [int][Math]::Floor(4 * $done / $total) -gt $said) {
                     $said = [int][Math]::Floor(4 * $done / $total)
                     Write-Host ('  {0}% of {1} MB' -f ($said * 25), ($total / 1MB).ToString('0.0', [Globalization.CultureInfo]::InvariantCulture))
@@ -91,7 +113,8 @@ function Save-WithProgress {
         if ($total -gt 0 -and $done -ne $total) { throw "Download stopped at $done of $total bytes" }
         $speed = $done / [Math]::Max($clock.Elapsed.TotalSeconds, 0.001)
         if ($console) {
-            [Console]::WriteLine("`r" + (Format-PayloadLine $done ([Math]::Max($total, $done)) $speed).PadRight(79))
+            $columns = Get-Columns
+            [Console]::WriteLine("`r" + (Format-PayloadLine $done ([Math]::Max($total, $done)) $speed -Columns $columns).PadRight($columns))
             Write-Host 'GG. Unpacking...'
         } else {
             $inv = [Globalization.CultureInfo]::InvariantCulture
@@ -126,6 +149,32 @@ $release = $releases | Where-Object { -not $_.draft } | Select-Object -First 1
 if (-not $release) { throw "No release found on github.com/$Repo" }
 $asset = $release.assets | Where-Object { $_.name -like 'YapTracker-*-win64.zip' } | Select-Object -First 1
 if (-not $asset) { throw "Release $($release.tag_name) has no YapTracker-*-win64.zip" }
+
+# Keep this script current (#246): a saved copy would run old code for good (and miss what's
+# new, #239). The release's own update.ps1 replaces this file and runs instead, same arguments.
+$replaced = $false
+if (-not $NoSelfUpdate -and $PSCommandPath) {
+    try {
+        $latest = (Invoke-WebRequest -UseBasicParsing -Headers @{ 'User-Agent' = 'YapTracker-update' } `
+            -Uri "https://raw.githubusercontent.com/$Repo/$($release.tag_name)/tools/update.ps1").Content
+        $latest = $latest -replace "`r?`n", "`r`n"
+        if ($latest -match 'param\(' -and $latest -ne [IO.File]::ReadAllText($PSCommandPath)) {
+            [IO.File]::WriteAllText($PSCommandPath, $latest, [Text.Encoding]::ASCII)
+            $replaced = $true
+        }
+    } catch {
+        Write-Host "Couldn't check for a newer update.ps1 ($($_.Exception.Message)), going on with this one."
+    }
+}
+if ($replaced) {  # outside the try: if the new one fails, this one must not run as well
+    Write-Host 'This update.ps1 was out of date: replaced it with the newest, running that one...'
+    $again = @{}
+    foreach ($key in $PSBoundParameters.Keys) { $again[$key] = $PSBoundParameters[$key] }
+    if ($latest -match 'NoSelfUpdate') { $again['NoSelfUpdate'] = $true }  # older ones don't know it
+    $global:LASTEXITCODE = 0
+    & $PSCommandPath @again
+    exit $LASTEXITCODE
+}
 
 $installed = if (Test-Path $ReleaseFile) { (Get-Content $ReleaseFile -Raw).Trim() } else { '' }
 if ($installed -eq $release.tag_name -and -not $Force) {
