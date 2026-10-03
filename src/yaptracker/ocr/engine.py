@@ -194,7 +194,7 @@ def text_pieces(image: np.ndarray, text_scale: float | None = None) -> list[tupl
     return pieces
 
 
-PAD_X, PAD_Y = 0.3, 0.15  # of the line height, around each piece for recognition only
+PAD_X, PAD_Y = 0.3, 0.0  # of the line height, around each piece for recognition only
 
 
 def _padded(image: np.ndarray, piece: tuple) -> np.ndarray:

@@ -3,6 +3,7 @@
 import logging
 
 import numpy as np
+import pytest
 
 from tests.test_ocr import demo_chat_crop
 from yaptracker import reader as reader_module
@@ -10,14 +11,27 @@ from yaptracker.ocr import engine as ocr
 from yaptracker.ocr.engine import text_pieces
 
 
-def test_rows_read_like_detection_on_the_demo_chat():
+def similarity(lines: list[str]) -> float:
+    from rapidfuzz.distance import Levenshtein
+
+    from yaptracker.demo import _LINES
+
+    truth = [line[1] for line in _LINES]
+    return sum(Levenshtein.normalized_similarity(a.lower(), b.lower())
+               for a, b in zip(truth, lines, strict=True)) / len(truth)  # fmt: skip
+
+
+def test_rows_read_at_least_as_well_as_detection_on_the_demo_chat():
     engine = ocr.get("rapidocr")
     crop = demo_chat_crop()
     detected = [line.text for line in engine.read(crop)]
     rows = engine.read_rows(crop, text_scale=1.0)
-    assert rows is not None
-    assert [line.text for line in rows] == detected
+    assert rows is not None and len(rows) == len(detected)
+    assert similarity([line.text for line in rows]) >= similarity(detected)
     assert all(line.parts for line in rows)  # boxes for the icon, ◇ and glued-text steps
+    # tight boxes, like detection's: the channel icon (#173) is looked for left of them
+    assert [line.box.x for line in rows] == pytest.approx([line.box.x for line in
+                                                           engine.read(crop)], abs=3)  # fmt: skip
 
 
 def test_no_text_no_read_and_odd_rows_fall_back_to_detection():
