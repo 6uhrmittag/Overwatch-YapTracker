@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · A black game window: the screen instead (#236)
+- If Windows only sends a black picture of the Overwatch window, YapTracker reads the screen Overwatch is on instead and says so in Live. It tries the window again at the next start.
+
 ### 2026-10-03 · Lighter on Windows 10 (#248)
 - Windows 10: YapTracker now copies only the chat box from the screen instead of every frame the game draws. That was costing Void a lot of FPS.
 - No more yellow border around Overwatch on Windows 10.

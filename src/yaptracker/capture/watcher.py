@@ -35,6 +35,7 @@ class CaptureWatcher:
         self._on_signals = on_signals  # match signals (#93); they run even while paused
         self._failures = 0  # in a row; the retry wait grows with them
         self._stop = threading.Event()
+        self._reopen = threading.Event()
         self._source: FrameSource | None = None
         self._thread: threading.Thread | None = None
         self.state = "waiting"  # waiting | capturing
@@ -53,6 +54,11 @@ class CaptureWatcher:
         if self.state != "capturing" or source is None or not hasattr(source, "snapshot"):
             return None
         return source.snapshot(timeout)
+
+    def reopen(self) -> None:
+        """Close the capture and open it again at once, e.g. on the screen instead (#236).
+        Not a loss: no gap, no retry wait."""
+        self._reopen.set()
 
     def stop(self) -> None:
         self._stop.set()
@@ -73,6 +79,9 @@ class CaptureWatcher:
                 continue
             try:
                 self._capture(window)
+                if self._reopen.is_set():
+                    self._reopen.clear()
+                    continue
                 reason = "window_lost" if self._find_window() is not None else None
             except CaptureStalled as error:
                 log.warning("capture stalled: %s", error)
@@ -106,6 +115,8 @@ class CaptureWatcher:
                 self._on_alive()
                 if frame.signals:
                     self._on_signals(frame)
+                if self._reopen.is_set():
+                    break
                 self.last_error, self._failures = None, 0
                 paused = self._paused()
                 if paused != was_paused:
