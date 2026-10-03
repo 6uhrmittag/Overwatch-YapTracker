@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · Unsent typing stays private (#254)
+- What you type in Overwatch's chat box isn't saved until you send it. No more garbled messages from someone called "Mateh".
+
 ### 2026-10-03 · Opens where you left it (#253)
 - YapTracker opens on the same screen, at the same place and size (maximised too), also after an update. No more dragging it to the second screen every evening.
 - If that screen is unplugged, it opens at the usual place. Settings → About → Reset window position brings it back if it's ever out of reach.

@@ -16,6 +16,7 @@ import numpy as np
 from yaptracker import channels, glyphs, priority
 from yaptracker.dedup import FADE_S, YAP_KINDS, Dedup, Yap, match_key
 from yaptracker.identity import Identity
+from yaptracker.input_row import without_input
 from yaptracker.ocr.engine import OcrLine
 from yaptracker.parser import ChatLine, parse
 
@@ -133,7 +134,8 @@ class ChatReader:
             return []
         started = time.thread_time()
         known = {**self._colours(), **self._seen_colours}
-        read = channels.cut_glued(self._read(image), image, known)  # "gg 512" -> "gg" (#172)
+        read = without_input(self._read(image), image)  # what you type isn't said yet (#254)
+        read = channels.cut_glued(read, image, known)  # "gg 512" -> "gg" (#172)
         ocr = glyphs.mark(image, read)  # icons OCR can't spell become ◇ (#128)
         parsed = parse(ocr)
         learned = channels.learn(parsed, image)
