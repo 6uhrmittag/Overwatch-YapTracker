@@ -256,6 +256,21 @@ def save_screen_capture(on: bool, path: Path | None = None) -> None:
     _save(path, data)
 
 
+def window_place(path: Path | None = None) -> dict | None:
+    """Where the app window was (#253): window_place.Place as a dict, or None."""
+    return _load(path or paths.config_file()).get("window")
+
+
+def save_window_place(place: dict | None, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    if place is None:
+        data.pop("window", None)
+    else:
+        data["window"] = place
+    _save(path, data)
+
+
 def line_pictures(path: Path | None = None) -> bool:
     """Keep the picture of every chat line (#120); on unless switched off."""
     return _load(path or paths.config_file()).get("line_pictures", True)

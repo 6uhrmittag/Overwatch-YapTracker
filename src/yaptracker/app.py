@@ -346,6 +346,18 @@ def _open_store() -> Callable[[], None]:
     return close_store
 
 
+def _keep_window_place(background: bool) -> None:
+    """Opens where you left it (#253): restore the saved place, then save every change."""
+    if sys.platform != "win32":
+        return
+    from yaptracker import single_instance, window_place
+
+    stop = threading.Event()
+    threading.Thread(target=window_place.keep, args=(single_instance.own_window, background, stop),
+                     name="window place", daemon=True).start()  # fmt: skip
+    app.on_shutdown(stop.set)
+
+
 def native_window_args(background: bool) -> dict:
     """pywebview's window settings (they don't apply in --dev's browser)."""
     return {
@@ -372,6 +384,7 @@ def run(
     close_store = _open_store()
     if not (dev or smoke_test):
         start_with_windows.apply_at_start(autostart)
+        _keep_window_place(background)
     _watch_for_overwatch(dev)
     app.on_shutdown(close_store)
     if smoke_test:

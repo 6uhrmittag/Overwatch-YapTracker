@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · Opens where you left it (#253)
+- YapTracker opens on the same screen, at the same place and size (maximised too), also after an update. No more dragging it to the second screen every evening.
+- If that screen is unplugged, it opens at the usual place. Settings → About → Reset window position brings it back if it's ever out of reach.
+
 ### 2026-10-03 · No more empty matches (#270)
 - Sessions, search and exports skip matches with no lines and no result, including the ones left by pressing New match before a match.
 

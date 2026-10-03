@@ -50,7 +50,22 @@ def focus_own_window() -> bool:
     return _to_front(skip_pid=None)
 
 
+def own_window() -> int | None:
+    """Our app window's handle (pywebview's child process), for its place (#253)."""
+    found = _find(skip_pid=None)
+    return found[0] if found else None
+
+
 def _to_front(skip_pid: int | None) -> bool:
+    user32 = ctypes.windll.user32
+    found = _find(skip_pid)
+    if found:
+        user32.ShowWindow(found[0], _SW_RESTORE)
+        user32.SetForegroundWindow(found[0])
+    return bool(found)
+
+
+def _find(skip_pid: int | None) -> list[int]:
     user32 = ctypes.windll.user32
     me, exe = skip_pid, os.path.basename(sys.executable).lower()
     found: list[int] = []
@@ -73,7 +88,4 @@ def _to_front(skip_pid: int | None) -> bool:
         return True
 
     user32.EnumWindows(visit, 0)
-    if found:
-        user32.ShowWindow(found[0], _SW_RESTORE)
-        user32.SetForegroundWindow(found[0])
-    return bool(found)
+    return found

@@ -78,7 +78,7 @@ jobs:
       - name: What capturing costs with the rate setting, for comparison (#248)
         run: python tools/capture_cost.py --seconds 5
       - name: Windows-only tests (Windows OCR, WGC capture, hotkeys, autostart, system info)
-        run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py tests/test_hotkeys_windows.py tests/test_autostart_windows.py tests/test_process_windows.py tests/test_priority_windows.py tests/test_system_info_windows.py tests/test_capture_gdi_windows.py -v
+        run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py tests/test_hotkeys_windows.py tests/test_autostart_windows.py tests/test_process_windows.py tests/test_priority_windows.py tests/test_system_info_windows.py tests/test_capture_gdi_windows.py tests/test_window_place_windows.py -v
       - run: pyinstaller --noconfirm packaging/yaptracker.spec
       - name: Licenses ship with the app
         run: |
