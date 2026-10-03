@@ -36,7 +36,7 @@ irm https://raw.githubusercontent.com/6uhrmittag/Overwatch-YapTracker/main/tools
 powershell -ExecutionPolicy Bypass -File update.ps1
 ```
 
-The app goes to `%LOCALAPPDATA%\YapTracker\app` and is replaced on every update. Your data in `%LOCALAPPDATA%\YapTracker\data` is never touched. Run `update.ps1` again whenever you want the newest build; it closes YapTracker first and starts it again afterwards. `-Force` reinstalls, `-NoStart` skips the start.
+The app goes to `%LOCALAPPDATA%\YapTracker\app` and is replaced on every update. Your data in `%LOCALAPPDATA%\YapTracker\data` is never touched. Run `update.ps1` again whenever you want the newest build; it closes YapTracker first and starts it again afterwards. `-Force` reinstalls, `-NoStart` skips the start. The saved `update.ps1` keeps itself current: if the newest release has a newer one, it saves that over itself and runs it.
 
 ### "Windows protected your PC" / Defender warnings
 

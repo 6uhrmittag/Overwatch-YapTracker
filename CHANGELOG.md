@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · update.ps1 fits the window and keeps itself current (#246)
+- The download bar stays on one line, also in a narrow window or Windows Terminal: it gets shorter instead of wrapping.
+- Your saved `update.ps1` updates itself first, so you always get the newest one, including the "what's new" after an update.
+
 ### 2026-10-03 · Hotkeys on any keyboard (#245)
 - Hotkeys work with any keyboard layout (Dvorak, QWERTZ…): the letter you press is the one saved, shown and used.
 - Ä, Ö, Ü and ß are refused with a hint: Windows can't use them as hotkeys.
