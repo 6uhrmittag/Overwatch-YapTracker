@@ -16,7 +16,10 @@ from yaptracker.ui.components import button
 ACTIONS = {
     "pause": ("Pause / resume", "Resumes by itself at the next match."),
     "lookup": ("Who's that?", "YapTracker to the front, ready to type a name."),
-    "new_match": ("New match", "Only if YapTracker missed a match start."),
+    "new_match": (
+        "Start / end match",
+        "Only if YapTracker missed a hero select or a result screen.",
+    ),
     "save": ("Save the last 20 s", "Keeps chat I read badly as a debug sample."),
 }
 _KEY = re.compile(r"^(?:Key([A-Z])|Digit([0-9])|(F[0-9]{1,2}))$")
