@@ -172,8 +172,8 @@ async def test_settings_shows_what_is_stored(user: User, monkeypatch, tmp_path):
     from yaptracker.store.repo import Store
 
     store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
-    store.add_message(ts=1.0, channel="match", text="gg")
-    store.start_match(store.start_session(1.0), 1.0, "gap")
+    match = store.start_match(store.start_session(1.0), 1.0, "gap")
+    store.add_message(ts=1.0, channel="match", text="gg", match_id=match)
     monkeypatch.setattr(runtime, "store", store)
     await user.open("/")
     user.find(marker="nav-settings").click()

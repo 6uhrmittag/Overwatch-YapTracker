@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · No more empty matches (#270)
+- Sessions, search and exports skip matches with no lines and no result, including the ones left by pressing New match before a match.
+
 ### 2026-10-03 · Start match / End match (#269)
 - The New match button now says what it does: End match during a match, Start match between matches. It's rarely needed, because matches start at hero select and end at the result screen.
 - Pressing it twice, or just before a long queue, no longer leaves empty matches. A press right before hero select becomes that match.

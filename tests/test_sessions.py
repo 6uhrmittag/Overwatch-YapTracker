@@ -51,11 +51,13 @@ def evening(store):
 def test_sessions_newest_first_with_matches_and_yaps(store):
     evening(store)
     later = store.start_session(at(24 * 60))
-    store.start_match(later, at(24 * 60 + 1), "gap")  # still running, nobody typed yet
+    running = store.start_match(later, at(24 * 60 + 1), "gap")  # still running
+    store.add_message(ts=at(24 * 60 + 2), channel="match", text="hi", match_id=running)
     store.start_session(at(48 * 60))  # YapTracker ran, no match: not worth a row
+    store.start_match(store.start_session(at(72 * 60)), at(72 * 60), "hotkey")  # empty (#270)
     rows = store.sessions()
-    assert [(r.matches, r.yaps) for r in rows] == [(1, 0), (2, 5)]
-    assert rows[0].ended_at == at(24 * 60 + 1)  # never ended: its last sign of life
+    assert [(r.matches, r.yaps) for r in rows] == [(1, 1), (2, 5)]
+    assert rows[0].ended_at == at(24 * 60 + 2)  # never ended: its last sign of life
     assert (rows[1].started_at, rows[1].ended_at) == (at(0), at(30))
 
 

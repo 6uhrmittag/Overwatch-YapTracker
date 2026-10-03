@@ -40,12 +40,13 @@ def test_first_chat_of_the_evening_starts_session_1_match_1(store):
 def test_long_silence_then_chat_is_the_next_match(store):
     tracker = MatchTracker(store, Pause())
     play(tracker, T0, 120, chat_every=10)
+    store.add_message(ts=T0 + 10, channel="match", text="hi", match_id=tracker.match_id)
     play(tracker, T0 + 120, QUIET_GAP_S + 10)  # 5+ minutes: no chat at all
     tracker.chat_changed(T0 + 120 + QUIET_GAP_S + 10)
     first, second = matches(store)
     assert first[2] == T0 + 110  # ended at its last chat change
     assert second[1] == T0 + 120 + QUIET_GAP_S + 10
-    assert tracker.status()[:2] == (1, 2)
+    assert tracker.status()[:2] == (1, 2)  # empty matches wouldn't count (#270): it has a line
 
 
 def test_a_normal_chatty_match_is_not_split(store):
