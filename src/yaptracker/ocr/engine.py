@@ -131,6 +131,65 @@ def looks_german(text: str) -> bool:
     return bool(_SHARP_S.search(text)) or any(w.lower() in _GERMAN for w in _WORDS.findall(text))
 
 
+def has_umlaut_dots(crop: np.ndarray) -> bool:
+    """Two dots side by side right above one letter (ä ö ü), in a line crop (#247): the default
+    model drops the dots, so its text can't tell; the picture can. Not the dots of "ii" (each
+    sits on its own thin stem), not a colon (stacked), not quotes (no letter below)."""
+    import cv2
+
+    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+    text = cv2.bitwise_and(cv2.threshold(hsv[:, :, 2], 150, 1, cv2.THRESH_BINARY)[1],
+                           cv2.threshold(hsv[:, :, 1], 70, 1, cv2.THRESH_BINARY)[1])  # fmt: skip
+    count, _, stats, _ = cv2.connectedComponentsWithStats(text, connectivity=8)
+    h = crop.shape[0]
+    blobs = [tuple(int(v) for v in stats[i][:5]) for i in range(1, count) if stats[i][4] >= 2]
+    # Real umlaut dots in chat crops are 3-4 px squares, nearly filled; the anti-aliased
+    # edges at the top of C, d or ] leave 1-2 px slivers that would pair up (#247: 24 of 80
+    # English 4K frames fired before this).
+    dots = [b for b in blobs if 3 <= b[2] <= 0.22 * h and 3 <= b[3] <= 0.22 * h
+            and b[4] >= 0.7 * b[2] * b[3]]  # fmt: skip
+    bodies = [b for b in blobs if b[3] > 0.22 * h]
+    for a in dots:
+        for b in dots:
+            gap = b[0] - (a[0] + a[2])
+            if b[0] <= a[0] or not 0 <= gap <= 0.3 * h:
+                continue
+            if min(a[4], b[4]) < 0.5 * max(a[4], b[4]):
+                continue  # one dot twice the other: not a pair
+            if abs((a[1] + a[3] / 2) - (b[1] + b[3] / 2)) > 0.1 * h:
+                continue  # not side by side
+            left, right, low = a[0], b[0] + b[2], max(a[1] + a[3], b[1] + b[3])
+            if any(c[0] <= left + 1 and c[0] + c[2] >= right - 1 and 0 <= c[1] - low <= 0.25 * h
+                   for c in bodies):  # fmt: skip
+                return True
+    return False
+
+
+_PLAIN = str.maketrans("äöüÄÖÜ", "aouAOU")
+
+
+def _runs(text: str) -> list[tuple[str, int]]:
+    """'taaaat' -> [('t', 1), ('a', 4), ('t', 1)]."""
+    runs: list[tuple[str, int]] = []
+    for char in text:
+        if runs and runs[-1][0] == char:
+            runs[-1] = (char, runs[-1][1] + 1)
+        else:
+            runs.append((char, 1))
+    return runs
+
+
+def keep_repeats(default: str, latin: str) -> str:
+    """The Latin model has the umlauts but squeezes repeated letters ("täääät" -> "tät", #247);
+    the default model keeps every letter but drops the dots. Same letters run by run: the
+    default's counts with the Latin's umlauts. Otherwise the Latin reading as it is."""
+    ours, theirs = _runs(default), _runs(latin)
+    plain = [(char.translate(_PLAIN), n) for char, n in theirs]
+    if len(latin) >= len(default) or [c for c, _ in ours] != [c for c, _ in plain]:
+        return latin
+    return "".join(their[0] * our[1] for our, their in zip(ours, theirs, strict=True))
+
+
 class _ReadTwice:
     """Recognition with both models on the same line crops (#118).
 
@@ -142,17 +201,23 @@ class _ReadTwice:
     def __init__(self, default, latin) -> None:
         self.default, self._latin = default, latin
         self.always = threading.local()  # per thread: capture and the chat reader both read
+        self.latin_reads = 0  # for the replay tool's numbers (#247)
 
     def __call__(self, crops, return_word_box: bool = False):
         ours, ours_s = self.default(crops, return_word_box)
         # German chat comes in conversations: one German-looking line and the whole chat box is
         # read again, names and system lines included ("You endorsed Björn!"). English-only
         # chat skips the second read (#115).
+        # Or umlaut dots in the picture (#247): "täääätüüüü" reads as "taaaatuuuu", which
+        # doesn't look German, so the text alone would never ask the Latin model.
         always = getattr(self.always, "on", False)
-        if not always and not any(looks_german(text) for text, _score in ours):
+        if (not always and not any(looks_german(text) for text, _score in ours)
+                and not any(has_umlaut_dots(crop) for crop in crops)):  # fmt: skip
             return ours, ours_s
+        self.latin_reads += 1
         latin, latin_s = self._latin(crops, return_word_box)
-        picked = [b if _has_accent(b[0]) else a for a, b in zip(ours, latin, strict=True)]
+        picked = [((keep_repeats(a[0], b[0]),) + tuple(b[1:])) if _has_accent(b[0]) else a
+                  for a, b in zip(ours, latin, strict=True)]  # fmt: skip
         return picked, ours_s + latin_s
 
 
