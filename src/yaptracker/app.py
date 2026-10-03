@@ -156,9 +156,11 @@ def _watch_for_overwatch(dev: bool) -> None:
 
         return in_front(window)
 
-    from yaptracker.capture.black import BlackPicture
+    from yaptracker.capture.black import BlackPicture, ScreenFallback
 
     runtime.black = BlackPicture(overwatch_in_front)  # exclusive Fullscreen, said in words (#217)
+    runtime.screen = ScreenFallback(runtime.black, config.screen_capture(),
+                                    config.save_screen_capture)  # fmt: skip
 
     def crops_for(width: int, height: int) -> dict:
         return {**signal_regions(width, height), **overlay_regions(width, height)}
@@ -171,20 +173,27 @@ def _watch_for_overwatch(dev: bool) -> None:
         if runtime.window_size is not None:
             fps_meter.update(frame.signals, runtime.window_size[1])
         runtime.black.update(frame.signals.get("overview"))
+        if runtime.screen.check(found["window_capture"]) and runtime.watcher is not None:
+            runtime.watcher.reopen()  # black window: the screen it's on instead (#236)
 
-    found = {"hwnd": None}  # the display line follows with the game's first frame (#214)
+    found = {"hwnd": None, "window_capture": False}  # the display line follows (#214)
 
     def open_source(hwnd: int):
         from yaptracker.capture.wgc import WgcFrameSource, has_rate_setting, windows_build
 
         found["hwnd"] = hwnd
         build = windows_build()
-        if has_rate_setting(build):
+        found["window_capture"] = has_rate_setting(build) and not runtime.screen.screen
+        if found["window_capture"]:
             return WgcFrameSource(hwnd, region_for, signals_for=crops_for)
         from yaptracker.capture.gdi import GdiFrameSource
 
-        log.info("capture: Windows build %d has no rate setting: reading the chat box with GDI, "
-                 "only what's on screen (#248)", build)  # fmt: skip
+        if runtime.screen.screen:
+            log.info("capture: reading the chat box from the screen with GDI, the window was "
+                     "black (#236)")  # fmt: skip
+        else:
+            log.info("capture: Windows build %d has no rate setting: reading the chat box with "
+                     "GDI, only what's on screen (#248)", build)  # fmt: skip
         return GdiFrameSource(hwnd, region_for, signals_for=crops_for)
 
     def region_for(width: int, height: int):

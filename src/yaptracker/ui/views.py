@@ -9,6 +9,7 @@ from PIL import Image
 
 from yaptracker import __version__, config, logs, paths, runtime, system_info
 from yaptracker.capture.black import SAY as BLACK_SAY
+from yaptracker.capture.black import SCREEN_SAY
 from yaptracker.capture.stats import CAPTURE
 from yaptracker.capture.watcher import fps
 from yaptracker.glyphs import GLYPH
@@ -214,6 +215,8 @@ def _live() -> None:
         health_text = ui.label().classes("yt-grow")
     with ui.element("div").classes("yt-banner yt-hidden").mark("black-picture") as black_hint:
         ui.label(BLACK_SAY).classes("yt-grow")  # (#217)
+    with ui.element("div").classes("yt-banner yt-hidden").mark("screen-capture") as screen_hint:
+        ui.label(SCREEN_SAY).classes("yt-grow")  # (#236)
     with ui.element("div").classes("yt-banner yt-hidden").mark("no-name") as name_hint:
         ui.label("I don't know your name yet, so I might greet you as a stranger.").classes(
             "yt-grow"
@@ -423,6 +426,8 @@ def _live() -> None:
             health_banner.classes(add="yt-hidden")
         black = runtime.black is not None and runtime.black.black
         black_hint.classes(**{"remove" if black else "add": "yt-hidden"})
+        screen = runtime.screen is not None and runtime.screen.screen and not black
+        screen_hint.classes(**{"remove" if screen and capturing else "add": "yt-hidden"})
         # no own name: your own lines would greet you with "Look who's back!" (#168)
         name_hint.classes(**{"add" if config.identity().me else "remove": "yt-hidden"})
         size = runtime.window_size
@@ -601,7 +606,9 @@ def settings() -> None:
                         if rate is not None
                         else "Capture: not running right now"
                     ).classes("yt-meta").mark("capture-rate")
-                    if CAPTURE.how != "WGC":  # Windows 10 and 11 before 24H2 (#248)
+                    if runtime.screen is not None and runtime.screen.screen:  # (#236)
+                        ui.label(SCREEN_SAY).classes("yt-hint").mark("capture-screen")
+                    elif CAPTURE.how != "WGC":  # Windows 10 and 11 before 24H2 (#248)
                         ui.label(
                             "This Windows sends every frame the game draws, so I only copy the "
                             "chat box from the screen, 4 times a second. Keep other windows off "
