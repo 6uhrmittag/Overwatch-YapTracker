@@ -20,15 +20,16 @@ def demo_chat() -> np.ndarray:
     )
 
 
-def test_a_line_is_kept_in_colour_with_a_little_margin(tmp_path):
+def test_a_line_is_kept_in_colour_as_its_whole_row(tmp_path):
     chat = demo_chat()
     pictures = LinePictures(tmp_path / "lines")
-    path = pictures.save(42, OCT, chat, Region(15, 290, 300, 24))
+    path = pictures.save(42, OCT, chat, Region(150, 290, 100, 24))  # OCR's box cut the row
     assert path == tmp_path / "lines" / "2026-10" / "42.webp"
     saved = cv2.imread(str(path))
-    assert saved.shape == (28, 304, 3)  # 2 px around the box
-    assert np.array_equal(saved, chat[288:316, 13:317])  # lossless, colour
-    assert path.stat().st_size < 10_000  # typical line < 10 kB
+    # the whole row (#259): channel icon, whole name, trailing icons; 2 px above and below
+    assert saved.shape == (28, chat.shape[1], 3)
+    assert np.array_equal(saved, chat[288:316, :])  # lossless, colour
+    assert path.stat().st_size < 20_000  # typical line well under 20 kB
 
 
 def test_a_better_reading_saves_over_it_and_switched_off_saves_nothing(tmp_path):

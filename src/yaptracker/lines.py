@@ -18,7 +18,7 @@ import numpy as np
 from yaptracker.capture.source import Region
 
 CAP_BYTES = 2_000_000_000
-PAD = 2  # px around the line's box, so outlines and icons at the edge stay whole
+PAD = 2  # px above and below the line's box, so outlines stay whole
 
 
 def folder_size(folder: Path) -> int:
@@ -46,9 +46,10 @@ class LinePictures:
         if not self._enabled():
             return None
         h, w = image.shape[:2]
-        x0, y0 = max(0, box.x - PAD), max(0, box.y - PAD)
-        x1, y1 = min(w, box.x + box.width + PAD), min(h, box.y + box.height + PAD)
-        crop = image[y0:y1, x0:x1]
+        # The whole row across the chat box (#259): one OCR box can stop short of the channel
+        # icon, the first letters of a name or a trailing icon the text marks with "◇".
+        y0, y1 = max(0, box.y - PAD), min(h, box.y + box.height + PAD)
+        crop = image[y0:y1, :]
         if crop.size == 0:
             return None
         target = self.path(message_id, ts)

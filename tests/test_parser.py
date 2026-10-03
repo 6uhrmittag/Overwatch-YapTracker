@@ -49,7 +49,7 @@ def test_wrapped_line_is_joined_but_a_new_message_is_not():
 def test_comms_wheel_lines_are_team_with_hero_and_target():
     (line,) = parse([_line("Ana (Ana) to Bo (Reinhardt): Thanks!", 10)])
     assert (line.channel, line.speaker, line.hero, line.target, line.text) == (
-        "team", "Ana", "Ana", "Bo", "Thanks!",
+        "team", "Ana", "Ana", "Bo", "Thanks! ◇",  # its icon is always there (#259)
     )  # fmt: skip
 
 

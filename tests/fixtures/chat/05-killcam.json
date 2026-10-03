@@ -92,14 +92,14 @@
   {
    "kind": "comms",
    "channel": "team",
-   "text": "Group up!",
+   "text": "Group up! ◇",
    "speaker": "zappy",
    "hero": "Zenyatta"
   },
   {
    "kind": "comms",
    "channel": "team",
-   "text": "Thanks!",
+   "text": "Thanks! ◇",
    "speaker": "NoodleBonk",
    "hero": "Sierra"
   },
@@ -120,7 +120,7 @@
   {
    "kind": "comms",
    "channel": "team",
-   "text": "Thanks!",
+   "text": "Thanks! ◇",
    "speaker": "tortillaTank",
    "hero": "Sombra"
   },
