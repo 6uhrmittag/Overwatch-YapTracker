@@ -369,6 +369,7 @@ html, body { background: var(--yt-night); }
   /* Quick fixes on a line (#227): shown on hover, at the line's right end */
   .yt-line-act { margin-left: auto; flex-shrink: 0; align-self: center; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--yt-line-strong); background: var(--yt-panel); color: var(--yt-muted); font: 800 12px var(--yt-body); text-transform: uppercase; cursor: pointer; opacity: 0; transition: opacity .15s; }
   .yt-line:hover .yt-line-act, .yt-their-yap:hover .yt-line-act, .yt-line-act:focus-visible { opacity: 1; }
+  .yt-line:has(.yt-line-edit) .yt-line-act, .yt-their-yap:has(.yt-line-edit) .yt-line-act { opacity: 1; }  /* Cancel stays in sight (#241) */
   .yt-line-act:hover { color: var(--yt-text); border-color: var(--yt-text-soft); }
   .yt-line-act + .yt-line-act:hover { color: var(--yt-danger); border-color: var(--yt-danger); }
   .yt-line-act + .yt-line-act { margin-left: 6px; }  /* Delete after Edit */
