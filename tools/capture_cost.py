@@ -87,7 +87,9 @@ def wgc(hwnd: int, gate_s: float | None, use: bool, rate_ms: int | None = None):
             last["at"] = now
             if use:
                 h, w = frame.height, frame.width
-                x, y, cw, ch = (int(v * s) for v, s in zip(CHAT, (w / 2560, h / 1440) * 2))
+                x, y, cw, ch = (
+                    int(v * s) for v, s in zip(CHAT, (w / 2560, h / 1440) * 2, strict=True)
+                )
                 frame.frame_buffer[y : y + ch, x : x + cw, :3].copy()
                 counts["used"] += 1
 
@@ -114,7 +116,7 @@ def burst(hwnd: int):
             capture = WindowsCapture(cursor_capture=None, draw_border=None, window_hwnd=hwnd)
 
             @capture.event
-            def on_frame_arrived(frame, control) -> None:
+            def on_frame_arrived(frame, control, got=got) -> None:
                 if not got.is_set():
                     frame.frame_buffer[:4, :4, :3].copy()
                     counts["delivered"] += 1
@@ -123,7 +125,7 @@ def burst(hwnd: int):
                 control.stop()
 
             @capture.event
-            def on_closed() -> None:
+            def on_closed(got=got) -> None:
                 got.set()
 
             control = capture.start_free_threaded()
@@ -148,7 +150,7 @@ def gdi(hwnd: int):
         origin = wintypes.POINT(0, 0)
         ctypes.windll.user32.ClientToScreen(hwnd, ctypes.byref(origin))
         w, h = rect.right, rect.bottom
-        x, y, cw, ch = (int(v * s) for v, s in zip(CHAT, (w / 2560, h / 1440) * 2))
+        x, y, cw, ch = (int(v * s) for v, s in zip(CHAT, (w / 2560, h / 1440) * 2, strict=True))
         area = {"left": origin.x + x, "top": origin.y + y, "width": cw, "height": ch}
         end = time.monotonic() + seconds
         with mss.mss() as screen:
