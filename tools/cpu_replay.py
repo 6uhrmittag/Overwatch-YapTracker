@@ -36,7 +36,10 @@ T0 = 1_000_000.0
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("recording", help="folder name under fixtures/private/frames")
-    root = FRAMES / parser.parse_args().recording
+    parser.add_argument("--rows", action="store_true",
+                        help="chat rows without text detection, as the app (#249)")  # fmt: skip
+    args = parser.parse_args()
+    root = FRAMES / args.recording
     chat = sorted(os.listdir(root / "chat"))
     full = {int(name[:-4]) // 1000: name for name in os.listdir(root / "full")}
     tmp = Path(tempfile.mkdtemp())
@@ -48,7 +51,15 @@ def main() -> None:
 
     tracker = MatchTracker(store, Pause(), clock=clock)
     ocr = RapidOcrEngine()
-    reader = ChatReader(ocr.read, store, tracker, clock=clock)
+
+    def read_chat(image):
+        if args.rows:
+            lines = ocr.read_rows(image, 1.0)
+            if lines is not None:
+                return lines
+        return ocr.read(image)
+
+    reader = ChatReader(read_chat, store, tracker, clock=clock)
     changes = ChangeDetector()
     hero_select = HeroSelect(
         ocr.read_line,

@@ -24,6 +24,8 @@ LOAD_LOG_S = 60.0  # how often the reading cost goes to the log
 # At most one read per 1.5 s (#115): 9 of 10 reads find nothing new, and a line stays on screen
 # for ~9 s, so it is still read several times. The newest frame waits, older ones are dropped.
 MIN_GAP_S = 1.5
+CPU_GOAL = 15.0  # % of one core for the whole app over a minute (Definition of done)
+BUSY_GAP_S = 3.0  # read at most this often for the next minute when the last one was above it
 REREADS = 3  # extra reads for a line still on screen without a good reading (#195)
 
 
@@ -84,6 +86,7 @@ class ChatReader:
         self.busy_s = 0.0  # CPU time spent reading (OCR runs on this thread, #108)
         self._load_since, self._load_cpu = time.monotonic(), time.process_time()
         self._load_busy, self._load_frames = 0.0, 0
+        self.busy = False  # the last minute was above the CPU goal: read less often (#249)
 
     def offer(self, image: np.ndarray) -> None:
         """From the capture thread: a chat frame with new text. Never blocks."""
@@ -111,7 +114,8 @@ class ChatReader:
                 if self._pending is None:  # stopping, and the last frame is done
                     return
                 # Too soon after the last read: wait, newer frames replace the pending one.
-                wait = self._last_read + self.min_gap_s - time.monotonic()
+                gap = max(self.min_gap_s, BUSY_GAP_S) if self.busy else self.min_gap_s
+                wait = self._last_read + gap - time.monotonic()
                 if wait > 0 and not self._stop:
                     self._wake.wait(wait)
                     continue
@@ -219,8 +223,11 @@ class ChatReader:
         now, cpu = time.monotonic(), time.process_time()
         if now - self._load_since >= LOAD_LOG_S:  # the "< 5 % of one core" goal, checkable
             wall = now - self._load_since
-            log.info("chat reading: %d frames, %.0f ms CPU each; whole app: %.1f %% of a core",
-                     self._load_frames, 1000 * self._load_busy / self._load_frames,
-                     100 * (cpu - self._load_cpu) / wall)  # fmt: skip
+            whole = 100 * (cpu - self._load_cpu) / wall
+            # Above the goal: read every 3 s for a minute (chat stays ~9 s on screen, #249).
+            self.busy = whole > CPU_GOAL
+            log.info("chat reading: %d frames, %.0f ms CPU each; whole app: %.1f %% of a core%s",
+                     self._load_frames, 1000 * self._load_busy / self._load_frames, whole,
+                     "; reading every 3 s for a minute" if self.busy else "")  # fmt: skip
             self._load_since, self._load_cpu = now, cpu
             self._load_busy, self._load_frames = 0.0, 0
