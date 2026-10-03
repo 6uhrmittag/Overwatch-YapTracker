@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · A black game window: the screen instead (#236)
+- If Windows only sends a black picture of the Overwatch window, YapTracker reads the screen Overwatch is on instead and says so in Live. It tries the window again at the next start.
+
 ### 2026-10-03 · update.ps1 fits the window and keeps itself current (#246)
 - The download bar stays on one line, also in a narrow window or Windows Terminal: it gets shorter instead of wrapping.
 - Your saved `update.ps1` updates itself first, so you always get the newest one, including the "what's new" after an update.
