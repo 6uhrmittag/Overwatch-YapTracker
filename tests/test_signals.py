@@ -358,5 +358,5 @@ def test_a_match_without_hero_select_saves_a_look_back():
     tracker.end_match(700.0, "victory")
     tracker.chat_changed(900.0)  # next match by chat after the end: hero select was missed
     tracker.new_match(1500.0)  # the New match button
-    assert missed == ["endscreen", "hotkey"]
+    assert missed == ["gap", "hotkey"]  # chat after a result: hero select missed (#275)
     store.close()

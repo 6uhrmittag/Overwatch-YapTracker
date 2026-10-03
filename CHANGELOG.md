@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · Matches split right (#275)
+- Hero select is seen on very bright maps too (New Junk City after the map vote), so the match starts there, not with the next chat line.
+- Restarting YapTracker mid-match (an update) no longer splits the match in two: it goes on.
+
 ### 2026-10-03 · Icons stay put (#259)
 - A line's picture now shows the whole row: the channel icon, the full name, the text and the icon at the end, so ◇ always points at something you can see.
 - "Thanks!", "Group up!", "Fall back!" and "I need healing!" always get their ◇, and a ◇ seen once doesn't vanish on a later reading.

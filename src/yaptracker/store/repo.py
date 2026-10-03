@@ -214,6 +214,21 @@ class Store:
         )
         return (rows[0][0], rows[0][1]) if rows else None
 
+    def match_closed_by_shutdown(self, session_id: int) -> tuple | None:
+        """The session's newest match if YapTracker's shutdown closed it (#275): no result, and
+        it ended the moment its session did. (id, started_at, ended_at, map, mode, source)."""
+        rows = self._read(
+            "SELECT m.id, m.started_at, m.ended_at, m.map, m.mode, m.source FROM matches m "
+            "JOIN sessions s ON s.id = m.session_id WHERE m.session_id = ? "
+            "AND m.id = (SELECT MAX(id) FROM matches WHERE session_id = ?) "
+            "AND m.outcome IS NULL AND m.ended_at = s.ended_at",
+            (session_id, session_id),
+        )
+        return rows[0] if rows else None
+
+    def reopen_match(self, match_id: int) -> None:
+        self._write("UPDATE matches SET ended_at = NULL WHERE id = ?", (match_id,))
+
     def reopen_session(self, session_id: int) -> None:
         self._write("UPDATE sessions SET ended_at = NULL WHERE id = ?", (session_id,))
 
