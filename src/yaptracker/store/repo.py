@@ -164,13 +164,32 @@ class Store:
         )
 
     def set_match_source(
-        self, match_id: int, source: str, mode: str | None, map_name: str | None
+        self,
+        match_id: int,
+        source: str,
+        mode: str | None,
+        map_name: str | None,
+        started_at: float | None = None,
     ) -> None:
-        """A match started by chat turned out to be a hero-select start (#93)."""
+        """A match started by chat turned out to be a hero-select start (#93). A start by
+        hand also hands over its start time (#269)."""
         self._write(
-            "UPDATE matches SET source = ?, mode = ?, map = ? WHERE id = ?",
-            (source, mode, map_name, match_id),
+            "UPDATE matches SET source = ?, mode = ?, map = ?, "
+            "started_at = COALESCE(?, started_at) WHERE id = ?",
+            (source, mode, map_name, started_at, match_id),
         )
+
+    def drop_match(self, match_id: int) -> bool:
+        """Remove a match that never got a line (#269: a start by hand nothing happened in).
+        One statement, so a line arriving meanwhile keeps it. True when it was removed."""
+        with self._lock:
+            return bool(
+                self._conn.execute(
+                    "DELETE FROM matches WHERE id = ? AND NOT EXISTS "
+                    "(SELECT 1 FROM chat_messages WHERE match_id = ?)",
+                    (match_id, match_id),
+                ).rowcount
+            )
 
     def end_match(self, match_id: int, ts: float, outcome: str | None = None) -> None:
         self._write(

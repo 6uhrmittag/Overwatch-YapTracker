@@ -72,6 +72,7 @@ def _backup_text() -> str:
 _OUTCOMES = {"victory": "won", "defeat": "lost", "draw": "draw"}
 _RESULTS = {"victory": "Victory", "defeat": "Defeat", "draw": "Draw"}
 BETWEEN = "In the queue or menu \u00b7 the next match starts by itself at hero select"
+MATCH_HINT = "Usually not needed: matches start at hero select and end at the result screen."
 
 
 def _name(text: str) -> str:
@@ -239,9 +240,10 @@ def _live() -> None:
         with ui.element("div").classes("yt-header-actions"):  # a row of their own when narrow
             peek = button("Show what I see", lambda: toggle_preview(), "quiet")
             peek.mark("toggle-preview")
-            button("New match", lambda: new_match(), keycap=runtime.keycap("new_match")).mark(
-                "new-match"
-            )
+            match_button = button(
+                "Start match", lambda: new_match(), keycap=runtime.keycap("new_match")
+            ).mark("new-match")
+            match_button.props(f'title="{MATCH_HINT}"')  # rarely needed (#269)
             pause_button = button("Pause", lambda: toggle_pause(), keycap=runtime.keycap("pause"))
             pause_button.mark("pause")
     with ui.element("div").classes("yt-banner yt-hidden").mark("health") as health_banner:
@@ -337,7 +339,7 @@ def _live() -> None:
 
     def new_match() -> None:
         if runtime.matches is not None:
-            runtime.matches.new_match()
+            runtime.matches.toggle()  # End match in a match, Start match otherwise (#269)
         refresh()
 
     peeking = {"closed": False}  # you hid it: it doesn't open by itself again on this page
@@ -432,6 +434,8 @@ def _live() -> None:
             }[state]
         )
         set_button_label(pause_button, "Resume" if paused else "Pause")
+        running = runtime.matches is not None and runtime.matches.running
+        set_button_label(match_button, "End match" if running else "Start match")
         match_info.set_text(line if runtime.matches and state in ("listening", "paused") else "")
         match_info.props(f'title="{html.escape(match_info.text)}"')  # cut short when narrow
         ended = where is not None and where.ended
