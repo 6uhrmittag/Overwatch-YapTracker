@@ -1,13 +1,13 @@
 name: Update script
 
-# Installs the newest release with tools/update.ps1 into a throwaway folder,
-# in Windows PowerShell 5.1 and PowerShell 7.
+# Checks the download bar, then installs the newest release with tools/update.ps1 into a
+# throwaway folder, in Windows PowerShell 5.1 and PowerShell 7.
 on:
   pull_request:
-    paths: [tools/update.ps1, tools/smoke-test.ps1, .github/workflows/update-script.yml]
+    paths: [tools/update.ps1, tools/test-update.ps1, tools/smoke-test.ps1, .github/workflows/update-script.yml]
   push:
     branches: [main]
-    paths: [tools/update.ps1, tools/smoke-test.ps1, .github/workflows/update-script.yml]
+    paths: [tools/update.ps1, tools/test-update.ps1, tools/smoke-test.ps1, .github/workflows/update-script.yml]
   workflow_dispatch:
 
 permissions:
@@ -30,6 +30,8 @@ jobs:
       ROOT: ${{ github.workspace }}\_install
     steps:
       - uses: actions/checkout@v7
+      - name: Download bar (#238)
+        run: ./tools/test-update.ps1
       - name: Existing data
         run: |
           New-Item -ItemType Directory -Force "$env:ROOT\data" | Out-Null

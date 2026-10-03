@@ -24,9 +24,83 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-# Windows PowerShell 5.1 downloads crawl while it draws the progress bar.
+# Windows PowerShell 5.1 downloads crawl while it draws its own progress bar: we draw ours.
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+function Format-PayloadLine {
+    # One line of the download bar (#238), e.g.
+    #   Pushing the payload  [=========>----------]  47%  31.2 / 66.4 MB  8.4 MB/s
+    # Without a size: a spinner and the MB so far. ASCII only (Windows PowerShell 5.1).
+    param([long]$Done, [long]$Total, [double]$BytesPerSecond, [int]$Tick = 0, [int]$Width = 20)
+    $inv = [Globalization.CultureInfo]::InvariantCulture
+    $mb = { param($bytes) ($bytes / 1MB).ToString('0.0', $inv) }
+    $speed = '{0} MB/s' -f (& $mb $BytesPerSecond)
+    if ($Total -le 0) {
+        $spin = '|/-\'[$Tick % 4]
+        return 'Pushing the payload  {0}  {1} MB so far  {2}' -f $spin, (& $mb $Done), $speed
+    }
+    $share = [Math]::Min(1.0, $Done / $Total)
+    $filled = [int][Math]::Floor($share * $Width)
+    $head = if ($filled -lt $Width) { '>' } else { '' }
+    $track = ('=' * $filled) + $head + ('-' * [Math]::Max(0, $Width - $filled - 1))
+    $what = if ($share -ge 1) { 'Payload delivered. ' } elseif ($share -ge 0.9) { 'OVERTIME! Push!    ' } else { 'Pushing the payload' }
+    return '{0}  [{1}]  {2,3}%  {3} / {4} MB  {5}' -f $what, $track, [int][Math]::Floor($share * 100),
+        (& $mb $Done), (& $mb $Total), $speed
+}
+
+function Save-WithProgress {
+    # Download $Uri to $OutFile and draw the bar, about 10 times a second. When the
+    # output isn't a console (redirected, CI), a plain line every 25 % instead.
+    param([string]$Uri, [string]$OutFile)
+    Add-Type -AssemblyName System.Net.Http
+    $client = New-Object System.Net.Http.HttpClient
+    $client.DefaultRequestHeaders.UserAgent.ParseAdd('YapTracker-update')
+    $console = -not [Console]::IsOutputRedirected
+    try {
+        $response = $client.GetAsync($Uri, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
+        [void]$response.EnsureSuccessStatusCode()
+        $total = [long]0
+        if ($response.Content.Headers.ContentLength) { $total = [long]$response.Content.Headers.ContentLength }
+        $in = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+        $out = [IO.File]::Create($OutFile)
+        $done, $tick, $said = [long]0, 0, 0
+        $clock = [Diagnostics.Stopwatch]::StartNew()
+        try {
+            # .NET copies (a byte loop in PowerShell 5.1 would halve the speed); we only look at
+            # how far it got, ten times a second.
+            $copy = $in.CopyToAsync($out, 1MB)
+            while (-not $copy.Wait(100)) {
+                $done = $out.Position
+                $seconds = $clock.Elapsed.TotalSeconds
+                if ($console) {
+                    $tick++
+                    $line = Format-PayloadLine $done $total ($done / [Math]::Max($seconds, 0.001)) $tick
+                    [Console]::Write("`r" + $line.PadRight(79))  # padded: a shorter line leaves no rest
+                } elseif ($total -gt 0 -and [int][Math]::Floor(4 * $done / $total) -gt $said) {
+                    $said = [int][Math]::Floor(4 * $done / $total)
+                    Write-Host ('  {0}% of {1} MB' -f ($said * 25), ($total / 1MB).ToString('0.0', [Globalization.CultureInfo]::InvariantCulture))
+                }
+            }
+            [void]$copy.GetAwaiter().GetResult()  # a broken download throws here
+            $done = $out.Position
+        } finally {
+            $out.Dispose()
+            $in.Dispose()
+        }
+        if ($total -gt 0 -and $done -ne $total) { throw "Download stopped at $done of $total bytes" }
+        $speed = $done / [Math]::Max($clock.Elapsed.TotalSeconds, 0.001)
+        if ($console) {
+            [Console]::WriteLine("`r" + (Format-PayloadLine $done ([Math]::Max($total, $done)) $speed).PadRight(79))
+            Write-Host 'GG. Unpacking...'
+        } else {
+            $inv = [Globalization.CultureInfo]::InvariantCulture
+            Write-Host ('  Done: {0} MB at {1} MB/s' -f ($done / 1MB).ToString('0.0', $inv), ($speed / 1MB).ToString('0.0', $inv))
+        }
+    } finally {
+        $client.Dispose()
+    }
+}
 
 $Repo = '6uhrmittag/Overwatch-YapTracker'
 $AppDir = Join-Path $InstallRoot 'app'
@@ -67,7 +141,7 @@ $old = Join-Path $InstallRoot 'app.old'
 $zip = Join-Path ([IO.Path]::GetTempPath()) $asset.name
 try {
     Write-Host "Downloading $($asset.name)..."
-    Invoke-WebRequest -UseBasicParsing -Headers @{ 'User-Agent' = 'YapTracker-update' } -Uri $asset.browser_download_url -OutFile $zip
+    Save-WithProgress -Uri $asset.browser_download_url -OutFile $zip
     if (Test-Path $staged) { Remove-Item -Recurse -Force $staged }
     Expand-Archive -Path $zip -DestinationPath $staged
     if (-not (Test-Path (Join-Path $staged 'YapTracker.exe'))) { throw "$($asset.name) contains no YapTracker.exe" }
