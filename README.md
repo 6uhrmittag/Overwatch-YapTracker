@@ -58,7 +58,7 @@ Normal play needs none: capture, matches and sessions run by themselves. They're
 |---|---|
 | `Ctrl+Alt+F` | YapTracker to the front, ready to type a name in **Who's that?** |
 | `Ctrl+Alt+P` | Pause / resume; resumes by itself at the next match |
-| `Ctrl+Alt+M` | New match, only if YapTracker missed a match start |
+| `Ctrl+Alt+M` | Start match / End match, only if YapTracker missed a hero select or a result screen |
 | `Ctrl+Alt+S` | Keep the last 20 s of chat as a debug sample |
 
 Change them in **Settings → Hotkeys**: click **Change**, press the new keys. Any keyboard layout works (QWERTZ, Dvorak…): the letter you press is the one saved and shown. If another app already has a combo, Settings says so next to it.
@@ -90,7 +90,7 @@ Chat logs, line pictures and debug samples contain other players' names and mess
 - **Emoji and game icons** show as `◇` in the text; click a line to see its picture.
 - **Lines can be missed** when chat scrolls or fades faster than it's read (it's read every 1.5 s), e.g. a burst of many lines at once, or a very bright background behind the chat.
 - **Group chat** gets its own channel once YapTracker has seen the `[Group]` chat box open once; until then those lines say "Chat".
-- **Matches** start at hero select and end at VICTORY / DEFEAT. If one is missed, a quiet gap starts the next one; **New match** fixes the rest.
+- **Matches** start at hero select and end at VICTORY / DEFEAT. If one is missed, a quiet gap starts the next one; **Start match** / **End match** fixes the rest. Pressing it twice, or before a long queue, leaves no empty match.
 - **Only who typed:** players who never chat aren't logged (type their name in **Who's that?** to add them). No match stats, no full lobbies.
 - **CPU:** reading chat costs about 16–18 % of one core over a 1440p recording, and an estimated 25 % at 4K. It always reads on the CPU, never on your graphics card: that's the game's. Whether YapTracker costs any FPS is still being measured.
 - Windows only.

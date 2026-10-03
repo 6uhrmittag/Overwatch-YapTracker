@@ -103,9 +103,9 @@ def _watch_for_overwatch(dev: bool) -> None:
         if runtime.matches is not None:
             runtime.matches.capture_alive()
 
-    def new_match() -> None:
+    def new_match() -> None:  # Ctrl+Alt+M: what the Start match / End match button does (#269)
         if runtime.matches is not None:
-            runtime.matches.new_match()
+            runtime.matches.toggle()
 
     from yaptracker.game_fps import FpsMeter, overlay_regions
     from yaptracker.ocr import engine as ocr

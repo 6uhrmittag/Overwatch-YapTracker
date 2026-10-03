@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-03 · Start match / End match (#269)
+- The New match button now says what it does: End match during a match, Start match between matches. It's rarely needed, because matches start at hero select and end at the result screen.
+- Pressing it twice, or just before a long queue, no longer leaves empty matches. A press right before hero select becomes that match.
+
 ### 2026-10-03 · Live says where the match is (#268)
 - Live says whether you're in a match (map, mode, time), the match is over (Victory or Defeat), or you're between matches, where the next one starts by itself at hero select.
 - After the result, the chat card says "Last match" and keeps its lines until the next match starts.
