@@ -22,6 +22,24 @@ Expect (Format-PayloadLine ([long](66.4 * 1MB)) ([long](66.4 * 1MB)) (8.4 * 1MB)
     'Payload delivered.   [====================]  100%  66.4 / 66.4 MB  8.4 MB/s'
 Expect (Format-PayloadLine ([long](3 * 1MB)) 0 (1.5 * 1MB) 2) `
     'Pushing the payload  -  3.0 MB so far  1.5 MB/s'
+# The console's width (#246): never longer, the bar shrinks first, then speed and MB go.
+foreach ($columns in 80, 60, 40, 30) {
+    foreach ($done in 0.1, 0.5, 0.95, 1.0) {
+        $line = Format-PayloadLine ([long]($done * 141.7 * 1MB)) ([long](141.7 * 1MB)) (27.8 * 1MB) -Columns $columns
+        if ($line.Length -gt $columns) { throw "a $($line.Length)-char line for $columns columns: $line" }
+        if ($line -notmatch '%') { throw "the percent got lost at $columns columns: $line" }
+    }
+    $spin = Format-PayloadLine ([long](3 * 1MB)) 0 (1.5 * 1MB) 2 -Columns $columns
+    if ($spin.Length -gt $columns) { throw "spinner line too long for $columns columns: $spin" }
+}
+Expect (Format-PayloadLine ([long](31.2 * 1MB)) ([long](66.4 * 1MB)) (8.4 * 1MB) -Columns 70) `
+    'Pushing the payload  [=======>-------]   46%  31.2 / 66.4 MB  8.4 MB/s'
+Expect (Format-PayloadLine ([long](31.2 * 1MB)) ([long](66.4 * 1MB)) (8.4 * 1MB) -Columns 60) `
+    'Pushing the payload  [==>--]   46%  31.2 / 66.4 MB  8.4 MB/s'
+Expect (Format-PayloadLine ([long](31.2 * 1MB)) ([long](66.4 * 1MB)) (8.4 * 1MB) -Columns 45) `
+    'Pushing the payload  [==>--]   46%'
+Expect (Format-PayloadLine ([long](31.2 * 1MB)) ([long](66.4 * 1MB)) (8.4 * 1MB) -Columns 30) `
+    'Payload  [==>--]   46%'
 $all = (Get-Content $script -Raw)
 if ($all -match '[^\x00-\x7F]') { throw 'update.ps1 must stay ASCII (Windows PowerShell 5.1)' }
 Write-Host "Bar lines OK on PowerShell $($PSVersionTable.PSVersion)"

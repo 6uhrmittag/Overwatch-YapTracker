@@ -36,7 +36,7 @@ irm https://raw.githubusercontent.com/6uhrmittag/Overwatch-YapTracker/main/tools
 powershell -ExecutionPolicy Bypass -File update.ps1
 ```
 
-The app goes to `%LOCALAPPDATA%\YapTracker\app` and is replaced on every update. Your data in `%LOCALAPPDATA%\YapTracker\data` is never touched. Run `update.ps1` again whenever you want the newest build; it closes YapTracker first and starts it again afterwards. `-Force` reinstalls, `-NoStart` skips the start.
+The app goes to `%LOCALAPPDATA%\YapTracker\app` and is replaced on every update. Your data in `%LOCALAPPDATA%\YapTracker\data` is never touched. Run `update.ps1` again whenever you want the newest build; it closes YapTracker first and starts it again afterwards. `-Force` reinstalls, `-NoStart` skips the start. The saved `update.ps1` keeps itself current: if the newest release has a newer one, it saves that over itself and runs it.
 
 ### "Windows protected your PC" / Defender warnings
 
@@ -61,7 +61,7 @@ Normal play needs none: capture, matches and sessions run by themselves. They're
 | `Ctrl+Alt+M` | New match, only if YapTracker missed a match start |
 | `Ctrl+Alt+S` | Keep the last 20 s of chat as a debug sample |
 
-Change them in **Settings → Hotkeys**: click **Change**, press the new keys. If another app already has a combo, Settings says so next to it.
+Change them in **Settings → Hotkeys**: click **Change**, press the new keys. Any keyboard layout works (QWERTZ, Dvorak…): the letter you press is the one saved and shown. If another app already has a combo, Settings says so next to it.
 
 ## Your data
 
