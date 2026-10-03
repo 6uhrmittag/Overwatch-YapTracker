@@ -123,7 +123,10 @@ Pill shape, 2 px ink-coloured border, uppercase 800 weight, hard shadow
 - **Icon rail:** 76 px wide, 52 px targets, active item = orange filled
   rounded square. Items: Live · Yappers · Sessions · Search · Settings (bottom).
 - **Status pill:** Listening (green, pulsing) · Paused (orange) · Waiting for
-  Overwatch (muted).
+  Overwatch (muted). While listening it names the match (#268): *In a match*
+  (map · mode · time) · *Match over* (result, for the 90 s of post-match chat) ·
+  *Between matches* ("the next match starts by itself at hero select"). The chat
+  card says *Last match* after the result, until the next one starts.
 - **Chat line:** time · channel · speaker (bold, channel colour) · text. Known
   players get a 3 px underline in their verdict colour and a faint gold row tint.
 - **Familiar-face card** (the loudest thing in the app): orange banner

@@ -188,8 +188,9 @@ def test_counts_read_like_a_person_wrote_them():
     assert counts == ["0 matches", "1 match", "2 matches"]
 
 
-async def test_live_header_shows_session_and_match(user: User, monkeypatch, tmp_path):
+async def test_live_says_the_match_state_in_words(user: User, monkeypatch, tmp_path):
     from yaptracker import runtime
+    from yaptracker.capture.watcher import CaptureWatcher
     from yaptracker.matches import MatchTracker
     from yaptracker.pause import Pause
     from yaptracker.store.repo import Store
@@ -197,11 +198,21 @@ async def test_live_header_shows_session_and_match(user: User, monkeypatch, tmp_
     store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
     tracker = MatchTracker(store, Pause())
     tracker.capture_alive()
+    watcher = CaptureWatcher(lambda: None, lambda _: None)
+    watcher.state = "capturing"
+    monkeypatch.setattr(runtime, "watcher", watcher)
     monkeypatch.setattr(runtime, "matches", tracker)
     await user.open("/")
-    await user.should_see("Session 1 · no match yet")
-    user.find(marker="new-match").click()
-    await user.should_see("Session 1 · Match 1 · 0:0")
+    await user.should_see("Between matches")
+    await user.should_see("In the queue or menu · the next match starts by itself at hero select")
+    tracker.new_match(source="heroselect", mode="UNRANKED", map_name="KING'S ROW")
+    await user.should_see("In a match", retries=50)  # the next refresh
+    await user.should_see("King's Row · Unranked · 0:0")
+    await user.should_see("This match")
+    tracker.end_match(outcome="victory")
+    await user.should_see("Match over", retries=50)  # the next refresh
+    await user.should_see("waiting for the next one")
+    await user.should_see("Last match · Victory")  # its lines stay until the next match
     store.close()
 
 

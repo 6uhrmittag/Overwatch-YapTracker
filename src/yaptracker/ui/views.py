@@ -1,6 +1,7 @@
 """The five views behind the icon rail. Placeholders until their milestones land."""
 
 import html
+import string
 import time
 
 import numpy as np
@@ -13,6 +14,7 @@ from yaptracker.capture.black import SCREEN_SAY
 from yaptracker.capture.stats import CAPTURE
 from yaptracker.capture.watcher import fps
 from yaptracker.glyphs import GLYPH
+from yaptracker.matches import AFTER_END_GAP_S
 from yaptracker.store.backups import last_backup
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import (
@@ -68,6 +70,37 @@ def _backup_text() -> str:
 
 # How an ended match shows in the Live header (#94).
 _OUTCOMES = {"victory": "won", "defeat": "lost", "draw": "draw"}
+_RESULTS = {"victory": "Victory", "defeat": "Defeat", "draw": "Draw"}
+BETWEEN = "In the queue or menu \u00b7 the next match starts by itself at hero select"
+
+
+def _name(text: str) -> str:
+    """ "KING'S ROW" -> "King's Row" (str.title would make it "King'S Row")."""
+    return string.capwords(text.lower())
+
+
+def _minutes(seconds: float) -> str:
+    minutes, seconds = divmod(max(0, int(seconds)), 60)
+    return f"{minutes}:{seconds:02d}"
+
+
+def match_state(where, now: float) -> tuple[str, str]:
+    """The match in words for the Live header (#268): the pill's text and the line under it.
+    Post-match chat still belongs to the match for AFTER_END_GAP_S, then it's the queue."""
+    if where is None or where.match is None:
+        return "Between matches", BETWEEN
+    if not where.ended:
+        place = " \u00b7 ".join(_name(p) for p in (where.map_name, where.mode) if p)
+        return (
+            "In a match",
+            f"{place or f'Match {where.match}'} \u00b7 {_minutes(now - where.started_at)}",
+        )
+    if where.ended_at is None or now - where.ended_at >= AFTER_END_GAP_S:
+        return "Between matches", BETWEEN
+    on_map = f" on {_name(where.map_name)}" if where.map_name else ""
+    return "Match over", (f"{_RESULTS.get(where.outcome, 'Over')}{on_map} \u00b7 "
+                          f"{_minutes(where.ended_at - where.started_at)} \u00b7 waiting for the "
+                          "next one")  # fmt: skip
 
 
 # Chat line chips (docs/ui/mockup/Live): the channel, in its colour. Unsure typed lines say "Chat".
@@ -242,7 +275,7 @@ def _live() -> None:
     with ui.element("div").classes("yt-columns"):
         with ui.element("section").classes("yt-card yt-card--chat").props('aria-label="Chat"'):
             with ui.element("div").classes("yt-card-head"):
-                ui.label("This match").classes("yt-h2")
+                card_title = ui.label("This match").classes("yt-h2").mark("match-card-title")
                 yap_count = ui.label("0 yaps").classes("yt-meta").mark("yap-count")
                 ui.element("div").classes("yt-grow")
                 with ui.element("div").classes("yt-legend"):
@@ -367,11 +400,13 @@ def _live() -> None:
             add=f"yt-pill--{_PILLS[state]}",
             remove=" ".join(f"yt-pill--{p}" for p in set(_PILLS.values()) if p != _PILLS[state]),
         )
+        where = runtime.matches.status() if runtime.matches else None
+        said, line = match_state(where, time.time())  # the match in words (#268)
         status.set_text(
             {
                 "paused": "Paused",
                 "trouble": "Not recording",
-                "listening": "Listening for yaps",
+                "listening": said if runtime.matches else "Listening for yaps",
                 "waiting": "Waiting for Overwatch",
             }[state]
         )
@@ -397,23 +432,12 @@ def _live() -> None:
             }[state]
         )
         set_button_label(pause_button, "Resume" if paused else "Pause")
-        where = runtime.matches.status() if runtime.matches else None
-        if where is None:
-            match_info.set_text("")
-        else:
-            if where.match is None:
-                match_info.set_text(f"Session {where.session} \u00b7 no match yet")
-            else:
-                minutes, seconds = divmod(int(time.time() - where.started_at), 60)
-                on_map = f" on {where.map_name.title()}" if where.map_name else ""
-                when = (
-                    _OUTCOMES.get(where.outcome, "over")
-                    if where.ended
-                    else f"{minutes}:{seconds:02d} in"
-                )
-                match_info.set_text(
-                    f"Session {where.session} \u00b7 Match {where.match}{on_map} \u00b7 {when}"
-                )
+        match_info.set_text(line if runtime.matches and state in ("listening", "paused") else "")
+        match_info.props(f'title="{html.escape(match_info.text)}"')  # cut short when narrow
+        ended = where is not None and where.ended
+        result = _RESULTS.get(where.outcome) if ended else None
+        title = "Last match" if ended else "This match"  # its lines stay until the next (#268)
+        card_title.set_text(f"{title} \u00b7 {result}" if result else title)
         if broken:  # paused has its own pill (#20)
             since = time.strftime("%H:%M", time.localtime(gap.since))
             error = watcher.last_error if watcher is not None else None

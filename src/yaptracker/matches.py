@@ -38,6 +38,8 @@ class Status(NamedTuple):
     map_name: str | None = None
     ended: bool = False
     outcome: str | None = None  # 'victory' | 'defeat' | 'draw', once the end screen said so
+    mode: str | None = None  # from hero select, e.g. "UNRANKED" (#268)
+    ended_at: float | None = None
 
 
 class MatchTracker:
@@ -58,6 +60,7 @@ class MatchTracker:
         self.previous_match_id: int | None = None  # the match before, in this session (#179)
         self.match_started_at: float | None = None
         self.match_map: str | None = None
+        self.match_mode: str | None = None
         self.match_ended_at: float | None = None
         self.match_outcome: str | None = None
         self._match_source: str | None = None
@@ -117,6 +120,7 @@ class MatchTracker:
             if recent_gap_match:
                 self._store.set_match_source(self.match_id, source, mode, map_name)
                 self._match_source, self.match_map = source, map_name
+                self.match_mode = mode
                 self._pause.next_match_started()
             else:
                 self._start_match(ts, source, mode, map_name)
@@ -157,7 +161,8 @@ class MatchTracker:
             match_no = self._store.match_number(self.match_id) if self.match_id else None
             return Status(self._store.session_number(self.session_id), match_no,
                           self.match_started_at, self.match_map,
-                          self.match_ended_at is not None, self.match_outcome)  # fmt: skip
+                          self.match_ended_at is not None, self.match_outcome,
+                          self.match_mode, self.match_ended_at)  # fmt: skip
 
     def _new_session(self, ts: float) -> None:
         if self.session_id is not None and self._last_alive is not None:
@@ -166,7 +171,7 @@ class MatchTracker:
             self._store.end_session(self.session_id, self._last_alive)
         self.session_id = self._store.start_session(ts)
         self.match_id = self.match_started_at = self.match_map = self._last_chat = None
-        self.previous_match_id = None
+        self.previous_match_id = self.match_mode = None
         self.match_ended_at = self.match_outcome = None
 
     def _start_match(
@@ -182,7 +187,7 @@ class MatchTracker:
         self.match_id = self._store.start_match(self.session_id, ts, source, mode, map_name)
         log.info("match %d started (%s, %s, %s)", self.match_id, source, mode, map_name)
         self.match_started_at, self.match_map, self._match_source = ts, map_name, source
-        self.match_ended_at = self.match_outcome = None
+        self.match_mode, self.match_ended_at, self.match_outcome = mode, None, None
         self._pause.next_match_started()
         if source != "heroselect":
             self._on_missed_start(source)
