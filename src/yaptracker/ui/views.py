@@ -662,6 +662,25 @@ def settings() -> None:
                         ui.clipboard.write("\n".join(system_info.summary()))
                         copied.set_text("Copied. Paste it into a chat.")
 
+                    with ui.element("div").classes("yt-row"):  # opens where you left it (#253)
+                        button("Reset window position", lambda: reset_place(), "quiet").mark(
+                            "reset-window"
+                        )
+                        moved = ui.label().classes("yt-hint").mark("reset-window-result")
+                    ui.label(
+                        "YapTracker opens where you left it. If it ever opens somewhere you can't "
+                        "reach, this puts it in the middle of your main screen."
+                    ).classes("yt-hint")
+
+                    def reset_place() -> None:
+                        from yaptracker import window_place
+
+                        moved.set_text(
+                            "Done: middle of the main screen."
+                            if window_place.reset()
+                            else "Forgotten. The next start opens at the usual place."
+                        )
+
     def open_calibration() -> None:
         body.clear()
         with body:
