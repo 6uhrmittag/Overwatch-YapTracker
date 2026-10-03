@@ -84,7 +84,7 @@ Chat logs, line pictures and debug samples contain other players' names and mess
 ## Known limits
 
 - **Tested at** 2560×1440 and 3840×2160, the latter with Windows HDR on, on Windows 11 with an NVIDIA card. Other 16:9 sizes scale along; other aspect ratios need a calibration.
-- **Windows 10** works, with two differences: a yellow border around Overwatch while YapTracker watches it (only Windows 11 can hide it), and Windows sends every frame the game draws instead of 4 a second. YapTracker skips the extra frames right away, but Windows has already copied each one, so it costs a bit more than on Windows 11 24H2. **Settings → About** says what your Windows can't do.
+- **Windows 10** (and Windows 11 before 24H2) can't hand YapTracker just 4 frames a second; it would copy every frame the game draws. So there YapTracker copies only the chat box from the screen, 4 times a second, which costs about as little as on Windows 11 24H2. One difference: it reads what's on screen, so keep other windows off the chat box. **Settings → About** says which way your PC reads.
 - **Languages:** English and German chat are measured (umlauts and ß included). Other languages aren't tested; chat in other scripts (Cyrillic, Korean…) may come out wrong.
 - **Emoji and game icons** show as `◇` in the text; click a line to see its picture.
 - **Lines can be missed** when chat scrolls or fades faster than it's read (it's read every 1.5 s), e.g. a burst of many lines at once, or a very bright background behind the chat.

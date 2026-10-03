@@ -601,7 +601,13 @@ def settings() -> None:
                         if rate is not None
                         else "Capture: not running right now"
                     ).classes("yt-meta").mark("capture-rate")
-                    if CAPTURE.cannot:  # Windows 10: settings it lacks are left out (#216)
+                    if CAPTURE.how != "WGC":  # Windows 10 and 11 before 24H2 (#248)
+                        ui.label(
+                            "This Windows sends every frame the game draws, so I only copy the "
+                            "chat box from the screen, 4 times a second. Keep other windows off "
+                            "it: what's on top is what I read."
+                        ).classes("yt-hint").mark("capture-gdi")
+                    elif CAPTURE.cannot:  # settings this Windows lacks are left out (#216)
                         ui.label(
                             f"This Windows can't {' or '.join(CAPTURE.cannot)}, so I skip the "
                             "extra frames myself. Windows 11 24H2 does it better."
