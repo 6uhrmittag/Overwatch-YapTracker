@@ -47,14 +47,13 @@ _PUNCTUATION = re.compile(r"[\s:：;.,!?'\"]+")
 
 def match_key(line: ChatLine) -> str:
     """key() without glued capitals, as long as some lower-case text is left ("GG WP" stays),
-    and without punctuation: readings that differ only in case or punctuation are one line."""
+    and without punctuation: readings that differ only in case or punctuation are one line.
+    A callout goes by its hero, not its speaker (#290): a hero is on a team once, and a garbled
+    name ("MW: Enemy Siera" for "you: Enemy Sierra!") is then the same line."""
     text = _GLUED.sub("", line.text)
     text = text if re.search(r"[a-z]", text) else line.text
-    return (
-        _PUNCTUATION.sub(" ", f"{clean(line.speaker) if line.speaker else ''} {text}")
-        .strip()
-        .lower()
-    )
+    who = line.hero if line.kind == "comms" and line.hero else line.speaker
+    return _PUNCTUATION.sub(" ", f"{clean(who) if who else ''} {text}").strip().lower()
 
 
 def _plain(text: str) -> str:
