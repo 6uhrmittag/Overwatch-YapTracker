@@ -136,7 +136,7 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
     ):
         seconds = max(0, int(message.ts - started_at)) if started_at else 0
         ui.label(f"{seconds // 60}:{seconds % 60:02d}").classes("yt-line-time")
-        ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
+        ch = ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
         # Name, chips, text and hero flow like one sentence: in a narrow window the text wraps
         # under the name, never a few letters per line (#226).
         with ui.element("div").classes("yt-line-body"):
@@ -153,17 +153,19 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
         line.on("click", lambda e: on_click(bool((e.args or {}).get("shiftKey"))), ["shiftKey"])
     else:
         # how it looked (#120, #128); not when the click ends a text selection (#221)
-        line.on("click", lambda: show_picture(message), js_handler=CLICK_NOT_DRAG)
+        line.on("click", lambda: show_picture(message, row), js_handler=CLICK_NOT_DRAG)
     row = {"name": name, "text": text, "shown": None, "line": line, "count": times, "times": 1,
-           "ids": [message.id], "edited": edited}  # fmt: skip
+           "ids": [message.id], "edited": edited, "ch": ch, "channel": channel}  # fmt: skip
     edit_button(line, message.id, text, edited)  # a misread line: fixed in place (#227)
     delete_button(line, lambda: row["ids"])  # a doubled or wrong line: gone in one click (#227)
     _fill_line(row, message)
     return row
 
 
-def show_picture(message) -> None:
-    """A click on a line: its picture (#120, #128) and the spicy switch (#77)."""
+def show_picture(message, row: dict | None = None, on_channel=None) -> None:
+    """A click on a line: its picture (#120, #128), its channel (#283) and the spicy switch
+    (#77). `row`: the chat row to update when the channel changes; or `on_channel(channel)`
+    for rows of another shape (profiles)."""
     message = runtime.store.message(message.id) if runtime.store else None
     if message is None:
         return
@@ -173,6 +175,7 @@ def show_picture(message) -> None:
             if path is not None and path.exists():
                 ui.image(path).classes("yt-picture-image").mark("line-picture")
                 ui.label("The line as it looked in Overwatch.").classes("yt-hint")
+            _channel_picker(message, row, path, on_channel)
             spicy = message.flagged is not None
             ui.label(
                 "Overwatch marked this line ([Report])." if message.flagged == "overwatch"
@@ -189,11 +192,79 @@ def show_picture(message) -> None:
     dialog.open()
 
 
+_FIXABLE = ("team", "match", "group", "system")
+
+
+def restyle_channel(label, channel: str) -> None:
+    """A line's channel chip shows another channel (#283)."""
+    label.classes(remove=" ".join(f"yt-ch-{c}" for c in (*_CHANNELS, "chat")),
+                  add=f"yt-ch-{channel}")  # fmt: skip
+    label.set_text(_CHANNELS.get(channel, "Chat"))
+
+
+def _channel_picker(message, row: dict | None, picture, on_channel=None) -> None:
+    """The line's channel, fixable in one click (#283): the picture above shows the real icon.
+    Saved + Undo; a later reading never changes it back; the fix is a debug sample."""
+    store = runtime.store
+    ui.label("Wrong channel? Pick the right one.").classes("yt-hint")
+    seg = ui.element("div").classes("yt-seg yt-channel-seg").mark("channel-seg")
+
+    def render(current: str) -> None:
+        seg.clear()
+        with seg:
+            for channel in _FIXABLE:
+                item = ui.element("button").classes(f"yt-seg-item yt-ch-{channel}")
+                item.props('type="button"').mark(f"channel-{channel}")
+                if channel == current:
+                    item.classes(add="is-active").props('aria-pressed="true"')
+                with item:
+                    ui.label(_CHANNELS[channel])
+                item.on("click", lambda channel=channel: choose(channel))
+
+    def follow() -> None:
+        fresh = store.message(message.id)
+        if fresh is None:
+            return
+        if row is not None:
+            _fill_line(row, fresh)
+        if on_channel is not None:
+            on_channel(fresh.channel)
+
+    def choose(channel: str) -> None:
+        before = store.channel_by_hand(message.id)
+        if before is None or before[0] == channel:
+            return
+        bar = getattr(ui.context.client, "yt_undo", None)
+        store.set_channel(message.id, channel)
+        if runtime.debug is not None:
+            runtime.debug.channel_correction(message, channel, picture)
+        render(channel)
+        follow()
+
+        def undo() -> None:
+            store.restore_channel(message.id, *before)
+            render(before[0])
+            follow()
+
+        if bar is not None:
+            bar.show(f"Channel: {_CHANNELS[channel]}", undo)
+
+    render(message.channel)
+
+
 def _fill_line(row: dict, message) -> None:
-    shown = (message.speaker_raw, message.role, message.text, message.flagged, message.edited_at)
+    shown = (message.speaker_raw, message.role, message.text, message.flagged, message.edited_at,
+             message.channel)  # fmt: skip
     if shown == row["shown"]:
         return
     row["shown"] = shown
+    channel = message.channel if message.channel in _CHANNELS else "chat"
+    if "ch" in row and channel != row["channel"]:  # fixed by hand (#283): chip and colours follow
+        old, row["channel"] = row["channel"], channel
+        row["line"].classes(remove=f"yt-line--{old}", add=f"yt-line--{channel}")
+        row["ch"].classes(remove=f"yt-ch-{old}", add=f"yt-ch-{channel}")
+        row["name"].classes(remove=f"yt-ch-{old}", add=f"yt-ch-{channel}")
+        row["ch"].set_text(_CHANNELS.get(channel, "Chat"))
     show_mark(row["edited"], message.edited_at is not None, message.original_text)
     # System lines carry the name in their text ("[gremlin.exe] started playing Overwatch.").
     who = message.speaker_raw if message.channel != "system" else ""

@@ -104,4 +104,10 @@ V5 = """
 ALTER TABLE matches ADD COLUMN loved_at REAL;
 """
 
-MIGRATIONS = [V1, V2, V3, V4, V5]
+# A line's channel fixed by hand (#283): what OCR said stays in channel_ocr, set on the first
+# change; a later reading of the line never overwrites a channel set by hand.
+V6 = """
+ALTER TABLE chat_messages ADD COLUMN channel_ocr TEXT;
+"""
+
+MIGRATIONS = [V1, V2, V3, V4, V5, V6]

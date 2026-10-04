@@ -17,6 +17,7 @@ from yaptracker.ui.components import (
     when,
 )
 from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark
+from yaptracker.ui.quick_verdict import CLICK_NOT_DRAG
 
 # Yap-o-meter: yaps per match together.
 _LEVELS = [(1, "Silent type"), (3, "Casual yapper"), (8, "Certified yapper"),
@@ -204,6 +205,8 @@ def _day(ts: float | None) -> str:
 
 
 def _yaps(player_id: int, callouts: bool = False) -> None:
+    from yaptracker.ui.views import restyle_channel, show_picture  # views imports this module
+
     store = runtime.store
     messages = store.player_messages(player_id, callouts)
     if not messages:
@@ -221,13 +224,18 @@ def _yaps(player_id: int, callouts: bool = False) -> None:
             channel = message.channel if message.channel in _CHANNELS else "chat"
             callout = " yt-their-yap--callout" if message.hero else ""
             with ui.element("div").classes("yt-their-yap" + callout) as line:
-                ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
+                ch = ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
                 text = ui.label(message.text).classes("yt-line-text")
                 edited = edited_mark(message)
                 if message.hero:
                     ui.label(f"as {message.hero}").classes("yt-meta")
                 if message.flagged:
                     spicy_mark()
+            # its picture, channel and spicy switch, as in Live (#283)
+            line.on("click", lambda m=message, ch=ch: show_picture(
+                m, on_channel=lambda picked, ch=ch: restyle_channel(ch, picked)),
+                js_handler=CLICK_NOT_DRAG)  # fmt: skip
+            line.mark(f"their-yap line-{message.id}")
             edit_button(line, message.id, text, edited)  # quick fixes (#227)
             delete_button(line, lambda m=message: [m.id])
     typed = sum(1 for m in messages if not m.hero)

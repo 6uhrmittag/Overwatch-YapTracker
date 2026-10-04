@@ -469,6 +469,28 @@ class Store:
              int(has_glyphs), player_id),
         )  # fmt: skip
 
+    def set_channel(self, message_id: int, channel: str) -> None:
+        """A line's channel fixed by hand (#283); the first change keeps what OCR said."""
+        self._write(
+            "UPDATE chat_messages SET channel_ocr = COALESCE(channel_ocr, channel), channel = ? "
+            "WHERE id = ?",
+            (channel, message_id),
+        )
+
+    def channel_by_hand(self, message_id: int) -> tuple[str, str | None] | None:
+        """(channel, channel_ocr): channel_ocr is None until it was changed by hand."""
+        rows = self._read(
+            "SELECT channel, channel_ocr FROM chat_messages WHERE id = ?", (message_id,)
+        )
+        return rows[0] if rows else None
+
+    def restore_channel(self, message_id: int, channel: str, channel_ocr: str | None) -> None:
+        """Undo: exactly as before, also "never changed by hand"."""
+        self._write(
+            "UPDATE chat_messages SET channel = ?, channel_ocr = ? WHERE id = ?",
+            (channel, channel_ocr, message_id),
+        )
+
     def update_message(
         self,
         message_id: int,
@@ -484,9 +506,11 @@ class Store:
         player_id: int | None = None,
     ) -> None:
         """A better reading of a stored line (#18); the full-text index follows by trigger.
-        A line fixed by hand keeps its text (#227)."""
+        A line fixed by hand keeps its text (#227) and its channel (#283)."""
         self._write(
-            "UPDATE chat_messages SET channel = ?, speaker_raw = ?, hero = ?, "
+            "UPDATE chat_messages SET "
+            "channel = CASE WHEN channel_ocr IS NULL THEN ? ELSE channel END, "  # by hand (#283)
+            "speaker_raw = ?, hero = ?, "
             "text = CASE WHEN edited_at IS NULL THEN ? ELSE text END, "
             "ocr_confidence = ?, flagged = ?, role = ?, has_glyphs = ?, player_id = ? "
             "WHERE id = ?",
