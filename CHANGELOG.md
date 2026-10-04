@@ -7,6 +7,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-04 · Steadier CI (#273)
 - Behind the scenes: the Windows capture test accepts the runner refusing capture settings, which the app already handles, so CI stops failing at random.
 
+### 2026-10-04 · Long umlaut runs (#266)
+- Stretched words keep every umlaut too: "täääätüüüütatäääää" now reads exactly as typed.
+
 ### 2026-10-04 · Callouts read right (#290)
 - Callouts are written as the comms wheel says them: "Eall back!" becomes Fall back!, "Enemy llari!" Enemy Illari!, and pieces like "My" or "/ Enemy" are no longer lines of their own.
 - A callout read once with a garbled name is the same line as the clear one, not a second yap.

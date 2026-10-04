@@ -58,10 +58,19 @@ def test_short_lines_without_a_german_word_keep_their_umlauts(text):
 
 
 def test_marvs_line_gets_its_umlauts_back():
-    """The Latin model squeezes long runs of one letter ("ääää"), the default model keeps the
-    count: run by run, the counts from one and the umlauts from the other."""
-    read = read_box("[Marv]: täääätüüüütatäääää", size=38)
-    assert "üüüü" in read and read.startswith("[Marv]: t")
+    """The Latin model squeezes long runs of one letter ("ääää"), and can drop a whole run; the
+    default model keeps every letter. Run by run, or (#266) by the dots' places in the picture:
+    each a, o or u under a dot pair becomes ä, ö or ü."""
+    for size in (34, 38):
+        assert read_box("[Marv]: täääätüüüütatäääää", size=size) == "[Marv]: täääätüüüütatäääää"
+
+
+def test_the_dots_only_step_in_for_long_runs():
+    """A German line without a long run keeps the Latin reading (its ß, its letters): the dot
+    fallback once turned "Weißt du" into "Weilt du" (#266)."""
+    assert (
+        read_box("[Sören]: Weißt du, wo der Heiler ist?") == "[Sören]: Weißt du, wo der Heiler ist?"
+    )
 
 
 def test_slivers_on_letter_tops_are_not_dots():
