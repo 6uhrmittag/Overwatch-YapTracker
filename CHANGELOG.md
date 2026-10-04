@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Long umlaut runs (#266)
+- Stretched words keep every umlaut too: "täääätüüüütatäääää" now reads exactly as typed.
+
 ### 2026-10-04 · Callouts out of the way (#289)
 - Live and match transcripts hide comms-wheel callouts ("Group up!", "Enemy Sombra!") by default, so the chat is what people typed. The Callouts switch next to the channel names shows them again, with a count of how many are hidden.
 
