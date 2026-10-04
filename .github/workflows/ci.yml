@@ -32,7 +32,11 @@ jobs:
       - run: pip install -e .[dev] -c packaging/constraints.txt  # exact versions (#309)
       - run: ruff check .
       - run: ruff format --check .
-      - run: pytest
+      - name: Tests, failing under 80 % coverage (#310)
+        run: pytest --cov=yaptracker --cov-report=term --cov-fail-under=80
+      - name: Coverage per file in the job summary
+        if: always()
+        run: coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
 
   older-windows:
     # Server 2022 is build 20348: no capture-rate setting, like Windows 10 (#216). The capture

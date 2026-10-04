@@ -19,6 +19,7 @@ cffi==2.1.1
 click==8.5.0
 clr_loader==0.3.1
 colorama==0.4.6
+coverage==7.16.2
 docutils==0.23
 fastapi==0.142.2
 flatbuffers==25.12.19
@@ -58,6 +59,7 @@ Pygments==2.21.0
 pyinstaller-hooks-contrib==2026.8
 pyinstaller==6.22.3
 pytest-asyncio==1.4.0
+pytest-cov==7.1.0
 pytest==9.1.1
 python-dotenv==1.2.4
 python-engineio==4.14.0

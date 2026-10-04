@@ -299,7 +299,7 @@ def live() -> None:
         setup_wizard(on_done=done)
 
 
-def _live() -> None:
+def _live() -> None:  # noqa: C901 - split up after v1 (#311)
     watcher = runtime.watcher
     with ui.element("header").classes("yt-header"):
         ui.label("Live").classes("yt-h1")
@@ -573,7 +573,7 @@ def _live() -> None:
     refresh()
 
 
-def settings() -> None:
+def settings() -> None:  # noqa: C901 - split up after v1 (#311)
     body = ui.element("div").classes("yt-view")
 
     def overview(saved: bool = False) -> None:

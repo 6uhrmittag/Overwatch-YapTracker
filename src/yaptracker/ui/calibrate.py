@@ -45,7 +45,7 @@ def _overlay(editor: BoxEditor) -> str:
     )
 
 
-def calibrate(on_done: Callable[[bool], None], steps: Callable[[], None] | None = None) -> None:
+def calibrate(on_done: Callable[[bool], None], steps: Callable[[], None] | None = None) -> None:  # noqa: C901 - split up after v1 (#311)
     """on_done(saved) returns to where calibration was opened from; `steps` draws the setup
     wizard's progress in the header (#76)."""
     state: dict = {"image": None, "editor": None}
