@@ -10,6 +10,7 @@ from collections.abc import Callable, Iterator
 
 from yaptracker.capture.source import CaptureStalled, Frame, Region
 from yaptracker.capture.stats import CAPTURE
+from yaptracker.cpu_parts import CPU
 
 log = logging.getLogger(__name__)
 _END = object()
@@ -101,7 +102,7 @@ class WgcFrameSource:
                 CAPTURE.skipped()  # before the frame buffer is touched (#216)
                 return
             self._used_at = now
-            started = time.perf_counter()
+            started, started_cpu = time.perf_counter(), time.thread_time()
             if self._snapshot_wanted.is_set():  # Calibrate asked for the whole window (#112)
                 self._snapshot = frame.frame_buffer[:, :, :3].copy()
                 self._snapshot_wanted.clear()
@@ -121,6 +122,7 @@ class WgcFrameSource:
                     signals["overview"] = frame.frame_buffer[::4, ::4, :3].copy()
             self._put(Frame(now - self._start, chat, signals))
             CAPTURE.frame(time.perf_counter() - started)  # what Windows delivers, and our cost
+            CPU.add("capture", time.thread_time() - started_cpu)  # (#302)
 
         @capture.event
         def on_closed() -> None:
