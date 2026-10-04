@@ -6,6 +6,7 @@ in config.json, so updates keep it. It's only restored while its title bar is st
 connected screen; otherwise Windows' default place, so it never opens off-screen.
 """
 
+import contextlib
 import logging
 import threading
 import time
@@ -16,6 +17,8 @@ log = logging.getLogger(__name__)
 TITLE_BAR = 32  # px of the window's top that must stay reachable to drag it
 SETTLE_S = 1.0  # saved once it stopped moving this long
 POLL_S = 2.0
+BORDER = 10  # px a window may stick out of the work area: Windows' invisible resize border
+ARRIVE_S = 1.0  # after a move to a screen with other scaling, the window resizes itself (#299)
 
 Rect = tuple[int, int, int, int]  # x, y, width, height in screen pixels
 
@@ -49,8 +52,36 @@ def visible(place: Place, screens: list[Rect], share: float = 0.25) -> bool:
     return covered >= share * width * TITLE_BAR
 
 
+def clamp(rect: Rect, works: list[Rect]) -> Rect:
+    """The rect fitted into the work area it's mostly on (#299): never wider or taller than it,
+    the title bar always inside. Windows' invisible border (BORDER) may stick out, so a snapped
+    half stays as it is. `works`: every monitor's work area."""
+    if not works:
+        return rect
+    x, y, w, h = rect
+
+    def overlap(area: Rect) -> int:
+        ax, ay, aw, ah = area
+        return max(0, min(x + w, ax + aw) - max(x, ax)) * max(0, min(y + h, ay + ah) - max(y, ay))
+
+    def distance(area: Rect) -> float:
+        ax, ay, aw, ah = area
+        return abs(x + w / 2 - (ax + aw / 2)) + abs(y + h / 2 - (ay + ah / 2))
+
+    wx, wy, ww, wh = max(works, key=lambda a: (overlap(a), -distance(a)))
+    wx, wy, ww, wh = wx - BORDER, wy - BORDER, ww + 2 * BORDER, wh + 2 * BORDER
+    w, h = min(w, ww), min(h, wh)
+    return min(max(x, wx), wx + ww - w), min(max(y, wy), wy + wh - h), w, h
+
+
+def fit(place: Place, works: list[Rect]) -> Place:
+    """The whole place clamped (#299): where it is and where it goes when un-maximised."""
+    return Place(clamp(place.rect, works), clamp(place.normal, works), place.maximized)
+
+
 class Keeper:
-    """Reads the place every few seconds and saves it once it settled (debounced)."""
+    """Reads the place every few seconds and saves it once it settled (debounced). Never saves
+    more than fits the screen it's on (`fit`, #299): a wrong size can't grow from start to start."""
 
     def __init__(
         self,
@@ -58,13 +89,16 @@ class Keeper:
         save: Callable[[Place], None],
         saved: Place | None,
         clock: Callable[[], float] = time.monotonic,
+        fit: Callable[[Place], Place] = lambda place: place,
     ) -> None:
         self._read, self._save, self._saved, self._clock = read, save, saved, clock
+        self._fit = fit
         self._seen: Place | None = None
         self._since = 0.0
 
     def check(self) -> None:
         place = self._read()  # None while minimised: that's not a place to come back to
+        place = self._fit(place) if place is not None else None
         if place is None or place == self._saved:
             self._seen = None
             return
@@ -134,19 +168,42 @@ def apply(hwnd: int, place: Place, minimized: bool = False) -> None:
         user32.SetWindowPos(hwnd, None, x, y, w, h, 0x0004 | 0x0010)  # NOZORDER | NOACTIVATE
 
 
-def screens() -> list[Rect]:
-    """Every connected monitor, in screen pixels."""
+@dataclass(frozen=True)
+class Monitor:
+    rect: Rect
+    work: Rect  # without the taskbar
+    dpi: int  # 96 = 100 % scaling
+
+
+def monitors() -> list[Monitor]:
+    """Every connected monitor with its work area and scaling, in screen pixels."""
     ctypes, wintypes, user32, _ = _win32()
-    found: list[Rect] = []
+
+    class Info(ctypes.Structure):
+        _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
+                    ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]  # fmt: skip
+
+    found: list[Monitor] = []
 
     @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HMONITOR, wintypes.HDC,
                         ctypes.POINTER(wintypes.RECT), wintypes.LPARAM)  # fmt: skip
-    def visit(_monitor, _dc, rect, _data):
-        found.append(_rect(rect.contents))
+    def visit(monitor, _dc, _rect, _data):
+        info = Info(cbSize=ctypes.sizeof(Info))
+        user32.GetMonitorInfoW(monitor, ctypes.byref(info))
+        dpi_x, dpi_y = wintypes.UINT(96), wintypes.UINT(96)
+        with contextlib.suppress(AttributeError, OSError):  # before 8.1: no per-monitor DPI
+            ctypes.windll.shcore.GetDpiForMonitor(monitor, 0, ctypes.byref(dpi_x),
+                                                  ctypes.byref(dpi_y))  # fmt: skip
+        found.append(Monitor(_rect(info.rcMonitor), _rect(info.rcWork), int(dpi_x.value)))
         return True
 
     user32.EnumDisplayMonitors(None, None, visit, 0)
     return found
+
+
+def screens() -> list[Rect]:
+    """Every connected monitor, in screen pixels."""
+    return [m.rect for m in monitors()]
 
 
 def keep(find: Callable[[], int | None], minimized: bool, stop: threading.Event) -> None:
@@ -162,13 +219,22 @@ def keep(find: Callable[[], int | None], minimized: bool, stop: threading.Event)
                 break
         if not hwnd:
             return
+        found = monitors()
+        log.info("window: screens %s", "; ".join(  # so the next report explains itself (#299)
+            f"{m.rect} work {m.work} at {round(100 * m.dpi / 96)} %" for m in found))  # fmt: skip
+        works = [m.work for m in found]
         saved = Place.from_dict(config.window_place() or {})
-        if saved is not None and visible(saved, screens()):
-            apply(hwnd, saved, minimized)
-            log.info("window: back at %s%s", saved.rect, " (maximised)" if saved.maximized else "")
+        if saved is not None and visible(saved, [m.rect for m in found]):
+            wanted = fit(saved, works)
+            if wanted != saved:
+                log.info("window: saved place %s doesn't fit its screen, now %s", saved.rect,
+                         wanted.rect)  # fmt: skip
+            restore(hwnd, wanted, minimized, stop)
+            saved = wanted
         elif saved is not None:
             log.info("window: saved place %s is off every screen, default place", saved.rect)
-        keeper = Keeper(lambda: read(hwnd), lambda p: config.save_window_place(asdict(p)), saved)
+        keeper = Keeper(lambda: read(hwnd), lambda p: config.save_window_place(asdict(p)), saved,
+                        fit=lambda p: fit(p, works))  # fmt: skip
         _kept.update(hwnd=hwnd, keeper=keeper)
         while not stop.wait(POLL_S):
             keeper.check()
@@ -177,6 +243,26 @@ def keep(find: Callable[[], int | None], minimized: bool, stop: threading.Event)
 
 
 _kept: dict = {}  # the window and its keeper, once found
+
+
+def restore(hwnd: int, wanted: Place, minimized: bool, stop: threading.Event) -> None:
+    """Back at the saved place, checked: moved to a screen with other scaling, the window
+    resizes itself after our move (WM_DPICHANGED, #299). Then it's on the right screen, and a
+    second move sticks."""
+    apply(hwnd, wanted, minimized)
+    if minimized or wanted.maximized:
+        log.info("window: back at %s%s", wanted.rect, " (maximised)" if wanted.maximized else "")
+        return
+    stop.wait(ARRIVE_S)
+    got = read(hwnd)
+    if got is None or got.rect == wanted.rect:
+        log.info("window: back at %s", wanted.rect)
+        return
+    apply(hwnd, wanted)
+    stop.wait(ARRIVE_S / 2)
+    again = read(hwnd)
+    log.info("window: asked %s, got %s, after a second move %s", wanted.rect, got.rect,
+             again.rect if again else None)  # fmt: skip
 
 
 def reset() -> bool:

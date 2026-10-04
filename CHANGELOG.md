@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · The window fits its screen again (#299)
+- YapTracker no longer comes back taller than its screen: it never opens bigger than the screen it's on, the title bar stays reachable, and on a screen with different scaling it gets moved a second time to land where you left it.
+
 ### 2026-10-04 · Repeats keep their neighbours (#296)
 - When someone says the same thing again a few seconds later, the repeat and the lines in between are all kept. Before, they could go missing.
 
