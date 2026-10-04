@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Lighter match detection (#303)
+- YapTracker looks for the hero-select screen every few seconds instead of every second (every 5 s in a match, 2 s between matches). It still catches every match start and uses about 2 % less of a CPU core.
+
 ### 2026-10-04 · The window fits its screen again (#299)
 - YapTracker no longer comes back taller than its screen: it never opens bigger than the screen it's on, the title bar stays reachable, and on a screen with different scaling it gets moved a second time to land where you left it.
 
