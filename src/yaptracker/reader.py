@@ -14,6 +14,7 @@ from collections.abc import Callable
 import numpy as np
 
 from yaptracker import channels, glyphs, priority
+from yaptracker.cpu_parts import CPU
 from yaptracker.dedup import FADE_S, YAP_KINDS, Dedup, Yap, match_key
 from yaptracker.identity import Identity
 from yaptracker.input_row import without_input
@@ -218,6 +219,7 @@ class ChatReader:
             self._pictures.save(self._stored[yap.id], yap.first_seen, image, yap.last.box)
 
     def _count(self, spent: float) -> None:
+        CPU.add("reading", spent)  # the per-part line (#302)
         self.read_frames += 1
         self.busy_s += spent
         self._load_busy += spent

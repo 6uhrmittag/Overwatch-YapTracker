@@ -15,6 +15,7 @@ from nicegui.run import io_bound
 from yaptracker import autostart as start_with_windows
 from yaptracker import config, demo, paths, runtime, system_info
 from yaptracker.capture.watcher import CaptureWatcher
+from yaptracker.cpu_parts import CPU
 from yaptracker.ui import shell
 
 TITLE = "YapTracker"
@@ -94,7 +95,8 @@ def _watch_for_overwatch(dev: bool) -> None:
     def on_frame(frame) -> None:  # not while paused: the watcher drops those frames (#20)
         size = runtime.window_size
         text_scale = size[1] / 1440 if size else None  # the strip outside matches is taller
-        changed = changes.update(frame.image, text_scale)
+        with CPU.part("change detection"):  # where the CPU goes (#302)
+            changed = changes.update(frame.image, text_scale)
         again = runtime.reader is not None and runtime.reader.wants_reread()  # weak lines (#195)
         if (changed or again) and runtime.reader is not None:
             runtime.reader.offer(frame.image)  # new text: read, dedup and store it (#108)
@@ -143,8 +145,10 @@ def _watch_for_overwatch(dev: bool) -> None:
     )
     end_screen = EndScreen(read_line, match_over)
 
-    def fps_state() -> str:  # one row each of the FPS test (#187)
-        return "paused" if runtime.pause.paused else "running"
+    def fps_state() -> str:  # one row each of the FPS test (#187), and where in the evening
+        playing = runtime.matches is not None and runtime.matches.running  # menus: 60 fps (#302)
+        paused = "paused" if runtime.pause.paused else "running"
+        return f"{paused}, {'in match' if playing else 'between matches'}"
 
     fps_meter = FpsMeter(read_line, fps_state)  # Overwatch's own FPS counter, into the log (#212)
 
@@ -167,12 +171,14 @@ def _watch_for_overwatch(dev: bool) -> None:
 
     def on_signals(frame) -> None:  # also while paused: the next match ends a pause (#20)
         if runtime.debug is not None:  # first, so a start/end sample has what was just read
-            runtime.debug.on_signals(frame.signals, paused=runtime.pause.paused)
-        hero_select.update(frame.signals)
-        end_screen.update(frame.signals)
-        if runtime.window_size is not None:
-            fps_meter.update(frame.signals, runtime.window_size[1])
-        runtime.black.update(frame.signals.get("overview"))
+            with CPU.part("debug samples"):
+                runtime.debug.on_signals(frame.signals, paused=runtime.pause.paused)
+        with CPU.part("match signals"):
+            hero_select.update(frame.signals)
+            end_screen.update(frame.signals)
+            if runtime.window_size is not None:
+                fps_meter.update(frame.signals, runtime.window_size[1])
+            runtime.black.update(frame.signals.get("overview"))
         if runtime.screen.check(found["window_capture"]) and runtime.watcher is not None:
             runtime.watcher.reopen()  # black window: the screen it's on instead (#236)
 
@@ -269,6 +275,12 @@ def _watch_for_overwatch(dev: bool) -> None:
         app.on_shutdown(lambda: bind_hotkeys(False))
 
 
+def debug_part(chat_read: Callable, *read) -> None:
+    """The reader's debug samples count as debug samples, not reading (#302)."""
+    with CPU.part("debug samples"):
+        chat_read(*read)
+
+
 def _open_store() -> Callable[[], None]:
     """The database opens with the app (the smoke test too: it proves SQLite + FTS5 in the exe).
 
@@ -322,7 +334,7 @@ def _open_store() -> Callable[[], None]:
             colours=config.channel_colours,
             save_colours=config.save_channel_colours,
             paused=lambda: runtime.pause.paused,
-            on_read=runtime.debug.chat_read,
+            on_read=lambda *read: debug_part(runtime.debug.chat_read, *read),
             pictures=runtime.pictures,
             players=runtime.players,
             on_player=runtime.familiar.heard,
