@@ -206,6 +206,28 @@ def test_a_friend_coming_online_is_no_familiar_face(store):
     assert len(heard) == 1
 
 
+def test_a_friend_list_notice_is_nobody_met(store):
+    """#306: "[x] stopped playing Overwatch." fired a card. A system line never links a player:
+    no card, no new player, no "last seen"."""
+    from yaptracker.players import PlayerMatcher
+
+    hello, notices = BLACK.copy(), BLACK.copy()
+    reads = {id(hello): [line("[Pal]: hi")],
+             id(notices): [line("[Pal]: hi"), line("[Pal] stopped playing Overwatch.", y=50),
+                           line("[Stranger] started spectating.", y=100)]}  # fmt: skip
+    heard = []
+    reader, tracker = reader_for(store, reads, players=PlayerMatcher(store, lambda: Identity()),
+                                 on_player=lambda player, match: heard.append(player))  # fmt: skip
+    reader.read_frame(1000.0, hello)
+    reader.read_frame(1005.0, notices)  # the hello still on screen
+    assert len(heard) == 1  # the hello
+    assert store._read("SELECT display_name, last_seen FROM players") == [("Pal", 1000.0)]
+    assert [(m.channel, m.player_id) for m in store.messages(tracker.match_id)][1:] == [
+        ("system", None),
+        ("system", None),
+    ]
+
+
 CHAT_CLOSED = Path(__file__).parent / "fixtures" / "dedup" / "179-chat-closed.json"
 
 

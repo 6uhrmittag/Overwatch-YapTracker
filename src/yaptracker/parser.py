@@ -38,7 +38,8 @@ _SYSTEM_NAMED = re.compile(r"^\[(?P<name>[^\]]+)\]\s+(?P<text>[^:：\s].*)$")
 # The few system lines with a [Name] in front (#13, #184). Any other "[Name] text" is typed
 # chat whose colon OCR lost ("[Name] WW", "[Name] fun game :3").
 _NAMED_SYSTEM = (
-    r"started playing\b",
+    r"(?:started|stopped) playing\b",  # a friend coming online or going offline (#306)
+    r"started spectating\b",  # often in the debug samples (#306)
     r"(?:has )?joined the (?:game|group)\b",
     r"(?:has )?left the (?:game|group)\b",
     r"is now (?:online|offline|the group leader)\b",

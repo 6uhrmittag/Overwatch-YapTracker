@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Friend-list notices aren't familiar faces (#306)
+- "[Name] stopped playing Overwatch." and "[Name] started spectating." are system lines now: no more "Look who's back!" card for a friend going offline. System lines never count as meeting someone, and the ones already stored are fixed at the next start.
+
 ### 2026-10-04 · Hero select on bright maps (#300)
 - Matches on very bright maps start at hero select again, even when HDR washes out the "ASSEMBLE YOUR TEAM" banner: YapTracker also knows the "F1 HERO DETAILS" hint at the bottom of the screen, so these matches show their mode in Sessions like the others.
 

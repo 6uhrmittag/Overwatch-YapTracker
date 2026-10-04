@@ -110,4 +110,16 @@ V6 = """
 ALTER TABLE chat_messages ADD COLUMN channel_ocr TEXT;
 """
 
-MIGRATIONS = [V1, V2, V3, V4, V5, V6]
+# Friend-list notices stored as chat before #306 ("[x] stopped playing Overwatch.",
+# "[x] started spectating.") are system lines; lines fixed by hand stay as they are. And no
+# system line belongs to a player: it's nothing they said, and no match met together.
+V7 = """
+UPDATE chat_messages
+SET channel = 'system', text = '[' || speaker_raw || '] ' || text
+WHERE channel != 'system' AND speaker_raw IS NOT NULL AND edited_at IS NULL
+  AND channel_ocr IS NULL
+  AND (text LIKE 'stopped playing%' OR text LIKE 'started spectating%');
+UPDATE chat_messages SET player_id = NULL WHERE channel = 'system';
+"""
+
+MIGRATIONS = [V1, V2, V3, V4, V5, V6, V7]

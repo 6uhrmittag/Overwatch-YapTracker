@@ -205,8 +205,10 @@ class ChatReader:
                 self._rereads_left = REREADS
 
     def _player(self, yap: Yap, ts: float) -> int | None:
-        """The player for the yap's best reading; linked again only when the speaker changed."""
-        speaker = yap.best.speaker
+        """The player for the yap's best reading; linked again only when the speaker changed.
+        Nobody for a system line: "[x] stopped playing" is the friend list, not meeting x (#306).
+        """
+        speaker = yap.best.speaker if yap.best.channel != "system" else None
         known = self._speakers.get(yap.id)
         if known is not None and known[0] == speaker:
             return known[1]
