@@ -135,6 +135,11 @@ def has_umlaut_dots(crop: np.ndarray) -> bool:
     """Two dots side by side right above one letter (ä ö ü), in a line crop (#247): the default
     model drops the dots, so its text can't tell; the picture can. Not the dots of "ii" (each
     sits on its own thin stem), not a colon (stacked), not quotes (no letter below)."""
+    return bool(umlaut_dots(crop, first_only=True))
+
+
+def umlaut_dots(crop: np.ndarray, first_only: bool = False) -> list[float]:
+    """The x centre of every umlaut's dot pair in a line crop, left to right (#266)."""
     import cv2
 
     hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
@@ -149,6 +154,7 @@ def has_umlaut_dots(crop: np.ndarray) -> bool:
     dots = [b for b in blobs if 3 <= b[2] <= 0.22 * h and 3 <= b[3] <= 0.22 * h
             and b[4] >= 0.7 * b[2] * b[3]]  # fmt: skip
     bodies = [b for b in blobs if b[3] > 0.22 * h]
+    found: list[float] = []
     for a in dots:
         for b in dots:
             gap = b[0] - (a[0] + a[2])
@@ -161,11 +167,17 @@ def has_umlaut_dots(crop: np.ndarray) -> bool:
             left, right, low = a[0], b[0] + b[2], max(a[1] + a[3], b[1] + b[3])
             if any(c[0] <= left + 1 and c[0] + c[2] >= right - 1 and 0 <= c[1] - low <= 0.25 * h
                    for c in bodies):  # fmt: skip
-                return True
-    return False
+                centre = (left + right) / 2
+                if all(abs(centre - x) > 0.25 * h for x in found):
+                    found.append(centre)
+                if first_only:
+                    return found
+    return sorted(found)
 
 
 _PLAIN = str.maketrans("äöüÄÖÜ", "aouAOU")
+_DOTTED = str.maketrans("aouAOU", "äöüÄÖÜ")
+_LONG_RUN = re.compile(r"([aouAOU])\1\1")
 
 
 def _runs(text: str) -> list[tuple[str, int]]:
@@ -216,9 +228,38 @@ class _ReadTwice:
             return ours, ours_s
         self.latin_reads += 1
         latin, latin_s = self._latin(crops, return_word_box)
-        picked = [((keep_repeats(a[0], b[0]),) + tuple(b[1:])) if _has_accent(b[0]) else a
-                  for a, b in zip(ours, latin, strict=True)]  # fmt: skip
+        picked = []
+        for crop, a, b in zip(crops, ours, latin, strict=True):
+            if not _has_accent(b[0]):
+                picked.append(a)
+                continue
+            text = keep_repeats(a[0], b[0])
+            # Squeezed runs it can't line up (#266): only for a long run of one vowel, the case
+            # the Latin model squeezes ("täääät"); elsewhere its reading is the better one.
+            if text == b[0] and len(b[0]) < len(a[0]) and _LONG_RUN.search(a[0]):
+                text = self._dotted(crop) or text
+            picked.append((text,) + tuple(b[1:]))
         return picked, ours_s + latin_s
+
+    def _dotted(self, crop) -> str | None:
+        """The default reading (every letter, no dots) with ä ö ü wherever the picture has a
+        dot pair above an a, o or u (#266): "täääätüüüü" when the Latin model squeezed it to
+        "ttüü". Each letter's place comes from the column the model decoded it at."""
+        dots = umlaut_dots(crop)
+        if not dots:
+            return None
+        ((text, _score, info),), _ = self.default([crop], True)
+        frames, cols = info[0], [c for word in info[2] for c in word]
+        if not frames or len(cols) != len(text):
+            return None  # spaces aren't decoded columns here: no safe letter-to-place map
+        places = [(c + 0.5) / frames * crop.shape[1] for c in cols]
+        out = list(text)
+        for x in dots:
+            i = min(range(len(places)), key=lambda k: abs(places[k] - x))
+            if out[i] in "aouAOU":
+                out[i] = out[i].translate(_DOTTED)
+        dotted = "".join(out)
+        return dotted if dotted != text else None
 
 
 class RapidOcrEngine:
