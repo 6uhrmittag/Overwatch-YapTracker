@@ -23,6 +23,11 @@ HEROSELECT_INFO = RelativeRegion.from_pixels(Region(60, 60, 780, 240), 2560, 144
 # "PREPARE TO ATTACK 0:44" box, top centre: also at round starts, so only a backup (see below).
 ROUND_START = RelativeRegion.from_pixels(Region(1080, 30, 400, 75), 2560, 1440)
 ROUND_START_HEIGHT = 75  # px at 1440p, for has_bright_text
+# "F1 HERO DETAILS", bottom left: a dark key cap and shadowed letters that HDR doesn't wash out
+# (#300). Changing hero inside a match shows it too, so it only confirms a start (see below).
+HERO_DETAILS = RelativeRegion.from_pixels(Region(40, 1355, 300, 60), 2560, 1440)
+HERO_DETAILS_TEXT = "HERO DETAILS"
+DETAILS_FRESH_S = 60.0  # a sighting this old still confirms a match the chat started
 # End of a match (#94): the centre banner, and the title strip in the top-left corner.
 END_BANNER = RelativeRegion.from_pixels(Region(900, 590, 820, 250), 2560, 1440)
 END_TITLE = RelativeRegion.from_pixels(Region(40, 30, 900, 75), 2560, 1440)
@@ -41,6 +46,7 @@ def signal_regions(width: int, height: int) -> dict[str, Region]:
         "heroselect": HEROSELECT.to_pixels(width, height),
         "heroselect_info": HEROSELECT_INFO.to_pixels(width, height),
         "round_start": ROUND_START.to_pixels(width, height),
+        "hero_details": HERO_DETAILS.to_pixels(width, height),
         "end_banner": END_BANNER.to_pixels(width, height),
         "end_title": END_TITLE.to_pixels(width, height),
     }
@@ -92,6 +98,13 @@ def is_banner(text: str) -> bool:
     letters = _letters(text)
     score = fuzz.ratio(letters, _letters(BANNER_TEXT))
     return score >= MATCH or (score >= LOOSE and "TEAM" in letters)
+
+
+def is_hero_details(text: str) -> bool:
+    """The key hint, with or without its key: real 4K HDR reads "EHERO ETAILS", "HEROBETALS"
+    (#300). Part of the text is enough, but never a lone word like "HERO"."""
+    letters = _letters(text)
+    return len(letters) >= 8 and fuzz.partial_ratio(_letters(HERO_DETAILS_TEXT), letters) >= MATCH
 
 
 def is_round_start(text: str) -> bool:
@@ -150,19 +163,24 @@ class HeroSelect:
         clock: Callable[[], float] = time.monotonic,
         rearm_s: float = REARM_S,
         match_running: Callable[[], bool] = lambda: False,
+        adoptable: Callable[[], bool] = lambda: False,
     ) -> None:
         self._read_line, self._read_lines = read_line, read_lines
-        self._match_running = match_running
+        self._match_running, self._adoptable = match_running, adoptable
         self._on_start, self._clock, self._rearm_s = on_start, clock, rearm_s
         self._active = False
         self._last_seen = 0.0
         self._read_at = -IN_MATCH_EVERY_S  # the last banner read (#303)
+        self._details_at: float | None = None  # "HERO DETAILS" seen without the banner (#300)
+        self._details_info: tuple[str | None, str | None] = (None, None)
 
     def update(self, signals: dict[str, np.ndarray]) -> None:
         strip = signals.get("heroselect")
         if strip is None:
             return
         now = self._clock()
+        if self._confirm(now):
+            return
         # Hero select is on screen 20 s and more, and inside a running match it can only come
         # after its end: one look every few seconds finds it. The gate passes on most frames,
         # and each pass is a ~50 ms read (#303: 3.0 % of a core before, 1 read a second).
@@ -183,6 +201,7 @@ class HeroSelect:
                 info = signals.get("heroselect_info")
                 self._on_start(*parse_info(self._read_lines(info) if info is not None else []))
             return
+        self._look_for_details(signals, now)
         # Backup: hero select was missed (e.g. YapTracker started late), the round start isn't.
         # Only when no match is running - the same box also shows at later round starts.
         box = signals.get("round_start")
@@ -197,6 +216,36 @@ class HeroSelect:
             self._on_start(None, None)
         elif self._active and now - self._last_seen >= self._rearm_s:
             self._active = False
+
+    def _look_for_details(self, signals: dict[str, np.ndarray], now: float) -> None:
+        """On a bright map HDR washes the banner out to white on white, but not the key hint
+        "F1 HERO DETAILS" at the bottom (#300). Changing hero in a match or the Practice Range
+        shows it too, so it never starts a match: it only confirms one the chat starts."""
+        box = signals.get("hero_details")
+        if self._active or box is None or (self._match_running() and not self._adoptable()):
+            return
+        if not has_bright_text(box):
+            return
+        self._read_at = now
+        if not is_hero_details(self._read_line(box)):
+            return
+        if self._details_at is None or now - self._details_at > DETAILS_FRESH_S:
+            info = signals.get("heroselect_info")  # once per hero select: usually washed out too
+            self._details_info = parse_info(self._read_lines(info) if info is not None else [])
+        self._details_at = now
+
+    def _confirm(self, now: float) -> bool:
+        """A match the chat started takes the hero select seen just before or after it."""
+        if (
+            self._active
+            or self._details_at is None
+            or now - self._details_at > DETAILS_FRESH_S
+            or not self._adoptable()
+        ):
+            return False
+        self._active, self._last_seen, self._details_at = True, now, None
+        self._on_start(*self._details_info)
+        return True
 
 
 class EndScreen:

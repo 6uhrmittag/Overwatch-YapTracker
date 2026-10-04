@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Hero select on bright maps (#300)
+- Matches on very bright maps start at hero select again, even when HDR washes out the "ASSEMBLE YOUR TEAM" banner: YapTracker also knows the "F1 HERO DETAILS" hint at the bottom of the screen, so these matches show their mode in Sessions like the others.
+
 ### 2026-10-04 · Lighter match detection (#303)
 - YapTracker looks for the hero-select screen every few seconds instead of every second (every 5 s in a match, 2 s between matches). It still catches every match start and uses about 2 % less of a CPU core.
 

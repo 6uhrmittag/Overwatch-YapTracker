@@ -140,8 +140,15 @@ def _watch_for_overwatch(dev: bool) -> None:
             if was_running and runtime.debug is not None:
                 runtime.debug.match_event("end")
 
+    def chat_started_match() -> bool:
+        return runtime.matches is not None and runtime.matches.adoptable()
+
     hero_select = HeroSelect(
-        read_line, read_lines, hero_select_started, match_running=match_running
+        read_line,
+        read_lines,
+        hero_select_started,
+        match_running=match_running,
+        adoptable=chat_started_match,
     )
     end_screen = EndScreen(read_line, match_over)
 
