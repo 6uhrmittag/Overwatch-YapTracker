@@ -13,7 +13,7 @@ from yaptracker.capture.source import Region
 pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="WGC needs Windows")
 
 
-def test_wgc_captures_a_window_cropped_to_the_region():
+def test_wgc_captures_a_window_cropped_to_the_region(caplog):
     from yaptracker.capture.wgc import WgcFrameSource
 
     notepad = subprocess.Popen(["notepad.exe"])
@@ -36,9 +36,12 @@ def test_wgc_captures_a_window_cropped_to_the_region():
             from yaptracker.capture import wgc
 
             # Started with only what this Windows can do (#216): on Server 2022 / Windows 10
-            # without the rate setting, gated by us.
+            # without the rate setting, gated by us. A runner can still refuse settings its
+            # build should have: then the source starts without any and says so (#273).
             _, dropped = wgc.capture_options(wgc.windows_build(), 4)
-            assert wgc.CAPTURE.cannot == [wgc.CANNOT[name] for name in dropped]
+            refused = any("capture didn't start with" in r.getMessage() for r in caplog.records)
+            expected = list(wgc.CANNOT.values()) if refused else [wgc.CANNOT[n] for n in dropped]
+            assert wgc.CAPTURE.cannot == expected
             frame = next(source.frames())
             # Calibrate's screenshot of the whole window (#112). WGC only sends a frame when
             # the window repaints - Overwatch always does, a resting Notepad needs a nudge.
