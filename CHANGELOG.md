@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Callouts read right (#290)
+- Callouts are written as the comms wheel says them: "Eall back!" becomes Fall back!, "Enemy llari!" Enemy Illari!, and pieces like "My" or "/ Enemy" are no longer lines of their own.
+- A callout read once with a garbled name is the same line as the clear one, not a second yap.
+
 ### 2026-10-04 · Real map, mode and hero names (#276)
 - Maps, modes and heroes are matched against Overwatch's real names: "ESPERANCA" becomes Esperança, "Zenyata" Zenyatta, and garbage like "INRONKED ALU9CK" is left out instead of stored.
 
