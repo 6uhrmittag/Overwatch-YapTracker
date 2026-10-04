@@ -119,6 +119,11 @@ html, body { background: var(--yt-night); }
   .yt-line--system .yt-line-text { color: var(--yt-system); font-style: italic; }
   /* Comms-wheel callouts (#185): there, but quieter than typed chat */
   .yt-line--callout { opacity: .62; padding-top: 3px; padding-bottom: 3px; }
+  /* Callouts hidden unless switched on (#289); the count says how many. */
+  .yt-hide-callouts .yt-line--callout { display: none; }
+  .yt-callout-toggle { display: flex; align-items: center; gap: 6px; }
+  .yt-callout-toggle .yt-switch-row { padding: 0 2px; gap: 6px; }
+  .yt-legend .yt-callout-toggle .yt-switch-label, .yt-legend .yt-callout-toggle .yt-meta { font-size: 13px; }
   .yt-line--callout .yt-line-name, .yt-line--callout .yt-line-text { font-size: 14px; }
   .yt-line-hero { flex-shrink: 0; font-size: 13px; color: var(--yt-faint); }
   .yt-line-times { flex-shrink: 0; padding: 0 7px; border-radius: 999px; background: var(--yt-panel-raised); font-size: 12px; font-weight: 800; color: var(--yt-muted); }

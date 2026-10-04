@@ -271,6 +271,18 @@ def save_window_place(place: dict | None, path: Path | None = None) -> None:
     _save(path, data)
 
 
+def show_callouts(path: Path | None = None) -> bool:
+    """Comms-wheel callouts in Live and transcripts (#289): off unless you switch them on."""
+    return _load(path or paths.config_file()).get("show_callouts", False)
+
+
+def save_show_callouts(on: bool, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["show_callouts"] = on
+    _save(path, data)
+
+
 def line_pictures(path: Path | None = None) -> bool:
     """Keep the picture of every chat line (#120); on unless switched off."""
     return _load(path or paths.config_file()).get("line_pictures", True)

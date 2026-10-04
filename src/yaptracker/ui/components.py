@@ -159,3 +159,32 @@ def when(ts: float | None, now: float | None = None) -> str:
 def count(n: int, one: str, many: str) -> str:
     """'1 match', '2 matches', '0 yaps'."""
     return f"{n} {one if n == 1 else many}"
+
+
+def callout_toggle(feed: ui.element) -> Callable[[int], None]:
+    """The Callouts switch for a chat feed (#289): comms-wheel callouts hidden by default, the
+    choice remembered for Live and transcripts. Returns count(n) to say how many are hidden."""
+    from yaptracker import config
+
+    shown = {"on": config.show_callouts()}
+    with ui.element("div").classes("yt-callout-toggle").mark("callout-toggle"):
+        switch("Callouts", shown["on"], lambda on: flip(on)).mark("callouts-switch")
+        hidden = ui.label().classes("yt-meta").mark("callout-count")
+    feed.classes(**{"remove" if shown["on"] else "add": "yt-hide-callouts"})
+    counted = {"n": 0}
+
+    def say() -> None:
+        n = counted["n"]
+        hidden.set_text("" if shown["on"] or not n else f"+{n} callout{'s' if n != 1 else ''}")
+
+    def flip(on: bool) -> None:
+        shown["on"] = on
+        config.save_show_callouts(on)
+        feed.classes(**{"remove" if on else "add": "yt-hide-callouts"})
+        say()
+
+    def count(n: int) -> None:
+        counted["n"] = n
+        say()
+
+    return count
