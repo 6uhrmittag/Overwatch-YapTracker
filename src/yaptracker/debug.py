@@ -178,6 +178,23 @@ class DebugSamples:
             shutil.copy(picture, folder / f"{stem}{picture.suffix}")
         return target
 
+    def channel_correction(self, message, channel: str, picture: Path | None) -> Path | None:
+        """A line's channel fixed by hand (#283): ground truth for the icon/colour check
+        (#173, #228), next to the text corrections."""
+        if not self._enabled():
+            return None
+        folder = self._folder / "corrections"
+        folder.mkdir(parents=True, exist_ok=True)
+        stem = f"{time.strftime('%Y-%m-%d-%H%M%S', time.localtime(message.ts))}-{message.id}-ch"
+        record = {"id": message.id, "ts": message.ts, "speaker": message.speaker_raw,
+                  "text": message.text, "ocr_channel": message.channel,
+                  "fixed_channel": channel}  # fmt: skip
+        target = folder / f"{stem}.json"
+        target.write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
+        if picture is not None and picture.exists():
+            shutil.copy(picture, folder / f"{stem}{picture.suffix}")
+        return target
+
     def clean_up(self) -> None:
         """Day folders older than 14 days go, then the oldest samples until under the cap."""
         if not self._folder.exists():

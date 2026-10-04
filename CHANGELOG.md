@@ -7,6 +7,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-04 · Real map, mode and hero names (#276)
 - Maps, modes and heroes are matched against Overwatch's real names: "ESPERANCA" becomes Esperança, "Zenyata" Zenyatta, and garbage like "INRONKED ALU9CK" is left out instead of stored.
 
+### 2026-10-04 · Fix a line's channel (#283)
+- Click a chat line and pick Team, Match, Group or System when YapTracker got the channel wrong. Undo is right there, and a later reading never changes it back.
+
 ### 2026-10-04 · Heart a match (#282)
 - Heart a match with one click in Live, while it runs or right after, to find it again: Sessions shows the heart, and you can heart a match there afterwards too.
 

@@ -150,9 +150,11 @@ def _transcript(match, number: int, back) -> None:
         picker.start_button()
     picker.bar()
 
+    rows: dict[int, dict] = {}  # message id -> its row, so a channel fix shows at once (#283)
+
     def clicked(message, shift: bool) -> None:
         if not picker.clicked(message, shift):
-            show_picture(message)
+            show_picture(message, rows.get(message.id))
 
     verdicts = {p.id: p.verdict for p in store.players()}
     messages = store.messages(match.id)
@@ -189,5 +191,6 @@ def _transcript(match, number: int, back) -> None:
                 else:
                     row = chat_line(item, match.started_at, verdicts.get(item.player_id),
                                     on_click=lambda shift, m=item: clicked(m, shift))  # fmt: skip
+                    rows[item.id] = row
                     picker.add(item, row["line"])
                     last = (item, row)
