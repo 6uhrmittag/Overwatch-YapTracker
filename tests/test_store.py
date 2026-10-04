@@ -16,7 +16,7 @@ def store(tmp_path):
 
 def test_a_new_database_has_the_latest_schema_in_wal_mode(tmp_path):
     conn = db.connect(tmp_path / "yaptracker.db", tmp_path / "backups")
-    assert db.version(conn) == db.LATEST == 6  # channel_ocr (#283)
+    assert db.version(conn) == db.LATEST == 7  # friend-list notices fixed (#306)
     assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     assert {"sessions", "matches", "players", "player_aliases", "chat_messages", "capture_gaps",
@@ -124,4 +124,34 @@ def test_a_v2_database_gets_has_glyphs_and_keeps_its_yaps(tmp_path, monkeypatch)
     store = Store.open(path, backups)
     store.add_message(ts=2.0, channel="match", text="gg ◇", has_glyphs=True)
     assert [(m.text, m.has_glyphs) for m in store.search("gg")] == [("gg", 0), ("gg ◇", 1)]
+    store.close()
+
+
+def test_friend_list_notices_stored_as_chat_become_system_lines(tmp_path, monkeypatch):
+    """#306: rows from before the fix; a line fixed by hand stays as it is."""
+    INSERT = ("INSERT INTO chat_messages (ts, channel, speaker_raw, player_id, text, edited_at) "
+              "VALUES (1.0, ?, ?, 1, ?, ?)")  # fmt: skip
+    path, backups = tmp_path / "yaptracker.db", tmp_path / "backups"
+    with monkeypatch.context() as v6_app:
+        v6_app.setattr(db, "MIGRATIONS", schema.MIGRATIONS[:6])
+        v6_app.setattr(db, "LATEST", 6)
+        old = db.connect(path, backups)
+        old.execute("INSERT INTO players (id, display_name) VALUES (1, 'Pal')")
+        for speaker, text, edited in (("Pal", "stopped playing Overwatch.", None),
+                                      ("Pal", "started spectating.", None),
+                                      ("Pal", "stopped playing Overwatch.", 5.0),
+                                      ("Pal", "stopped playing? no way", None)):  # fmt: skip
+            old.execute(INSERT, ("team", speaker, text, edited))
+        old.execute(INSERT, ("system", "Pal", "[Pal] joined the game.", None))
+        old.close()
+    store = Store.open(path, backups)
+    rows = store._read("SELECT channel, player_id, text FROM chat_messages ORDER BY id")
+    assert rows == [
+        ("system", None, "[Pal] stopped playing Overwatch."),
+        ("system", None, "[Pal] started spectating."),
+        ("team", 1, "stopped playing Overwatch."),  # edited by hand
+        ("system", None, "[Pal] stopped playing? no way"),
+        ("system", None, "[Pal] joined the game."),  # no match met together
+    ]
+    assert [m.text for m in store.search("spectating")] == ["[Pal] started spectating."]
     store.close()

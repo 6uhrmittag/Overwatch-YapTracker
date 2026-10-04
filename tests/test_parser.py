@@ -96,7 +96,8 @@ def test_a_lost_colon_is_chat_not_a_system_line():
         line = _classify(f"[Pickle] {said}", 0.9, Region(0, 0, 10, 10))
         assert (line.kind, line.speaker, line.text) == ("message", "Pickle", said)
     for system in ("started playing Overwatch.", "joined the game.", "left the game.",
-                   "invited you to a group!"):  # fmt: skip
+                   "invited you to a group!", "stopped playing Overwatch.",  # (#306)
+                   "started spectating."):  # fmt: skip
         assert _classify(f"[Pickle] {system}", 0.9, Region(0, 0, 10, 10)).kind == "system"
     assert _classify("[Pickle]: : WW", 0.9, Region(0, 0, 10, 10)).text == "WW"
     assert _classify("[Pickle]: :3", 0.9, Region(0, 0, 10, 10)).text == ":3"  # an emoticon
