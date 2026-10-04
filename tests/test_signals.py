@@ -74,12 +74,25 @@ def test_bright_text_check_skips_empty_strips():
 
 
 def test_mode_and_map_come_from_the_corner():
-    assert parse_info(["UNRANKED", "ATTACK", "ESPERANÇA"]) == ("UNRANKED", "ESPERANÇA")
-    # Real OCR reads (#93): side glued to the mode, a letter wrong, no cedilla.
-    assert parse_info(["UINRANKED ATTACK", "ESPERANCA"]) == ("UNRANKED", "ESPERANCA")
-    assert parse_info(["LINRANKED DEFEND", "EICHENWALDE"]) == ("UNRANKED", "EICHENWALDE")
-    assert parse_info(["MYSTERY HEROES", "KINGS ROW"]) == ("MYSTERY HEROES", "KINGS ROW")
+    assert parse_info(["UNRANKED", "ATTACK", "ESPERANÇA"]) == ("UNRANKED", "Esperança")
+    # Real OCR reads (#93): side glued to the mode, a letter wrong, no cedilla. Maps come back
+    # as the game lists spell them (#276).
+    assert parse_info(["UINRANKED ATTACK", "ESPERANCA"]) == ("UNRANKED", "Esperança")
+    assert parse_info(["LINRANKED DEFEND", "EICHENWALDE"]) == ("UNRANKED", "Eichenwalde")
+    assert parse_info(["MYSTERY HEROES", "KINGS ROW"]) == ("MYSTERY HEROES", "King's Row")
     assert parse_info([]) == (None, None)
+
+
+def test_garbage_modes_and_maps_are_none_not_stored_as_read():
+    """#252's log: "UINRH" (Route 66), "INRONKED ALU9CK", "NEPAL NE", "66", a sub-map."""
+    assert parse_info(["UINRH", "ROUTE 66"]) == (None, "Route 66")
+    assert parse_info(["INRONKED ALU9CK", "66"]) == (None, None)
+    assert parse_info(["UNRANKED ATTACK", "NEPAL NE"]) == ("UNRANKED", "Nepal")
+    assert parse_info(["COMPETITIVE", "LIJIANGTOWER·NIGHT MARKET"]) == (
+        "COMPETITIVE",
+        "Lijiang Tower",
+    )
+    assert parse_info(["SCHNELLES SPIEL ANGRIFF", "PARAISO"]) == ("SCHNELLES SPIEL", "Paraíso")
 
 
 def test_single_letters_never_count_as_the_banner():
@@ -98,7 +111,7 @@ def test_one_hero_select_starts_exactly_one_match_with_mode_and_map():
     for t in range(30):  # 30 s of hero select, read once a second
         clock.now = t
         hs.update({"heroselect": banner, "heroselect_info": info})
-    assert starts == [("UNRANKED", "ESPERANÇA")]
+    assert starts == [("UNRANKED", "Esperança")]
 
 
 def test_ocr_slips_still_count_and_other_text_does_not():
@@ -180,7 +193,7 @@ def test_real_recording_of_two_matches_gives_exactly_two_starts(monkeypatch):
             texts[id(crops[name])] = tick[name]
         lines[id(crops["heroselect_info"])] = tick.get("heroselect_info", [])
         hs.update(crops)
-    assert starts == [(88.0, "UNRANKED", "ESPERANCA"), (769.0, "UNRANKED", "EICHENWALDE")]
+    assert starts == [(88.0, "UNRANKED", "Esperança"), (769.0, "UNRANKED", "Eichenwalde")]
 
 
 def test_end_crops_scale_with_the_window():
@@ -297,8 +310,8 @@ def test_real_recording_of_two_matches_gives_two_matches_with_outcomes(monkeypat
     rows = store._read("SELECT started_at, ended_at, outcome, source, map FROM matches ORDER BY id")
     store.close()
     assert [(s - t0, e - t0, o, src, m) for s, e, o, src, m in rows] == [
-        (88.0, 657.0, "victory", "heroselect", "ESPERANCA"),
-        (769.0, 1348.0, "defeat", "heroselect", "EICHENWALDE"),
+        (88.0, 657.0, "victory", "heroselect", "Esperança"),
+        (769.0, 1348.0, "defeat", "heroselect", "Eichenwalde"),
     ]
 
 
@@ -333,16 +346,16 @@ def test_a_washed_out_hdr_banner_still_passes_the_pixel_check():
 def test_4k_hdr_readings_from_a_real_evening():
     assert all(is_banner(s["banner"]) for s in FOUR_K["starts"])
     assert [parse_info(s["info"]) for s in FOUR_K["starts"]] == [
-        (None, "NEW QUEEN STREET"),  # "O ATTACK": the queue name was washed out, no guess
-        ("UNRANKED", "ROUTE 66"),
-        ("UNRANKED", "HOLLYWOOD"),
-        ("UNRANKED", "ESPERANÇA"),
-        ("UNRANKED", "JUNKERTOWN"),
+        (None, "New Queen Street"),  # "O ATTACK": the queue name was washed out, no guess
+        ("UNRANKED", "Route 66"),
+        ("UNRANKED", "Hollywood"),
+        ("UNRANKED", "Esperança"),
+        ("UNRANKED", "Junkertown"),
     ]
     assert [banner_outcome(e["banner"]) for e in FOUR_K["ends"]] == [
         "defeat", "victory", "defeat", "victory", "victory", "victory", "defeat", "victory",
     ]  # fmt: skip
-    assert parse_info(["STADIUM ATTACK", "COLOSSEO"]) == ("STADIUM", "COLOSSEO")
+    assert parse_info(["STADIUM ATTACK", "COLOSSEO"]) == ("STADIUM", "Colosseo")
 
 
 def test_a_match_without_hero_select_saves_a_look_back():

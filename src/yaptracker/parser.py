@@ -18,6 +18,7 @@ import re
 import statistics
 from dataclasses import dataclass, replace
 
+from yaptracker import game_lists
 from yaptracker.capture.source import Region
 from yaptracker.glyphs import GLYPH
 from yaptracker.ocr.engine import OcrLine
@@ -118,7 +119,8 @@ def _classify(text: str, confidence: float, box: Region) -> ChatLine:
         # Its icon is always there, even when the picture check missed it (#259).
         if said.lower() in ICON_CALLOUTS:
             said = f"{said} {GLYPH}"
-        return replace(line, kind="comms", channel="team", speaker=m["name"], hero=m["hero"],
+        hero = game_lists.hero(m["hero"]) or m["hero"]  # "Zenyata" -> Zenyatta (#276)
+        return replace(line, kind="comms", channel="team", speaker=m["name"], hero=hero,
                        target=m["target"], text=said)  # fmt: skip
     if (m := _TYPED.match(text)) or (m := _TYPED_NO_BRACKET.match(text)):
         said = _STRAY_COLON.sub("", m["text"].strip())

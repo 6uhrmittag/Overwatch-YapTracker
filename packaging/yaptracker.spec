@@ -17,6 +17,7 @@ a = Analysis(
         # NiceGUI serves its own JS/CSS from the package folder.
         (str(Path(nicegui.__file__).parent), "nicegui"),
         (str(SRC / "yaptracker" / "ui" / "static"), "yaptracker/ui/static"),
+        (str(SRC / "yaptracker" / "data"), "yaptracker/data"),  # game lists (#276)
         (str(SRC / "yaptracker" / "ocr" / "models"), "yaptracker/ocr/models"),  # umlauts, #118
         # OCR models (.onnx) and config.yaml
         *collect_data_files("rapidocr_onnxruntime"),

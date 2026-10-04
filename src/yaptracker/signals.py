@@ -14,6 +14,7 @@ import cv2
 import numpy as np
 from rapidfuzz import fuzz
 
+from yaptracker import game_lists
 from yaptracker.capture.source import Region, RelativeRegion
 
 # Measured on real 2560x1440 hero-select screenshots (#93), kept as fractions of the window.
@@ -30,8 +31,6 @@ OUTCOMES = {"VICTORY": "victory", "DEFEAT": "defeat", "DRAW": "draw"}
 BANNER_TEXT = "ASSEMBLE YOUR TEAM"
 MATCH = 80  # rapidfuzz ratio on the letters only; OCR may lose or swap a letter or two
 # Queue names as Overwatch prints them above the map (the side, ATTACK/DEFEND, follows them).
-MODES = ("UNRANKED", "COMPETITIVE", "QUICK PLAY", "ARCADE", "CUSTOM GAME", "PRACTICE")
-SIDES = ("ATTACK", "DEFEND")  # follow the queue name on the hero-select screen
 REARM_S = 120  # the banner must be gone this long before a new hero select counts
 
 
@@ -128,26 +127,14 @@ def title_end(text: str) -> tuple[bool, str | None]:
 def parse_info(lines: list[str]) -> tuple[str | None, str | None]:
     """(mode, map): the queue name from the top line, the map name from the bottom one.
 
-    OCR reads e.g. ["UINRANKED ATTACK", "ESPERANCA"]: the mode is matched against the known
-    queue names; anything unknown is kept as read rather than guessed.
+    OCR reads e.g. ["UINRANKED ATTACK", "ESPERANCA"]: both are matched against the bundled
+    game lists (#276); what matches nothing is none, never garbage like "INRONKED ALU9CK".
     """
     lines = [line.strip() for line in lines if line.strip()]
     if not lines:
         return None, None
-    top = lines[0].upper()
-    best = max(MODES, key=lambda mode: fuzz.partial_ratio(mode, top))
-    mode = best if fuzz.partial_ratio(best, top) >= MATCH else _without_side(lines[0])
-    return mode, (lines[-1] if len(lines) > 1 else None)
-
-
-def _without_side(text: str) -> str | None:
-    """An unknown queue name without the side after it: "STADIUM ATTACK" -> "STADIUM". Only
-    the side and a stray letter ("O ATTACK", 4K HDR, #170) is no mode at all."""
-    words = [
-        w for w in text.split() if all(fuzz.ratio(_letters(w), side) < MATCH for side in SIDES)
-    ]
-    rest = " ".join(words)
-    return rest if len(_letters(rest)) >= 3 else None
+    map_name = game_lists.map_name(lines[-1]) if len(lines) > 1 else None
+    return game_lists.queue(lines[0]), map_name
 
 
 class HeroSelect:
