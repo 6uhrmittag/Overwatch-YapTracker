@@ -9,6 +9,10 @@ YapTracker itself is MIT licensed (see `LICENSE`). The Windows app bundles the c
 | Barlow Condensed (The Barlow Project Authors) | SIL Open Font License 1.1 | `src/yaptracker/ui/static/fonts/OFL-BarlowCondensed.txt` |
 | Nunito Sans (The Nunito Sans Project Authors) | SIL Open Font License 1.1 | `src/yaptracker/ui/static/fonts/OFL-NunitoSans.txt` |
 
+## Game data
+
+`src/yaptracker/data/game_lists.json` (hero, map and queue names, #276) is generated at build time by `tools/refresh_game_lists.py` from the [OverFast API](https://github.com/TeKrop/overfast-api) (MIT), which collects them from Overwatch's public website. Overwatch and its hero and map names are trademarks of Blizzard Entertainment; YapTracker only uses the names to correct what OCR read.
+
 ## Main Python dependencies
 
 | Package | Used for | License |
