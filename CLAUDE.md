@@ -78,6 +78,11 @@ made.
    and once CI is green (and the closing checklist below is done) squash-merge it with
    `gh pr merge <PR> --squash --delete-branch`. Don't hand the merge back to Marv and
    don't wait for his review: he reviews the pre-release. Never force-push.
+6. **Don't idle while CI runs.** While a PR waits for CI (~4 min), start the next issue on
+   a fresh branch from `main`. Merge strictly in order. Before merging a later PR, merge
+   `origin/main` into its branch (never rebase), resolve `CHANGELOG.md` by keeping both
+   entries (newest first), and wait for its CI to go green again. At most one PR waiting
+   at a time; this is overlap, not parallel lanes.
 
 **Closing an issue — required, every time (Marv tracks progress in the issues):**
 1. **Before merging**, go through the issue's "Done when" checklist and **tick every
