@@ -42,5 +42,30 @@ Expect (Format-PayloadLine ([long](31.2 * 1MB)) ([long](66.4 * 1MB)) (8.4 * 1MB)
     'Payload  [==>--]   46%'
 $all = (Get-Content $script -Raw)
 if ($all -match '[^\x00-\x7F]') { throw 'update.ps1 must stay ASCII (Windows PowerShell 5.1)' }
+# What's new since the installed version (#281): every release in between, newest first.
+$Repo = 'x/y'
+$ue, $mark = [string][char]0x00FC, [string][char]0x25C7
+$rel = @(
+    [pscustomobject]@{ tag_name = 'v0.5.5'; draft = $false; body = "### What's new`n- Five ${ue}ber $mark`n- Behind the scenes: a`n`nUpdate: run it." },
+    [pscustomobject]@{ tag_name = 'v0.5.4'; draft = $true; body = "- Draft" },
+    [pscustomobject]@{ tag_name = 'v0.5.3'; draft = $false; body = "- Three`r`n- Behind the scenes: b" },
+    [pscustomobject]@{ tag_name = 'v0.5.2'; draft = $false; body = "- Two`n- Five ${ue}ber $mark" },
+    [pscustomobject]@{ tag_name = 'v0.5.1'; draft = $false; body = "- One" }
+)
+Expect ((Get-WhatsNew -Releases $rel -Installed 'v0.5.1') -join '|') `
+    ("What's new since v0.5.1 (3 releases):|  - Five ueber <>|  - Three|  - Two|" +
+     "  (+ 2 behind-the-scenes changes)|  All notes: https://github.com/x/y/blob/main/CHANGELOG.md")
+Expect ((Get-WhatsNew -Releases $rel -Installed '') -join '|') `
+    "What's new in v0.5.5:|  - Five ueber <>|  (+ 1 behind-the-scenes change)"
+Expect ((Get-WhatsNew -Releases $rel -Installed 'v0.5.5') -join '|') `
+    "What's new in v0.5.5:|  - Five ueber <>|  (+ 1 behind-the-scenes change)"
+Expect ((Get-WhatsNew -Releases $rel -Installed 'v0.5.3') -join '|') `
+    "What's new since v0.5.3 (1 release):|  - Five ueber <>|  (+ 1 behind-the-scenes change)"
+Expect ((Get-WhatsNew -Releases $rel -Installed 'v0.4.9' -Cap 2) -join '|') `
+    ("What's new since v0.4.9 (more than 4 releases):|  - Five ueber <>|  - Three|  ... and 2 more|" +
+     "  (+ 2 behind-the-scenes changes)|  All notes: https://github.com/x/y/blob/main/CHANGELOG.md")
+Expect (ConvertTo-Ascii ("Gr" + [char]0x00FC + [char]0x00DF + "e " + [char]0x201C + "hi" + [char]0x201D + " " + [char]0x2014 + " ok " + [char]0x4E2D)) `
+    'Gruesse "hi" - ok ?'
+
 Write-Host "Bar lines OK on PowerShell $($PSVersionTable.PSVersion)"
 

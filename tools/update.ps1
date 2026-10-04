@@ -129,6 +129,65 @@ $Repo = '6uhrmittag/Overwatch-YapTracker'
 $AppDir = Join-Path $InstallRoot 'app'
 $ReleaseFile = Join-Path $AppDir 'release.txt'
 
+function ConvertTo-Ascii {
+    # Release notes in the console of Windows PowerShell 5.1 (#281): umlauts spelled out, the
+    # icon mark and typographic quotes and dashes as their plain cousins, anything else '?'.
+    # This file stays ASCII, so the characters are written as their codes.
+    param([string]$Text)
+    $map = @{
+        0x00E4 = 'ae'; 0x00F6 = 'oe'; 0x00FC = 'ue'; 0x00C4 = 'Ae'; 0x00D6 = 'Oe'; 0x00DC = 'Ue'
+        0x00DF = 'ss'; 0x25C7 = '<>'; 0x2018 = "'"; 0x2019 = "'"; 0x201C = '"'; 0x201D = '"'
+        0x2013 = '-'; 0x2014 = '-'; 0x2026 = '...'; 0x00B7 = '-'; 0x2192 = '->'; 0x00E9 = 'e'
+        0x00EB = 'e'; 0x00ED = 'i'; 0x00C9 = 'E'
+    }
+    $out = New-Object System.Text.StringBuilder
+    foreach ($ch in $Text.ToCharArray()) {
+        $code = [int]$ch
+        if ($code -lt 128) { [void]$out.Append($ch) }
+        elseif ($map.ContainsKey($code)) { [void]$out.Append($map[$code]) }
+        else { [void]$out.Append('?') }
+    }
+    return $out.ToString()
+}
+
+function Get-WhatsNew {
+    # What's new since the installed version (#281): the bullets of every release between it
+    # and the new one, newest first, from the release list fetched anyway (no extra call).
+    # "Behind the scenes" bullets become a count, repeats show once, at most $Cap bullets.
+    # Fresh install or the same version again: the newest release's bullets only.
+    param([object[]]$Releases, [string]$Installed, [int]$Cap = 15)
+    $list = @($Releases | Where-Object { -not $_.draft })
+    if ($list.Count -eq 0) { return @() }
+    $newest = $list[0].tag_name
+    $since = $Installed -and $Installed -ne $newest
+    $bullets = New-Object System.Collections.Generic.List[string]
+    $behind, $count, $found = 0, 0, $false
+    foreach ($r in $list) {
+        if ($since -and $r.tag_name -eq $Installed) { $found = $true; break }
+        $count++
+        foreach ($line in ("$($r.body)" -split "`r?`n")) {
+            if ($line -notmatch '^- ') { continue }
+            if ($line -match '^- Behind the scenes') { $behind++; continue }
+            $line = ConvertTo-Ascii $line
+            if (-not $bullets.Contains($line)) { $bullets.Add($line) }
+        }
+        if (-not $since) { break }
+    }
+    if ($bullets.Count -eq 0 -and $behind -eq 0) { return @() }
+    $lines = New-Object System.Collections.Generic.List[string]
+    if (-not $since) { $lines.Add("What's new in ${newest}:") }
+    elseif ($found) { $lines.Add("What's new since $Installed ($count release$(if ($count -ne 1) { 's' })):") }
+    else { $lines.Add("What's new since $Installed (more than $count releases):") }
+    foreach ($b in ($bullets | Select-Object -First $Cap)) { $lines.Add("  $b") }
+    if ($bullets.Count -gt $Cap) { $lines.Add("  ... and $($bullets.Count - $Cap) more") }
+    if ($behind -eq 1) { $lines.Add('  (+ 1 behind-the-scenes change)') }
+    elseif ($behind -gt 1) { $lines.Add("  (+ $behind behind-the-scenes changes)") }
+    if ($since -and ($count -gt 1 -or -not $found)) {
+        $lines.Add("  All notes: https://github.com/$Repo/blob/main/CHANGELOG.md")
+    }
+    return $lines.ToArray()
+}
+
 function Stop-YapTracker {
     $running = @(Get-Process -Name 'YapTracker' -ErrorAction SilentlyContinue |
         Where-Object { $_.Path -and $_.Path.StartsWith($AppDir, [StringComparison]::OrdinalIgnoreCase) })
@@ -144,7 +203,8 @@ $headers = @{ 'User-Agent' = 'YapTracker-update' }
 if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }
 
 Write-Host 'Looking for the newest YapTracker release...'
-$releases = Invoke-RestMethod -UseBasicParsing -Headers $headers -Uri "https://api.github.com/repos/$Repo/releases?per_page=20"
+# 100: enough to find the installed version and tell everything since (#281), one call.
+$releases = Invoke-RestMethod -UseBasicParsing -Headers $headers -Uri "https://api.github.com/repos/$Repo/releases?per_page=100"
 $release = $releases | Where-Object { -not $_.draft } | Select-Object -First 1
 if (-not $release) { throw "No release found on github.com/$Repo" }
 $asset = $release.assets | Where-Object { $_.name -like 'YapTracker-*-win64.zip' } | Select-Object -First 1
@@ -212,12 +272,8 @@ try {
 }
 
 Write-Host "Installed YapTracker $($release.tag_name) in $AppDir (your data stays in $(Join-Path $InstallRoot 'data'))."
-# The release notes' bullets (#239): what's new, right here.
-$news = @(("$($release.body)" -split "`r?`n") | Where-Object { $_ -match '^- ' } | Select-Object -First 6)
-if ($news.Count -gt 0) {
-    Write-Host "What's new in $($release.tag_name):"
-    foreach ($line in $news) { Write-Host "  $line" }
-}
+# The release notes' bullets (#239), everything since the version you had (#281).
+foreach ($line in (Get-WhatsNew -Releases $releases -Installed $installed)) { Write-Host $line }
 if (-not $NoStart) {
     $exe = Join-Path $AppDir 'YapTracker.exe'
     if ($fresh) {
