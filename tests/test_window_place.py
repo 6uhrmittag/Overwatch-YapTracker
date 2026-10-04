@@ -69,3 +69,46 @@ async def test_settings_can_reset_the_window_position(tmp_path):
         user.find(marker="reset-window").click()
         await user.should_see("Forgotten. The next start opens at the usual place.")
     assert config.window_place() is None
+
+
+# Marv's screens (#299): the 4K main screen, a 1080p one left of it, both with a taskbar.
+MAIN_WORK = (0, 0, 3840, 2112)
+SECOND_WORK = (-1920, 1080, 1920, 1032)
+
+
+def test_a_snapped_half_fits_as_it_is():
+    """Windows' invisible border sticks out a few px: that's still a fit, nothing moves."""
+    from yaptracker.window_place import clamp
+
+    snapped = (-966, 1078, 972, 1038)  # from Marv's config.json
+    assert clamp(snapped, [MAIN_WORK, SECOND_WORK]) == snapped
+
+
+def test_a_window_taller_than_its_screen_is_clamped_with_the_title_bar_inside():
+    from yaptracker.window_place import BORDER, clamp
+
+    x, y, w, h = clamp((-1393, 1241, 1300, 1397), [MAIN_WORK, SECOND_WORK])  # Marv's "normal"
+    sx, sy, sw, sh = SECOND_WORK
+    assert h <= sh + 2 * BORDER and w == 1300
+    assert sy - BORDER <= y and y + h <= sy + sh + BORDER  # the top on screen, never above it
+
+
+def test_off_to_the_side_lands_on_the_nearest_screen():
+    from yaptracker.window_place import clamp
+
+    x, y, w, h = clamp((5000, 100, 800, 600), [MAIN_WORK, SECOND_WORK])
+    assert (w, h) == (800, 600) and 0 <= x <= 3840 - 800 + 10
+
+
+def test_the_keeper_never_saves_more_than_fits():
+    from yaptracker.window_place import fit
+
+    too_tall = Place((-1393, 1241, 1300, 1397), (-1393, 1241, 1300, 1397))
+    clock, saved = [0.0], []
+    keeper = Keeper(lambda: too_tall, saved.append, None, lambda: clock[0],
+                    fit=lambda p: fit(p, [MAIN_WORK, SECOND_WORK]))  # fmt: skip
+    keeper.check()
+    clock[0] += SETTLE_S
+    keeper.check()
+    (place,) = saved
+    assert place.rect[3] <= SECOND_WORK[3] + 20 and place.normal[3] <= SECOND_WORK[3] + 20
