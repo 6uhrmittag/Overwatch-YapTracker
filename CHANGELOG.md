@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Where the CPU goes (#302)
+- Behind the scenes: once a minute the log says how much CPU each part takes (reading, change detection, match signals, debug samples, capture, the rest), and the game-FPS line says whether you're in a match or between matches.
+
 ### 2026-10-04 · Repeats keep their neighbours (#296)
 - When someone says the same thing again a few seconds later, the repeat and the lines in between are all kept. Before, they could go missing.
 

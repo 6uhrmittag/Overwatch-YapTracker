@@ -21,6 +21,7 @@ import numpy as np
 
 from yaptracker.capture.source import CaptureStalled, Frame, Region
 from yaptracker.capture.stats import CAPTURE
+from yaptracker.cpu_parts import CPU
 
 log = logging.getLogger(__name__)
 _END = object()
@@ -140,7 +141,7 @@ class GdiFrameSource:
         signals_at = overview_at = 0.0
         try:
             while not self._closed.is_set():
-                started = time.perf_counter()
+                started, started_cpu = time.perf_counter(), time.thread_time()
                 area = client_area(self._hwnd)
                 if area is None:  # minimised or gone: no pictures, the stall check notices
                     self._closed.wait(self._gap_s)
@@ -164,6 +165,7 @@ class GdiFrameSource:
                 self._put(Frame(now - self._start, chat, signals))
                 spent = time.perf_counter() - started
                 CAPTURE.frame(spent)
+                CPU.add("capture", time.thread_time() - started_cpu)  # (#302)
                 self._closed.wait(max(0.0, self._gap_s - spent))
         except Exception:
             log.exception("GDI capture failed")
