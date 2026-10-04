@@ -192,7 +192,10 @@ class Dedup:
         # newest entry wins, so "Group up!" said again isn't paired with the old one (#129).
         pairs, i, j = [], n, m
         while i and j:
-            if diagonal[i][j] == score[i][j]:
+            if diagonal[i][j] == score[i][j] and score[i - 1][j] == score[i][j]:
+                i -= 1  # an earlier row is just as good for this entry: the stored line stays
+                # where it was and this row is a repeat below it (#296), not the line itself
+            elif diagonal[i][j] == score[i][j]:
                 pairs.append((i - 1, j - 1))
                 i, j = i - 1, j - 1
             elif score[i][j] == score[i - 1][j]:
