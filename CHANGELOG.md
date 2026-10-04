@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Repeats keep their neighbours (#296)
+- When someone says the same thing again a few seconds later, the repeat and the lines in between are all kept. Before, they could go missing.
+
 ### 2026-10-04 · Better readings replace, not repeat (#293)
 - When YapTracker reads a line again and finds its umlauts ("müp möp" after "mup mop"), the better reading replaces the first one instead of showing up as a second line.
 
