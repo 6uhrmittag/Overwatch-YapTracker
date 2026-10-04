@@ -218,7 +218,7 @@ def session_markdown(session: dict, gaps: dict[int, list]) -> str:
         title = f"Match {match['number']}" + (f" on {match['map'].title()}" if match["map"] else "")
         extra = [
             w for w in ((match["mode"] or "").title(), _OUTCOME_WORDS.get(match["outcome"])) if w
-        ]
+        ] + (["Loved"] if match.get("loved_at") else [])  # hearted (#282)
         out.append(f"## {' \u00b7 '.join([_md(title), *extra])}\n")
         rows = [(datetime.fromisoformat(m["time"]).timestamp(), 1, m) for m in match["messages"]]
         rows += [(gap[0], 0, gap) for gap in gaps.get(match["id"], [])]
@@ -316,7 +316,7 @@ def export_all(
             for session_id, started, ended in snapshot.all_sessions():
                 played = []
                 for number, row in enumerate(matches.get(session_id, []), start=1):
-                    mid, _, m_start, m_end, outcome, map_, mode, source = row
+                    mid, _, m_start, m_end, outcome, map_, mode, source, loved_at = row
                     said = snapshot.messages(mid)
                     end = m_end or (said[-1].ts if said else m_start)
                     gaps_of[mid] = _overlapping(gaps, m_start, end)
@@ -334,6 +334,7 @@ def export_all(
                             "mode": mode,
                             "detected_by": source,
                             "incomplete": bool(gaps_of[mid]),
+                            "loved_at": iso(loved_at),
                             "messages": records,
                         }
                     )

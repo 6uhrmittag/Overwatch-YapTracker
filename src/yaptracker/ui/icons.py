@@ -36,3 +36,9 @@ SETTINGS = (
     "l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4"
     'h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>'
 )
+
+# Heart a match (#282): an outline; CSS fills it when the match is loved.
+HEART = (
+    _OPEN.format(w="2")
+    + '<path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 10c0 5.65-7 10-7 10z"/></svg>'
+)

@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Heart a match (#282)
+- Heart a match with one click in Live, while it runs or right after, to find it again: Sessions shows the heart, and you can heart a match there afterwards too.
+
 ### 2026-10-04 · What's new since your version (#281)
 - After an update, `tools/update.ps1` lists everything that's new since the version you had, not just the newest release. Umlauts and icons print cleanly in every PowerShell.
 

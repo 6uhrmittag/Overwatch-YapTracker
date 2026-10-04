@@ -50,6 +50,7 @@ def evening(store: Store) -> None:
                           match_id=first, ocr_confidence=0.98,
                           has_glyphs="◇" in text)  # fmt: skip
     store.end_match(first, berlin(2026, 10, 1, 20, 16, 0), "victory")
+    store.set_loved(first, berlin(2026, 10, 1, 20, 17, 0))  # hearted after the win (#282)
     store.add_message(ts=berlin(2026, 10, 1, 20, 16, 40), channel="system",
                       text="Endorsement Received!", match_id=first)  # fmt: skip
 

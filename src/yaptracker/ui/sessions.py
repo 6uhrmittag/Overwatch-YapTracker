@@ -9,7 +9,9 @@ import time
 from nicegui import ui
 
 from yaptracker import runtime
+from yaptracker.ui import icons
 from yaptracker.ui.components import button, count, when
+from yaptracker.ui.heart import Heart
 from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.snap_dialog import snap_dialog
 from yaptracker.ui.views import _OUTCOMES, _WHY, chat_line, repeat, same_callout, show_picture
@@ -104,6 +106,10 @@ def _match_list(session, back, open_match) -> None:
                 row.on("click", lambda m=match, n=number: open_match(m, n))
                 with row:
                     ui.label(_title(match, number)).classes("yt-yapper-name")
+                    if match.loved_at:  # hearted (#282)
+                        ui.html(icons.HEART, sanitize=False).classes("yt-heart-mark").props(
+                            'title="Loved"'
+                        ).mark("loved")
                     if match.outcome:
                         ui.label(_OUTCOMES.get(match.outcome, match.outcome)).classes(
                             f"yt-outcome yt-outcome--{match.outcome}"
@@ -139,6 +145,7 @@ def _transcript(match, number: int, back) -> None:
             ui.label(_OUTCOMES.get(match.outcome, match.outcome)).classes(
                 f"yt-outcome yt-outcome--{match.outcome}"
             )
+        Heart(lambda _: _title(match, number)).show(match.id)  # love it afterwards (#282)
         ui.element("div").classes("yt-grow")
         picker.start_button()
     picker.bar()

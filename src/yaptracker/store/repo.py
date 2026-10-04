@@ -66,6 +66,7 @@ class MatchRow:
     mode: str | None
     yaps: int
     last_yap: float | None
+    loved_at: float | None = None  # hearted in Live or Sessions (#282)
 
 
 @dataclass(frozen=True)
@@ -198,6 +199,14 @@ class Store:
                 ).rowcount
             )
 
+    def set_loved(self, match_id: int, at: float | None) -> None:
+        """Heart a match (#282): when it was loved, or None to take it back."""
+        self._write("UPDATE matches SET loved_at = ? WHERE id = ?", (at, match_id))
+
+    def loved(self, match_id: int) -> bool:
+        rows = self._read("SELECT loved_at FROM matches WHERE id = ?", (match_id,))
+        return bool(rows and rows[0][0] is not None)
+
     def end_match(self, match_id: int, ts: float, outcome: str | None = None) -> None:
         self._write(
             "UPDATE matches SET ended_at = ?, outcome = ? WHERE id = ?", (ts, outcome, match_id)
@@ -263,7 +272,7 @@ class Store:
         """The matches of a session in play order, with how much was said (#29)."""
         rows = self._read(
             "SELECT m.id, m.started_at, m.ended_at, m.outcome, m.map, m.mode, COUNT(c.id), "
-            "MAX(c.ts) FROM matches m LEFT JOIN live_messages c ON c.match_id = m.id "
+            "MAX(c.ts), m.loved_at FROM matches m LEFT JOIN live_messages c ON c.match_id = m.id "
             "WHERE m.session_id = ? GROUP BY m.id "
             "HAVING COUNT(c.id) > 0 OR m.outcome IS NOT NULL ORDER BY m.started_at, m.id",
             (session_id,),
@@ -579,9 +588,9 @@ class Store:
         return self._read("SELECT id, started_at, ended_at FROM sessions ORDER BY id")
 
     def all_matches(self) -> list[tuple]:
-        """(id, session_id, started, ended, outcome, map, mode, source) in play order."""
+        """(id, session_id, started, ended, outcome, map, mode, source, loved_at), play order."""
         return self._read(
-            "SELECT id, session_id, started_at, ended_at, outcome, map, mode, source "
+            "SELECT id, session_id, started_at, ended_at, outcome, map, mode, source, loved_at "
             f"FROM matches m WHERE {_played('m')} ORDER BY session_id, started_at, id"
         )
 

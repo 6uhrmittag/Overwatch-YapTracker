@@ -99,4 +99,9 @@ ALTER TABLE chat_messages ADD COLUMN deleted_at REAL;
 CREATE VIEW live_messages AS SELECT * FROM chat_messages WHERE deleted_at IS NULL;
 """
 
-MIGRATIONS = [V1, V2, V3, V4]
+# Heart a match to find it again (#282): when it was loved, NULL = not.
+V5 = """
+ALTER TABLE matches ADD COLUMN loved_at REAL;
+"""
+
+MIGRATIONS = [V1, V2, V3, V4, V5]

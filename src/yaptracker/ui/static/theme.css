@@ -178,6 +178,16 @@ html, body { background: var(--yt-night); }
   .yt-sticker--friend { background: #ffc83d; color: #2a1d00; transform: rotate(-5deg); }
   .yt-sticker--fun { background: #b98cff; color: #1d0b3a; transform: rotate(3deg); }
   .yt-sticker--neutral { background: #7d8699; color: #12151c; transform: rotate(-2deg); }
+  /* Heart a match (#282): an outline button, filled in payload orange when loved. */
+  .yt-heart { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 12px; border: 2px solid transparent; background: transparent; color: var(--yt-muted); cursor: pointer; transition: transform .12s ease, color .12s ease; }
+  .yt-heart:hover { color: var(--yt-text); border-color: var(--yt-line-strong); }
+  .yt-heart svg { width: 20px; height: 20px; }
+  .yt-heart.is-on { color: var(--yt-accent); }
+  .yt-heart.is-on svg { fill: var(--yt-accent); }
+  .yt-heart:active { transform: scale(.92); }
+  .yt-heart-mark { display: inline-flex; color: var(--yt-accent); }
+  .yt-heart-mark svg { width: 16px; height: 16px; fill: var(--yt-accent); }
+  @media (prefers-reduced-motion: reduce) { .yt-heart { transition: none; } .yt-heart:active { transform: none; } }
   .yt-sticker--avoid { background: #ff5c66; color: #2b0508; transform: rotate(4deg); }
 
   /* Yappers (#24) */
