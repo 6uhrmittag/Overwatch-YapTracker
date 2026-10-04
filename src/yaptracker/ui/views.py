@@ -28,6 +28,7 @@ from yaptracker.ui.components import (
 from yaptracker.ui.crew import crew_card
 from yaptracker.ui.exports import export_card
 from yaptracker.ui.familiar_cards import familiar_card
+from yaptracker.ui.heart import Heart
 from yaptracker.ui.hotkeys import hotkeys_card
 from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark, show_mark
 from yaptracker.ui.lookup import lookup_card
@@ -278,6 +279,7 @@ def _live() -> None:
         with ui.element("section").classes("yt-card yt-card--chat").props('aria-label="Chat"'):
             with ui.element("div").classes("yt-card-head"):
                 card_title = ui.label("This match").classes("yt-h2").mark("match-card-title")
+                heart = Heart(lambda match_id: match_heart_title())  # (#282)
                 yap_count = ui.label("0 yaps").classes("yt-meta").mark("yap-count")
                 ui.element("div").classes("yt-grow")
                 with ui.element("div").classes("yt-legend"):
@@ -336,6 +338,10 @@ def _live() -> None:
     def toggle_pause() -> None:
         runtime.pause.toggle()
         refresh()
+
+    def match_heart_title() -> str:
+        where = runtime.matches.status() if runtime.matches else None
+        return f"the match on {_name(where.map_name)}" if where and where.map_name else "this match"
 
     def new_match() -> None:
         if runtime.matches is not None:
@@ -442,6 +448,9 @@ def _live() -> None:
         result = _RESULTS.get(where.outcome) if ended else None
         title = "Last match" if ended else "This match"  # its lines stay until the next (#268)
         card_title.set_text(f"{title} \u00b7 {result}" if result else title)
+        match_id = runtime.matches.match_id if runtime.matches else None
+        if match_id != heart.match_id:  # the current match, or the last one until the next
+            heart.show(match_id)
         if broken:  # paused has its own pill (#20)
             since = time.strftime("%H:%M", time.localtime(gap.since))
             error = watcher.last_error if watcher is not None else None

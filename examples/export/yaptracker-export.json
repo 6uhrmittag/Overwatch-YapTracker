@@ -20,6 +20,7 @@
           "mode": "UNRANKED",
           "detected_by": "heroselect",
           "incomplete": false,
+          "loved_at": "2026-10-01T20:17:00+02:00",
           "messages": [
             {
               "id": 1,
@@ -111,6 +112,7 @@
           "mode": "UNRANKED",
           "detected_by": "heroselect",
           "incomplete": true,
+          "loved_at": null,
           "messages": [
             {
               "id": 7,

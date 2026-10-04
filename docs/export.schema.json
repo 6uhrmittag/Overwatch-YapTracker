@@ -37,7 +37,7 @@
     },
     "match": {
       "type": "object",
-      "required": ["id", "number", "started_at", "ended_at", "outcome", "map", "mode", "detected_by", "incomplete", "messages"],
+      "required": ["id", "number", "started_at", "ended_at", "outcome", "map", "mode", "detected_by", "incomplete", "loved_at", "messages"],
       "additionalProperties": false,
       "properties": {
         "id": {"type": "integer"},
@@ -49,6 +49,7 @@
         "mode": {"type": ["string", "null"]},
         "detected_by": {"enum": ["heroselect", "endscreen", "gap", "hotkey"]},
         "incomplete": {"type": "boolean", "description": "a capture gap overlaps the match"},
+        "loved_at": {"type": ["string", "null"], "description": "when it was hearted (#282), null if not"},
         "messages": {"type": "array", "items": {"$ref": "#/$defs/message"}}
       }
     },
