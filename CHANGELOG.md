@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Real map, mode and hero names (#276)
+- Maps, modes and heroes are matched against Overwatch's real names: "ESPERANCA" becomes Esperança, "Zenyata" Zenyatta, and garbage like "INRONKED ALU9CK" is left out instead of stored.
+
 ### 2026-10-04 · Heart a match (#282)
 - Heart a match with one click in Live, while it runs or right after, to find it again: Sessions shows the heart, and you can heart a match there afterwards too.
 

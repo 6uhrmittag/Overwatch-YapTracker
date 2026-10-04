@@ -87,6 +87,8 @@ jobs:
           }
           $dml = Get-ChildItem dist/YapTracker -Recurse -Filter DirectML.dll  # no GPU OCR (#219)
           if ($dml) { throw "DirectML.dll is in the app, but GPU OCR is out of v1" }
+          $lists = Get-ChildItem dist/YapTracker -Recurse -Filter game_lists.json  # (#276)
+          if (-not $lists) { throw "game_lists.json is not in the app: modes and maps would be none" }
       - name: Smoke test (window opens and loads the page)
         timeout-minutes: 5
         run: ./tools/smoke-test.ps1 -Exe dist/YapTracker/YapTracker.exe
