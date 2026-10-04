@@ -43,7 +43,7 @@ def test_keep_restores_the_saved_place_then_saves_a_move(tmp_path, monkeypatch):
     from dataclasses import asdict
 
     from yaptracker import config, paths
-    from yaptracker.window_place import POLL_S, SETTLE_S, Place, keep, read
+    from yaptracker.window_place import ARRIVE_S, POLL_S, SETTLE_S, Place, keep, read
 
     monkeypatch.setattr(paths, "config_file", lambda: tmp_path / "config.json")
     saved = Place((200, 150, 640, 480), (200, 150, 640, 480))
@@ -59,11 +59,24 @@ def test_keep_restores_the_saved_place_then_saves_a_move(tmp_path, monkeypatch):
             time.sleep(0.1)
         assert hwnd, "notepad didn't open"
         threading.Thread(target=keep, args=(lambda: hwnd, False, stop), daemon=True).start()
-        time.sleep(1.0)
+        time.sleep(2 * ARRIVE_S + 0.5)  # the restore checks itself after ARRIVE_S (#299)
         assert read(hwnd).rect == saved.rect  # back where it was
-        ctypes.windll.user32.SetWindowPos(hwnd, None, 300, 220, 700, 520, 0x0014)
+        # within the runner's small screen: a place that sticks out would be clamped (#299)
+        ctypes.windll.user32.SetWindowPos(hwnd, None, 300, 120, 600, 400, 0x0014)
         time.sleep(2 * POLL_S + SETTLE_S + 0.5)
-        assert Place.from_dict(config.window_place()).rect == (300, 220, 700, 520)
+        assert Place.from_dict(config.window_place()).rect == (300, 120, 600, 400)
     finally:
         stop.set()
         notepad.kill()
+
+
+def test_monitors_report_their_work_area_and_scaling():
+    from yaptracker.window_place import monitors
+
+    found = monitors()
+    assert found
+    for m in found:
+        x, y, w, h = m.rect
+        wx, wy, ww, wh = m.work
+        assert x <= wx and y <= wy and wx + ww <= x + w and wy + wh <= y + h
+        assert m.dpi >= 96
