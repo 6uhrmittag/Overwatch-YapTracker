@@ -121,14 +121,9 @@ class MatchTracker:
         """Ctrl+Alt+M, or hero select (#93) with the mode and map it showed."""
         ts = self._clock() if ts is None else ts
         with self._lock:
-            recent_gap_match = (
-                source == "heroselect"
-                and self.match_id is not None
-                and self._match_source in ("gap", "endscreen", "hotkey")
-                and self.match_ended_at is None
-                and ts - self.match_started_at <= ADOPT_GAP_MATCH_S
-            )
-            if recent_gap_match:
+            if source == "heroselect" and self._adoptable(ts):
+                log.info("match %d: hero select (%s, %s) takes over its start (%s)",
+                         self.match_id, mode, map_name, self._match_source)  # fmt: skip
                 by_hand = self._match_source == "hotkey"  # its start was a guess: hero select's
                 self._store.set_match_source(self.match_id, source, mode, map_name,
                                              ts if by_hand else None)  # fmt: skip
@@ -139,6 +134,21 @@ class MatchTracker:
                 self._pause.next_match_started()
             else:
                 self._start_match(ts, source, mode, map_name)
+
+    def adoptable(self, ts: float | None = None) -> bool:
+        """A match the chat, the end screen or a key press started a moment ago: hero select
+        now takes it over instead of starting another one."""
+        ts = self._clock() if ts is None else ts
+        with self._lock:
+            return self._adoptable(ts)
+
+    def _adoptable(self, ts: float) -> bool:
+        return (
+            self.match_id is not None
+            and self._match_source in ("gap", "endscreen", "hotkey")
+            and self.match_ended_at is None
+            and ts - self.match_started_at <= ADOPT_GAP_MATCH_S
+        )
 
     def toggle(self, ts: float | None = None) -> str:
         """The Start match / End match button and Ctrl+Alt+M (#269): ends the running match,

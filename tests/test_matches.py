@@ -160,6 +160,18 @@ def test_hero_select_takes_over_a_match_that_lobby_chat_just_started(store):
     ]
 
 
+def test_a_match_the_chat_started_can_be_taken_over_for_three_minutes(store):
+    """#300: what the "HERO DETAILS" hint asks before it confirms a start."""
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    assert not tracker.adoptable(T0)  # nothing running
+    tracker.chat_changed(T0 + 10)
+    assert tracker.adoptable(T0 + 20) and not tracker.adoptable(T0 + 10 + 181)
+    tracker.new_match(T0 + 20, source="heroselect", mode="UNRANKED")
+    assert not tracker.adoptable(T0 + 30)  # hero select has it now
+    assert [m[3] for m in matches(store)] == ["heroselect"]
+
+
 def test_hero_select_after_a_long_chat_match_is_the_next_match(store):
     tracker = MatchTracker(store, Pause())
     play(tracker, T0, 600, chat_every=30)

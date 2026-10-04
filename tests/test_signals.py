@@ -404,3 +404,61 @@ def test_hero_select_is_looked_for_every_few_seconds_not_every_frame():
         clock.now = t
         hs.update({"heroselect": banner})
     assert starts and starts[0] <= 35
+
+
+@pytest.mark.parametrize(
+    "text, hint",
+    [  # real 4K HDR reads of 2026-10-04 (#300), and what else reads at that spot
+        ("EHERO ETAILS", True),
+        ("E HERODETAILS", True),
+        ("HERO BETAILS", True),
+        ("HEROBETALS", True),
+        ("HERO", False),
+        ("TTHEKO", False),
+        ("CHEKON", False),
+        ("A", False),
+    ],
+)
+def test_hero_details_reads(text, hint):
+    assert signals.is_hero_details(text) is hint
+
+
+def test_hero_details_only_confirms_a_match_the_chat_started():
+    """#300: on a bright map HDR turns the banner white on white; the "F1 HERO DETAILS" hint
+    stays readable. It also shows when changing hero, so it never starts a match itself."""
+    clock, no_banner, hint, hud = Clock(), strip(None), strip("F1 HERO DETAILS"), strip("TEAM 1")
+    info = strip("UNRANKED ATTACK")
+    reads = {id(hint): ["EHERO ETAILS"], id(info): ["UNRANKE", "ATTACK"], id(hud): ["TEAM 1"]}
+    match = {"running": False, "chat": False}  # chat: started by chat a moment ago
+    starts = []
+    hs = HeroSelect(lambda img: " ".join(reads.get(id(img), [])),
+                    lambda img: reads.get(id(img), []), lambda *a: starts.append((clock.now, a)),
+                    clock, match_running=lambda: match["running"],
+                    adoptable=lambda: match["chat"])  # fmt: skip
+    hero_select = {"heroselect": no_banner, "hero_details": hint, "heroselect_info": info}
+    for t in range(0, 20, 2):  # hero select, nobody typed yet: nothing starts
+        clock.now = t
+        hs.update(hero_select)
+    assert starts == []
+    clock.now = 21  # someone says hi: the chat starts a match, hero select takes it over
+    match["running"] = match["chat"] = True
+    hs.update({"heroselect": no_banner, "hero_details": hud})
+    assert starts == [(21, ("UNRANKED", None))]
+    match["chat"] = False  # now a hero-select match: changing hero in it confirms nothing
+    for t in range(22, 300, 5):
+        clock.now = t
+        hs.update(hero_select)
+    assert len(starts) == 1
+
+
+def test_an_old_hero_details_sighting_confirms_nothing():
+    clock, no_banner, hint = Clock(), strip(None), strip("F1 HERO DETAILS")
+    match = {"chat": False}
+    starts = []
+    hs = HeroSelect(lambda img: "HERO DETAILS" if img is hint else "", lambda img: [],
+                    lambda *a: starts.append(a), clock, match_running=lambda: match["chat"],
+                    adoptable=lambda: match["chat"])  # fmt: skip
+    hs.update({"heroselect": no_banner, "hero_details": hint})  # the Practice Range's hero change
+    clock.now, match["chat"] = signals.DETAILS_FRESH_S + 1, True  # chat a minute later
+    hs.update({"heroselect": no_banner, "hero_details": strip(None)})
+    assert starts == []
