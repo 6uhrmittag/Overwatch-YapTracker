@@ -162,9 +162,10 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
     return row
 
 
-def show_picture(message, row: dict | None = None) -> None:
+def show_picture(message, row: dict | None = None, on_channel=None) -> None:
     """A click on a line: its picture (#120, #128), its channel (#283) and the spicy switch
-    (#77). `row`: the chat row to update when the channel changes."""
+    (#77). `row`: the chat row to update when the channel changes; or `on_channel(channel)`
+    for rows of another shape (profiles)."""
     message = runtime.store.message(message.id) if runtime.store else None
     if message is None:
         return
@@ -174,7 +175,7 @@ def show_picture(message, row: dict | None = None) -> None:
             if path is not None and path.exists():
                 ui.image(path).classes("yt-picture-image").mark("line-picture")
                 ui.label("The line as it looked in Overwatch.").classes("yt-hint")
-            _channel_picker(message, row, path)
+            _channel_picker(message, row, path, on_channel)
             spicy = message.flagged is not None
             ui.label(
                 "Overwatch marked this line ([Report])." if message.flagged == "overwatch"
@@ -194,7 +195,14 @@ def show_picture(message, row: dict | None = None) -> None:
 _FIXABLE = ("team", "match", "group", "system")
 
 
-def _channel_picker(message, row: dict | None, picture) -> None:
+def restyle_channel(label, channel: str) -> None:
+    """A line's channel chip shows another channel (#283)."""
+    label.classes(remove=" ".join(f"yt-ch-{c}" for c in (*_CHANNELS, "chat")),
+                  add=f"yt-ch-{channel}")  # fmt: skip
+    label.set_text(_CHANNELS.get(channel, "Chat"))
+
+
+def _channel_picker(message, row: dict | None, picture, on_channel=None) -> None:
     """The line's channel, fixable in one click (#283): the picture above shows the real icon.
     Saved + Undo; a later reading never changes it back; the fix is a debug sample."""
     store = runtime.store
@@ -214,10 +222,13 @@ def _channel_picker(message, row: dict | None, picture) -> None:
                 item.on("click", lambda channel=channel: choose(channel))
 
     def follow() -> None:
+        fresh = store.message(message.id)
+        if fresh is None:
+            return
         if row is not None:
-            fresh = store.message(message.id)
-            if fresh is not None:
-                _fill_line(row, fresh)
+            _fill_line(row, fresh)
+        if on_channel is not None:
+            on_channel(fresh.channel)
 
     def choose(channel: str) -> None:
         before = store.channel_by_hand(message.id)

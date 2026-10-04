@@ -85,3 +85,16 @@ async def test_a_transcript_line_follows_its_fix(user: User, store):
     assert store.message(hi.id).channel == "group"
     (row,) = user.find(marker=f"line-{hi.id}").elements
     assert "yt-line--group" in row.classes and "yt-line--match" not in row.classes
+
+
+async def test_a_profile_line_opens_the_same_popup(user: User, store):
+    config.save_setup_state("done")
+    session, first, second = evening(store)
+    (hi,) = [m for m in store.messages(second) if m.text == "hi again"]
+    await user.open("/")
+    user.find(marker="nav-yappers").click()
+    user.find(marker=f"yapper-{hi.player_id}").click()
+    await user.should_see("hi again")
+    user.find(marker=f"line-{hi.id}").click()
+    user.find(marker="channel-team").click()
+    assert store.message(hi.id).channel == "team"
