@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Better readings replace, not repeat (#293)
+- When YapTracker reads a line again and finds its umlauts ("müp möp" after "mup mop"), the better reading replaces the first one instead of showing up as a second line.
+
 ### 2026-10-04 · Steadier CI (#273)
 - Behind the scenes: the Windows capture test accepts the runner refusing capture settings, which the app already handles, so CI stops failing at random.
 

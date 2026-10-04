@@ -14,6 +14,7 @@ Matching, checked on real frames (#18):
 """
 
 import re
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field, replace
 
@@ -45,6 +46,21 @@ def key(line: ChatLine) -> str:
 _PUNCTUATION = re.compile(r"[\s:：;.,!?'\"]+")
 
 
+_ACCENTS = re.compile(r"[äöüÄÖÜßéèêáàíóúñçÉÈ]")
+
+
+def _fold(text: str) -> str:
+    """For matching only (#293): umlauts and accents to their base letters, ß as the B OCR
+    confuses it with, no ◇, punctuation and emoticon noise gone (">:3" vs ".3")."""
+    plain = unicodedata.normalize("NFKD", text.replace("ß", "b").replace(GLYPH, " "))
+    plain = "".join(ch for ch in plain if not unicodedata.combining(ch))
+    return re.sub(r"[^\w\s]", " ", plain)
+
+
+def _accented(text: str) -> bool:
+    return bool(_ACCENTS.search(text))
+
+
 def match_key(line: ChatLine) -> str:
     """key() without glued capitals, as long as some lower-case text is left ("GG WP" stays),
     and without punctuation: readings that differ only in case or punctuation are one line.
@@ -53,7 +69,8 @@ def match_key(line: ChatLine) -> str:
     text = _GLUED.sub("", line.text)
     text = text if re.search(r"[a-z]", text) else line.text
     who = line.hero if line.kind == "comms" and line.hero else line.speaker
-    return _PUNCTUATION.sub(" ", f"{clean(who) if who else ''} {text}").strip().lower()
+    key = _PUNCTUATION.sub(" ", f"{clean(who) if who else ''} {_fold(text)}")
+    return " ".join(key.split()).lower()
 
 
 def _plain(text: str) -> str:
@@ -84,7 +101,9 @@ class Yap:
 
         def rank(k: str) -> tuple:
             q = self.lines[k].quality
-            return (q >= GOOD, self.readings[k], q)
+            # among good readings the one with umlauts wins, however often the plain one was
+            # read: the Latin model only adds them when the line or its picture shows them (#293)
+            return (q >= GOOD, q >= GOOD and _accented(self.lines[k].text), self.readings[k], q)
 
         best = self.lines[max(self.readings, key=rank)]
         if GLYPH in best.text:
