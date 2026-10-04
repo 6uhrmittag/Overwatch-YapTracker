@@ -39,6 +39,8 @@ def test_first_chat_of_the_evening_starts_session_1_match_1(store):
 
 def test_long_silence_then_chat_is_the_next_match(store):
     tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    tracker.new_match(T0, source="heroselect")  # chat alone would be chat outside a match (#307)
     play(tracker, T0, 120, chat_every=10)
     store.add_message(ts=T0 + 10, channel="match", text="hi", match_id=tracker.match_id)
     play(tracker, T0 + 120, QUIET_GAP_S + 10)  # 5+ minutes: no chat at all
@@ -190,3 +192,64 @@ def test_hero_select_long_after_the_last_chat_keeps_its_first_chat(store):
     tracker.chat_changed(T0 + 300 + 75)  # > 5 min after the last chat, 75 s into the match
     tracker.chat_changed(T0 + QUIET_GAP_S + 200)
     assert [m[3] for m in matches(store)] == ["gap", "heroselect"]
+
+
+def say(tracker, store, ts, text="Over here!"):
+    """A line the reader stores: the tracker hears of it first, then it goes to its match."""
+    tracker.chat_changed(ts)
+    store.add_message(ts=ts, channel="team", text=text, match_id=tracker.match_id)
+
+
+def played(store):
+    return [(m[0], m[7]) for m in store.all_matches()]  # (id, source) of what Sessions shows
+
+
+def test_login_lines_before_the_first_match_go_to_it(store):
+    """#307, 2026-10-04 11:47: a friend-list line at the login screen started match 59; hero
+    select came 3.7 min later (too late to take it over), and logged a missed end."""
+    missed = []
+    tracker = MatchTracker(store, Pause(), on_missed_end=lambda: missed.append(1))
+    tracker.capture_alive(T0)
+    say(tracker, store, T0, "[Pal] started playing Overwatch.")
+    tracker.new_match(T0 + 220, source="heroselect", mode="UNRANKED")
+    (first,) = played(store)
+    assert first[1] == "heroselect" and missed == []
+    assert [m.text for m in store.messages(first[0])] == ["[Pal] started playing Overwatch."]
+
+
+def test_practice_range_chat_between_matches_joins_the_next_match(store):
+    """#307, 2026-10-04 15:03-15:17: 9 lines in 50 s, 8.5 min later 2 more (the quiet rule split
+    them), then hero select. Before: three matches, two of them only Practice Range chat."""
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    tracker.new_match(T0, source="heroselect")
+    say(tracker, store, T0 + 60, "gl hf")
+    tracker.end_match(T0 + 600, "victory")
+    for t in range(0, 50, 6):
+        say(tracker, store, T0 + 1110 + t)
+    for t in (0, 20):
+        say(tracker, store, T0 + 1620 + t)
+    tracker.new_match(T0 + 1944, source="heroselect", mode="UNRANKED")
+    (before, _), (after, source) = played(store)
+    assert source == "heroselect" and len(store.messages(after)) == 11
+    assert [m.text for m in store.messages(before)] == ["gl hf"]
+
+
+def test_a_real_match_whose_screens_were_missed_stays_a_match(store):
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    for t in range(0, 300, 30):  # 4.5 min of chat: a match, no hero select or end screen seen
+        say(tracker, store, T0 + t, "push the payload")
+    gap = tracker.match_id
+    tracker.new_match(T0 + 600, source="heroselect")
+    assert played(store) == [(gap, "gap")] and len(store.messages(gap)) == 10
+
+
+def test_a_hearted_chat_match_stays(store):
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    say(tracker, store, T0, "this lobby is gold")
+    gap = tracker.match_id
+    store.set_loved(gap, T0 + 5)
+    tracker.new_match(T0 + 400, source="heroselect")
+    assert played(store) == [(gap, "gap")] and len(store.messages(gap)) == 1

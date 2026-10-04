@@ -96,3 +96,30 @@ async def test_the_transcript_marks_what_was_said_after_the_result(user: User, t
         assert order == ["gl hf", "After the match (won)", "Perfect team"]
     finally:
         store.close()
+
+
+async def test_chat_before_the_match_comes_first_with_a_minus_time(user: User, tmp_path,
+                                                                   monkeypatch):  # fmt: skip
+    """#307: Practice Range chat while queueing joins the match after it."""
+    config.save_setup_state("done")
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    try:
+        now = time.time()
+        session = store.start_session(now - 1000)
+        match = store.start_match(session, now - 900, "heroselect")
+        store.add_message(ts=now - 1000, channel="team", text="Over here!", speaker_raw="Pickle",
+                          match_id=match)  # fmt: skip
+        store.add_message(ts=now - 800, channel="match", text="gl hf", speaker_raw="Pickle",
+                          match_id=match)  # fmt: skip
+        monkeypatch.setattr(runtime, "store", store)
+        await user.open("/")
+        user.find(marker="nav-sessions").click()
+        user.find(marker=f"session-{session}").click()
+        user.find(marker=f"match-{match}").click()
+        await user.should_see("The match starts")
+        body = user.find(marker="transcript").elements.pop()
+        order = [shown(row) for row in body.default_slot.children]
+        assert order == ["Over here!", "The match starts", "gl hf"]
+        await user.should_see("-1:40")
+    finally:
+        store.close()

@@ -255,6 +255,7 @@ def test_lines_on_screen_when_a_match_starts_stay_with_the_match_before(store):
              id(frames[2]): [line(game, 300)],
              id(frames[3]): [line(game, 260), line(glhf, 300)]}  # fmt: skip
     reader, tracker = reader_for(store, reads)
+    tracker.new_match(1000.0, source="heroselect")  # a real match: only chat would be #307's
     reader.read_frame(1000.0, frames[0])  # "gg" in match 1
     reader.read_frame(1001.0, frames[1])  # "what a game" above it: not new, but on screen
     first = tracker.match_id

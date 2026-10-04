@@ -199,6 +199,14 @@ class Store:
                 ).rowcount
             )
 
+    def move_lines(self, from_match: int, to_match: int) -> int:
+        """Every line of one match goes to another (#307: chat outside a match joins the match
+        after it). The emptied match stays, hidden like every match without lines or result."""
+        with self._lock:
+            return self._conn.execute(
+                "UPDATE chat_messages SET match_id = ? WHERE match_id = ?", (to_match, from_match)
+            ).rowcount
+
     def set_loved(self, match_id: int, at: float | None) -> None:
         """Heart a match (#282): when it was loved, or None to take it back."""
         self._write("UPDATE matches SET loved_at = ? WHERE id = ?", (at, match_id))

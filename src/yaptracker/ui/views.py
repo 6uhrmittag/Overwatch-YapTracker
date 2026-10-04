@@ -135,8 +135,10 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
         .classes(f"yt-line yt-line--{channel}{known}{callout}")
         .mark(f"chat-line line-{message.id}") as line
     ):
-        seconds = max(0, int(message.ts - started_at)) if started_at else 0
-        ui.label(f"{seconds // 60}:{seconds % 60:02d}").classes("yt-line-time")
+        seconds = int(message.ts - started_at) if started_at else 0
+        before = "-" if seconds < 0 else ""  # chat before the match started (#307)
+        seconds = abs(seconds)
+        ui.label(f"{before}{seconds // 60}:{seconds % 60:02d}").classes("yt-line-time")
         ch = ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
         # Name, chips, text and hero flow like one sentence: in a narrow window the text wraps
         # under the name, never a few letters per line (#226).

@@ -31,6 +31,10 @@ QUIET_GAP_S = 5 * 60
 # over instead of leaving an almost empty match behind (#93).
 ADOPT_GAP_MATCH_S = 3 * 60
 AFTER_END_GAP_S = 90
+# A match the chat started that no screen ever confirmed (no hero select, no end screen) and
+# whose chat lasted less than this was chat outside a match: the login lines, the Practice Range
+# while queueing (#307). Its lines go to the match that follows. Longer: a real one, screens missed.
+OUTSIDE_CHAT_S = 3 * 60
 # YapTracker restarted mid-match (an update, #275): within this, the match goes on.
 RESUME_MATCH_S = 10 * 60
 
@@ -217,10 +221,13 @@ class MatchTracker:
     ) -> None:
         if self.session_id is None:
             self._new_session(ts)
+        outside = None  # a match that was only chat outside a match (#307)
         if self.running and not self._drop_hand_start():
             self.match_ended_at = self._last_chat or ts
             self._store.end_match(self.match_id, self.match_ended_at)
-            if source != "hotkey":
+            if source != "hotkey" and self._outside_chat():
+                outside = self.match_id
+            elif source != "hotkey":
                 self._on_missed_end()
         if source == "hotkey":
             self._before_hand = (self.match_id, self.previous_match_id, self.match_started_at,
@@ -229,11 +236,25 @@ class MatchTracker:
         self.previous_match_id = self.match_id  # where lines still on screen belong (#179)
         self.match_id = self._store.start_match(self.session_id, ts, source, mode, map_name)
         log.info("match %d started (%s, %s, %s)", self.match_id, source, mode, map_name)
+        if outside is not None:
+            moved = self._store.move_lines(outside, self.match_id)
+            self.previous_match_id = self.match_id  # its lines still on screen, too
+            log.info("match %d was chat outside a match (no hero select, no end screen): its "
+                     "%d line(s) go to match %d", outside, moved, self.match_id)  # fmt: skip
         self.match_started_at, self.match_map, self._match_source = ts, map_name, source
         self.match_mode, self.match_ended_at, self.match_outcome = mode, None, None
         self._pause.next_match_started()
         if source != "heroselect":
             self._on_missed_start(source)
+
+    def _outside_chat(self) -> bool:
+        """The running match: started by chat, never confirmed by a screen, not hearted, and its
+        chat lasted less than OUTSIDE_CHAT_S (#307)."""
+        return (
+            self._match_source == "gap"
+            and (self._last_chat or self.match_started_at) - self.match_started_at < OUTSIDE_CHAT_S
+            and not self._store.loved(self.match_id)
+        )
 
     def _drop_hand_start(self) -> bool:
         """The running match was started by hand and never got a line: remove it and go back
