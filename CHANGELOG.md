@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · What's new since your version (#281)
+- After an update, `tools/update.ps1` lists everything that's new since the version you had, not just the newest release. Umlauts and icons print cleanly in every PowerShell.
+
 ### 2026-10-03 · Matches split right (#275)
 - Hero select is seen on very bright maps too (New Junk City after the map vote), so the match starts there, not with the next chat line.
 - Restarting YapTracker mid-match (an update) no longer splits the match in two: it goes on.
