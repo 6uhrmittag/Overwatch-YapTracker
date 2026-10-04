@@ -10,7 +10,7 @@ from nicegui import ui
 
 from yaptracker import runtime
 from yaptracker.ui import icons
-from yaptracker.ui.components import button, count, when
+from yaptracker.ui.components import button, callout_toggle, count, when
 from yaptracker.ui.heart import Heart
 from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.snap_dialog import snap_dialog
@@ -147,6 +147,7 @@ def _transcript(match, number: int, back) -> None:
             )
         Heart(lambda _: _title(match, number)).show(match.id)  # love it afterwards (#282)
         ui.element("div").classes("yt-grow")
+        toggle_slot = ui.element("div")  # the Callouts switch (#289)
         picker.start_button()
     picker.bar()
 
@@ -163,7 +164,7 @@ def _transcript(match, number: int, back) -> None:
     if match.ended_at and any(m.ts > match.ended_at for m in messages):
         events.append((match.ended_at, "end", match))  # what was said after the result (#176)
     with ui.element("section").classes("yt-card yt-card--list"):
-        with ui.element("div").classes("yt-card-body yt-transcript").mark("transcript"):
+        with ui.element("div").classes("yt-card-body yt-transcript").mark("transcript") as body:
             if not events:
                 ui.label("Nobody typed in this match. Suspiciously quiet lobby.").classes("yt-hint")
             last = None  # the row before, to count repeated callouts
@@ -194,3 +195,5 @@ def _transcript(match, number: int, back) -> None:
                     rows[item.id] = row
                     picker.add(item, row["line"])
                     last = (item, row)
+    with toggle_slot:
+        callout_toggle(body)(sum(1 for m in messages if m.hero))  # hidden by default (#289)

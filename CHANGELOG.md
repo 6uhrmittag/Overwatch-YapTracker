@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Callouts out of the way (#289)
+- Live and match transcripts hide comms-wheel callouts ("Group up!", "Enemy Sombra!") by default, so the chat is what people typed. The Callouts switch next to the channel names shows them again, with a count of how many are hidden.
+
 ### 2026-10-04 · Fix a line's channel (#283)
 - Click a chat line and pick Team, Match, Group or System when YapTracker got the channel wrong. Undo is right there, and a later reading never changes it back.
 

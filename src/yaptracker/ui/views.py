@@ -20,6 +20,7 @@ from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import (
     SPICY,
     button,
+    callout_toggle,
     count,
     saved_chip,
     set_button_label,
@@ -356,12 +357,15 @@ def _live() -> None:
                 with ui.element("div").classes("yt-legend"):
                     for channel in ("Team", "Match", "Group", "System"):
                         ui.label(channel).classes(f"yt-ch-{channel.lower()}")
+                    toggle_slot = ui.element("div")  # the Callouts switch, once the feed exists
             with ui.element("div").classes("yt-card-body yt-feed"):
                 # follows new yaps in the browser (static/follow.js, #166) until you scroll up
                 with ui.element("div").classes("yt-lines yt-follow").mark("feed"):
                     lines = ui.element("div").classes("yt-lines-inner").mark("lines")
                 ui.label("New yaps \u2193").classes("yt-new-yaps yt-hidden").mark("new-yaps")
                 hint = ui.label("Waiting for Overwatch. I'll be right here.").classes("yt-hint")
+            with toggle_slot:
+                count_callouts = callout_toggle(lines)  # hidden by default (#289)
         with ui.element("aside").classes("yt-aside").props('aria-label="Familiar faces"'):
             faces = ui.element("div").classes("yt-faces").mark("faces")
             with ui.element("section").classes("yt-card yt-hidden").mark("preview") as preview:
@@ -386,8 +390,10 @@ def _live() -> None:
             lines.clear()
         if match_id is None or runtime.store is None:
             yap_count.set_text("0 yaps")
+            count_callouts(0)
             return
         messages = runtime.store.messages(match_id)
+        count_callouts(sum(1 for m in messages if m.hero))
         for message in messages:
             if message.id in chat["rows"]:
                 _fill_line(chat["rows"][message.id], message)  # a better reading came in
