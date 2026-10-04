@@ -163,14 +163,21 @@ def _transcript(match, number: int, back) -> None:
     events = [(m.ts, "yap", m) for m in messages] + [(g[0], "gap", g) for g in gaps]
     if match.ended_at and any(m.ts > match.ended_at for m in messages):
         events.append((match.ended_at, "end", match))  # what was said after the result (#176)
+    if any(m.ts < match.started_at for m in messages):
+        events.append((match.started_at, "start", match))  # chat before it, e.g. the range (#307)
     with ui.element("section").classes("yt-card yt-card--list"):
         with ui.element("div").classes("yt-card-body yt-transcript").mark("transcript") as body:
             if not events:
                 ui.label("Nobody typed in this match. Suspiciously quiet lobby.").classes("yt-hint")
             last = None  # the row before, to count repeated callouts
-            for _, kind, item in sorted(events, key=lambda e: e[0]):
-                if kind in ("end", "gap"):
+            for _, kind, item in sorted(events, key=lambda e: (e[0], e[1] != "start")):
+                if kind in ("start", "end", "gap"):
                     last = None  # never count repeats across a divider
+                if kind == "start":
+                    ui.label("The match starts").classes("yt-gap-line yt-end-line").mark(
+                        "start-line"
+                    )
+                    continue
                 if kind == "end":
                     result = (
                         f" ({_OUTCOMES.get(item.outcome, item.outcome)})" if item.outcome else ""

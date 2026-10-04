@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · No more fake matches (#307)
+- Chat outside a match (login lines, the Practice Range while you queue) no longer counts as a match of its own. It shows at the top of the next match, before a "The match starts" line, with a minus time.
+
 ### 2026-10-04 · A quality floor in CI (#310)
 - Behind the scenes: the checks now fail if test coverage drops under 80 % or a function gets too tangled, and a slow test machine can't turn them red any more.
 
