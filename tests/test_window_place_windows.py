@@ -61,9 +61,10 @@ def test_keep_restores_the_saved_place_then_saves_a_move(tmp_path, monkeypatch):
         threading.Thread(target=keep, args=(lambda: hwnd, False, stop), daemon=True).start()
         time.sleep(2 * ARRIVE_S + 0.5)  # the restore checks itself after ARRIVE_S (#299)
         assert read(hwnd).rect == saved.rect  # back where it was
-        ctypes.windll.user32.SetWindowPos(hwnd, None, 300, 220, 700, 520, 0x0014)
+        # within the runner's small screen: a place that sticks out would be clamped (#299)
+        ctypes.windll.user32.SetWindowPos(hwnd, None, 300, 120, 600, 400, 0x0014)
         time.sleep(2 * POLL_S + SETTLE_S + 0.5)
-        assert Place.from_dict(config.window_place()).rect == (300, 220, 700, 520)
+        assert Place.from_dict(config.window_place()).rect == (300, 120, 600, 400)
     finally:
         stop.set()
         notepad.kill()
