@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Locked versions (#309)
+- Behind the scenes: every build uses exactly the library versions of v0.5.327, so an update only changes what YapTracker's own code changes.
+
 ### 2026-10-04 · Friend-list notices aren't familiar faces (#306)
 - "[Name] stopped playing Overwatch." and "[Name] started spectating." are system lines now: no more "Look who's back!" card for a friend going offline. System lines never count as meeting someone, and the ones already stored are fixed at the next start.
 

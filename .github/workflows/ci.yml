@@ -26,8 +26,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: pyproject.toml
-      - run: pip install -e .[dev]
+          cache-dependency-path: |
+            pyproject.toml
+            packaging/constraints.txt
+      - run: pip install -e .[dev] -c packaging/constraints.txt  # exact versions (#309)
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest
@@ -43,8 +45,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: pyproject.toml
-      - run: pip install .[dev]
+          cache-dependency-path: |
+            pyproject.toml
+            packaging/constraints.txt
+      - run: pip install .[dev] -c packaging/constraints.txt
       - run: pytest tests/test_capture_windows.py tests/test_capture_gdi_windows.py tests/test_system_info_windows.py -v
       - name: What capturing costs without the rate setting (#248)
         run: python tools/capture_cost.py --seconds 5
@@ -63,7 +67,9 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: pyproject.toml
+          cache-dependency-path: |
+            pyproject.toml
+            packaging/constraints.txt
       - name: Set version
         id: version
         run: |
@@ -72,7 +78,9 @@ jobs:
           Set-Content src/yaptracker/_version.py "__version__ = `"$version`""
           "VERSION=$version" >> $env:GITHUB_ENV
           "version=$version" >> $env:GITHUB_OUTPUT
-      - run: pip install .[dev] pyinstaller
+      - run: pip install .[dev] pyinstaller -c packaging/constraints.txt
+      - name: Installed versions (exactly packaging/constraints.txt, #309)
+        run: pip freeze
       - name: Plain onnxruntime, no DirectML in the app (GPU OCR is out of v1, #219)
         run: python -c "import onnxruntime as o; p = o.get_available_providers(); print(o.__version__, p); assert 'DmlExecutionProvider' not in p"
       - name: What capturing costs with the rate setting, for comparison (#248)
