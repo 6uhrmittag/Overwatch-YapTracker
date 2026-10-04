@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · A quality floor in CI (#310)
+- Behind the scenes: the checks now fail if test coverage drops under 80 % or a function gets too tangled, and a slow test machine can't turn them red any more.
+
 ### 2026-10-04 · Locked versions (#309)
 - Behind the scenes: every build uses exactly the library versions of v0.5.327, so an update only changes what YapTracker's own code changes.
 

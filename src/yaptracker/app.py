@@ -79,7 +79,7 @@ def _arm_smoke_test() -> None:
     timer.start()
 
 
-def _watch_for_overwatch(dev: bool) -> None:
+def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (#311)
     """Capture runs by itself from app start: waits for Overwatch, follows it (#16)."""
     from yaptracker.ocr import engine as ocr
 

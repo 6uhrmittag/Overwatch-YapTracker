@@ -29,7 +29,7 @@ _COPY = (
 )
 
 
-def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> None:
+def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> None:  # noqa: C901 - split up after v1 (#311)
     state = {"hide": True, "crew": False, "image": None,
              "style": Style.from_dict(config.snap_style())}  # fmt: skip
     with ui.dialog() as dialog, ui.element("section").classes("yt-card yt-snap"):

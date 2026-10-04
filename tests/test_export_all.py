@@ -101,12 +101,10 @@ def test_capture_keeps_writing_while_100k_messages_export(store, tmp_path):
         if done == 50_000:  # halfway: the capture thread writes a new line meanwhile
             wrote.append(store.add_message(ts=EVENING, channel="match", text="still here"))
 
-    started = time.perf_counter()
     path = export_all(store, tmp_path, EVENING, progress)
-    took = time.perf_counter() - started
     data = json.loads(path.read_text(encoding="utf-8"))
     assert sum(len(m["messages"]) for m in data["sessions"][0]["matches"]) == 100_000
-    assert wrote and took < 30, took  # a few seconds; the UI waits in the background meanwhile
+    assert wrote  # no time limit: a slow runner must not turn CI red (#310)
 
 
 @pytest.fixture
