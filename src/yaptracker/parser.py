@@ -18,7 +18,7 @@ import re
 import statistics
 from dataclasses import dataclass, replace
 
-from yaptracker import game_lists
+from yaptracker import callouts, game_lists
 from yaptracker.capture.source import Region
 from yaptracker.glyphs import GLYPH
 from yaptracker.ocr.engine import OcrLine
@@ -116,6 +116,11 @@ def _classify(text: str, confidence: float, box: Region) -> ChatLine:
     if m := _COMMS.match(text):
         # Text can be empty: "Name (Hero) to Other (Hero):" with the message on the next line.
         said = (m["text"] or m["action"] or "").strip()
+        if said:  # as the wheel says it (#290); a fragment ("My", "/ Enemy") is no line
+            normal = callouts.normalise(said)
+            if normal is None:
+                return replace(line, kind="cut")
+            said = normal
         # Its icon is always there, even when the picture check missed it (#259).
         if said.lower() in ICON_CALLOUTS:
             said = f"{said} {GLYPH}"
