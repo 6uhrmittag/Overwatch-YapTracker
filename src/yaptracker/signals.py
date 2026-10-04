@@ -32,6 +32,8 @@ BANNER_TEXT = "ASSEMBLE YOUR TEAM"
 MATCH = 80  # rapidfuzz ratio on the letters only; OCR may lose or swap a letter or two
 # Queue names as Overwatch prints them above the map (the side, ATTACK/DEFEND, follows them).
 REARM_S = 120  # the banner must be gone this long before a new hero select counts
+IN_MATCH_EVERY_S = 5.0  # hero select looked for at most this often inside a running match
+BETWEEN_EVERY_S = 2.0  # and between matches: the screen is up 20 s+, the start 1 s later at most
 
 
 def signal_regions(width: int, height: int) -> dict[str, Region]:
@@ -154,14 +156,27 @@ class HeroSelect:
         self._on_start, self._clock, self._rearm_s = on_start, clock, rearm_s
         self._active = False
         self._last_seen = 0.0
+        self._read_at = -IN_MATCH_EVERY_S  # the last banner read (#303)
 
     def update(self, signals: dict[str, np.ndarray]) -> None:
         strip = signals.get("heroselect")
         if strip is None:
             return
         now = self._clock()
+        # Hero select is on screen 20 s and more, and inside a running match it can only come
+        # after its end: one look every few seconds finds it. The gate passes on most frames,
+        # and each pass is a ~50 ms read (#303: 3.0 % of a core before, 1 read a second).
+        every = IN_MATCH_EVERY_S if self._match_running() else BETWEEN_EVERY_S
+        if now - self._read_at < every:
+            if self._active and now - self._last_seen >= self._rearm_s:
+                self._active = False
+            return
         # The strip is one line: cheap pixel check first, then a fast single-line read.
-        if has_bright_text(strip) and is_banner(self._read_line(strip)):
+        seen = False
+        if has_bright_text(strip):
+            self._read_at = now
+            seen = is_banner(self._read_line(strip))
+        if seen:
             self._last_seen = now
             if not self._active:
                 self._active = True

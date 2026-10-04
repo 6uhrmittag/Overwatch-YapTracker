@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-04 · Lighter match detection (#303)
+- YapTracker looks for the hero-select screen every few seconds instead of every second (every 5 s in a match, 2 s between matches). It still catches every match start and uses about 2 % less of a CPU core.
+
 ### 2026-10-04 · Where the CPU goes (#302)
 - Behind the scenes: once a minute the log says how much CPU each part takes (reading, change detection, match signals, debug samples, capture, the rest), and the game-FPS line says whether you're in a match or between matches.
 

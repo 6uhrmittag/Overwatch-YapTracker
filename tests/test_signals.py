@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
+from yaptracker import signals
 from yaptracker.capture.source import Region
 from yaptracker.signals import (
     EndScreen,
@@ -120,6 +121,7 @@ def test_ocr_slips_still_count_and_other_text_does_not():
     hs, starts = detector({id(slip): ["ASSEMBLEYOUR TEAN"], id(other): ["PLAY OF THE GAME"]}, clock)
     hs.update({"heroselect": other})
     assert starts == []
+    clock.now += signals.BETWEEN_EVERY_S  # the next look (#303); the banner is up for 20 s+
     hs.update({"heroselect": slip})
     assert len(starts) == 1
 
@@ -373,3 +375,32 @@ def test_a_match_without_hero_select_saves_a_look_back():
     tracker.new_match(1500.0)  # the New match button
     assert missed == ["gap", "hotkey"]  # chat after a result: hero select missed (#275)
     store.close()
+
+
+def test_hero_select_is_looked_for_every_few_seconds_not_every_frame():
+    """#303: the gate passes on most frames, each look an OCR read; the screen is up 20 s+."""
+    clock, reads = Clock(), []
+    banner = strip("ASSEMBLE YOUR TEAM")
+    running = {"on": False}
+
+    def read(img):
+        reads.append(clock.now)
+        return "ASSEMBLE YOUR TEAM" if img is banner else "TEAM 1 OBJECTIVE"
+
+    hud = strip("TEAM 1 OBJECTIVE")
+    starts = []
+    hs = signals.HeroSelect(read, lambda img: [], lambda *a: starts.append(clock.now), clock,
+                            match_running=lambda: running["on"])  # fmt: skip
+    for t in range(10):  # between matches: menus with bright text
+        clock.now = t
+        hs.update({"heroselect": hud})
+    assert reads == [0, 2, 4, 6, 8]
+    running["on"], reads[:] = True, []
+    for t in range(10, 30):  # in a match: the HUD keeps the gate open
+        clock.now = t
+        hs.update({"heroselect": hud})
+    assert reads == [13, 18, 23, 28]  # 5 s after the last look (8)
+    for t in range(30, 60):  # the end screen was missed; the next hero select still counts
+        clock.now = t
+        hs.update({"heroselect": banner})
+    assert starts and starts[0] <= 35
