@@ -6,7 +6,6 @@ in config.json, so updates keep it. It's only restored while its title bar is st
 connected screen; otherwise Windows' default place, so it never opens off-screen.
 """
 
-import contextlib
 import logging
 import threading
 import time
@@ -184,17 +183,30 @@ def monitors() -> list[Monitor]:
                     ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]  # fmt: skip
 
     found: list[Monitor] = []
+    # Declared, or a 64-bit monitor handle overflows ctypes' default int and the callback
+    # fails silently, which ends the enumeration with no monitors at all (#299, CI).
+    user32.GetMonitorInfoW.argtypes = [wintypes.HMONITOR, ctypes.POINTER(Info)]
+    shcore = getattr(ctypes.windll, "shcore", None)
+    if shcore is not None:
+        shcore.GetDpiForMonitor.argtypes = [wintypes.HMONITOR, ctypes.c_int,
+                                            ctypes.POINTER(wintypes.UINT),
+                                            ctypes.POINTER(wintypes.UINT)]  # fmt: skip
 
     @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HMONITOR, wintypes.HDC,
                         ctypes.POINTER(wintypes.RECT), wintypes.LPARAM)  # fmt: skip
-    def visit(monitor, _dc, _rect, _data):
-        info = Info(cbSize=ctypes.sizeof(Info))
-        user32.GetMonitorInfoW(monitor, ctypes.byref(info))
-        dpi_x, dpi_y = wintypes.UINT(96), wintypes.UINT(96)
-        with contextlib.suppress(AttributeError, OSError):  # before 8.1: no per-monitor DPI
-            ctypes.windll.shcore.GetDpiForMonitor(monitor, 0, ctypes.byref(dpi_x),
-                                                  ctypes.byref(dpi_y))  # fmt: skip
-        found.append(Monitor(_rect(info.rcMonitor), _rect(info.rcWork), int(dpi_x.value)))
+    def visit(monitor, _dc, rect, _data):
+        whole = _rect(rect.contents)
+        try:
+            info = Info(cbSize=ctypes.sizeof(Info))
+            work = _rect(info.rcWork) if user32.GetMonitorInfoW(monitor, ctypes.byref(info)) \
+                else whole  # fmt: skip
+            dpi_x, dpi_y = wintypes.UINT(96), wintypes.UINT(96)
+            if shcore is not None:
+                shcore.GetDpiForMonitor(monitor, 0, ctypes.byref(dpi_x), ctypes.byref(dpi_y))
+            found.append(Monitor(whole, work, int(dpi_x.value) or 96))
+        except Exception:  # never lose the monitor itself over its details
+            log.warning("window: no details for screen %s", whole, exc_info=True)
+            found.append(Monitor(whole, whole, 96))
         return True
 
     user32.EnumDisplayMonitors(None, None, visit, 0)
