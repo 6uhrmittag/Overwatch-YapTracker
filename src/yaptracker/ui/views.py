@@ -727,7 +727,8 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                     elif CAPTURE.how != "WGC":  # Windows 10 and 11 before 24H2 (#248)
                         ui.label(
                             "This Windows sends every frame the game draws, so I only copy the "
-                            "chat box from the screen, 4 times a second. Keep other windows off "
+                            "chat box from the screen, twice a second (once while nobody types). "
+                            "Keep other windows off "
                             "it: what's on top is what I read."
                         ).classes("yt-hint").mark("capture-gdi")
                     elif CAPTURE.cannot:  # settings this Windows lacks are left out (#216)

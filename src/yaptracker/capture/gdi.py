@@ -3,7 +3,7 @@
 Before Windows 11 24H2, WGC sends every frame the game draws, and windows-capture copies each one
 from the graphics card before our callback can skip it: measured ~2.5 ms CPU per delivered frame,
 at ~140 fps a full core on Void's PC, and a GPU readback per game frame. This grabs only what's
-read - the chat box 4 times a second, the signal strips once a second, a small overview every 5 s
+read - the chat box twice a second (#319), the signal strips once a second, an overview every 5 s
 - with BitBlt from the screen, like the Snipping Tool (CLAUDE.md capture Fallback 2): ~0.9 ms
 per chat box. The screen, not the window: something on top of the chat box is read too.
 """
@@ -24,6 +24,12 @@ from yaptracker.capture.stats import CAPTURE
 from yaptracker.cpu_parts import CPU
 
 log = logging.getLogger(__name__)
+# Each grab makes the game wait for the screen (#319: ~10 fps on Void's Windows 10 at 4/s). Chat
+# is read every 1.5 s at most, so 2 grabs a second still give the reader a fresh one each time;
+# while the chat is quiet, 1 a second is enough to see a new line within about a second.
+GDI_FPS = 2.0
+QUIET_FPS = 1.0
+QUIET_FRAMES = 4  # 2 s with nothing new on the chat change detector (app.chat_quiet)
 _END = object()
 _SRCCOPY = 0x00CC0020
 _PER_MONITOR_AWARE_V2 = -4  # DPI_AWARENESS_CONTEXT: real pixels, whatever the scaling
@@ -118,21 +124,24 @@ class GdiFrameSource:
         self,
         hwnd: int,
         region_for: Callable[[int, int], Region],
-        fps: float = 4.0,
+        fps: float = GDI_FPS,
         stall_s: float = 10.0,
         signals_for: Callable[[int, int], dict[str, Region]] = lambda w, h: {},
         signals_every_s: float = 1.0,
         overview_every_s: float = 5.0,
+        quiet: Callable[[], bool] = lambda: False,
     ):
         self._hwnd, self._region_for, self._signals_for = hwnd, region_for, signals_for
         self._gap_s, self._signals_every_s = 1.0 / fps, signals_every_s
+        self._quiet, self._quiet_gap_s = quiet, max(1.0 / fps, 1.0 / QUIET_FPS)
         self._overview_every_s, self._stall_s = overview_every_s, stall_s
         self._queue: queue.Queue = queue.Queue(maxsize=2)
         self._snapshot_wanted, self._snapshot_ready = threading.Event(), threading.Event()
         self._snapshot = None
         self._closed = threading.Event()
         self._start = time.monotonic()
-        CAPTURE.asked_fps, CAPTURE.how = fps, "GDI, chat box only"
+        CAPTURE.asked_fps = fps
+        CAPTURE.how = f"GDI, chat box only, {QUIET_FPS:g}/s while the chat is quiet"
         self._thread = threading.Thread(target=self._run, name="gdi capture", daemon=True)
         self._thread.start()
 
@@ -166,7 +175,8 @@ class GdiFrameSource:
                 spent = time.perf_counter() - started
                 CAPTURE.frame(spent)
                 CPU.add("capture", time.thread_time() - started_cpu)  # (#302)
-                self._closed.wait(max(0.0, self._gap_s - spent))
+                gap = self._quiet_gap_s if self._quiet() else self._gap_s  # back-off (#319)
+                self._closed.wait(max(0.0, gap - spent))
         except Exception:
             log.exception("GDI capture failed")
         finally:

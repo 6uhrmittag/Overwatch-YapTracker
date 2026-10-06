@@ -14,6 +14,7 @@ from nicegui.run import io_bound
 
 from yaptracker import autostart as start_with_windows
 from yaptracker import config, demo, paths, runtime, system_info
+from yaptracker.capture.gdi import QUIET_FRAMES
 from yaptracker.capture.watcher import CaptureWatcher
 from yaptracker.cpu_parts import CPU
 from yaptracker.ui import shell
@@ -100,6 +101,10 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         again = runtime.reader is not None and runtime.reader.wants_reread()  # weak lines (#195)
         if (changed or again) and runtime.reader is not None:
             runtime.reader.offer(frame.image)  # new text: read, dedup and store it (#108)
+
+    def chat_quiet() -> bool:  # GDI grabs less while nothing new shows (#319)
+        reread = runtime.reader is not None and runtime.reader.wants_reread()
+        return changes.quiet >= QUIET_FRAMES and not reread
 
     def on_alive() -> None:
         if runtime.matches is not None:
@@ -207,7 +212,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         else:
             log.info("capture: Windows build %d has no rate setting: reading the chat box with "
                      "GDI, only what's on screen (#248)", build)  # fmt: skip
-        return GdiFrameSource(hwnd, region_for, signals_for=crops_for)
+        return GdiFrameSource(hwnd, region_for, signals_for=crops_for, quiet=chat_quiet)
 
     def region_for(width: int, height: int):
         if found["hwnd"] is not None:
