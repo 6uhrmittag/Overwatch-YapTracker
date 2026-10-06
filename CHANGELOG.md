@@ -5,7 +5,7 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ## v0.5: on the way to v1.0
 
 ### 2026-10-06 · Umlaut runs (#322)
-- Behind the scenes: long umlaut runs like "täääät" are parked until after v1; they don't come up in real chat.
+- Behind the scenes: long umlaut runs like "täääät" stay as they are for v1; they don't come up in real chat.
 
 ### 2026-10-06 · Lighter chat reading (#115)
 - Reading the chat takes about a third less CPU: YapTracker finds the lines on a smaller copy of the chat box and still reads each line at full size.
