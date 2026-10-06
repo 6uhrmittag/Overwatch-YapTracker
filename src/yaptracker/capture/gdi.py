@@ -103,6 +103,39 @@ class ScreenGrabber:
         self._user32.ReleaseDC(None, self._screen)
 
 
+def _union(a: Region, b: Region) -> Region:
+    x0, y0 = min(a.x, b.x), min(a.y, b.y)
+    x1, y1 = max(a.x + a.width, b.x + b.width), max(a.y + a.height, b.y + b.height)
+    return Region(x0, y0, x1 - x0, y1 - y0)
+
+
+def grab_groups(regions: dict[str, Region], waste: float = 2.0) -> list[tuple[Region, list[str]]]:
+    """Fewer, bigger grabs (#319): each BitBlt from the screen waits for it (~30-45 ms on the CI
+    runners, a strip as long as the whole window), so strips close together are grabbed as one
+    rectangle and cut out afterwards - as long as it's at most `waste` times their own area."""
+    groups = [(r, [name]) for name, r in regions.items()]
+    merged = True
+    while merged:
+        merged = False
+        for i in range(len(groups)):
+            for j in range(i + 1, len(groups)):
+                (a, names_a), (b, names_b) = groups[i], groups[j]
+                union = _union(a, b)
+                area = sum(regions[n].width * regions[n].height for n in names_a + names_b)
+                if union.width * union.height <= waste * area:
+                    groups[i], merged = (union, names_a + names_b), True
+                    del groups[j]
+                    break
+            if merged:
+                break
+    return groups
+
+
+def cut(image: np.ndarray, frame: Region, part: Region) -> np.ndarray:
+    """`part` (window pixels) out of `image`, a grab of `frame`."""
+    return Region(part.x - frame.x, part.y - frame.y, part.width, part.height).crop(image).copy()
+
+
 def client_area(hwnd: int) -> tuple[int, int, int, int] | None:
     """The window's inside on the screen (x, y, width, height), None while it's minimised."""
     user32 = ctypes.windll.user32
@@ -161,16 +194,23 @@ class GdiFrameSource:
                     self._snapshot_wanted.clear()
                     self._snapshot_ready.set()
                 r = self._region_for(width, height)
-                chat = grabber.grab(sx + r.x, sy + r.y, r.width, r.height)
                 now = time.monotonic()
-                signals = {}
+                signals, chat = {}, None
                 if now - signals_at >= self._signals_every_s:
                     signals_at = now
-                    signals = {name: grabber.grab(sx + s.x, sy + s.y, s.width, s.height)
-                               for name, s in self._signals_for(width, height).items()}  # fmt: skip
+                    strips = self._signals_for(width, height)
                     if now - overview_at >= self._overview_every_s:  # debug samples (#63)
-                        overview_at = now
-                        signals["overview"] = grabber.grab(sx, sy, width, height)[::4, ::4].copy()
+                        overview_at = now  # the whole window: everything cut from one grab
+                        whole, frame = grabber.grab(sx, sy, width, height), Region(0, 0, 0, 0)
+                        signals = {name: cut(whole, frame, s) for name, s in strips.items()}
+                        signals["overview"], chat = whole[::4, ::4].copy(), cut(whole, frame, r)
+                    else:
+                        for frame, names in grab_groups(strips):
+                            image = grabber.grab(sx + frame.x, sy + frame.y, frame.width,
+                                                 frame.height)  # fmt: skip
+                            signals.update({n: cut(image, frame, strips[n]) for n in names})
+                if chat is None:
+                    chat = grabber.grab(sx + r.x, sy + r.y, r.width, r.height)
                 self._put(Frame(now - self._start, chat, signals))
                 spent = time.perf_counter() - started
                 CAPTURE.frame(spent)
