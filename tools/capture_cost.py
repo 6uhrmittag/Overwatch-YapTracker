@@ -163,6 +163,33 @@ def gdi(hwnd: int):
     return run
 
 
+def blits(hwnd: int) -> None:
+    """What one BitBlt waits, by size (#319): a signal strip, the chat box, the whole window."""
+    from yaptracker.capture.gdi import ScreenGrabber, client_area
+
+    grabber = ScreenGrabber()
+    sx, sy, w, h = client_area(hwnd)
+    try:
+        for label, (cw, ch) in (("strip", (w * 780 // 2560, h * 60 // 1440)),
+                                ("chat box", (w * 615 // 2560, h * 395 // 1440)),
+                                ("window", (w, h))):  # fmt: skip
+            waits, cpu = [], time.thread_time()
+            for _ in range(20):
+                started = time.perf_counter()
+                grabber.grab(sx, sy, cw, ch)
+                waits.append(time.perf_counter() - started)
+                time.sleep(0.05)
+            waits.sort()
+            cpu_ms = 1000 * (time.thread_time() - cpu) / 20
+            print(
+                f"blit {label:8} {cw}x{ch}: median {1000 * waits[10]:.1f} ms, "
+                f"max {1000 * waits[-1]:.1f} ms, CPU {cpu_ms:.2f} ms each",
+                flush=True,
+            )
+    finally:
+        grabber.close()
+
+
 def source(hwnd: int, fps: float | None = None, quiet: bool = False):
     """The whole GDI source as the app runs it: chat box 2/s (`fps` to compare, #319), signal
     strips 1/s, an overview every 5 s; `quiet`: the chat never changes, the 1/s back-off."""
@@ -225,6 +252,7 @@ def main() -> None:
         if windows_build() >= 26100:
             modes.append(("rate", wgc(hwnd, None, True, rate_ms=250)))
         print(f"Windows build {windows_build()}, {args.seconds:g} s per mode")
+        blits(hwnd)
         print(f"{'mode':6} {'delivered/s':>12} {'used/s':>8} {'cpu %':>7} {'cpu ms/frame':>13} "
           f"{'ms/frame here':>14}")  # fmt: skip
         for name, run in modes:
