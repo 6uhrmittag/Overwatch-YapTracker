@@ -420,8 +420,11 @@ lookup · `Ctrl+Alt+M` new match (override only) · `Ctrl+Alt+P` pause
 - [ ] The whole evening needed **zero** YapTracker key presses or clicks
       (app already running via autostart; capture, matches, sessions automatic)
 - [ ] Any time span that wasn't recorded shows up as a gap record, not a silent hole
-- [ ] No measurable FPS drop in Overwatch; YapTracker averages ≤ 15% of one CPU core
-      over an evening (target: powerful gaming PCs; CPU only - GPU OCR failed the real test and is out of v1, #219)
+- [ ] FPS: YapTracker costs at most **~5 % of in-match FPS** (median of the `game fps … in match`
+      log lines, running vs paused/closed, same graphics settings). On Windows 10 (GDI capture) up to
+      ~10 fps is accepted, written in README → Known limits (Marv, 2026-10-06, #187/#319).
+      CPU: YapTracker averages ≤ 15% of one core over an evening (target: powerful gaming PCs;
+      CPU only - GPU OCR failed the real test and is out of v1, #219)
 - [ ] Update via `tools/update.ps1` works from any v0 pre-release to v1.0.0
 - [ ] README: setup, calibration, hotkeys, known limits, tested resolution
 - [ ] `v1.0.0` released, M5 closed, everything else is `parked`
