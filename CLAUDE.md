@@ -408,6 +408,8 @@ lookup · `Ctrl+Alt+M` new match (override only) · `Ctrl+Alt+P` pause
   write the expected lines; Marv only spot-checks. No cloud OCR/LLM at runtime —
   the app stays local-only.
 - Chat is English **and German** (umlauts, ß). Every OCR change is measured on both (#118).
+- Each new Overwatch season: refresh the game lists (`tools/refresh_game_lists.py`) and check
+  the first evening's match signals in the log and debug frames (#318).
 
 ---
 

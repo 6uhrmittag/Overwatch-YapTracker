@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-06 · New season's map (#318)
+- The new map Watchpoint: Grimsvotn is known by name, so its matches show it in Sessions.
+
 ### 2026-10-06 · Gentler on Windows 10 (#319)
 - On Windows 10, YapTracker copies from the screen far less often: the chat box twice a second instead of 4 times (once while nobody types), and the match screens in 4 pieces instead of 7. The game waits for each copy, so it waits much less.
 
