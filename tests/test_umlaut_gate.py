@@ -57,10 +57,12 @@ def test_short_lines_without_a_german_word_keep_their_umlauts(text):
     assert read_box(text) == text  # before #247: "jut Muller schon", "tatutata", "no, GruBe"
 
 
-def test_marvs_line_gets_its_umlauts_back():
+def test_marvs_line_gets_its_umlauts_back(monkeypatch):
     """The Latin model squeezes long runs of one letter ("ääää"), and can drop a whole run; the
     default model keeps every letter. Run by run, or (#266) by the dots' places in the picture:
-    each a, o or u under a dot pair becomes ä, ö or ü."""
+    each a, o or u under a dot pair becomes ä, ö or ü. Detection at full size, as this flat
+    strip always had it: shrunk, its box shifts and the dots' places with it (#115)."""
+    monkeypatch.setattr(ocr, "DETECT_MAX_SIDE", 2000)
     for size in (34, 38):
         assert read_box("[Marv]: täääätüüüütatäääää", size=size) == "[Marv]: täääätüüüütatäääää"
 

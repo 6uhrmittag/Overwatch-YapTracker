@@ -31,6 +31,11 @@ class OcrLine:
 
 UPSCALE = 2.0  # 1x drops the spaces between words; measured best at 1440p (#11)
 REFERENCE_HEIGHT = 1440  # the window height UPSCALE was measured at
+# Text detection runs on the picture shrunk to at most this long (#115). RapidOCR's default
+# enlarges it to 736 px on the short side instead (1226x787 for a chat box): 60 % of a read. On
+# Marv's 4K samples 621 -> 417 ms per read; English and German truth sets read as well or better.
+# Recognition still reads the line crops at full size.
+DETECT_MAX_SIDE = 960
 
 
 def upscale_for(window_height: int | None) -> float:
@@ -284,6 +289,11 @@ class RapidOcrEngine:
         if device is not None and self.provider() != "DmlExecutionProvider":
             raise OcrUnavailable("DirectML isn't in this build of onnxruntime")
         self._ocr.text_rec = _ReadTwice(self._ocr.text_rec, latin.text_rec)
+        from rapidocr_onnxruntime.ch_ppocr_det.utils import DetPreProcess
+
+        det = self._ocr.text_det  # its own sizing ignores a "max" limit below 2000 px (1.4.4)
+        det.get_preprocess = lambda _longest: DetPreProcess(DETECT_MAX_SIDE, "max", det.mean,
+                                                            det.std)  # fmt: skip
 
     def provider(self) -> str:
         return self._ocr.text_det.infer.session.get_providers()[0]

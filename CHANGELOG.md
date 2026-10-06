@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-06 · Lighter chat reading (#115)
+- Reading the chat takes about a third less CPU: YapTracker finds the lines on a smaller copy of the chat box and still reads each line at full size.
+
 ### 2026-10-06 · New season's map (#318)
 - The new map Watchpoint: Grimsvotn is known by name, so its matches show it in Sessions.
 
