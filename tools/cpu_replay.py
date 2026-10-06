@@ -23,6 +23,7 @@ from pathlib import Path
 import cv2
 
 from yaptracker.capture.changes import ChangeDetector
+from yaptracker.capture.gdi import GDI_FPS, QUIET_FPS, QUIET_FRAMES
 from yaptracker.debug import DebugSamples
 from yaptracker.matches import MatchTracker
 from yaptracker.ocr.engine import RapidOcrEngine
@@ -40,6 +41,10 @@ def main() -> None:
     parser.add_argument("recording", help="folder name under fixtures/private/frames")
     parser.add_argument("--no-busy-gate", action="store_true",
                         help="read every 1.5 s even after a minute above the CPU goal")  # fmt: skip
+    parser.add_argument("--gdi", action="store_true",
+                        help="grab like the GDI source: 2 frames/s, 1/s while the chat is quiet "
+                             "(#319)")  # fmt: skip
+    parser.add_argument("--dump", type=Path, help="write the stored lines here, to compare")
     args = parser.parse_args()
     root = FRAMES / args.recording
     chat = sorted(os.listdir(root / "chat"))
@@ -71,8 +76,14 @@ def main() -> None:
     reads: dict[int, int] = defaultdict(int)
     ocr.read(cv2.imread(str(root / "chat" / chat[0])))  # loading the models isn't play time
     last_second, last_read, pending = -1, float("-inf"), None
+    next_grab, grabbed = 0.0, 0
     for name in chat:
         t = int(name[:-4]) / 1000
+        if args.gdi:
+            if t < next_grab:
+                continue
+            quiet = changes.quiet >= QUIET_FRAMES and not reader.wants_reread()
+            next_grab, grabbed = t + 1 / (QUIET_FPS if quiet else GDI_FPS) - 0.01, grabbed + 1
         now["t"], minute = T0 + t, int(t // 60)
         busy = not args.no_busy_gate and 100 * cpu.get(minute - 1, 0.0) / 60 > CPU_GOAL
         image = cv2.imread(str(root / "chat" / name))
@@ -109,6 +120,16 @@ def main() -> None:
     quiet = [m for m in cpu if reads[m] <= 10]
     print(f"average {share(list(cpu)):.1f} %, busy minutes {share(busy):.1f} %, "
           f"quiet minutes {share(quiet):.1f} %")  # fmt: skip
+    if args.gdi:
+        print(f"{grabbed} of {len(chat)} chat frames grabbed ({grabbed / len(chat):.0%})")
+    if args.dump:
+        args.dump.write_text(
+            "".join(
+                f"{m[0]}: {m[1]}\n"
+                for m in store._read("SELECT speaker_raw, text FROM chat_messages ORDER BY ts, id")
+            ),
+            encoding="utf-8",
+        )
     print(f"{store.stats().messages} yaps stored, matches:",
           store._read("SELECT source, outcome, map FROM matches"))  # fmt: skip
 

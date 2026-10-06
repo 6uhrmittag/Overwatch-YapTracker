@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-06 · Gentler on Windows 10 (#319)
+- On Windows 10, YapTracker copies from the screen far less often: the chat box twice a second instead of 4 times (once while nobody types), and the match screens in 4 pieces instead of 7. The game waits for each copy, so it waits much less.
+
 ### 2026-10-04 · No more fake matches (#307)
 - Chat outside a match (login lines, the Practice Range while you queue) no longer counts as a match of its own. It shows at the top of the next match, before a "The match starts" line, with a minus time.
 

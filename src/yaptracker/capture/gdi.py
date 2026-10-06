@@ -3,7 +3,7 @@
 Before Windows 11 24H2, WGC sends every frame the game draws, and windows-capture copies each one
 from the graphics card before our callback can skip it: measured ~2.5 ms CPU per delivered frame,
 at ~140 fps a full core on Void's PC, and a GPU readback per game frame. This grabs only what's
-read - the chat box 4 times a second, the signal strips once a second, a small overview every 5 s
+read - the chat box twice a second (#319), the signal strips once a second, an overview every 5 s
 - with BitBlt from the screen, like the Snipping Tool (CLAUDE.md capture Fallback 2): ~0.9 ms
 per chat box. The screen, not the window: something on top of the chat box is read too.
 """
@@ -24,6 +24,12 @@ from yaptracker.capture.stats import CAPTURE
 from yaptracker.cpu_parts import CPU
 
 log = logging.getLogger(__name__)
+# Each grab makes the game wait for the screen (#319: ~10 fps on Void's Windows 10 at 4/s). Chat
+# is read every 1.5 s at most, so 2 grabs a second still give the reader a fresh one each time;
+# while the chat is quiet, 1 a second is enough to see a new line within about a second.
+GDI_FPS = 2.0
+QUIET_FPS = 1.0
+QUIET_FRAMES = 4  # 2 s with nothing new on the chat change detector (app.chat_quiet)
 _END = object()
 _SRCCOPY = 0x00CC0020
 _PER_MONITOR_AWARE_V2 = -4  # DPI_AWARENESS_CONTEXT: real pixels, whatever the scaling
@@ -97,6 +103,39 @@ class ScreenGrabber:
         self._user32.ReleaseDC(None, self._screen)
 
 
+def _union(a: Region, b: Region) -> Region:
+    x0, y0 = min(a.x, b.x), min(a.y, b.y)
+    x1, y1 = max(a.x + a.width, b.x + b.width), max(a.y + a.height, b.y + b.height)
+    return Region(x0, y0, x1 - x0, y1 - y0)
+
+
+def grab_groups(regions: dict[str, Region], waste: float = 2.0) -> list[tuple[Region, list[str]]]:
+    """Fewer, bigger grabs (#319): each BitBlt from the screen waits for it (~30-45 ms on the CI
+    runners, a strip as long as the whole window), so strips close together are grabbed as one
+    rectangle and cut out afterwards - as long as it's at most `waste` times their own area."""
+    groups = [(r, [name]) for name, r in regions.items()]
+    merged = True
+    while merged:
+        merged = False
+        for i in range(len(groups)):
+            for j in range(i + 1, len(groups)):
+                (a, names_a), (b, names_b) = groups[i], groups[j]
+                union = _union(a, b)
+                area = sum(regions[n].width * regions[n].height for n in names_a + names_b)
+                if union.width * union.height <= waste * area:
+                    groups[i], merged = (union, names_a + names_b), True
+                    del groups[j]
+                    break
+            if merged:
+                break
+    return groups
+
+
+def cut(image: np.ndarray, frame: Region, part: Region) -> np.ndarray:
+    """`part` (window pixels) out of `image`, a grab of `frame`."""
+    return Region(part.x - frame.x, part.y - frame.y, part.width, part.height).crop(image).copy()
+
+
 def client_area(hwnd: int) -> tuple[int, int, int, int] | None:
     """The window's inside on the screen (x, y, width, height), None while it's minimised."""
     user32 = ctypes.windll.user32
@@ -118,21 +157,24 @@ class GdiFrameSource:
         self,
         hwnd: int,
         region_for: Callable[[int, int], Region],
-        fps: float = 4.0,
+        fps: float = GDI_FPS,
         stall_s: float = 10.0,
         signals_for: Callable[[int, int], dict[str, Region]] = lambda w, h: {},
         signals_every_s: float = 1.0,
         overview_every_s: float = 5.0,
+        quiet: Callable[[], bool] = lambda: False,
     ):
         self._hwnd, self._region_for, self._signals_for = hwnd, region_for, signals_for
         self._gap_s, self._signals_every_s = 1.0 / fps, signals_every_s
+        self._quiet, self._quiet_gap_s = quiet, max(1.0 / fps, 1.0 / QUIET_FPS)
         self._overview_every_s, self._stall_s = overview_every_s, stall_s
         self._queue: queue.Queue = queue.Queue(maxsize=2)
         self._snapshot_wanted, self._snapshot_ready = threading.Event(), threading.Event()
         self._snapshot = None
         self._closed = threading.Event()
         self._start = time.monotonic()
-        CAPTURE.asked_fps, CAPTURE.how = fps, "GDI, chat box only"
+        CAPTURE.asked_fps = fps
+        CAPTURE.how = f"GDI, chat box only, {QUIET_FPS:g}/s while the chat is quiet"
         self._thread = threading.Thread(target=self._run, name="gdi capture", daemon=True)
         self._thread.start()
 
@@ -152,21 +194,29 @@ class GdiFrameSource:
                     self._snapshot_wanted.clear()
                     self._snapshot_ready.set()
                 r = self._region_for(width, height)
-                chat = grabber.grab(sx + r.x, sy + r.y, r.width, r.height)
                 now = time.monotonic()
-                signals = {}
+                signals, chat = {}, None
                 if now - signals_at >= self._signals_every_s:
                     signals_at = now
-                    signals = {name: grabber.grab(sx + s.x, sy + s.y, s.width, s.height)
-                               for name, s in self._signals_for(width, height).items()}  # fmt: skip
+                    strips = self._signals_for(width, height)
                     if now - overview_at >= self._overview_every_s:  # debug samples (#63)
-                        overview_at = now
-                        signals["overview"] = grabber.grab(sx, sy, width, height)[::4, ::4].copy()
+                        overview_at = now  # the whole window: everything cut from one grab
+                        whole, frame = grabber.grab(sx, sy, width, height), Region(0, 0, 0, 0)
+                        signals = {name: cut(whole, frame, s) for name, s in strips.items()}
+                        signals["overview"], chat = whole[::4, ::4].copy(), cut(whole, frame, r)
+                    else:
+                        for frame, names in grab_groups(strips):
+                            image = grabber.grab(sx + frame.x, sy + frame.y, frame.width,
+                                                 frame.height)  # fmt: skip
+                            signals.update({n: cut(image, frame, strips[n]) for n in names})
+                if chat is None:
+                    chat = grabber.grab(sx + r.x, sy + r.y, r.width, r.height)
                 self._put(Frame(now - self._start, chat, signals))
                 spent = time.perf_counter() - started
                 CAPTURE.frame(spent)
                 CPU.add("capture", time.thread_time() - started_cpu)  # (#302)
-                self._closed.wait(max(0.0, self._gap_s - spent))
+                gap = self._quiet_gap_s if self._quiet() else self._gap_s  # back-off (#319)
+                self._closed.wait(max(0.0, gap - spent))
         except Exception:
             log.exception("GDI capture failed")
         finally:

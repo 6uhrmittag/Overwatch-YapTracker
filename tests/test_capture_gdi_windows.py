@@ -48,6 +48,37 @@ def test_gdi_reads_the_chat_box_signals_and_a_snapshot_of_a_real_window():
         notepad.kill()
 
 
+def test_gdi_grabs_twice_a_second_and_once_while_the_chat_is_quiet():
+    """#319: each grab makes the game wait for the screen, so fewer of them on Windows 10."""
+    from yaptracker.capture.gdi import GDI_FPS, QUIET_FPS, GdiFrameSource
+
+    assert (GDI_FPS, QUIET_FPS) == (2.0, 1.0)
+    notepad = subprocess.Popen(["notepad.exe"])
+    try:
+        hwnd = None
+        for _ in range(100):
+            hwnd = ctypes.windll.user32.FindWindowW("Notepad", None)
+            if hwnd:
+                break
+            time.sleep(0.1)
+        assert hwnd, "Notepad window not found"
+        quiet = {"on": False}
+        source = GdiFrameSource(hwnd, lambda w, h: Region(0, 0, 64, 64),
+                                quiet=lambda: quiet["on"])  # fmt: skip
+        try:
+            frames = source.frames()
+            busy = [next(frames).ts for _ in range(3)]
+            quiet["on"] = True
+            next(frames)  # the wait already started at the busy pace
+            calm = [next(frames).ts for _ in range(3)]
+        finally:
+            source.close()
+        assert busy[2] - busy[0] == pytest.approx(1.0, abs=0.3)  # 2 a second
+        assert calm[2] - calm[0] == pytest.approx(2.0, abs=0.4)  # 1 a second
+    finally:
+        notepad.kill()
+
+
 def test_a_minimised_window_sends_nothing():
     from yaptracker.capture.gdi import client_area
 

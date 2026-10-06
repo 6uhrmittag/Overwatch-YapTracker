@@ -14,7 +14,10 @@ used, and CPU per second and per delivered frame.
     burst    a WGC session opened for one frame every 250 ms, then closed
     gdi      a GDI copy of only the chat rectangle, 4 times a second (CLAUDE.md capture
              Fallback 2)
-    source   the app's GDI source: chat box 4/s, signal strips 1/s, a small overview every 5 s
+    src4     the app's GDI source as it was: chat box 4/s, signal strips 1/s, a small overview
+             every 5 s
+    source   the same at today's 2/s (#319)
+    quiet    the same while the chat is quiet: 1/s
     rate     WGC with Windows' own 4 fps setting, where this Windows has it (11 24H2 and later)
 
 Without the rate setting (Windows 10, Server 2022) "skip" shows whether a frame nobody uses
@@ -62,9 +65,11 @@ def measure(name: str, seconds: float, run) -> dict:
     run(seconds, counts)
     cpu, wall = time.process_time() - cpu, time.perf_counter() - wall
     delivered = counts["delivered"]
+    spent = counts.get("spent")  # the GDI source's own time per frame, waits included (#319)
     return {"mode": name, "delivered/s": delivered / wall, "used/s": counts["used"] / wall,
             "cpu %": 100 * cpu / wall,
-            "cpu ms/frame": 1000 * cpu / delivered if delivered else 0.0}  # fmt: skip
+            "cpu ms/frame": 1000 * cpu / delivered if delivered else 0.0,
+            "ms/frame here": 1000 * spent / delivered if spent and delivered else None}  # fmt: skip
 
 
 def wgc(hwnd: int, gate_s: float | None, use: bool, rate_ms: int | None = None):
@@ -158,8 +163,36 @@ def gdi(hwnd: int):
     return run
 
 
-def source(hwnd: int):
-    """The whole GDI source as the app runs it: chat box 4/s, signal strips 1/s, overview."""
+def blits(hwnd: int) -> None:
+    """What one BitBlt waits, by size (#319): a signal strip, the chat box, the whole window."""
+    from yaptracker.capture.gdi import ScreenGrabber, client_area
+
+    grabber = ScreenGrabber()
+    sx, sy, w, h = client_area(hwnd)
+    try:
+        for label, (cw, ch) in (("strip", (w * 780 // 2560, h * 60 // 1440)),
+                                ("chat box", (w * 615 // 2560, h * 395 // 1440)),
+                                ("window", (w, h))):  # fmt: skip
+            waits, cpu = [], time.thread_time()
+            for _ in range(20):
+                started = time.perf_counter()
+                grabber.grab(sx, sy, cw, ch)
+                waits.append(time.perf_counter() - started)
+                time.sleep(0.05)
+            waits.sort()
+            cpu_ms = 1000 * (time.thread_time() - cpu) / 20
+            print(
+                f"blit {label:8} {cw}x{ch}: median {1000 * waits[10]:.1f} ms, "
+                f"max {1000 * waits[-1]:.1f} ms, CPU {cpu_ms:.2f} ms each",
+                flush=True,
+            )
+    finally:
+        grabber.close()
+
+
+def source(hwnd: int, fps: float | None = None, quiet: bool = False):
+    """The whole GDI source as the app runs it: chat box 2/s (`fps` to compare, #319), signal
+    strips 1/s, an overview every 5 s; `quiet`: the chat never changes, the 1/s back-off."""
 
     def run(seconds: float, counts: dict) -> None:
         from yaptracker.capture.gdi import GdiFrameSource
@@ -174,7 +207,18 @@ def source(hwnd: int):
         def crops(w: int, h: int) -> dict:
             return {**signal_regions(w, h), **overlay_regions(w, h)}
 
-        src = GdiFrameSource(hwnd, chat, signals_for=crops)
+        from yaptracker.capture.stats import CAPTURE
+
+        counts["spent"] = 0.0
+        frame = CAPTURE.frame
+
+        def timed(spent_s: float) -> None:  # what the log's "ms per frame here" adds up
+            counts["spent"] += spent_s
+            frame(spent_s)
+
+        CAPTURE.frame = timed
+        rate = {"fps": fps} if fps else {}
+        src = GdiFrameSource(hwnd, chat, signals_for=crops, quiet=lambda: quiet, **rate)
         end = time.monotonic() + seconds
         try:
             for _ in src.frames():
@@ -184,6 +228,7 @@ def source(hwnd: int):
                     break
         finally:
             src.close()
+            CAPTURE.frame = frame
 
     return run
 
@@ -202,19 +247,23 @@ def main() -> None:
         time.sleep(1.0)
         modes = [("idle", lambda s, c: time.sleep(s)), ("skip", wgc(hwnd, None, False)),
                  ("use", wgc(hwnd, None, True)), ("gate", wgc(hwnd, 0.225, True)),
-                 ("burst", burst(hwnd)), ("gdi", gdi(hwnd)), ("source", source(hwnd))]  # fmt: skip
+                 ("burst", burst(hwnd)), ("gdi", gdi(hwnd)), ("src4", source(hwnd, fps=4)),
+                 ("source", source(hwnd)), ("quiet", source(hwnd, quiet=True))]  # fmt: skip
         if windows_build() >= 26100:
             modes.append(("rate", wgc(hwnd, None, True, rate_ms=250)))
         print(f"Windows build {windows_build()}, {args.seconds:g} s per mode")
-        print(f"{'mode':6} {'delivered/s':>12} {'used/s':>8} {'cpu %':>7} {'cpu ms/frame':>13}")
+        blits(hwnd)
+        print(f"{'mode':6} {'delivered/s':>12} {'used/s':>8} {'cpu %':>7} {'cpu ms/frame':>13} "
+          f"{'ms/frame here':>14}")  # fmt: skip
         for name, run in modes:
             try:
                 r = measure(name, args.seconds, run)
             except Exception as error:  # a mode this Windows can't do: say so, go on
                 print(f"{name:6} failed: {error!r}", flush=True)
                 continue
+            here = f"{r['ms/frame here']:14.2f}" if r["ms/frame here"] is not None else ""
             print(f"{r['mode']:6} {r['delivered/s']:12.1f} {r['used/s']:8.1f} {r['cpu %']:7.1f} "
-                  f"{r['cpu ms/frame']:13.2f}", flush=True)  # fmt: skip
+                  f"{r['cpu ms/frame']:13.2f} {here}", flush=True)  # fmt: skip
     finally:
         target.kill()
 

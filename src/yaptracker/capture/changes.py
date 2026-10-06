@@ -65,6 +65,7 @@ class ChangeDetector:
     bands: int = BANDS
     changed: int = 0
     skipped: int = 0
+    quiet: int = 0  # frames in a row with nothing new, not even a line to confirm (#319)
     _reference: np.ndarray | None = field(default=None, repr=False)
     _pending: np.ndarray | None = field(default=None, repr=False)
 
@@ -89,6 +90,7 @@ class ChangeDetector:
             self._reference &= mask  # faded pixels leave the reference too
             self._pending = new if new.sum() >= self.min_pixels else None
             self.skipped += 1
+        self.quiet = 0 if rows or self._pending is not None else self.quiet + 1
         return rows
 
     @property

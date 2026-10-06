@@ -78,3 +78,16 @@ def test_thresholds_come_from_config(tmp_path):
     path.write_text(json.dumps({"change_detection": {"new_share": 0.1, "min_pixels": 99}}))
     detector = config.change_detector(path)
     assert (detector.new_share, detector.min_pixels) == (0.1, 99)
+
+
+def test_quiet_counts_frames_with_nothing_new_and_a_new_line_resets_it():
+    """#319: the GDI source grabs less while the chat is quiet; a line on its way isn't quiet."""
+    detector = ChangeDetector()
+    bgr = [np.asarray(frame(t, n))[:, :, ::-1].copy() for t, n in
+           ((0, 2), (1, 2), (2, 2), (3, 2), (4, 3), (5, 3))]  # fmt: skip
+    quiet = []
+    for image in bgr:
+        detector.update(image)
+        quiet.append(detector.quiet)
+    # 0: text seen, waiting; 1: confirmed; 2-3 quiet; 4: a new line waits; 5: confirmed
+    assert quiet == [0, 0, 1, 2, 0, 0]
