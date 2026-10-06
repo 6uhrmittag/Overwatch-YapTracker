@@ -246,6 +246,9 @@ of view, like OBS or the Snipping Tool.
   the update script fetching GitHub releases.
   Decided exception for later (#263, parked): **optional** chat translation via DeepL API Free
   with the user's own key, off by default, sending only the text of foreign-language lines.
+  Same for the **OpenRouter bridge** (#326, parked): vision + text models with the user's own key,
+  off by default, never in the live path (after the match only), names hidden before sending,
+  zero-data-retention providers only, monthly spend cap. The app must work identically without it.
 - **The repo is public.** Never commit screenshots or real chat logs — they
   contain other players' names. Real samples live in `fixtures/private/`
   (gitignored). Committed test fixtures are OCR-output JSON with names replaced.
