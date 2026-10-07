@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · No hotkeys unless you want them (#328)
+- YapTracker no longer takes any key combo by default: everything has a button, and Ctrl+Alt is AltGr on German keyboards. Hotkeys you set yourself stay.
+- Settings → Hotkeys shows "Not set" for each action, **Change** to set one and **Clear** to take it away again, right away.
+
 ### 2026-10-07 · Light matches tidied up afterwards (#336)
 - Competitive now reads **after the match** by default: your ranked FPS stays untouched.
 - A match read "Live, light" gets tidied up once the game is idle: YapTracker reads its chat pictures again with the best reader, fixes misread lines and adds the ones Windows OCR missed, at the time they were said. Live says "Tidied up the last match: 3 lines fixed, 2 found."

@@ -289,7 +289,10 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
                 runtime.hotkeys = None
             if on:
                 combos = config.hotkeys()
-                runtime.hotkeys = HotkeyListener({combos[a]: f for a, f in actions.items()})
+                bound = {combos[a]: f for a, f in actions.items() if combos[a]}  # (#328)
+                log.info("hotkeys: %s", ", ".join(f"{a} {c}" for a, c in combos.items() if c)
+                         or "none set")  # fmt: skip
+                runtime.hotkeys = HotkeyListener(bound)
                 runtime.hotkeys.start()
 
         runtime.bind_hotkeys = bind_hotkeys
