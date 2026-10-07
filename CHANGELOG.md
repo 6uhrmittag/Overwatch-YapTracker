@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · Yap snaps from Live (#325)
+- Live's chat card has **Make a yap snap**: click the lines you want (shift-click for a stretch), then Make the snap.
+- Select two or more lines with the mouse and **Snap these** shows up right there.
+- Sessions says where snaps are: "Open a match to read it back or make a yap snap."
+
 ### 2026-10-07 · Two lines no longer glued together (#329)
 - When OCR read a name's brackets as I or l ("IBravolnCharliel: …"), the line was glued onto the one above. A row with its own chat icon now always starts a new line, and such a name comes out without the misread brackets.
 

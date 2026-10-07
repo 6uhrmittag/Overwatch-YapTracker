@@ -16,6 +16,7 @@ from yaptracker.capture.stats import CAPTURE
 from yaptracker.capture.watcher import fps
 from yaptracker.glyphs import GLYPH
 from yaptracker.matches import AFTER_END_GAP_S
+from yaptracker.snaps import MAX_LINES
 from yaptracker.store.backups import last_backup
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import (
@@ -34,9 +35,11 @@ from yaptracker.ui.heart import Heart
 from yaptracker.ui.hotkeys import hotkeys_card
 from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark, show_mark
 from yaptracker.ui.lookup import lookup_card
+from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.quick_verdict import CLICK_NOT_DRAG, clickable_name
 from yaptracker.ui.reading import reading_card
 from yaptracker.ui.setup import setup_wizard, startup_card
+from yaptracker.ui.snap_dialog import snap_dialog
 
 
 def _header(title: str) -> None:
@@ -124,6 +127,10 @@ def repeat(row: dict, message_id: int | None = None) -> None:
     row["count"].set_text(f"\u00d7{row['times']}").classes(remove="yt-hidden")
 
 
+# A click that ends a text selection isn't a pick (#221, #325); shift-click picks a stretch.
+PICK_NOT_DRAG = "(e) => { if (window.getSelection().isCollapsed) emit({shiftKey: e.shiftKey}); }"
+
+
 def chat_line(message, started_at: float | None, verdict: str | None = None, on_click=None) -> dict:
     """One chat row (Live feed, transcripts #29): time in the match, channel, who (you for own
     lines, a crew tag for crew), text. Known players get their verdict colour (docs/ui.md).
@@ -153,8 +160,9 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
             if message.hero:
                 ui.label(f"\u00b7 as {message.hero}").classes("yt-line-hero")
             times = ui.label().classes("yt-line-times yt-hidden").mark("repeat-count")
-    if on_click:  # picking lines for a snap (#64): on_click(shift)
-        line.on("click", lambda e: on_click(bool((e.args or {}).get("shiftKey"))), ["shiftKey"])
+    if on_click:  # picking lines for a snap (#64): on_click(shift); not when it ends a selection
+        line.on("click", lambda e: on_click(bool((e.args or {}).get("shiftKey"))),
+                js_handler=PICK_NOT_DRAG)  # fmt: skip
     else:
         # how it looked (#120, #128); not when the click ends a text selection (#221)
         line.on("click", lambda: show_picture(message, row), js_handler=CLICK_NOT_DRAG)
@@ -392,13 +400,23 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
                 heart = Heart(lambda match_id: match_heart_title())  # (#282)
                 yap_count = ui.label("0 yaps").classes("yt-meta").mark("yap-count")
                 ui.element("div").classes("yt-grow")
+                picker = LinePicker(lambda chosen: open_snap(chosen))  # snaps from Live (#325)
+                snap_these = button("Snap these", lambda: open_snap(chat["selected"]), "quiet")
+                snap_these.classes("yt-hidden").mark("snap-these")
+                picker.start_button()
                 with ui.element("div").classes("yt-legend"):
                     for channel in ("Team", "Match", "Group", "System"):
                         ui.label(channel).classes(f"yt-ch-{channel.lower()}")
                     toggle_slot = ui.element("div")  # the Callouts switch, once the feed exists
+            picker.bar()
             with ui.element("div").classes("yt-card-body yt-feed"):
-                # follows new yaps in the browser (static/follow.js, #166) until you scroll up
-                with ui.element("div").classes("yt-lines yt-follow").mark("feed"):
+                # follows new yaps in the browser (static/follow.js, #166) until you scroll up;
+                # a selection over 2+ lines offers "Snap these" (static/copy.js, #325)
+                with (
+                    ui.element("div")
+                    .classes("yt-lines yt-follow yt-snap-source")
+                    .mark("feed") as feed
+                ):
                     lines = ui.element("div").classes("yt-lines-inner").mark("lines")
                 ui.label("New yaps \u2193").classes("yt-new-yaps yt-hidden").mark("new-yaps")
                 hint = ui.label("Waiting for Overwatch. I'll be right here.").classes("yt-hint")
@@ -419,7 +437,31 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
 
     meter = fps(watcher) if watcher else (lambda: 0.0)
     shown = {"frame": None}
-    chat = {"match": None, "rows": {}, "last": None}
+    chat = {"match": None, "rows": {}, "last": None, "dom": {}, "selected": []}
+
+    def open_snap(chosen: list) -> None:
+        where = runtime.matches.status() if runtime.matches else None
+        title = f"Match {where.match}" if where and where.match else "Live"
+        if where and where.map_name:
+            title += f" on {_name(where.map_name)}"
+        if where and where.mode:
+            title += f" \u00b7 {where.mode.title()}"
+        day = time.strftime("%a %b %d, %Y").replace(" 0", " ")
+        started = runtime.matches.match_started_at if runtime.matches else None
+        snap_dialog(chosen, f"{title} \u00b7 {day}", started)
+
+    def selected(e) -> None:
+        """Lines selected with the mouse (#325): 2 or more offer "Snap these"."""
+        ids = (e.args or {}).get("detail") or []
+        chat["selected"] = [chat["dom"][i] for i in ids if i in chat["dom"]][:MAX_LINES]
+        many = len(chat["selected"]) >= 2
+        snap_these.classes(**{"remove" if many else "add": "yt-hidden"})
+
+    feed.on("ytselected", selected, ["detail"])
+
+    def clicked(message, shift: bool) -> None:
+        if not picker.clicked(message, shift):
+            show_picture(message, chat["rows"].get(message.id))
 
     def refresh_chat() -> None:
         match_id = runtime.matches.match_id if runtime.matches else None
@@ -427,8 +469,11 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         if tidied != chat.get("tidied"):  # found lines go in between: built again (#336)
             chat.update(match=None, tidied=tidied)
         if match_id != chat["match"]:  # a new match starts with an empty feed
-            chat.update(match=match_id, rows={}, last=None)
+            chat.update(match=match_id, rows={}, last=None, dom={})
             lines.clear()
+            picker.clear_rows()
+            if picker.on:
+                picker.pick(False)
         if match_id is None or runtime.store is None:
             yap_count.set_text("0 yaps")
             count_callouts(0)
@@ -443,11 +488,15 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             if last and same_callout(last[0], message):
                 repeat(last[1], message.id)  # the same callout again: counted, not repeated (#185)
                 chat["rows"][message.id] = last[1]
+                picker.add(message, last[1]["line"])
             else:
+                pick = lambda shift, m=message: clicked(m, shift)  # noqa: E731
                 with lines:
-                    row = chat_line(message, runtime.matches.match_started_at)
+                    row = chat_line(message, runtime.matches.match_started_at, on_click=pick)
                 chat["rows"][message.id] = row
                 chat["last"] = (message, row)
+                chat["dom"][f"c{row['line'].id}"] = message
+                picker.add(message, row["line"])
         typed = [m for m in messages if not m.hero]  # callouts aren't yaps (#182)
         yappers = {m.speaker_raw for m in typed if m.channel != "system" and m.speaker_raw}
         yaps, people = count(len(typed), "yap", "yaps"), count(len(yappers), "yapper", "yappers")
