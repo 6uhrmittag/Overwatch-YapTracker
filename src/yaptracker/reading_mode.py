@@ -4,7 +4,8 @@ read (#276): Competitive is one choice, every other match the other one. Between
 game is idle, so the chat is always read with the best quality then.
 
 - best: the chosen engine of the calibration preview, RapidOCR unless it won't start
-- light: Windows OCR, ~10x cheaper and not AVX-heavy; misses some lines and words
+- light: Windows OCR, ~10x cheaper and not AVX-heavy; misses some lines and words, so the match
+  is read again with the best quality once the game is idle (#336)
 - after: no reading during the match; its changed chat frames are read once it's over (#335)
 """
 
@@ -24,7 +25,7 @@ BEST, LIGHT, AFTER = "best", "light", "after"
 COMPETITIVE_QUEUES = frozenset({"COMPETITIVE", "GEWERTET"})  # game_lists.queue names (#276)
 LIGHT_ENGINE = ocr.WindowsOcrEngine.name
 CHOICES = (AFTER, LIGHT, BEST)
-DEFAULT_COMPETITIVE = LIGHT  # AFTER once the tidy-up of light matches is in (#336)
+DEFAULT_COMPETITIVE = AFTER  # Marv + Void (#330): ranked must be smooth
 DEFAULT_OTHER = BEST
 
 

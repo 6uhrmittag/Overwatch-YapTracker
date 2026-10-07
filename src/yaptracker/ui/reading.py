@@ -28,9 +28,9 @@ def reading_card() -> None:
             ui.label(
                 "How I read the chat during a match. After the match costs your game nothing: "
                 "I keep the chat pictures and read them once it's over, so faces show up after "
-                "the match. Light reading costs almost nothing, but umlauts and odd names come "
-                "out a bit worse and some words get lost. Between matches I always read with "
-                "the best quality: the game is idle then."
+                "the match. Light reading costs almost nothing and shows faces live, but misses "
+                "some words; I fix it up after the match with the best reader. Between matches "
+                "I always read with the best quality: the game is idle then."
             ).classes("yt-hint")
             ui.label(
                 "Competitive is spotted at hero select. If I missed hero select, the match counts "

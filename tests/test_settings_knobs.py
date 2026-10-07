@@ -43,7 +43,8 @@ async def user():
 
 class FakeReader:
     min_gap_s = 1.5
-    later = ()  # no chat frames waiting to be read after the match (#335)
+    later = tidy_frames = ()  # no chat frames waiting to be read after the match (#335, #336)
+    tidied = None
 
 
 async def test_reading_card_changes_apply_at_once(user: User, monkeypatch):

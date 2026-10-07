@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · Light matches tidied up afterwards (#336)
+- Competitive now reads **after the match** by default: your ranked FPS stays untouched.
+- A match read "Live, light" gets tidied up once the game is idle: YapTracker reads its chat pictures again with the best reader, fixes misread lines and adds the ones Windows OCR missed, at the time they were said. Live says "Tidied up the last match: 3 lines fixed, 2 found."
+- Lines you fixed or deleted by hand stay as they are. If the next match starts first, the tidy-up waits for the next break.
+
 ### 2026-10-07 · Read after the match (#335)
 - Settings → Reading has a third choice for Competitive and for other matches: **After the match**. YapTracker keeps the chat pictures during the match and reads them once it's over, so your game pays nothing for the chat.
 - Live says it in words during such a match: "Competitive: reading after the match. Your FPS stays untouched." Afterwards it counts down the pictures it still has to read.

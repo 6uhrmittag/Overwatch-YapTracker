@@ -388,6 +388,9 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
 
     def refresh_chat() -> None:
         match_id = runtime.matches.match_id if runtime.matches else None
+        tidied = runtime.reader.tidied if runtime.reader is not None else None
+        if tidied != chat.get("tidied"):  # found lines go in between: built again (#336)
+            chat.update(match=None, tidied=tidied)
         if match_id != chat["match"]:  # a new match starts with an empty feed
             chat.update(match=match_id, rows={}, last=None)
             lines.clear()
@@ -584,6 +587,14 @@ def _listening() -> str:
         return f"{kind}: reading after the match. Your FPS stays untouched."
     if waiting:
         return f"Reading the last match: {count(waiting, 'chat picture', 'chat pictures')} to go."
+    tidying = len(runtime.reader.tidy_frames) if runtime.reader is not None else 0
+    if tidying and not runtime.matches.running:  # (#336)
+        pictures = count(tidying, "chat picture", "chat pictures")
+        return f"Tidying up the last match with the best reader: {pictures} to go."
+    tidied = runtime.reader.tidied if runtime.reader is not None else None
+    if tidied and tidied[0] == runtime.matches.match_id and (tidied[1] or tidied[2]):
+        fixed, found = count(tidied[1], "line", "lines"), tidied[2]
+        return f"Tidied up the last match: {fixed} fixed, {found} found."
     return "Ears open. Nobody's typing right now."
 
 
