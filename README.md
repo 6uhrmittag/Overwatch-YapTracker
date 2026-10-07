@@ -93,7 +93,7 @@ Chat logs, line pictures and debug samples contain other players' names and mess
 - **Lines can be missed** when chat scrolls or fades faster than it's read (it's read every 1.5 s), e.g. a burst of many lines at once, or a very bright background behind the chat.
 - **Group chat** gets its own channel once YapTracker has seen the `[Group]` chat box open once; until then those lines say "Chat".
 - **Matches** start at hero select and end at VICTORY / DEFEAT. If one is missed, a quiet gap starts the next one; **Start match** / **End match** fixes the rest. Pressing it twice, or before a long queue, leaves no empty match.
-- **Reading after the match** keeps the match's chat in memory until it's over, then reads it in a minute or so. Quitting YapTracker before that, or a crash, loses it; Sessions then shows that time as not recorded.
+- **Reading after the match** keeps the match's chat in memory until it's over, then reads it in a minute or so. Quit YapTracker before that and it reads the chat at the next start (within 2 days). A crash loses it; Sessions then shows that time as not recorded.
 - **Live, light** (Windows OCR) misses some lines and letters during the match. Once the game is idle, YapTracker reads the match again with the best reader and fixes them.
 - **Unknown queue:** if hero select couldn't be read (glare, or YapTracker started mid-match), the match is read the lighter of your two settings.
 - **Only who typed:** players who never chat aren't logged (type their name in **Who's that?** to add them). No match stats, no full lobbies.

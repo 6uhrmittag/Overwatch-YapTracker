@@ -98,7 +98,8 @@ class ChatReader:
         self._modes = modes  # which reading mode read the frames, for the log line (#331)
         # Frames read after the match (#335): kept while deferring, read when idle (fast) or
         # in a live match (at the live pace), each with the mode it was seen with.
-        self.later = later or LaterFrames(lambda: self.min_gap_s, None)
+        # "is not None": an empty buffer is falsy (it has a length), and the app passes one empty
+        self.later = later if later is not None else LaterFrames(lambda: self.min_gap_s, None)
         self._read_kept = read_kept or (lambda image, mode: read(image))
         self._deferring, self._idle = deferring, idle
         self._batch: tuple[float, int] | None = None  # (started, frames) of reading kept ones
@@ -150,7 +151,7 @@ class ChatReader:
             self._thread.join(timeout=10)  # an OCR call may be running; the store closes next
         if self.tidy_frames.discard() is not None:  # its light lines stay as they are
             log.info("quitting before the last light match was tidied up")
-        lost = self.later.discard()  # quitting mid-match: those frames are never read
+        lost = self.later.close()  # unread frames to disk for the next start (#349)
         if lost is not None:
             log.warning("quitting with chat frames unread: %s", _span(*lost))
             self._store.close_gap(self._store.open_gap(lost[0], "deferred_lost"), lost[1])
@@ -230,8 +231,10 @@ class ChatReader:
         ocr, lines = self._lines(image, ocr_lines)
         new, improved = self._dedup.update(ts, lines)
         before = self._matches.match_id
-        if new:
-            self._matches.chat_changed(ts)  # first: a new match may start with this yap
+        # first: a new match may start with this yap. Not for frames read after their match:
+        # they belong to it, also after a restart when no match is open yet (#349)
+        if new and (kept is None or kept.mode != AFTER):
+            self._matches.chat_changed(ts)
         # The first read of a match that began without this chat can still show lines of the
         # match before (#179): those that were on screen in the read before it belong there.
         current, previous = self._matches.match_id, self._matches.previous_match_id
