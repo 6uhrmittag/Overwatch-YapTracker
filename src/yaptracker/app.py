@@ -84,7 +84,7 @@ def _arm_smoke_test() -> None:
 def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (#311)
     """Capture runs by itself from app start: waits for Overwatch, follows it (#16)."""
     from yaptracker.ocr import engine as ocr
-    from yaptracker.reading_mode import AFTER
+    from yaptracker.reading_mode import AFTER, LIGHT
 
     if config.drop_ocr_gpu():
         log.warning("Use GPU for OCR was on: it's gone in v1 (#219), reading on the CPU")
@@ -109,6 +109,8 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
             return
         if changed or runtime.reader.wants_reread():  # or weak lines on screen (#195)
             runtime.reader.offer(frame.image, mode)  # new text: read, dedup and store it (#108)
+        if changed and mode == LIGHT and runtime.reading.light_problem is None:
+            runtime.reader.keep_for_tidy(frame.image)  # read again with the best when idle (#336)
 
     def chat_quiet() -> bool:  # GDI grabs less while nothing new shows (#319)
         reread = runtime.reader is not None and runtime.reader.wants_reread()
