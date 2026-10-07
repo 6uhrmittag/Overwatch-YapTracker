@@ -52,16 +52,16 @@ The box is kept as a share of the window, so it works at any resolution with the
 
 ## Hotkeys
 
-Normal play needs none: capture, matches and sessions run by themselves. They're there for the odd correction and work anywhere in Windows, also in Overwatch.
+None by default: capture, matches and sessions run by themselves, and every action has a button. If you want one of these without switching windows, set it in **Settings → Hotkeys**. They then work anywhere in Windows, also in Overwatch.
 
-| Default | What it does |
+| Action | What it does |
 |---|---|
-| `Ctrl+Alt+F` | YapTracker to the front, ready to type a name in **Who's that?** |
-| `Ctrl+Alt+P` | Pause / resume; resumes by itself at the next match |
-| `Ctrl+Alt+M` | Start match / End match, only if YapTracker missed a hero select or a result screen |
-| `Ctrl+Alt+S` | Keep the last 20 s of chat as a debug sample |
+| Who's that? | YapTracker to the front, ready to type a name in **Who's that?** |
+| Pause / resume | Pause; resumes by itself at the next match |
+| Start / end match | Only if YapTracker missed a hero select or a result screen |
+| Save the last 20 s | Keep the last 20 s of chat as a debug sample |
 
-Change them in **Settings → Hotkeys**: click **Change**, press the new keys. Any keyboard layout works (QWERTZ, Dvorak…): the letter you press is the one saved and shown. If another app already has a combo, Settings says so next to it.
+Click **Change**, press the keys; **Clear** takes a hotkey away again. Any keyboard layout works (QWERTZ, Dvorak…): the letter you press is the one saved and shown. If another app already has a combo, Settings says so next to it.
 
 ## Your data
 

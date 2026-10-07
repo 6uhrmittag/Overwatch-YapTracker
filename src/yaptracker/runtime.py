@@ -28,7 +28,8 @@ def ocr_scale() -> float:
 
 
 def keycap(action: str) -> str:
-    """The hotkey of an action as a keycap label, e.g. "Ctrl Alt P" (changeable, #32)."""
+    """The hotkey of an action as a keycap label, e.g. "Ctrl Alt P" (changeable, #32);
+    "" when it's not set, so no keycap is shown (#328)."""
     return config.hotkeys()[action].replace("+", " ")
 
 

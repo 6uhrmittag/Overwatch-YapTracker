@@ -24,7 +24,8 @@ def lookup_card() -> ui.input:
                     .classes("yt-grow")
                     .mark("lookup-box")
                 )
-                ui.label(runtime.keycap("lookup")).classes("yt-keycap")
+                if runtime.keycap("lookup"):  # unbound by default (#328)
+                    ui.label(runtime.keycap("lookup")).classes("yt-keycap")
             results = ui.element("div").classes("yt-lookup-results").mark("lookup-results")
 
     def open_player(player_id: int) -> None:

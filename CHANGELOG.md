@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · No hotkeys unless you want them (#328)
+- YapTracker no longer takes any key combo by default: everything has a button, and Ctrl+Alt is AltGr on German keyboards. Hotkeys you set yourself stay.
+- Settings → Hotkeys shows "Not set" for each action, **Change** to set one and **Clear** to take it away again, right away.
+
 ### 2026-10-07 · Read again, best quality (#333)
 - Sessions → a match → **Read again, best quality** reads every line again from its saved picture with the best reader and keeps a new reading only where it's better. A line's popup has **Read this line again**.
 - It says how it's going ("Reading 23 lines again… 7 better so far.") and waits while a match runs. Lines you fixed by hand are never touched. It fixes misread lines; lines YapTracker never saw can't be found this way.

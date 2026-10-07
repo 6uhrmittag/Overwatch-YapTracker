@@ -471,7 +471,7 @@ async def test_the_save_hotkey_has_a_button_too(user: User, monkeypatch, tmp_pat
     monkeypatch.setattr(runtime, "debug", DebugSamples(tmp_path / "debug", config.debug_samples))
     await user.open("/")
     user.find(marker="nav-settings").click()
-    await user.should_see("Ctrl Alt S")
+    await user.should_see("Save the last 20 s")
     user.find(marker="save-chat").click()
     await user.should_see("Nothing read in the last 20 s")
     runtime.debug.chat_read(1.0, np.zeros((10, 10, 3), np.uint8), [], [], [])

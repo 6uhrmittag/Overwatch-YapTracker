@@ -61,7 +61,7 @@ def clash(action: str, combo: str) -> str | None:
     if problem:
         return problem
     for other, taken in config.hotkeys().items():
-        if other != action and taken.lower() == combo.lower():
+        if other != action and taken and taken.lower() == combo.lower():
             return f"Already used for {ACTIONS[other][0]}."
     return None
 
@@ -78,12 +78,36 @@ class _Keys(ui.keyboard):
 
 
 def _note(combo: str, taken: list[str]) -> str | None:
+    if not combo:
+        return None
     if combo in taken:
         return "Another app already has this one: pick another."
     *mods, key = combo.lower().split("+")
     if {"ctrl", "alt"} <= set(mods) and key in ALTGR:
         return f"That's also AltGr+{key.upper()} on German keyboards: no {ALTGR[key]} in chat."
     return None
+
+
+def _row(action: str, combo: str, note: str | None, listening: bool, do: dict) -> None:
+    """One action: its name and hint, the combo or "Not set", Change and Clear (#328)."""
+    label, hint = ACTIONS[action]
+    with ui.element("div").classes("yt-hotkey").mark(f"hotkey-{action}"):
+        with ui.element("div").classes("yt-grow"):
+            ui.label(label).classes("yt-hotkey-name")
+            ui.label(hint).classes("yt-meta")
+        if note:
+            ui.label(note).classes("yt-hotkey-note").mark(f"hotkey-note-{action}")
+        if listening:
+            ui.label("Press the new keys\u2026").classes("yt-keycap yt-keycap--big")
+            button("Cancel", lambda: do["cancel"](), "quiet").mark("hotkey-cancel")
+            return
+        if combo:
+            ui.label(combo.replace("+", " ")).classes("yt-keycap yt-keycap--big")
+        else:
+            ui.label("Not set").classes("yt-meta").mark(f"hotkey-unset-{action}")
+        button("Change", lambda: do["change"](action), "quiet").mark(f"hotkey-change-{action}")
+        if combo:
+            button("Clear", lambda: do["clear"](action), "quiet").mark(f"hotkey-clear-{action}")
 
 
 def hotkeys_card() -> None:
@@ -94,9 +118,10 @@ def hotkeys_card() -> None:
         with ui.element("div").classes("yt-card-body"):
             rows = ui.element("div").classes("yt-hotkeys")
             ui.label(
-                "They work everywhere, also in Overwatch. Normal play never needs one."
+                "Optional. Everything works without hotkeys; set one if you want an action "
+                "without switching windows. They work everywhere, also in Overwatch."
                 if runtime.bind_hotkeys
-                else "They work in the Windows app; here you can still change them."
+                else "Optional. They work in the Windows app; here you can still set them."
             ).classes("yt-hint")
     keys = _Keys(active=False, ignore=[]).mark("hotkey-keys")
 
@@ -105,24 +130,10 @@ def hotkeys_card() -> None:
         combos = config.hotkeys()
         rows.clear()
         with rows:
-            for action, (label, hint) in ACTIONS.items():
-                listening = state["listening"] == action
-                with ui.element("div").classes("yt-hotkey").mark(f"hotkey-{action}"):
-                    with ui.element("div").classes("yt-grow"):
-                        ui.label(label).classes("yt-hotkey-name")
-                        ui.label(hint).classes("yt-meta")
-                    combo = combos[action]
-                    note = state["problem"].get(action) or _note(combo, taken)
-                    if note:
-                        ui.label(note).classes("yt-hotkey-note").mark(f"hotkey-note-{action}")
-                    ui.label("Press the new keys\u2026" if listening else combo.replace("+", " ")
-                             ).classes("yt-keycap yt-keycap--big")  # fmt: skip
-                    if listening:
-                        button("Cancel", lambda: stop(), "quiet").mark("hotkey-cancel")
-                    else:
-                        button("Change", lambda a=action: listen(a), "quiet").mark(
-                            f"hotkey-change-{action}"
-                        )
+            for action in ACTIONS:
+                note = state["problem"].get(action) or _note(combos[action], taken)
+                _row(action, combos[action], note, state["listening"] == action,
+                     {"change": listen, "clear": clear, "cancel": stop})  # fmt: skip
 
     async def learn_layout() -> None:
         """Which letters this keyboard types (#245); asked once per page."""
@@ -139,6 +150,14 @@ def hotkeys_card() -> None:
         if "layout" not in state:
             state["layout"] = {}
             background_tasks.create(learn_layout(), name="keyboard layout")
+
+    def clear(action: str) -> None:
+        """Unbinds it at once (#328): no confirmation, the row says "Not set" again."""
+        config.save_hotkey(action, "")
+        state["problem"].pop(action, None)
+        if runtime.bind_hotkeys:
+            runtime.bind_hotkeys(True)  # registered again without it
+        render()
 
     def stop() -> None:
         state["listening"] = None
