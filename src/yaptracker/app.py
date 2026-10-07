@@ -25,6 +25,7 @@ DEV_HOST = "0.0.0.0"
 DEV_PORT = 8080
 SMOKE_TEST_TIMEOUT_S = 90
 LATER_NOTE = "unread-chat.json"  # the span of chat frames waiting to be read (#335)
+UNREAD_DIR = "unread"  # chat frames a normal quit kept for the next start (#349)
 log = logging.getLogger(__name__)
 
 
@@ -413,11 +414,15 @@ def _open_store() -> Callable[[], None]:
             on_player=runtime.familiar.heard,
             min_gap_s=config.read_every_s(),
             modes=runtime.reading.take_counts,
-            later=later.LaterFrames(lambda: runtime.reader.min_gap_s, note),
+            later=later.LaterFrames(
+                lambda: runtime.reader.min_gap_s, note, unread=paths.data_dir() / UNREAD_DIR
+            ),  # fmt: skip
             read_kept=lambda image, mode: runtime.reading.read(image, runtime.ocr_scale(), mode),
             deferring=lambda: capturing() and runtime.reading.now() == AFTER,
             idle=lambda: not capturing() or not runtime.matches.running,
         )
+        if (stale := runtime.reader.later.restore()) is not None:  # kept at the last quit (#349)
+            runtime.store.close_gap(runtime.store.open_gap(stale[0], "deferred_lost"), stale[1])
         runtime.reader.start()
         runtime.read_again = ReadAgain(  # "Read again, best quality" (#333)
             runtime.store,

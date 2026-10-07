@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · Quitting keeps the chat (#349)
+- If you close YapTracker right after a ranked match, before it read that match's chat, the chat is kept and read at the next start, into the right match, with the times it was said.
+- Behind the scenes: the crash note for unread chat was never written (a bug since #335); a crash mid-match now really shows up as "not recorded".
+
 ### 2026-10-07 · Read again says when it can't (#357)
 - With line pictures switched off, or none left for a match, **Read again, best quality** is greyed out and says why, instead of running and finding nothing.
 

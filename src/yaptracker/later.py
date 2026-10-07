@@ -8,13 +8,17 @@ it's the one whose lines the others most likely show too. Neighbours only count 
 match, and a match's first and last frame always stay (#356): with back-to-back matches waiting
 together under the one cap, both stay readable.
 
-A crash or quitting loses the frames. Their time span is noted in a small file while frames
-wait, so the next start turns it into a gap record ('deferred_lost', #75): never a silent hole.
+Quitting normally with frames unread writes them to data/unread/ as they are (raw, nothing to
+encode), and the next start reads them first (#349). Nothing is written to disk during a match
+but a tiny note: a crash loses the frames, and the note's time span becomes a gap record
+('deferred_lost', #75) at the next start: never a silent hole.
 """
 
 import json
 import logging
+import shutil
 import threading
+import time
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -26,6 +30,8 @@ log = logging.getLogger(__name__)
 
 CAP_BYTES = 150 * 1024 * 1024  # ~200 chat boxes at 1440p, ~90 at 4K
 NOTE_EVERY_S = 10.0  # how often the waiting span is written down (a crash loses at most this)
+KEEP_S = 2 * 24 * 3600  # frames saved at quit older than this aren't read any more (#349)
+INDEX = "index.json"  # written last: a folder without it was cut off mid-write
 
 
 @dataclass
@@ -39,9 +45,13 @@ class Kept:
 
 class LaterFrames:
     def __init__(
-        self, gap_s: Callable[[], float], note: Path | None, cap_bytes: int = CAP_BYTES
+        self,
+        gap_s: Callable[[], float],
+        note: Path | None,
+        cap_bytes: int = CAP_BYTES,
+        unread: Path | None = None,
     ) -> None:
-        self._gap, self._note, self._cap = gap_s, note, cap_bytes
+        self._gap, self._note, self._cap, self._unread = gap_s, note, cap_bytes, unread
         self._lock = threading.Lock()
         self._frames: list[Kept] = []
         self._bytes = 0
@@ -90,6 +100,64 @@ class LaterFrames:
             frames, self._frames, self._bytes, self._noted_at = self._frames, [], 0, None
             self._forget_note()
             return (frames[0].ts, frames[-1].ts) if frames else None
+
+    def close(self) -> tuple[float, float] | None:
+        """Quitting (#349): unread frames go to disk for the next start. Returns the span of
+        frames that couldn't be kept (for a gap record), None if nothing was lost."""
+        if self._unread is None:
+            return self.discard()
+        with self._lock:
+            frames, self._frames, self._bytes, self._noted_at = self._frames, [], 0, None
+        if not frames:
+            self._forget_note()
+            return None
+        try:
+            shutil.rmtree(self._unread, ignore_errors=True)
+            self._unread.mkdir(parents=True)
+            index = []
+            for n, kept in enumerate(frames):
+                np.save(self._unread / f"{n:04d}.npy", kept.image, allow_pickle=False)
+                index.append({"file": f"{n:04d}.npy", "since": kept.since, "ts": kept.ts,
+                              "match": kept.match_id, "mode": kept.mode})  # fmt: skip
+            (self._unread / INDEX).write_text(json.dumps(index), encoding="utf-8")
+        except OSError as error:
+            log.warning("can't keep the unread chat frames for the next start: %s", error)
+            shutil.rmtree(self._unread, ignore_errors=True)
+            self._forget_note()
+            return frames[0].ts, frames[-1].ts
+        self._forget_note()
+        log.info("kept %d unread chat frames for the next start", len(frames))
+        return None
+
+    def restore(self, now: float | None = None) -> tuple[float, float] | None:
+        """At start: frames kept by the last quit wait to be read again, first of all. Older
+        than KEEP_S: dropped, and their span returned for a gap record. The folder goes."""
+        if self._unread is None or not self._unread.exists():
+            return None
+        now = time.time() if now is None else now
+        try:
+            index = json.loads((self._unread / INDEX).read_text(encoding="utf-8"))
+            frames = [Kept(e["since"], e["ts"], np.load(self._unread / e["file"]), e["match"],
+                           e["mode"]) for e in index]  # fmt: skip
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            log.warning("the chat frames kept at the last quit can't be read: %s", error)
+            frames = []
+        finally:
+            shutil.rmtree(self._unread, ignore_errors=True)
+        if not frames:
+            return None
+        span = (frames[0].ts, frames[-1].ts)
+        if now - span[1] > KEEP_S:
+            log.warning("chat frames kept at the last quit are too old to read: %d dropped",
+                        len(frames))  # fmt: skip
+            return span
+        with self._lock:
+            self._frames = frames + self._frames
+            self._bytes += sum(k.image.nbytes for k in frames)
+            self._noted_at = now
+        self._write_note(*span)  # a crash while reading them: still a gap, not a hole
+        log.info("%d chat frames kept at the last quit wait to be read", len(frames))
+        return None
 
     def take_counts(self) -> tuple[int, Counter]:
         """(frames kept, {match: frames dropped for the cap}) since the last call."""
