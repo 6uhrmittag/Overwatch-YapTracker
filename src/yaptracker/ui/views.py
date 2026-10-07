@@ -162,8 +162,11 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
            "ids": [message.id], "edited": edited, "ch": ch, "channel": channel}  # fmt: skip
     edit_button(line, message.id, text, edited)  # a misread line: fixed in place (#227)
     delete_button(line, lambda: row["ids"])  # a doubled or wrong line: gone in one click (#227)
-    _fill_line(row, message)
+    fill_line(row, message)
     return row
+
+
+AGAIN_HINT = "It fixes misread lines from their pictures; lines I never saw can't be found."
 
 
 def show_picture(message, row: dict | None = None, on_channel=None) -> None:
@@ -179,6 +182,8 @@ def show_picture(message, row: dict | None = None, on_channel=None) -> None:
             if path is not None and path.exists():
                 ui.image(path).classes("yt-picture-image").mark("line-picture")
                 ui.label("The line as it looked in Overwatch.").classes("yt-hint")
+                if message.edited_at is None and runtime.read_again is not None:
+                    _read_line_again(message, row)
             _channel_picker(message, row, path, on_channel)
             spicy = message.flagged is not None
             ui.label(
@@ -194,6 +199,36 @@ def show_picture(message, row: dict | None = None, on_channel=None) -> None:
             button("Not spicy" if spicy else "Mark as spicy", toggle).mark("spicy-toggle")
     dialog.on_value_change(lambda e: None if e.value else dialog.delete())  # gone once closed
     dialog.open()
+
+
+def _read_line_again(message, row: dict | None) -> None:
+    """"Read this line again" with the best reader (#333); says how it went in words."""
+    state = ui.label().classes("yt-hint yt-hidden").mark("read-line-again-state")
+    job = {"now": None}
+
+    def start() -> None:
+        job["now"] = runtime.read_again.line(message.id)
+        state.classes(remove="yt-hidden")
+        follow()
+
+    def follow() -> None:
+        now = job["now"]
+        if now is None:
+            return
+        if now.finished:
+            state.set_text("Read again: better now." if now.better else
+                           "Read again: that was already the best reading.")  # fmt: skip
+            fresh = runtime.store.message(message.id)
+            if now.better and row is not None and fresh is not None:
+                fill_line(row, fresh)
+            job["now"] = None
+        elif runtime.matches is not None and runtime.matches.running:
+            state.set_text("A match is running: I read it again once it's over.")
+        else:
+            state.set_text("Reading it again\u2026")
+
+    button("Read this line again", start, "quiet").mark("read-line-again")
+    ui.timer(0.5, follow)
 
 
 _FIXABLE = ("team", "match", "group", "system")
@@ -230,7 +265,7 @@ def _channel_picker(message, row: dict | None, picture, on_channel=None) -> None
         if fresh is None:
             return
         if row is not None:
-            _fill_line(row, fresh)
+            fill_line(row, fresh)
         if on_channel is not None:
             on_channel(fresh.channel)
 
@@ -256,7 +291,7 @@ def _channel_picker(message, row: dict | None, picture, on_channel=None) -> None
     render(message.channel)
 
 
-def _fill_line(row: dict, message) -> None:
+def fill_line(row: dict, message) -> None:
     shown = (message.speaker_raw, message.role, message.text, message.flagged, message.edited_at,
              message.channel)  # fmt: skip
     if shown == row["shown"]:
@@ -399,7 +434,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         count_callouts(sum(1 for m in messages if m.hero))
         for message in messages:
             if message.id in chat["rows"]:
-                _fill_line(chat["rows"][message.id], message)  # a better reading came in
+                fill_line(chat["rows"][message.id], message)  # a better reading came in
                 continue
             last = chat["last"]
             if last and same_callout(last[0], message):

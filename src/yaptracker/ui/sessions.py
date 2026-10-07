@@ -14,7 +14,16 @@ from yaptracker.ui.components import button, callout_toggle, count, when
 from yaptracker.ui.heart import Heart
 from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.snap_dialog import snap_dialog
-from yaptracker.ui.views import _OUTCOMES, _WHY, chat_line, repeat, same_callout, show_picture
+from yaptracker.ui.views import (
+    _OUTCOMES,
+    _WHY,
+    AGAIN_HINT,
+    chat_line,
+    fill_line,
+    repeat,
+    same_callout,
+    show_picture,
+)
 
 _GAP_WHY = {
     **_WHY,
@@ -134,6 +143,40 @@ def _title(match, number: int) -> str:
     return f"Match {number}" + (f" on {match.map.title()}" if match.map else "")
 
 
+def _read_again(match_id: int, rows: dict[int, dict]):
+    """The match's "Read again, best quality" (#333): its progress line in words, better
+    readings into their rows at once. Returns what the button does."""
+    store = runtime.store
+    progress = ui.label().classes("yt-hint yt-hidden").mark("read-again-progress")
+    shown: set[int] = set()
+
+    def start() -> None:
+        if runtime.read_again is not None:
+            runtime.read_again.match(match_id)
+            follow()
+
+    def follow() -> None:
+        job = runtime.read_again.job(match_id) if runtime.read_again is not None else None
+        if job is None:
+            return
+        for message_id in set(job.better) - shown:
+            shown.add(message_id)
+            if message_id in rows and (fresh := store.message(message_id)) is not None:
+                fill_line(rows[message_id], fresh)
+        lines, better = count(len(job.ids), "line", "lines"), f"{len(job.better)} better"
+        if job.finished:
+            text = f"Read {lines} again: {better}. {AGAIN_HINT}"
+        elif runtime.matches is not None and runtime.matches.running:
+            text = "A match is running: I read them again once it's over."
+        else:
+            text = f"Reading {lines} again\u2026 {better} so far."
+        progress.set_text(text)
+        progress.classes(remove="yt-hidden")
+
+    ui.timer(1.0, follow)
+    return start
+
+
 def _transcript(match, number: int, back) -> None:
     store = runtime.store
 
@@ -153,10 +196,12 @@ def _transcript(match, number: int, back) -> None:
         Heart(lambda _: _title(match, number)).show(match.id)  # love it afterwards (#282)
         ui.element("div").classes("yt-grow")
         toggle_slot = ui.element("div")  # the Callouts switch (#289)
+        again = button("Read again, best quality", lambda: read_again(), "quiet")
+        again.mark("read-again").props(f'title="{AGAIN_HINT}"')
         picker.start_button()
     picker.bar()
-
     rows: dict[int, dict] = {}  # message id -> its row, so a channel fix shows at once (#283)
+    read_again = _read_again(match.id, rows)
 
     def clicked(message, shift: bool) -> None:
         if not picker.clicked(message, shift):

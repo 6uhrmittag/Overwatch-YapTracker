@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · Read again, best quality (#333)
+- Sessions → a match → **Read again, best quality** reads every line again from its saved picture with the best reader and keeps a new reading only where it's better. A line's popup has **Read this line again**.
+- It says how it's going ("Reading 23 lines again… 7 better so far.") and waits while a match runs. Lines you fixed by hand are never touched. It fixes misread lines; lines YapTracker never saw can't be found this way.
+
 ### 2026-10-07 · Read after the match (#335)
 - Settings → Reading has a third choice for Competitive and for other matches: **After the match**. YapTracker keeps the chat pictures during the match and reads them once it's over, so your game pays nothing for the chat.
 - Live says it in words during such a match: "Competitive: reading after the match. Your FPS stays untouched." Afterwards it counts down the pictures it still has to read.

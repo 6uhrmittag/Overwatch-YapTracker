@@ -13,6 +13,7 @@ from yaptracker.lines import LinePictures
 from yaptracker.matches import MatchTracker
 from yaptracker.pause import Pause
 from yaptracker.players import PlayerMatcher
+from yaptracker.read_again import ReadAgain
 from yaptracker.reader import ChatReader
 from yaptracker.reading_mode import ReadingMode
 from yaptracker.store.backups import DailyBackup
@@ -43,6 +44,7 @@ health: CaptureHealth | None = None  # gap records (#75), with the store
 debug: DebugSamples | None = None  # the hard moments, kept as test material (#63)
 reader: ChatReader | None = None  # live chat into the database (#108), with the store
 reading: ReadingMode | None = None  # which reader reads during which match (#331)
+read_again: ReadAgain | None = None  # "Read again, best quality" from line pictures (#333)
 backups: DailyBackup | None = None  # one copy of the database a day (#125), with the store
 pictures: LinePictures | None = None  # the picture of every chat line (#120)
 players: PlayerMatcher | None = None  # speakers -> players (#23); reloaded after a merge
