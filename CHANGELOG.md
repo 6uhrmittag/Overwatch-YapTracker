@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · Read again says when it can't (#357)
+- With line pictures switched off, or none left for a match, **Read again, best quality** is greyed out and says why, instead of running and finding nothing.
+
 ### 2026-10-07 · Back-to-back matches stay whole (#356)
 - When the next match starts before the last one's chat was read, both wait together. If memory gets tight, YapTracker now drops only pictures that other pictures of the same match cover, never the first or last of a match, and the log says which match lost some.
 
