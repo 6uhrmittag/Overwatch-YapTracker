@@ -60,6 +60,7 @@ class ChatReader:
         players=None,
         on_player: Callable[[int | None, int | None], object] = lambda player, match: None,
         save_colours: Callable[[dict[str, float]], object] = lambda colours: None,
+        modes: Callable[[], str] = lambda: "",
     ) -> None:
         self._read, self._store, self._matches = read, store, matches
         self._identity, self._colours, self._paused, self._clock = (
@@ -76,6 +77,7 @@ class ChatReader:
         self._reread_until, self._rereads_left = -math.inf, 0  # read weak lines again (#195)
         self._weak: set[int] = set()  # yaps that already got their re-reads
         self._save_colours = save_colours  # the group colour is rare: kept for next time (#80)
+        self._modes = modes  # which reading mode read the frames, for the log line (#331)
         self.min_gap_s = min_gap_s  # Settings can change it while running (#152)
         self._last_read = -math.inf  # monotonic time of the last read's start
         self._dedup = Dedup()
@@ -232,8 +234,10 @@ class ChatReader:
             whole = 100 * (cpu - self._load_cpu) / wall
             # Above the goal: read every 3 s for a minute (chat stays ~9 s on screen, #249).
             self.busy = whole > CPU_GOAL
-            log.info("chat reading: %d frames, %.0f ms CPU each; whole app: %.1f %% of a core%s",
-                     self._load_frames, 1000 * self._load_busy / self._load_frames, whole,
+            modes = self._modes()
+            log.info("chat reading: %d frames, %.0f ms CPU each%s; whole app: %.1f %% of a core%s",
+                     self._load_frames, 1000 * self._load_busy / self._load_frames,
+                     f" ({modes})" if modes else "", whole,
                      "; reading every 3 s for a minute" if self.busy else "")  # fmt: skip
             self._load_since, self._load_cpu = now, cpu
             self._load_busy, self._load_frames = 0.0, 0
