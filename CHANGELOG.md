@@ -8,6 +8,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 - If you close YapTracker right after a ranked match, before it read that match's chat, the chat is kept and read at the next start, into the right match, with the times it was said.
 - Behind the scenes: the crash note for unread chat was never written (a bug since #335); a crash mid-match now really shows up as "not recorded".
 
+### 2026-10-07 · README: reading per kind of match (#361)
+- The README explains in a few sentences how chat is read in Competitive and other matches, and what that can't do.
+
 ### 2026-10-07 · Read again says when it can't (#357)
 - With line pictures switched off, or none left for a match, **Read again, best quality** is greyed out and says why, instead of running and finding nothing.
 
