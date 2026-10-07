@@ -108,6 +108,9 @@ def _match_list(session, back, open_match) -> None:
         button("\u2190 All sessions", back, "quiet").mark("back-to-sessions")
         day = time.strftime("%A, %b %d", time.localtime(session.started_at)).replace(" 0", " ")
         ui.label(day).classes("yt-h1")
+    ui.label("Open a match to read it back or make a yap snap.").classes("yt-hint").mark(
+        "matches-hint"
+    )  # snaps are in the match, in Search and in Live (#325)
     matches = store.session_matches(session.id)
     with ui.element("section").classes("yt-card yt-card--list"):
         with ui.element("div").classes("yt-card-body").mark("matches"):

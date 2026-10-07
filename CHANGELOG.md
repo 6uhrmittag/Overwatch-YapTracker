@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · Yap snaps from Live (#325)
+- Live's chat card has **Make a yap snap**: click the lines you want (shift-click for a stretch), then Make the snap.
+- Select two or more lines with the mouse and **Snap these** shows up right there.
+- Sessions says where snaps are: "Open a match to read it back or make a yap snap."
+
 ### 2026-10-07 · Read again, best quality (#333)
 - Sessions → a match → **Read again, best quality** reads every line again from its saved picture with the best reader and keeps a new reading only where it's better. A line's popup has **Read this line again**.
 - It says how it's going ("Reading 23 lines again… 7 better so far.") and waits while a match runs. Lines you fixed by hand are never touched. It fixes misread lines; lines YapTracker never saw can't be found this way.
