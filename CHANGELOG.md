@@ -7,6 +7,17 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-07 · Ranked spotted more often (#342)
 - When hero select's queue ("COMPETITIVE", "UNRANKED"…) didn't read at first, YapTracker now looks again while hero select is up, also with two colour tricks against glare. So more ranked matches get their "Competitive" reading.
 
+### 2026-10-07 · Lighter in the menus (#115)
+- Between matches, when the chat box only shows menu art and no chat, YapTracker reads it every 6 s instead of every 1.5–3 s. As soon as someone types, it's back to normal.
+
+### 2026-10-07 · New season's hero (#318)
+- The new hero Doctrine is known by name, so their callouts ("Enemy Doctrine!") count as callouts, not yaps.
+
+### 2026-10-07 · Yap snaps from Live (#325)
+- Live's chat card has **Make a yap snap**: click the lines you want (shift-click for a stretch), then Make the snap.
+- Select two or more lines with the mouse and **Snap these** shows up right there.
+- Sessions says where snaps are: "Open a match to read it back or make a yap snap."
+
 ### 2026-10-07 · Two lines no longer glued together (#329)
 - When OCR read a name's brackets as I or l ("IBravolnCharliel: …"), the line was glued onto the one above. A row with its own chat icon now always starts a new line, and such a name comes out without the misread brackets.
 

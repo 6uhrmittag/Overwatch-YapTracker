@@ -37,6 +37,12 @@ CPU_GOAL = 15.0  # % of one core for the whole app over a minute (Definition of 
 BUSY_GAP_S = 3.0  # read at most this often for the next minute when the last one was above it
 REREADS = 3  # extra reads for a line still on screen without a good reading (#195)
 LATER_POLL_S = 2.0  # frames wait for later: how often to look whether the game is idle yet
+# Between matches the box reaches into the menu (#176), whose art moves and has big text: every
+# frame "changed" and was read every 3 s for an hour with no chat in it (#115, 2026-10-06 log).
+# After this many reads without a chat line, read every MENU_GAP_S until one shows up. A line
+# stays ~9 s, so it's still read at least once.
+NO_CHAT_READS = 3
+MENU_GAP_S = 6.0
 
 
 def _fields(line: ChatLine) -> dict:
@@ -113,6 +119,7 @@ class ChatReader:
         self._load_since, self._load_cpu = time.monotonic(), time.process_time()
         self._load_busy, self._load_frames = 0.0, 0
         self.busy = False  # the last minute was above the CPU goal: read less often (#249)
+        self._no_chat = 0  # reads in a row without a chat line (#115)
 
     def offer(self, image: np.ndarray, mode: str | None = None) -> None:
         """From the capture thread: a chat frame with new text. Never blocks. mode: how it's
@@ -159,6 +166,8 @@ class ChatReader:
                 # Too soon after the last read: wait, newer frames replace the pending one.
                 # Kept frames go one after the other while the game is idle (#335).
                 gap = max(self.min_gap_s, BUSY_GAP_S) if self.busy else self.min_gap_s
+                if self.menu:
+                    gap = max(gap, MENU_GAP_S)
                 fast = self._pending is None and self._idle()
                 wait = 0 if fast else self._last_read + gap - time.monotonic()
                 if wait > 0 and not self._stop:
@@ -234,6 +243,7 @@ class ChatReader:
         self._read_match = current
         self._on_screen = {match_key(line) for line in lines if line.kind in YAP_KINDS}
         self._want_reread(ts, lines)
+        self._no_chat = 0 if any(line.kind in YAP_KINDS for line in lines) else self._no_chat + 1
         for yap in new:
             player = self._player(yap, ts)
             match_id = previous if yap.id in old else current
@@ -327,6 +337,11 @@ class ChatReader:
         log.info("tidied match %d: %d fixed, %d found", tidy.match_id, len(tidy.fixed), tidy.found)
         self.tidied = (tidy.match_id, len(tidy.fixed), tidy.found)
 
+    @property
+    def menu(self) -> bool:
+        """No match runs and the last reads found no chat: a menu, read every MENU_GAP_S."""
+        return self._no_chat >= NO_CHAT_READS and self._idle()
+
     def wants_reread(self) -> bool:
         """A line on screen has no good reading yet: offer frames even without new text."""
         return self._rereads_left > 0 and self._clock() < self._reread_until
@@ -381,6 +396,9 @@ class ChatReader:
                      self._load_frames, 1000 * self._load_busy / self._load_frames,
                      f" ({modes})" if modes else "", whole,
                      "; reading every 3 s for a minute" if self.busy else "")  # fmt: skip
+            if self.menu:
+                log.info("chat reading: no chat in the box between matches, reading every %g s",
+                         MENU_GAP_S)  # fmt: skip
             self._load_since, self._load_cpu = now, cpu
             self._load_busy, self._load_frames = 0.0, 0
 
