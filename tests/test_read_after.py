@@ -69,7 +69,7 @@ def test_the_memory_cap_drops_the_frame_the_others_cover_best():
     for t in (0, 10, 11, 30):  # 11 is right after 10: dropping 10 loses the least
         later.add(T0 + t, frame(), 1, "after")
     assert [later.pop().ts - T0 for _ in range(3)] == [0, 11, 30]
-    assert later.take_counts() == (4, 1)
+    assert later.take_counts() == (4, {1: 1})
 
 
 def test_the_note_of_waiting_frames_survives_a_crash_and_goes_once_read(tmp_path):
@@ -213,3 +213,25 @@ def test_reading_waits_while_deferring_and_starts_by_itself_once_idle(store):
     finally:
         reader.stop()
     assert [m.text for m in store.messages(tracker.match_id)] == ["hello"]
+
+
+def test_back_to_back_matches_under_one_cap_both_stay_readable(caplog):
+    """#356: match 1's frames still wait when match 2 starts; the cap covers both."""
+    later = LaterFrames(lambda: 0.0, None, cap_bytes=6 * 3000)
+    with caplog.at_level(logging.WARNING, logger="yaptracker.later"):
+        for t in (0, 30, 31, 60):  # match 1: 31 is the redundant one
+            later.add(T0 + t, frame(), 1, "after")
+        for t in (61, 62, 90, 120):  # match 2 starts 1 s after match 1's last frame
+            later.add(T0 + t, frame(), 2, "after")
+    kept = [(k.match_id, k.ts - T0) for k in iter(later.pop, None)]
+    # each match keeps its first and last frame; the border never counts as "close"
+    assert kept == [(1, 0), (1, 30), (1, 60), (2, 61), (2, 90), (2, 120)]
+    assert "dropping chat frames of match 1" in caplog.text
+    assert "dropping chat frames of match 2" in caplog.text
+
+
+def test_nothing_to_drop_means_over_the_cap_rather_than_losing_a_match_edge():
+    later = LaterFrames(lambda: 0.0, None, cap_bytes=3000)
+    for match, t in ((1, 0), (1, 5), (2, 6), (2, 9)):
+        later.add(T0 + t, frame(), match, "after")
+    assert len(later) == 4  # every frame is a first or last one
