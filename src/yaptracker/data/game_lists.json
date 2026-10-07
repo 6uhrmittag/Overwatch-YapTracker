@@ -1,6 +1,6 @@
 {
  "source": "https://overfast-api.tekrop.fr (en-us, de-de) + hand-written queue names (#276)",
- "fetched": "2026-10-06",
+ "fetched": "2026-10-07",
  "queues": [
   "UNRANKED",
   "COMPETITIVE",
@@ -32,6 +32,7 @@
   "Cassidy",
   "D.Mon",
   "D.Va",
+  "Doctrine",
   "Domina",
   "Dominia",
   "Doomfist",

@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · New season's hero (#318)
+- The new hero Doctrine is known by name, so their callouts ("Enemy Doctrine!") count as callouts, not yaps.
+
 ### 2026-10-07 · No hotkeys unless you want them (#328)
 - YapTracker no longer takes any key combo by default: everything has a button, and Ctrl+Alt is AltGr on German keyboards. Hotkeys you set yourself stay.
 - Settings → Hotkeys shows "Not set" for each action, **Change** to set one and **Clear** to take it away again, right away.
