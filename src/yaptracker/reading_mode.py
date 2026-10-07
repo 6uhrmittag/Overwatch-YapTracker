@@ -24,13 +24,18 @@ log = logging.getLogger(__name__)
 BEST, LIGHT, AFTER = "best", "light", "after"
 COMPETITIVE_QUEUES = frozenset({"COMPETITIVE", "GEWERTET"})  # game_lists.queue names (#276)
 LIGHT_ENGINE = ocr.WindowsOcrEngine.name
-CHOICES = (AFTER, LIGHT, BEST)
+CHOICES = (AFTER, LIGHT, BEST)  # lightest on the game first (#345)
 DEFAULT_COMPETITIVE = AFTER  # Marv + Void (#330): ranked must be smooth
 DEFAULT_OTHER = BEST
 
 
 def competitive(queue: str | None) -> bool:
     return queue in COMPETITIVE_QUEUES
+
+
+def lighter(a: str, b: str) -> str:
+    """The choice that costs the game less: After the match < Live, light < Live, best."""
+    return min(a, b, key=CHOICES.index)
 
 
 class ReadingMode:
@@ -53,15 +58,19 @@ class ReadingMode:
         self._said: tuple | None = None  # the mode the log said last
 
     def now(self) -> str:
-        """The mode for a read right now: by the running match's queue, best between matches."""
+        """The mode for a read right now: by the running match's queue, best between matches.
+        Queue unknown (washed out, or no hero select seen, e.g. YapTracker started mid-match):
+        the lighter of the two choices (Marv, #345), so a ranked match never costs more."""
         tracker = self._matches()
         if tracker is None or not tracker.running:
             mode, why = BEST, "between matches"
+        elif tracker.match_mode is None:
+            mode = lighter(self._competitive(), self._other())
+            why = f"queue unknown \u2192 treated as {mode}, match {tracker.match_id}"
         elif competitive(tracker.match_mode):
             mode, why = self._competitive(), f"Competitive, match {tracker.match_id}"
         else:
-            mode, why = self._other(), f"{tracker.match_mode or 'queue unknown'}, match " \
-                f"{tracker.match_id}"  # fmt: skip
+            mode, why = self._other(), f"{tracker.match_mode}, match {tracker.match_id}"
         with self._lock:
             said, self._said = self._said, (mode, why)
         if said != (mode, why):

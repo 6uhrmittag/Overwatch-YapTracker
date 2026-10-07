@@ -115,6 +115,14 @@ class MatchTracker:
                 self._start_match(ts, "gap")
             self._last_chat = ts
 
+    def chat_activity(self, ts: float) -> None:
+        """The chat box changed in a match read afterwards (#345): nothing is read yet, but a
+        match the chat started is a real one once it has chat this long (#307). Never starts
+        or ends a match itself."""
+        with self._lock:
+            if self.running:
+                self._last_chat = ts if self._last_chat is None else max(self._last_chat, ts)
+
     def new_match(
         self,
         ts: float | None = None,
