@@ -158,12 +158,17 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
     def chat_started_match() -> bool:
         return runtime.matches is not None and runtime.matches.adoptable()
 
+    def hero_select_info(mode: str | None, map_name: str | None) -> None:  # (#342)
+        if runtime.matches is not None:
+            runtime.matches.learn_info(mode, map_name)
+
     hero_select = HeroSelect(
         read_line,
         read_lines,
         hero_select_started,
         match_running=match_running,
         adoptable=chat_started_match,
+        on_info=hero_select_info,
     )
     end_screen = EndScreen(read_line, match_over)
 
