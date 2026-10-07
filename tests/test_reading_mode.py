@@ -68,16 +68,46 @@ def test_the_engine_switches_at_hero_select_by_queue_and_back_to_best_after(stor
     assert reading.take_counts() == ""  # counted per log minute
 
 
-def test_other_matches_have_their_own_choice_and_a_missed_hero_select_counts_as_other(
-    store, engines
-):
+def test_other_matches_have_their_own_choice(store, engines):
     tracker = MatchTracker(store, Pause())
     tracker.capture_alive(1000.0)
     reading = reading_for(tracker, engines, competitive="best", other="light")
-    tracker.chat_changed(1010.0)  # a match the chat started: no queue known
+    tracker.new_match(1010.0, source="heroselect", mode="QUICK PLAY", map_name="Busan")
     assert reading.now() == "light"
-    tracker.new_match(1020.0, source="heroselect", mode="COMPETITIVE", map_name="Busan")
+    tracker.new_match(1600.0, source="heroselect", mode="COMPETITIVE", map_name="Busan")
     assert reading.now() == "best"
+
+
+@pytest.mark.parametrize("competitive, other, expected", [
+    ("after", "best", "after"), ("light", "best", "light"), ("best", "light", "light"),
+    ("best", "after", "after"), ("best", "best", "best"),
+])  # fmt: skip
+def test_an_unknown_queue_reads_the_lighter_of_the_two_choices(
+    store, engines, caplog, competitive, other, expected
+):
+    """Washed-out hero select, or none seen (YapTracker started mid-match): Marv, #345."""
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(1000.0)
+    tracker.chat_changed(1010.0)  # a match the chat started: no queue known
+    reading = reading_for(tracker, engines, competitive=competitive, other=other)
+    with caplog.at_level(logging.INFO, logger="yaptracker.reading_mode"):
+        assert reading.now() == expected
+    assert f"queue unknown \u2192 treated as {expected}" in caplog.text
+    tracker.learn_info("UNRANKED", None)  # not a hero-select start: stays unknown
+    assert reading.now() == expected
+
+
+def test_a_chat_started_match_read_afterwards_still_counts_its_chat(store):
+    """#307 drops a chat-started match whose chat lasted under 3 min; read afterwards, the
+    chat box changing still counts (#345)."""
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(1000.0)
+    tracker.chat_changed(1010.0)
+    first = tracker.match_id
+    reader = ChatReader(lambda image: [], store, tracker, clock=lambda: 1400.0)
+    reader.offer(np.zeros((4, 4, 3), np.uint8), "after")  # 6.5 min in, not read yet
+    tracker.new_match(1500.0, source="heroselect", mode="UNRANKED", map_name="Busan")
+    assert tracker.previous_match_id == first  # a real match, not chat outside one
 
 
 def test_frames_kept_for_after_the_match_are_read_with_the_best_quality(store, engines, caplog):
