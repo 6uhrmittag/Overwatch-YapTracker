@@ -5,7 +5,7 @@ game is idle, so the chat is always read with the best quality then.
 
 - best: the chosen engine of the calibration preview, RapidOCR unless it won't start
 - light: Windows OCR, ~10x cheaper and not AVX-heavy; misses some lines and words
-- after: read after the match (#332, not built yet: hidden, Competitive reads light until then)
+- after: no reading during the match; its changed chat frames are read once it's over (#335)
 """
 
 import logging
@@ -24,18 +24,12 @@ BEST, LIGHT, AFTER = "best", "light", "after"
 COMPETITIVE_QUEUES = frozenset({"COMPETITIVE", "GEWERTET"})  # game_lists.queue names (#276)
 LIGHT_ENGINE = ocr.WindowsOcrEngine.name
 CHOICES = (AFTER, LIGHT, BEST)
-LIVE_CHOICES = (LIGHT, BEST)  # what Settings offers until #332 builds "after"
-DEFAULT_COMPETITIVE = LIGHT  # AFTER once #332 is in
+DEFAULT_COMPETITIVE = LIGHT  # AFTER once the tidy-up of light matches is in (#336)
 DEFAULT_OTHER = BEST
 
 
 def competitive(queue: str | None) -> bool:
     return queue in COMPETITIVE_QUEUES
-
-
-def live(choice: str) -> str:
-    """The choice as it reads today: "after" isn't built yet, so it reads light (#331)."""
-    return choice if choice in LIVE_CHOICES else LIGHT
 
 
 class ReadingMode:
@@ -55,17 +49,27 @@ class ReadingMode:
         self._lock = threading.Lock()
         self._counts: Counter[str] = Counter()
         self.light_problem: str | None = None  # why light reading can't run here, for Settings
+        self._said: tuple | None = None  # the mode the log said last
 
     def now(self) -> str:
         """The mode for a read right now: by the running match's queue, best between matches."""
         tracker = self._matches()
         if tracker is None or not tracker.running:
-            return BEST
-        choice = self._competitive() if competitive(tracker.match_mode) else self._other()
-        return live(choice)
+            mode, why = BEST, "between matches"
+        elif competitive(tracker.match_mode):
+            mode, why = self._competitive(), f"Competitive, match {tracker.match_id}"
+        else:
+            mode, why = self._other(), f"{tracker.match_mode or 'queue unknown'}, match " \
+                f"{tracker.match_id}"  # fmt: skip
+        with self._lock:
+            said, self._said = self._said, (mode, why)
+        if said != (mode, why):
+            log.info("reading: %s (%s)", mode, why)  # which mode ran, for Void's FPS check
+        return mode
 
     def engine(self, mode: str):
-        """(mode that really runs, engine). Light falls back to best where Windows OCR can't."""
+        """(mode that really runs, engine). Light falls back to best where Windows OCR can't;
+        frames kept for after the match are read with the best quality."""
         if mode == LIGHT and self.light_problem is None:
             if LIGHT_ENGINE not in self._available():
                 self._no_light("Windows OCR only runs on Windows")
@@ -76,10 +80,12 @@ class ReadingMode:
                     self._no_light(str(reason))
         return BEST, self._get(self._best())
 
-    def read(self, image: np.ndarray, scale: float) -> list[OcrLine]:
-        mode, engine = self.engine(self.now())
+    def read(self, image: np.ndarray, scale: float, mode: str | None = None) -> list[OcrLine]:
+        """Read with the mode for right now, or the one a kept frame was seen with."""
+        asked = self.now() if mode is None else mode
+        ran, engine = self.engine(asked)
         with self._lock:
-            self._counts[mode] += 1
+            self._counts[AFTER if asked == AFTER else ran] += 1  # "after 40": read after a match
         return engine.read(image, scale=scale)
 
     def take_counts(self) -> str:

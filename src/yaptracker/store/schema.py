@@ -122,4 +122,21 @@ WHERE channel != 'system' AND speaker_raw IS NOT NULL AND edited_at IS NULL
 UPDATE chat_messages SET player_id = NULL WHERE channel = 'system';
 """
 
-MIGRATIONS = [V1, V2, V3, V4, V5, V6, V7]
+# Chat frames kept to be read after the match, lost to a crash or quitting (#335): a gap too.
+# SQLite can't change a CHECK, so the table is copied over (nothing refers to it).
+V8 = """
+CREATE TABLE capture_gaps_v8 (
+    id INTEGER PRIMARY KEY,
+    started_at REAL NOT NULL,
+    ended_at REAL,
+    reason TEXT NOT NULL
+        CHECK (reason IN ('crash', 'no_frames', 'paused', 'window_lost', 'app_not_running',
+                          'deferred_lost'))
+);
+INSERT INTO capture_gaps_v8 (id, started_at, ended_at, reason)
+    SELECT id, started_at, ended_at, reason FROM capture_gaps;
+DROP TABLE capture_gaps;
+ALTER TABLE capture_gaps_v8 RENAME TO capture_gaps;
+"""
+
+MIGRATIONS = [V1, V2, V3, V4, V5, V6, V7, V8]

@@ -23,7 +23,8 @@ def familiar_card(card: Card, on_open: Callable[[], None], on_dismiss: Callable[
         face.on("click", on_open)
         return
     with ui.element("article").classes("yt-face").mark("face"):
-        ui.label("Look who's back!").classes("yt-face-banner")
+        banner = "Look who was there!" if card.after else "Look who's back!"  # (#335)
+        ui.label(banner).classes("yt-face-banner")
         with ui.element("div").classes("yt-face-body"):
             with ui.element("div").classes("yt-row"):
                 ui.label(card.name).classes("yt-face-name")

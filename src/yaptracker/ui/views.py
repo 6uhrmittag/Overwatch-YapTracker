@@ -9,6 +9,7 @@ from nicegui import run, ui
 from PIL import Image
 
 from yaptracker import __version__, config, logs, paths, runtime, system_info
+from yaptracker import reading_mode as modes
 from yaptracker.capture.black import SAY as BLACK_SAY
 from yaptracker.capture.black import SCREEN_SAY
 from yaptracker.capture.stats import CAPTURE
@@ -514,7 +515,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             {
                 "paused": "Ears covered. Nothing is being saved.",
                 "trouble": "Overwatch is running, but I can't see it right now. Trying again.",
-                "listening": "Ears open. Nobody's typing right now.",
+                "listening": _listening(),
                 "waiting": "Waiting for Overwatch. I'll be right here.",
             }[state]
         )
@@ -573,6 +574,17 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
 
     ui.timer(1.0, refresh)
     refresh()
+
+
+def _listening() -> str:
+    """The chat card's line while capturing: reading after the match is said in words (#335)."""
+    waiting = len(runtime.reader.later) if runtime.reader is not None else 0
+    if runtime.reading is not None and runtime.reading.now() == modes.AFTER:
+        kind = "Competitive" if modes.competitive(runtime.matches.match_mode) else "This match"
+        return f"{kind}: reading after the match. Your FPS stays untouched."
+    if waiting:
+        return f"Reading the last match: {count(waiting, 'chat picture', 'chat pictures')} to go."
+    return "Ears open. Nobody's typing right now."
 
 
 def settings() -> None:  # noqa: C901 - split up after v1 (#311)

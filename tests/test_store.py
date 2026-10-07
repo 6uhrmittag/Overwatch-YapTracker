@@ -16,7 +16,7 @@ def store(tmp_path):
 
 def test_a_new_database_has_the_latest_schema_in_wal_mode(tmp_path):
     conn = db.connect(tmp_path / "yaptracker.db", tmp_path / "backups")
-    assert db.version(conn) == db.LATEST == 7  # friend-list notices fixed (#306)
+    assert db.version(conn) == db.LATEST == 8  # gaps of chat kept for later (#335)
     assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     assert {"sessions", "matches", "players", "player_aliases", "chat_messages", "capture_gaps",
@@ -154,4 +154,21 @@ def test_friend_list_notices_stored_as_chat_become_system_lines(tmp_path, monkey
         ("system", None, "[Pal] joined the game."),  # no match met together
     ]
     assert [m.text for m in store.search("spectating")] == ["[Pal] started spectating."]
+    store.close()
+
+
+def test_gaps_keep_their_rows_and_learn_the_lost_frames_reason(tmp_path, monkeypatch):
+    """#335: v7 -> v8 copies capture_gaps over to allow 'deferred_lost'."""
+    path, backups = tmp_path / "yaptracker.db", tmp_path / "backups"
+    with monkeypatch.context() as v7_app:
+        v7_app.setattr(db, "MIGRATIONS", schema.MIGRATIONS[:7])
+        v7_app.setattr(db, "LATEST", 7)
+        old = db.connect(path, backups)
+        old.execute("INSERT INTO capture_gaps (started_at, ended_at, reason) "
+                    "VALUES (1.0, 2.0, 'paused')")  # fmt: skip
+        old.close()
+    store = Store.open(path, backups)
+    store.close_gap(store.open_gap(3.0, "deferred_lost"), 4.0)
+    assert store.all_gaps() == [(1.0, 2.0, "paused"), (3.0, 4.0, "deferred_lost")]
+    assert list(backups.iterdir())  # backed up before migrating
     store.close()
