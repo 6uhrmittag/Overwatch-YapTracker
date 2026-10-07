@@ -25,7 +25,8 @@ from yaptracker.input_row import without_input
 from yaptracker.later import Kept, LaterFrames
 from yaptracker.ocr.engine import OcrLine
 from yaptracker.parser import ChatLine, parse
-from yaptracker.reading_mode import AFTER
+from yaptracker.reading_mode import AFTER, BEST
+from yaptracker.tidy import TidyMatch, differs
 
 log = logging.getLogger(__name__)
 LOAD_LOG_S = 60.0  # how often the reading cost goes to the log
@@ -95,6 +96,10 @@ class ChatReader:
         self._read_kept = read_kept or (lambda image, mode: read(image))
         self._deferring, self._idle = deferring, idle
         self._batch: tuple[float, int] | None = None  # (started, frames) of reading kept ones
+        # Light matches (#336): their changed frames, read again with the best quality when idle
+        self.tidy_frames = LaterFrames(lambda: self.min_gap_s, None)
+        self._tidy: TidyMatch | None = None
+        self.tidied: tuple[int, int, int] | None = None  # (match, fixed, found) of the last one
         self.min_gap_s = min_gap_s  # Settings can change it while running (#152)
         self._last_read = -math.inf  # monotonic time of the last read's start
         self._dedup = Dedup()
@@ -120,6 +125,10 @@ class ChatReader:
                 self._pending = (ts, image)
             self._wake.notify()
 
+    def keep_for_tidy(self, image: np.ndarray) -> None:
+        """From the capture thread: a changed frame of a light match, read again later (#336)."""
+        self.tidy_frames.add(self._clock(), image, self._matches.match_id, BEST)
+
     def start(self) -> None:
         self._thread = threading.Thread(target=self._run, name="chat reader", daemon=True)
         self._thread.start()
@@ -130,6 +139,8 @@ class ChatReader:
             self._wake.notify()
         if self._thread is not None:
             self._thread.join(timeout=10)  # an OCR call may be running; the store closes next
+        if self.tidy_frames.discard() is not None:  # its light lines stay as they are
+            log.info("quitting before the last light match was tidied up")
         lost = self.later.discard()  # quitting mid-match: those frames are never read
         if lost is not None:
             log.warning("quitting with chat frames unread: %s", _span(*lost))
@@ -139,8 +150,10 @@ class ChatReader:
         priority.lower_this_thread()  # OCR waits for the game, not the other way round (#187)
         while True:
             with self._wake:
-                while self._pending is None and not self._stop and not self._kept_due():
-                    self._wake.wait(LATER_POLL_S if len(self.later) else None)
+                while (self._pending is None and not self._stop and not self._kept_due()
+                       and not self._tidy_due()):  # fmt: skip
+                    waiting = len(self.later) or len(self.tidy_frames)
+                    self._wake.wait(LATER_POLL_S if waiting else None)
                 if self._pending is None and self._stop:  # stopping, and the last frame is done
                     return
                 # Too soon after the last read: wait, newer frames replace the pending one.
@@ -152,12 +165,19 @@ class ChatReader:
                     self._wake.wait(wait)
                     continue
                 kept = self.later.pop() if self._pending is None else None
+                tidy = None
                 if self._pending is not None:
                     (ts, image), self._pending = self._pending, None
-                elif kept is None:
-                    continue
-                else:
+                elif kept is not None:
                     ts, image = kept.ts, kept.image
+                elif not self._tidy_due() or (tidy := self.tidy_frames.pop()) is None:
+                    continue
+            if tidy is not None:  # lowest priority: only when nothing else waits (#336)
+                try:
+                    self.tidy_frame(tidy)
+                except Exception:
+                    log.exception("tidying up the chat failed")
+                continue
             self._last_read = time.monotonic()
             try:
                 self.read_frame(ts, image, kept)
@@ -166,6 +186,10 @@ class ChatReader:
                 self._matches.chat_changed(ts)  # new text was there: the match still counts it
             if kept is not None:
                 self._kept_read(kept)
+
+    def _tidy_due(self) -> bool:
+        """Frames of a light match wait, and the game is idle (the next match pauses it)."""
+        return len(self.tidy_frames) > 0 and not len(self.later) and self._idle()
 
     def _kept_due(self) -> bool:
         """Frames wait, and the match they wait for is over (or the game is gone)."""
@@ -190,21 +214,8 @@ class ChatReader:
         if kept is None and self._paused():  # paused after the frame was offered: not kept
             return []
         started = time.thread_time()
-        known = {**self._colours(), **self._seen_colours}
         ocr_lines = self._read(image) if kept is None else self._read_kept(image, kept.mode)
-        read = without_input(ocr_lines, image)  # what you type isn't said yet (#254)
-        read = channels.cut_glued(read, image, known)  # "gg 512" -> "gg" (#172)
-        ocr = glyphs.mark(image, read)  # icons OCR can't spell become ◇ (#128)
-        parsed = parse(ocr)
-        learned = channels.learn(parsed, image)
-        self._seen_colours.update(learned)  # e.g. HDR shifts them (#173)
-        saved = self._colours()
-        if "group" in learned and (
-            "group" not in saved or channels.hue_distance(learned["group"], saved["group"]) > 10
-        ):
-            self._save_colours({"group": learned["group"]})  # seen only when someone uses it
-        known = {**saved, **self._seen_colours}
-        lines = self._identity().apply(channels.assign(parsed, image, known))
+        ocr, lines = self._lines(image, ocr_lines)
         new, improved = self._dedup.update(ts, lines)
         before = self._matches.match_id
         if new:
@@ -242,6 +253,79 @@ class ChatReader:
         self._count(time.thread_time() - started)
         self._on_read(ts, image, ocr, lines, new)
         return new
+
+    def _lines(self, image: np.ndarray, ocr_lines: list[OcrLine]) -> tuple[list, list]:
+        """(OCR lines with icons marked, chat lines with channel and who) of one read."""
+        known = {**self._colours(), **self._seen_colours}
+        read = without_input(ocr_lines, image)  # what you type isn't said yet (#254)
+        read = channels.cut_glued(read, image, known)  # "gg 512" -> "gg" (#172)
+        ocr = glyphs.mark(image, read)  # icons OCR can't spell become ◇ (#128)
+        parsed = parse(ocr)
+        learned = channels.learn(parsed, image)
+        self._seen_colours.update(learned)  # e.g. HDR shifts them (#173)
+        saved = self._colours()
+        if "group" in learned and (
+            "group" not in saved or channels.hue_distance(learned["group"], saved["group"]) > 10
+        ):
+            self._save_colours({"group": learned["group"]})  # seen only when someone uses it
+        known = {**saved, **self._seen_colours}
+        return ocr, self._identity().apply(channels.assign(parsed, image, known))
+
+    def tidy_frame(self, kept: Kept) -> None:
+        """One kept frame of a light match, read with the best quality and put next to the
+        stored light lines (#336): better readings replace them, missed lines are inserted."""
+        if self._tidy is None or self._tidy.match_id != kept.match_id:
+            self._tidied()
+            self._tidy = TidyMatch(kept.match_id)
+        started = time.thread_time()
+        tidy = self._tidy
+        _, lines = self._lines(kept.image, self._read_kept(kept.image, BEST))
+        new, improved = tidy.dedup.update(kept.ts, lines)
+        stored = self._store.match_lines(kept.match_id) if new else []
+        for yap in new:
+            placed = tidy.place(yap, stored)
+            if placed is None:  # the light reader missed it: in at its real time
+                player = self._link(yap)
+                tidy.links[yap.id] = message_id = self._store.add_message(
+                    ts=yap.first_seen, match_id=kept.match_id, player_id=player,
+                    **_fields(yap.best))  # fmt: skip
+                if self._pictures is not None:
+                    self._pictures.save(message_id, yap.first_seen, kept.image, yap.last.box)
+                tidy.found += 1
+                if yap.best.channel != "system":
+                    self._on_player(player, kept.match_id, True)
+            else:
+                message, hands_off = placed
+                tidy.links[yap.id] = None if hands_off else message.id
+                self._tidy_fix(yap, message, kept)
+        for yap in improved:
+            if tidy.links.get(yap.id) is not None:
+                self._tidy_fix(yap, self._store.message(tidy.links[yap.id]), kept)
+        CPU.add("reading", time.thread_time() - started)
+        if not len(self.tidy_frames):
+            self._tidied()
+
+    def _tidy_fix(self, yap: Yap, message, kept: Kept) -> None:
+        fields = _fields(yap.best)
+        if message is None or self._tidy.links.get(yap.id) is None or not differs(message, fields):
+            return
+        self._store.update_message(message.id, player_id=self._link(yap), **fields)
+        if self._pictures is not None and yap.best is yap.last:  # its picture from this frame
+            self._pictures.save(message.id, message.ts, kept.image, yap.last.box)
+        self._tidy.changed(message.id, fields)
+
+    def _link(self, yap: Yap) -> int | None:
+        speaker = yap.best.speaker if yap.best.channel != "system" else None
+        return self._players.link(speaker, yap.first_seen, yap.best.confidence) if (
+            self._players) else None  # fmt: skip
+
+    def _tidied(self) -> None:
+        """A match's tidy-up is done: the log line and Live's note (#336)."""
+        tidy, self._tidy = self._tidy, None
+        if tidy is None:
+            return
+        log.info("tidied match %d: %d fixed, %d found", tidy.match_id, len(tidy.fixed), tidy.found)
+        self.tidied = (tidy.match_id, len(tidy.fixed), tidy.found)
 
     def wants_reread(self) -> bool:
         """A line on screen has no good reading yet: offer frames even without new text."""

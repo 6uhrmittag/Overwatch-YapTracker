@@ -66,9 +66,14 @@ def match_key(line: ChatLine) -> str:
     and without punctuation: readings that differ only in case or punctuation are one line.
     A callout goes by its hero, not its speaker (#290): a hero is on a team once, and a garbled
     name ("MW: Enemy Siera" for "you: Enemy Sierra!") is then the same line."""
-    text = _GLUED.sub("", line.text)
-    text = text if re.search(r"[a-z]", text) else line.text
     who = line.hero if line.kind == "comms" and line.hero else line.speaker
+    return text_key(who, line.text)
+
+
+def text_key(who: str | None, text: str) -> str:
+    """match_key() of a speaker (or callout hero) and a text, also for stored lines (#336)."""
+    unglued = _GLUED.sub("", text)
+    text = unglued if re.search(r"[a-z]", unglued) else text
     key = _PUNCTUATION.sub(" ", f"{clean(who) if who else ''} {_fold(text)}")
     return " ".join(key.split()).lower()
 

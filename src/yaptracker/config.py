@@ -121,12 +121,13 @@ def save_ocr_engine(name: str, path: Path | None = None) -> None:
 def reading(kind: str, path: Path | None = None) -> str:
     """How chat is read during Competitive ("competitive") or other matches ("other") (#331).
 
-    Windows OCR picked as the reader by hand (Void's stopgap, #330) carries over once: every
-    match reads light, and the reader of the calibration preview goes back to RapidOCR."""
+    Windows OCR picked as the reader by hand (Void's stopgap, #330) carries over once: other
+    matches read light, and the reader of the calibration preview goes back to RapidOCR.
+    Competitive keeps its default, reading after the match (#336)."""
     path = path or paths.config_file()
     data = _load(path)
     if data.get("ocr_engine") == modes.LIGHT_ENGINE and "reading" not in data:
-        data["reading"] = {"competitive": modes.LIGHT, "other": modes.LIGHT}
+        data["reading"] = {"other": modes.LIGHT}
         data["ocr_engine"] = ocr.DEFAULT
         _save(path, data)
     default = modes.DEFAULT_COMPETITIVE if kind == "competitive" else modes.DEFAULT_OTHER

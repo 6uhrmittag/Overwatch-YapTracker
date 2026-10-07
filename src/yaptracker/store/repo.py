@@ -538,6 +538,16 @@ class Store:
         )
         return [Message(*row) for row in rows]
 
+    def match_lines(self, match_id: int) -> list[tuple[Message, bool]]:
+        """Every line of a match with whether it was deleted: a tidy-up must not bring a
+        deleted line back as "found" (#336)."""
+        rows = self._read(
+            f"SELECT {_MESSAGE_COLUMNS}, deleted_at IS NOT NULL FROM chat_messages "
+            "WHERE match_id = ? ORDER BY ts, id",
+            (match_id,),
+        )
+        return [(Message(*row[:-1]), bool(row[-1])) for row in rows]
+
     def search(self, text: str, limit: int = 50) -> list[Message]:
         """Full-text search over what was said and who said it, best matches first."""
         if not text.strip():
