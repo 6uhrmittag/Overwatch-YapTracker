@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · README: reading per kind of match (#361)
+- The README explains in a few sentences how chat is read in Competitive and other matches, and what that can't do.
+
 ### 2026-10-07 · Read again says when it can't (#357)
 - With line pictures switched off, or none left for a match, **Read again, best quality** is greyed out and says why, instead of running and finding nothing.
 

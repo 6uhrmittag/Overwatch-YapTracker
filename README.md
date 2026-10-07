@@ -23,6 +23,8 @@ YapTracker reads Overwatch's text chat from the screen, keeps a local log of eve
 4. Play. Chat appears in **Live**; when someone you've met before types, their card pops up. Nothing needs a key press: Live says whether you're in a match, the match is over, or you're between matches, and a new match starts by itself at hero select.
 5. Afterwards: **Yappers** for verdicts and notes, **Sessions** for the evening match by match, **Search** for that one line.
 
+**Competitive costs your game nothing:** in ranked, YapTracker reads the chat **after the match**, and faces from it pop up then as "Look who was there!". Other matches are read live. Both are in **Settings → Reading**, with a third way, **Live, light**, that reads live at almost no cost.
+
 Everything else the app explains where you need it. This README is the only written guide.
 
 ## Install & update
@@ -91,6 +93,9 @@ Chat logs, line pictures and debug samples contain other players' names and mess
 - **Lines can be missed** when chat scrolls or fades faster than it's read (it's read every 1.5 s), e.g. a burst of many lines at once, or a very bright background behind the chat.
 - **Group chat** gets its own channel once YapTracker has seen the `[Group]` chat box open once; until then those lines say "Chat".
 - **Matches** start at hero select and end at VICTORY / DEFEAT. If one is missed, a quiet gap starts the next one; **Start match** / **End match** fixes the rest. Pressing it twice, or before a long queue, leaves no empty match.
+- **Reading after the match** keeps the match's chat in memory until it's over, then reads it in a minute or so. Quitting YapTracker before that, or a crash, loses it; Sessions then shows that time as not recorded.
+- **Live, light** (Windows OCR) misses some lines and letters during the match. Once the game is idle, YapTracker reads the match again with the best reader and fixes them.
+- **Unknown queue:** if hero select couldn't be read (glare, or YapTracker started mid-match), the match is read the lighter of your two settings.
 - **Only who typed:** players who never chat aren't logged (type their name in **Who's that?** to add them). No match stats, no full lobbies.
 - **CPU:** reading chat costs about 16–18 % of one core over a 1440p recording, and an estimated 25 % at 4K. It always reads on the CPU, never on your graphics card: that's the game's. Whether YapTracker costs any FPS is still being measured.
 - Windows only.
