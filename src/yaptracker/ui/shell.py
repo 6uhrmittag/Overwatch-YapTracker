@@ -49,12 +49,28 @@ def _rail_button(view: View, on_click: Callable[[str], None]) -> ui.element:
     return button
 
 
+def _too_new(why: str) -> None:
+    """An older YapTracker on a newer database (#352): one screen in words, nothing else runs."""
+    with ui.element("main").classes("yt-main"), ui.element("div").classes("yt-view"):
+        with ui.element("section").classes("yt-card").mark("data-too-new"):
+            with ui.element("div").classes("yt-card-body"):
+                ui.label("Your data is from a newer YapTracker").classes("yt-h2")
+                ui.label(
+                    "This version can't read it, so it doesn't touch it: nothing is recorded "
+                    "and nothing is lost. Run tools/update.ps1 to get the newest version back."
+                ).classes("yt-hint")
+                ui.label(why).classes("yt-meta")
+
+
 def root() -> None:
     """Build the whole window for one client."""
     ui.add_head_html(f'<link rel="stylesheet" href="{STATIC_URL}/theme.css">')
     ui.add_head_html(f'<script defer src="{STATIC_URL}/follow.js"></script>')  # Live follows (#166)
     ui.add_head_html(f'<script defer src="{STATIC_URL}/copy.js"></script>')  # clean copies (#221)
     ui.colors(primary="#ff9c2a", dark="#12151c", dark_page="#0d1016")
+    if runtime.data_too_new:
+        _too_new(runtime.data_too_new)
+        return
 
     buttons: dict[str, ui.element] = {}
 

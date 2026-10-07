@@ -255,6 +255,8 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         return  # native mode only exists on Windows; Linux uses --dev
 
     def start_capture() -> None:  # after the store is open: gaps and matches need it
+        if runtime.store is None:
+            return  # no database (a newer one, #352): nothing to record into
         if not dev and runtime.health is not None:
             from yaptracker.capture import process
             from yaptracker.capture.window import find_overwatch
@@ -328,6 +330,7 @@ def _open_store() -> Callable[[], None]:
     from yaptracker.reader import ChatReader
     from yaptracker.reading_mode import AFTER, ReadingMode
     from yaptracker.store.backups import DailyBackup
+    from yaptracker.store.db import NewerDatabaseError
     from yaptracker.store.repo import Store
 
     def missed_end() -> None:
@@ -343,7 +346,12 @@ def _open_store() -> Callable[[], None]:
         runtime.debug.clean_up()  # 14 days / 1 GB, also after a long break
         runtime.pictures = LinePictures(paths.lines_dir(), config.line_pictures)
         runtime.pictures.clean_up()  # 2 GB, oldest months first
-        runtime.store = Store.open()
+        try:
+            runtime.store = Store.open()
+        except NewerDatabaseError as error:  # an older build: say so, touch nothing (#352)
+            log.error("%s", error)
+            runtime.data_too_new = str(error)
+            return
         runtime.backups = DailyBackup(
             runtime.store.backup_to,
             paths.backup_dir(),
