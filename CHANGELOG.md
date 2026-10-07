@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · New season's hero (#318)
+- The new hero Doctrine is known by name, so their callouts ("Enemy Doctrine!") count as callouts, not yaps.
+
 ### 2026-10-07 · Yap snaps from Live (#325)
 - Live's chat card has **Make a yap snap**: click the lines you want (shift-click for a stretch), then Make the snap.
 - Select two or more lines with the mouse and **Snap these** shows up right there.
