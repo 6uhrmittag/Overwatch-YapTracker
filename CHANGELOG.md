@@ -7,6 +7,14 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-07 · New season's hero (#318)
 - The new hero Doctrine is known by name, so their callouts ("Enemy Doctrine!") count as callouts, not yaps.
 
+### 2026-10-07 · Yap snaps from Live (#325)
+- Live's chat card has **Make a yap snap**: click the lines you want (shift-click for a stretch), then Make the snap.
+- Select two or more lines with the mouse and **Snap these** shows up right there.
+- Sessions says where snaps are: "Open a match to read it back or make a yap snap."
+
+### 2026-10-07 · Two lines no longer glued together (#329)
+- When OCR read a name's brackets as I or l ("IBravolnCharliel: …"), the line was glued onto the one above. A row with its own chat icon now always starts a new line, and such a name comes out without the misread brackets.
+
 ### 2026-10-07 · No hotkeys unless you want them (#328)
 - YapTracker no longer takes any key combo by default: everything has a button, and Ctrl+Alt is AltGr on German keyboards. Hotkeys you set yourself stay.
 - Settings → Hotkeys shows "Not set" for each action, **Change** to set one and **Clear** to take it away again, right away.

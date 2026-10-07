@@ -50,9 +50,12 @@ class IconStats:
     middle: float  # share of the box's middle ninth that's bright (the system i is dark)
 
 
-def icon_stats(image: np.ndarray, head: Region, hue: float | None = None) -> IconStats | None:
+def icon_stats(
+    image: np.ndarray, head: Region, hue: float | None = None, strict: bool = False
+) -> IconStats | None:
     """Measure the icon left of the text. `hue`: the line's text colour; only blobs in that
-    colour count, so bright background next to the icon doesn't look like more people."""
+    colour count, so bright background next to the icon doesn't look like more people.
+    `strict`: nothing in that colour, no icon (otherwise any bright blob still counts)."""
     h = head.height
     x0, x1 = max(0, int(head.x - 1.6 * h)), max(0, int(head.x - 0.1 * h))
     if h <= 0 or x1 - x0 < 0.5 * h:
@@ -70,7 +73,7 @@ def icon_stats(image: np.ndarray, head: Region, hue: float | None = None) -> Ico
             for i in big
             if hue_distance(float(np.median(hsv[:, :, 0][labels == i]) * 2), hue) <= ICON_HUE
         ]
-        big = own or big  # fmt: skip  # never all of them: a washed-out icon still counts
+        big = own if strict else own or big  # never all: a washed-out icon still counts
     if not big:
         return None
     blobs = [stats[i] for i in big]
@@ -106,6 +109,13 @@ def classify_icon(icon: IconStats | None) -> str | None:
         if 0.6 <= w <= 1.1:
             return "people"
     return None
+
+
+def has_icon(image: np.ndarray, box: Region) -> bool:
+    """A channel icon in the row's own colour left of its text (#329): that row starts a new
+    line, it's never a wrapped continuation. Strict, so a bright map behind a wrap isn't one."""
+    hue = text_hue(image, box)
+    return hue is not None and icon_stats(image, box, hue, strict=True) is not None
 
 
 def icon_shape(image: np.ndarray, head: Region, hue: float | None = None) -> str | None:

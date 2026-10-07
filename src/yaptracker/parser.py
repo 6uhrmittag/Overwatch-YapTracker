@@ -16,6 +16,7 @@ Long messages wrap onto a closer-spaced line without icon; those are joined.
 
 import re
 import statistics
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 from yaptracker import callouts, game_lists
@@ -28,6 +29,10 @@ _COLON = r"\s*[:：;]\s*"
 _TYPED = re.compile(r"^\[(?P<name>[^\]\s]+)\][^\s:：]?" + _COLON + r"(?P<text>.*)$")
 # The closing bracket is sometimes misread ("[Name1: hi"); keep what OCR saw as the name.
 _TYPED_NO_BRACKET = re.compile(r"^\[(?P<name>[^\]\s:：]+)" + _COLON + r"(?P<text>.*)$")
+# Both brackets misread as I, l, 1 or | ("IBravolnCharliel: hi", #329): the name without them.
+_TYPED_MISREAD = re.compile(
+    r"^[\[Il1|](?P<name>[^\s:：;\[\]]{2,})[\]Il1|]" + _COLON + r"(?P<text>.*)$"
+)
 _COMMS = re.compile(
     r"^(?P<name>[^\s\[\]()]+)\s*\((?P<hero>[^)]+)\)"
     r"(?:\s+to\s+(?P<target>you|[^\s()]+)(?:\s*\((?P<target_hero>[^)]+)\))?)?"
@@ -92,8 +97,8 @@ class ChatLine:
 
 
 def _starts_line(text: str) -> bool:
-    return any(p.match(text) for p in (_TYPED, _TYPED_NO_BRACKET, _COMMS_START, _SYSTEM_NAMED,
-                                       _SYSTEM_PLAIN, _INPUT))  # fmt: skip
+    return any(p.match(text) for p in (_TYPED, _TYPED_NO_BRACKET, _TYPED_MISREAD, _COMMS_START,
+                                       _SYSTEM_NAMED, _SYSTEM_PLAIN, _INPUT))  # fmt: skip
 
 
 def _misread_prompt(text: str) -> bool:
@@ -128,7 +133,8 @@ def _classify(text: str, confidence: float, box: Region) -> ChatLine:
         hero = game_lists.hero(m["hero"]) or m["hero"]  # "Zenyata" -> Zenyatta (#276)
         return replace(line, kind="comms", channel="team", speaker=m["name"], hero=hero,
                        target=m["target"], text=said)  # fmt: skip
-    if (m := _TYPED.match(text)) or (m := _TYPED_NO_BRACKET.match(text)):
+    typed = _TYPED.match(text) or _TYPED_NO_BRACKET.match(text) or _TYPED_MISREAD.match(text)
+    if m := typed:
         said = _STRAY_COLON.sub("", m["text"].strip())
         return replace(line, kind="message", speaker=m["name"], text=said)
     if m := _SYSTEM_NAMED.match(text):
@@ -146,8 +152,11 @@ def _union(a: Region, b: Region) -> Region:
     return Region(x0, y0, x1 - x0, y1 - y0)
 
 
-def parse(ocr_lines: list[OcrLine]) -> list[ChatLine]:
-    """Every OCR line ends up in exactly one ChatLine; nothing is silently dropped."""
+def parse(
+    ocr_lines: list[OcrLine], has_icon: Callable[[Region], bool] = lambda box: False
+) -> list[ChatLine]:
+    """Every OCR line ends up in exactly one ChatLine; nothing is silently dropped.
+    `has_icon(box)`: the row has its own channel icon, so it's never a wrap (#329)."""
     if not ocr_lines:
         return []
     height = statistics.median(line.box.height for line in ocr_lines)
@@ -161,7 +170,8 @@ def parse(ocr_lines: list[OcrLine]) -> list[ChatLine]:
         # A wrapped line sits closer to the one above than a new message does, and has no start.
         # (Only the lower half of a cut line is visible, so its wrap sits even closer.)
         low = 0 if top_is_cut and len(groups) == 1 else 0.95 * height
-        if previous and not _starts_line(line.text) and low <= gap < 1.4 * height:
+        if (previous and not _starts_line(line.text) and low <= gap < 1.4 * height
+                and not has_icon(line.box)):  # fmt: skip
             groups[-1].append(line)
         else:
             groups.append([line])
