@@ -4,7 +4,9 @@ into the match they were seen in.
 
 At most one frame per read gap is kept (the newest wins, as in live reading: a line stays ~9 s
 on screen). Above the memory cap, the frame whose neighbours are closest together goes first:
-it's the one whose lines the others most likely show too.
+it's the one whose lines the others most likely show too. Neighbours only count within one
+match, and a match's first and last frame always stay (#356): with back-to-back matches waiting
+together under the one cap, both stay readable.
 
 A crash or quitting loses the frames. Their time span is noted in a small file while frames
 wait, so the next start turns it into a gap record ('deferred_lost', #75): never a silent hole.
@@ -13,6 +15,7 @@ wait, so the next start turns it into a gap record ('deferred_lost', #75): never
 import json
 import logging
 import threading
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,7 +46,8 @@ class LaterFrames:
         self._frames: list[Kept] = []
         self._bytes = 0
         self._noted_at: float | None = None
-        self.kept = self.dropped = 0  # since the last take_counts()
+        self.kept = 0  # since the last take_counts()
+        self.dropped: Counter[int | None] = Counter()  # match -> frames dropped for the cap
 
     def __len__(self) -> int:
         with self._lock:
@@ -61,8 +65,8 @@ class LaterFrames:
                 self._frames.append(Kept(ts, ts, image, match_id, mode))
                 self._bytes += image.nbytes
                 self.kept += 1
-            while self._bytes > self._cap and len(self._frames) > 2:
-                self._drop_one()
+            while self._bytes > self._cap and self._drop_one():
+                pass
             first, newest = self._frames[0].ts, self._frames[-1].ts
             if self._noted_at is None or ts - self._noted_at >= NOTE_EVERY_S:
                 self._noted_at = ts
@@ -87,19 +91,32 @@ class LaterFrames:
             self._forget_note()
             return (frames[0].ts, frames[-1].ts) if frames else None
 
-    def take_counts(self) -> tuple[int, int]:
-        """(frames kept, frames dropped for the cap) since the last call."""
+    def take_counts(self) -> tuple[int, Counter]:
+        """(frames kept, {match: frames dropped for the cap}) since the last call."""
         with self._lock:
             counts = self.kept, self.dropped
-            self.kept = self.dropped = 0
+            self.kept, self.dropped = 0, Counter()
             return counts
 
-    def _drop_one(self) -> None:
-        """Drop the inner frame whose neighbours are closest: the least time goes unseen."""
+    def _drop_one(self) -> bool:
+        """Drop the frame whose neighbours in its own match are closest: the least time goes
+        unseen. A match's first and last frame stay. False if nothing can go."""
         frames = self._frames
-        i = min(range(1, len(frames) - 1), key=lambda i: frames[i + 1].ts - frames[i - 1].ts)
+        inner = [
+            i
+            for i in range(1, len(frames) - 1)
+            if frames[i - 1].match_id == frames[i].match_id == frames[i + 1].match_id
+        ]
+        if not inner:
+            return False
+        i = min(inner, key=lambda i: frames[i + 1].ts - frames[i - 1].ts)
+        match_id = frames[i].match_id
         self._bytes -= frames.pop(i).image.nbytes
-        self.dropped += 1
+        if match_id not in self.dropped:
+            log.warning("memory cap: dropping chat frames of match %s that its neighbours cover",
+                        match_id)  # fmt: skip
+        self.dropped[match_id] += 1
+        return True
 
     def _forget_note(self) -> None:
         if self._note is not None:
