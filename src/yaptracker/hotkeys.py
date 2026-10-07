@@ -49,7 +49,7 @@ class HotkeyListener:
     """Calls the callback on its own thread whenever the combo is pressed anywhere in Windows."""
 
     def __init__(self, bindings: dict[str, Callable[[], None]]) -> None:
-        self._bindings = list(bindings.items())
+        self._bindings = [(combo, f) for combo, f in bindings.items() if combo]  # "" = not set
         self._thread: threading.Thread | None = None
         self._thread_id: int | None = None
         self._ready = threading.Event()
