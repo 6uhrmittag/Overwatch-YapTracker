@@ -125,6 +125,8 @@ class ChatReader:
         """From the capture thread: a chat frame with new text. Never blocks. mode: how it's
         read if it has to wait ('after': the match is read afterwards, #335)."""
         ts = self._clock()
+        if mode == AFTER:  # not read now, but the match knows chat is going on (#307, #345)
+            self._matches.chat_activity(ts)
         with self._wake:  # wakes the reader either way: kept frames are looked at every 2 s
             if mode == AFTER or len(self.later):
                 self.later.add(ts, image, self._matches.match_id, mode)

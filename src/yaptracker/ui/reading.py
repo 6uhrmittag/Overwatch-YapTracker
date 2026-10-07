@@ -33,8 +33,8 @@ def reading_card() -> None:
                 "I always read with the best quality: the game is idle then."
             ).classes("yt-hint")
             ui.label(
-                "Competitive is spotted at hero select. If I missed hero select, the match counts "
-                "as 'other'."
+                "Competitive is spotted at hero select. If I can't tell (glare, or I started "
+                "mid-match), I use the lighter of the two."
             ).classes("yt-hint")
             problem = ui.label().classes("yt-hint yt-hidden").mark("reading-light-problem")
             with ui.element("div").classes("yt-row yt-filters"):

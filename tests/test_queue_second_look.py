@@ -65,15 +65,15 @@ def test_later_looks_give_the_running_match_its_queue_and_its_reading_mode(store
         match_running=lambda: tracker.running,
         on_info=tracker.learn_info,
     )
-    reading = reading_mode.ReadingMode(lambda: tracker, lambda: "after", lambda: "best",
+    reading = reading_mode.ReadingMode(lambda: tracker, lambda: "best", lambda: "light",
                                        lambda: "rapidocr")  # fmt: skip
     hs.update({"heroselect": BANNER, "heroselect_info": first})
     assert (tracker.match_mode, tracker.match_map) == (None, "Busan")
-    assert reading.now() == "best"  # unknown queue: "other"
+    assert reading.now() == "light"  # unknown queue: the lighter choice (#345)
     clock[0] += IN_MATCH_EVERY_S
     hs.update({"heroselect": BANNER, "heroselect_info": later})
     assert (tracker.match_mode, tracker.match_map) == ("COMPETITIVE", "Busan")
-    assert reading.now() == "after"
+    assert reading.now() == "best"  # its own choice once known
     row = store._read("SELECT mode, map FROM matches WHERE id = ?", (tracker.match_id,))
     assert row == [("COMPETITIVE", "Busan")]  # stored too
 
