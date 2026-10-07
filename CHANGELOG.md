@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · Lighter in the menus (#115)
+- Between matches, when the chat box only shows menu art and no chat, YapTracker reads it every 6 s instead of every 1.5–3 s. As soon as someone types, it's back to normal.
+
 ### 2026-10-07 · No hotkeys unless you want them (#328)
 - YapTracker no longer takes any key combo by default: everything has a button, and Ctrl+Alt is AltGr on German keyboards. Hotkeys you set yourself stay.
 - Settings → Hotkeys shows "Not set" for each action, **Change** to set one and **Clear** to take it away again, right away.
