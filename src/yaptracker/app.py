@@ -177,6 +177,24 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         paused = "paused" if runtime.pause.paused else "running"
         return f"{paused}, {'in match' if playing else 'between matches'}"
 
+    def cpu_state() -> str:  # the same words in the cpu parts line (#351)
+        if runtime.watcher is None or runtime.watcher.state != "capturing":
+            return "no game"
+        if runtime.pause.paused:
+            return "paused"
+        playing = runtime.matches is not None and runtime.matches.running
+        return "in match" if playing else "between matches"
+
+    CPU.state = cpu_state
+    ticking = threading.Event()  # a "no game" minute has no part adding CPU: tick anyway
+
+    def tick_cpu() -> None:
+        while not ticking.wait(15.0):
+            CPU.tick()
+
+    app.on_startup(lambda: threading.Thread(target=tick_cpu, name="cpu line", daemon=True).start())
+    app.on_shutdown(ticking.set)
+
     fps_meter = FpsMeter(read_line, fps_state)  # Overwatch's own FPS counter, into the log (#212)
 
     def overwatch_in_front() -> bool:

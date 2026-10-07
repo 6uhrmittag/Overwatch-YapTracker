@@ -7,6 +7,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-07 · An older version says so (#352)
 - If an older YapTracker is started on data from a newer one, it now says so in its window ("Your data is from a newer YapTracker … run tools/update.ps1") instead of failing to start. It records nothing and leaves your data untouched.
 
+### 2026-10-07 · CPU line per state (#351)
+- Behind the scenes: the log's once-a-minute CPU line says whether that minute was in a match, between matches, paused or without the game, so each can be measured on its own.
+
 ### 2026-10-07 · Unknown queue: the lighter choice (#345)
 - When YapTracker can't tell whether a match is Competitive (glare on hero select, or it started mid-match), it reads the chat the lighter of your two ways: After the match, then Live light, then Live best. So a ranked match never costs more than you chose for ranked.
 
