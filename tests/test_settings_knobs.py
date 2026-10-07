@@ -43,6 +43,7 @@ async def user():
 
 class FakeReader:
     min_gap_s = 1.5
+    later = ()  # no chat frames waiting to be read after the match (#335)
 
 
 async def test_reading_card_changes_apply_at_once(user: User, monkeypatch):
@@ -59,7 +60,8 @@ async def test_reading_card_changes_apply_at_once(user: User, monkeypatch):
     assert config.reading("competitive") == "best"
     user.find(marker="other-light").click()
     assert config.reading("other") == "light"
-    await user.should_not_see("After the match")  # until #332 builds it
+    user.find(marker="competitive-after").click()  # (#335)
+    assert config.reading("competitive") == "after"
 
 
 async def test_back_up_now_button(user: User, monkeypatch, tmp_path):

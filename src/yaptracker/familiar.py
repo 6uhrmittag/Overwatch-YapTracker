@@ -27,6 +27,7 @@ class Card:
     last_met: float | None
     shown_at: float
     spicy: int = 0  # flagged lines before this match: a heads-up, never a verdict (#77)
+    after: bool = False  # heard when the match was read afterwards: "Look who was there!" (#335)
 
 
 class FamiliarFaces:
@@ -41,8 +42,11 @@ class FamiliarFaces:
         self._cards: list[Card] = []
         self._seen: tuple[int | None, set[int]] = (None, set())  # (match, players carded)
 
-    def heard(self, player_id: int | None, match_id: int | None) -> Card | None:
-        """A stored line from this player: a card if you met them in an earlier match."""
+    def heard(
+        self, player_id: int | None, match_id: int | None, after: bool = False
+    ) -> Card | None:
+        """A stored line from this player: a card if you met them in an earlier match.
+        after: the line was read after its match was over (#335)."""
         if player_id is None:
             return None
         with self._lock:
@@ -63,7 +67,7 @@ class FamiliarFaces:
             return None  # first time you meet them: nothing to greet yet
         note = (player.notes or "").strip().splitlines()
         card = Card(player_id, player.display_name, player.verdict, note[0] if note else "",
-                    matches, yaps, last_met, self._clock(), spicy)  # fmt: skip
+                    matches, yaps, last_met, self._clock(), spicy, after)  # fmt: skip
         with self._lock:
             self._cards = [c for c in self._cards if c.player_id != player_id] + [card]
         return card

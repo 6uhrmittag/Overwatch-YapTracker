@@ -199,6 +199,7 @@ _GAP_WORDS = {
     "window_lost": "lost the Overwatch window",
     "paused": "paused",
     "app_not_running": "YapTracker wasn't running",
+    "deferred_lost": "kept to read after the match, lost when YapTracker closed",
 }
 
 

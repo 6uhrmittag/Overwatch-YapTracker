@@ -84,7 +84,7 @@
 | Field | |
 |---|---|
 | `started_at`, `ended_at` | `ended_at` is `null` for a gap that is still open |
-| `reason` | `crash` (capture stopped), `no_frames` (no picture from Overwatch), `window_lost`, `paused`, `app_not_running` (Overwatch ran without YapTracker) |
+| `reason` | `crash` (capture stopped), `no_frames` (no picture from Overwatch), `window_lost`, `paused`, `app_not_running` (Overwatch ran without YapTracker), `deferred_lost` (chat kept to read after the match, lost when YapTracker closed or crashed) |
 
 ## The other files
 

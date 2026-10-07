@@ -26,10 +26,11 @@ def reading_card() -> None:
                 ui.label("Other matches").classes("yt-setting-name")
                 other = ui.element("div").classes("yt-seg").mark("reading-other")
             ui.label(
-                "How I read the chat during a match. Light reading costs your game almost "
-                "nothing, but umlauts and odd names come out a bit worse and some words get lost. "
-                "Best quality is RapidOCR. Between matches I always read with the best quality: "
-                "the game is idle then."
+                "How I read the chat during a match. After the match costs your game nothing: "
+                "I keep the chat pictures and read them once it's over, so faces show up after "
+                "the match. Light reading costs almost nothing, but umlauts and odd names come "
+                "out a bit worse and some words get lost. Between matches I always read with "
+                "the best quality: the game is idle then."
             ).classes("yt-hint")
             ui.label(
                 "Competitive is spotted at hero select. If I missed hero select, the match counts "
@@ -69,10 +70,9 @@ def reading_card() -> None:
         render()
 
     def render() -> None:
-        offered = {mode: _MODES[mode] for mode in _MODES if mode in modes.LIVE_CHOICES}
         for kind, container in (("competitive", competitive), ("other", other)):
-            chosen = modes.live(config.reading(kind))
-            segment(container, offered, chosen, lambda c, kind=kind: choose(kind, c), kind)
+            chosen = config.reading(kind)
+            segment(container, _MODES, chosen, lambda c, kind=kind: choose(kind, c), kind)
         why = runtime.reading.light_problem if runtime.reading is not None else None
         problem.set_text(f"Light reading can't run here ({why}): I read with the best quality.")
         problem.classes(**{"remove" if why else "add": "yt-hidden"})

@@ -16,7 +16,12 @@ from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.snap_dialog import snap_dialog
 from yaptracker.ui.views import _OUTCOMES, _WHY, chat_line, repeat, same_callout, show_picture
 
-_GAP_WHY = {**_WHY, "paused": "paused", "app_not_running": "YapTracker wasn't running"}
+_GAP_WHY = {
+    **_WHY,
+    "paused": "paused",
+    "app_not_running": "YapTracker wasn't running",
+    "deferred_lost": "kept to read after the match, lost when YapTracker closed",
+}
 
 
 def _clock(ts: float) -> str:

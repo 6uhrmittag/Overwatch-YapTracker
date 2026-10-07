@@ -4,6 +4,12 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · Read after the match (#335)
+- Settings → Reading has a third choice for Competitive and for other matches: **After the match**. YapTracker keeps the chat pictures during the match and reads them once it's over, so your game pays nothing for the chat.
+- Live says it in words during such a match: "Competitive: reading after the match. Your FPS stays untouched." Afterwards it counts down the pictures it still has to read.
+- Faces from that match show up after it: "Look who was there!". Their lines keep the time they were said.
+- If YapTracker closes before it could read them, the time shows up as "not recorded" in Sessions, never as a silent hole.
+
 ### 2026-10-07 · Reading per kind of match (#331)
 - Settings → Reading has two choices now: how the chat is read during Competitive, and during every other match. "Live, light" (Windows OCR) costs your game almost nothing; "Live, best quality" is RapidOCR.
 - Competitive reads light from now on; other matches stay on best quality. Between matches the chat is always read with the best quality.

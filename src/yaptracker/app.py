@@ -24,6 +24,7 @@ WINDOW_SIZE = (1280, 800)
 DEV_HOST = "0.0.0.0"
 DEV_PORT = 8080
 SMOKE_TEST_TIMEOUT_S = 90
+LATER_NOTE = "unread-chat.json"  # the span of chat frames waiting to be read (#335)
 log = logging.getLogger(__name__)
 
 
@@ -83,6 +84,7 @@ def _arm_smoke_test() -> None:
 def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (#311)
     """Capture runs by itself from app start: waits for Overwatch, follows it (#16)."""
     from yaptracker.ocr import engine as ocr
+    from yaptracker.reading_mode import AFTER
 
     if config.drop_ocr_gpu():
         log.warning("Use GPU for OCR was on: it's gone in v1 (#219), reading on the CPU")
@@ -98,9 +100,15 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         text_scale = size[1] / 1440 if size else None  # the strip outside matches is taller
         with CPU.part("change detection"):  # where the CPU goes (#302)
             changed = changes.update(frame.image, text_scale)
-        again = runtime.reader is not None and runtime.reader.wants_reread()  # weak lines (#195)
-        if (changed or again) and runtime.reader is not None:
-            runtime.reader.offer(frame.image)  # new text: read, dedup and store it (#108)
+        if runtime.reader is None:
+            return
+        mode = runtime.reading.now()  # by the running match's queue (#331)
+        if mode == AFTER:  # nothing read now: changed frames wait for the match's end (#335)
+            if changed:
+                runtime.reader.offer(frame.image, mode)
+            return
+        if changed or runtime.reader.wants_reread():  # or weak lines on screen (#195)
+            runtime.reader.offer(frame.image, mode)  # new text: read, dedup and store it (#108)
 
     def chat_quiet() -> bool:  # GDI grabs less while nothing new shows (#319)
         reread = runtime.reader is not None and runtime.reader.wants_reread()
@@ -298,6 +306,7 @@ def _open_store() -> Callable[[], None]:
 
     Returns the close function; run() registers it last, after capture has stopped writing.
     """
+    from yaptracker import later
     from yaptracker.capture.health import CaptureHealth
     from yaptracker.debug import DebugSamples
     from yaptracker.familiar import FamiliarFaces
@@ -305,7 +314,7 @@ def _open_store() -> Callable[[], None]:
     from yaptracker.matches import MatchTracker
     from yaptracker.players import PlayerMatcher
     from yaptracker.reader import ChatReader
-    from yaptracker.reading_mode import ReadingMode
+    from yaptracker.reading_mode import AFTER, ReadingMode
     from yaptracker.store.backups import DailyBackup
     from yaptracker.store.repo import Store
 
@@ -344,6 +353,14 @@ def _open_store() -> Callable[[], None]:
             lambda: config.reading("other"),
             config.ocr_engine,
         )
+        note = paths.data_dir() / LATER_NOTE
+        if (lost := later.lost_span(note)) is not None:  # the app crashed or was killed (#335)
+            log.warning("chat frames kept for after the match were lost: a gap record")
+            runtime.store.close_gap(runtime.store.open_gap(lost[0], "deferred_lost"), lost[1])
+
+        def capturing() -> bool:
+            return runtime.watcher is not None and runtime.watcher.state == "capturing"
+
         runtime.reader = ChatReader(
             lambda image: runtime.reading.read(image, runtime.ocr_scale()),
             runtime.store,
@@ -358,6 +375,10 @@ def _open_store() -> Callable[[], None]:
             on_player=runtime.familiar.heard,
             min_gap_s=config.read_every_s(),
             modes=runtime.reading.take_counts,
+            later=later.LaterFrames(lambda: runtime.reader.min_gap_s, note),
+            read_kept=lambda image, mode: runtime.reading.read(image, runtime.ocr_scale(), mode),
+            deferring=lambda: capturing() and runtime.reading.now() == AFTER,
+            idle=lambda: not capturing() or not runtime.matches.running,
         )
         runtime.reader.start()
 

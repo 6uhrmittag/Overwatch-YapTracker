@@ -80,11 +80,17 @@ def test_other_matches_have_their_own_choice_and_a_missed_hero_select_counts_as_
     assert reading.now() == "best"
 
 
-def test_after_the_match_reads_light_until_it_is_built(store, engines):
+def test_frames_kept_for_after_the_match_are_read_with_the_best_quality(store, engines, caplog):
     tracker = MatchTracker(store, Pause())
     tracker.capture_alive(1000.0)
-    tracker.new_match(1010.0, source="heroselect", mode="COMPETITIVE", map_name="Busan")
-    assert reading_for(tracker, engines, competitive="after").now() == "light"
+    reading = reading_for(tracker, engines, competitive="after")
+    with caplog.at_level(logging.INFO, logger="yaptracker.reading_mode"):
+        reading.now()
+        tracker.new_match(1010.0, source="heroselect", mode="COMPETITIVE", map_name="Busan")
+        assert reading.now() == "after"
+    assert "reading: after (Competitive, match" in caplog.text  # for Void's FPS check (#335)
+    reading.read(IMAGE, 2.0, "after")
+    assert engines["rapidocr"].calls == 1 and reading.take_counts() == "after 1"
 
 
 def test_light_falls_back_to_best_where_windows_ocr_cannot_run(store, engines, caplog):

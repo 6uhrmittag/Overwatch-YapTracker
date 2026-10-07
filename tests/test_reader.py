@@ -199,7 +199,7 @@ def test_a_friend_coming_online_is_no_familiar_face(store):
              id(typed): [line("[gremlin.exe] started playing Overwatch."),
                          line("[gremlin.exe]: hi again", y=50)]}  # fmt: skip
     heard = []
-    reader, _ = reader_for(store, reads, on_player=lambda player, match: heard.append(player))
+    reader, _ = reader_for(store, reads, on_player=lambda player, *_: heard.append(player))
     reader.read_frame(1000.0, online)
     assert heard == []
     reader.read_frame(1001.0, typed)
@@ -217,7 +217,7 @@ def test_a_friend_list_notice_is_nobody_met(store):
                            line("[Stranger] started spectating.", y=100)]}  # fmt: skip
     heard = []
     reader, tracker = reader_for(store, reads, players=PlayerMatcher(store, lambda: Identity()),
-                                 on_player=lambda player, match: heard.append(player))  # fmt: skip
+                                 on_player=lambda player, *_: heard.append(player))  # fmt: skip
     reader.read_frame(1000.0, hello)
     reader.read_frame(1005.0, notices)  # the hello still on screen
     assert len(heard) == 1  # the hello
