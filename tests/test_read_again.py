@@ -127,3 +127,40 @@ async def test_one_line_from_its_popup(user: User, store, pictures, monkeypatch)
     assert again.run_once()
     await user.should_see("Read again: better now.")
     assert store.message(words).text == "I have cookies"
+
+
+async def open_match(user, store, match):
+    await user.open("/")
+    user.find(marker="nav-sessions").click()
+    user.find(marker=f"session-{store.latest_session()[0]}").click()
+    user.find(marker=f"match-{match}").click()
+
+
+async def test_pictures_off_disables_it_with_a_reason(user: User, store, pictures, monkeypatch):
+    config.save_setup_state("done")
+    match, *_ = evening(store, pictures)
+    config.save_line_pictures(False)
+    for name, value in (
+        ("store", store),
+        ("pictures", pictures),
+        ("read_again", ReadAgain(store, pictures, engine({}), lambda: True)),
+    ):
+        monkeypatch.setattr(runtime, name, value)  # fmt: skip
+    await open_match(user, store, match)
+    await user.should_see("Line pictures are off (Settings), so there's nothing to read again")
+    assert "disabled" in user.find(marker="read-again").elements.pop().props
+
+
+async def test_a_match_without_pictures_disables_it_too(user: User, store, pictures, monkeypatch):
+    config.save_setup_state("done")
+    match = store.start_match(store.start_session(T0), T0, "heroselect")
+    store.add_message(ts=T0 + 5, channel="match", text="gg", match_id=match)  # no picture
+    for name, value in (
+        ("store", store),
+        ("pictures", pictures),
+        ("read_again", ReadAgain(store, pictures, engine({}), lambda: True)),
+    ):
+        monkeypatch.setattr(runtime, name, value)  # fmt: skip
+    await open_match(user, store, match)
+    await user.should_see("No line pictures left for this match")
+    assert "disabled" in user.find(marker="read-again").elements.pop().props

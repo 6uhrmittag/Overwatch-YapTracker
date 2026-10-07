@@ -8,7 +8,7 @@ import time
 
 from nicegui import ui
 
-from yaptracker import runtime
+from yaptracker import config, runtime
 from yaptracker.ui import icons
 from yaptracker.ui.components import button, callout_toggle, count, when
 from yaptracker.ui.heart import Heart
@@ -146,12 +146,29 @@ def _title(match, number: int) -> str:
     return f"Match {number}" + (f" on {match.map.title()}" if match.map else "")
 
 
-def _read_again(match_id: int, rows: dict[int, dict]):
+def _no_read_again(match_id: int) -> str | None:
+    """Why there's nothing to read again in this match, in words (#357); None if there is."""
+    if runtime.read_again is None:
+        return None
+    if not config.line_pictures():
+        return "Line pictures are off (Settings), so there's nothing to read again from."
+    if not runtime.read_again.readable(match_id):
+        return "No line pictures left for this match (or you fixed every line by hand)."
+    return None
+
+
+def _read_again(match_id: int, rows: dict[int, dict], button):
     """The match's "Read again, best quality" (#333): its progress line in words, better
     readings into their rows at once. Returns what the button does."""
     store = runtime.store
     progress = ui.label().classes("yt-hint yt-hidden").mark("read-again-progress")
     shown: set[int] = set()
+    why = _no_read_again(match_id)
+    if why:  # disabled with a reason, never a run that reads nothing (#357)
+        button.props(f'disabled title="{why}"')
+        progress.set_text(why)
+        progress.classes(remove="yt-hidden")
+        return lambda: None
 
     def start() -> None:
         if runtime.read_again is not None:
@@ -204,7 +221,7 @@ def _transcript(match, number: int, back) -> None:
         picker.start_button()
     picker.bar()
     rows: dict[int, dict] = {}  # message id -> its row, so a channel fix shows at once (#283)
-    read_again = _read_again(match.id, rows)
+    read_again = _read_again(match.id, rows, again)
 
     def clicked(message, shift: bool) -> None:
         if not picker.clicked(message, shift):

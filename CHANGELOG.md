@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · Read again says when it can't (#357)
+- With line pictures switched off, or none left for a match, **Read again, best quality** is greyed out and says why, instead of running and finding nothing.
+
 ### 2026-10-07 · An older version says so (#352)
 - If an older YapTracker is started on data from a newer one, it now says so in its window ("Your data is from a newer YapTracker … run tools/update.ps1") instead of failing to start. It records nothing and leaves your data untouched.
 

@@ -77,6 +77,10 @@ class ReadAgain:
         ids = [m.id for m in self._store.messages(match_id) if self._readable(m)]
         return self._add(Job(match_id, ids))
 
+    def readable(self, match_id: int) -> int:
+        """How many lines of the match have a picture and weren't fixed by hand (#357)."""
+        return sum(1 for m in self._store.messages(match_id) if self._readable(m))
+
     def line(self, message_id: int) -> Job:
         message = self._store.message(message_id)
         ok = message is not None and self._readable(message)
