@@ -314,7 +314,9 @@ def _open_store() -> Callable[[], None]:
     from yaptracker.familiar import FamiliarFaces
     from yaptracker.lines import LinePictures
     from yaptracker.matches import MatchTracker
+    from yaptracker.ocr import engine as ocr
     from yaptracker.players import PlayerMatcher
+    from yaptracker.read_again import ReadAgain
     from yaptracker.reader import ChatReader
     from yaptracker.reading_mode import AFTER, ReadingMode
     from yaptracker.store.backups import DailyBackup
@@ -383,12 +385,23 @@ def _open_store() -> Callable[[], None]:
             idle=lambda: not capturing() or not runtime.matches.running,
         )
         runtime.reader.start()
+        runtime.read_again = ReadAgain(  # "Read again, best quality" (#333)
+            runtime.store,
+            runtime.pictures,
+            lambda image: ocr.get(config.ocr_engine()).read(image, scale=runtime.ocr_scale()),
+            idle=lambda: not runtime.matches.running,
+            identity=config.identity,
+            link=lambda name, ts, conf: runtime.players.link(name, ts, conf),
+        )
+        runtime.read_again.start()
 
     def close_store() -> None:
         if runtime.backups is not None:
             runtime.backups.stop()
         if runtime.reader is not None:
             runtime.reader.stop()  # capture has stopped; the last frame is stored first
+        if runtime.read_again is not None:
+            runtime.read_again.stop()
         if runtime.health is not None:
             runtime.health.stop()
         if runtime.matches is not None:

@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · Read again, best quality (#333)
+- Sessions → a match → **Read again, best quality** reads every line again from its saved picture with the best reader and keeps a new reading only where it's better. A line's popup has **Read this line again**.
+- It says how it's going ("Reading 23 lines again… 7 better so far.") and waits while a match runs. Lines you fixed by hand are never touched. It fixes misread lines; lines YapTracker never saw can't be found this way.
+
 ### 2026-10-07 · Light matches tidied up afterwards (#336)
 - Competitive now reads **after the match** by default: your ranked FPS stays untouched.
 - A match read "Live, light" gets tidied up once the game is idle: YapTracker reads its chat pictures again with the best reader, fixes misread lines and adds the ones Windows OCR missed, at the time they were said. Live says "Tidied up the last match: 3 lines fixed, 2 found."
