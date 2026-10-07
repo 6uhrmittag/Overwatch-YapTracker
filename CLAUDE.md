@@ -382,9 +382,9 @@ In short: simple layout, Overwatch energy, slightly silly.
   Rules in `docs/ui.md` → Self-explaining. The only written docs are the README quick start (#33).
 - Every UI PR includes a screenshot
 
-Default hotkeys (configurable): `Ctrl+Alt+F` bring YapTracker forward + focus
-lookup · `Ctrl+Alt+M` new match (override only) · `Ctrl+Alt+P` pause
-(auto-resumes next match). **Nothing in normal play may depend on a hotkey.**
+Hotkeys are **unbound by default** (Void + Marv, #328): every action has a button, and a user can
+bind Pause, Start/End match, Who's that? and Save sample in Settings → Hotkeys if they want.
+**Nothing in normal play may depend on a hotkey.**
 
 ---
 
