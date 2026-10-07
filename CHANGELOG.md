@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · Lighter in the menus (#115)
+- Between matches, when the chat box only shows menu art and no chat, YapTracker reads it every 6 s instead of every 1.5–3 s. As soon as someone types, it's back to normal.
+
 ### 2026-10-07 · New season's hero (#318)
 - The new hero Doctrine is known by name, so their callouts ("Enemy Doctrine!") count as callouts, not yaps.
 
