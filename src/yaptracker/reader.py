@@ -179,7 +179,9 @@ class ChatReader:
                      time.strftime("%H:%M:%S", time.localtime(kept.ts)))  # fmt: skip
         self._batch = (started, frames + 1)
         if not len(self.later):
-            log.info("read %d kept chat frames in %.0f s", frames + 1, time.monotonic() - started)
+            _, dropped = self.later.take_counts()
+            log.info("read %d kept chat frames in %.0f s%s", frames + 1, time.monotonic() - started,
+                     f" ({dropped} dropped for the memory cap)" if dropped else "")  # fmt: skip
             self._batch = None
 
     def read_frame(self, ts: float, image: np.ndarray, kept: Kept | None = None) -> list[Yap]:
