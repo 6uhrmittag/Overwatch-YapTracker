@@ -88,7 +88,8 @@ class ReadPreview:
         if request != self._request:
             return  # the box moved again while this read was running
         lines = without_input(lines, bgr)  # the typing field isn't chat (#254)
-        chat = config.identity().apply(channels.assign(parse(lines), bgr, config.channel_colours()))
+        parsed = parse(lines, has_icon=lambda box: channels.has_icon(bgr, box))  # (#329)
+        chat = config.identity().apply(channels.assign(parsed, bgr, config.channel_colours()))
         self.learned_colours = channels.learn(chat, bgr)
         yaps = sum(line.kind in YAP_KINDS for line in chat)
         self._count.set_text(f"{yaps} yaps")

@@ -260,7 +260,7 @@ class ChatReader:
         read = without_input(ocr_lines, image)  # what you type isn't said yet (#254)
         read = channels.cut_glued(read, image, known)  # "gg 512" -> "gg" (#172)
         ocr = glyphs.mark(image, read)  # icons OCR can't spell become ◇ (#128)
-        parsed = parse(ocr)
+        parsed = parse(ocr, has_icon=lambda box: channels.has_icon(image, box))  # (#329)
         learned = channels.learn(parsed, image)
         self._seen_colours.update(learned)  # e.g. HDR shifts them (#173)
         saved = self._colours()
