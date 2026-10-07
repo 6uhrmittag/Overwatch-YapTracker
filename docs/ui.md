@@ -134,7 +134,7 @@ Pill shape, 2 px ink-coloured border, uppercase 800 weight, hard shadow
   together · N yaps", first line of notes as a quote, buttons *Open profile* /
   *Got it*. Avoid-verdict players get a compact card with a red border instead
   of the banner. New cards stack on top; they fade after ~2 minutes.
-- **Keycap chip:** small dark rounded label, e.g. `Ctrl Alt F`.
+- **Keycap chip:** small dark rounded label, e.g. `Ctrl Alt F`. Only shown when the user set that hotkey: none are set by default (#328).
 - **Yap-o-meter:** striped orange bar, levels *Silent type · Casual yapper ·
   Certified yapper · Yap lord* (by yaps per match, thresholds are a detail).
 

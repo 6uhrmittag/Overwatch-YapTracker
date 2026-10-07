@@ -169,16 +169,18 @@ def save_snap_style(style: dict, path: Path | None = None) -> None:
     _save(path, data)
 
 
+# Unbound by default (Void + Marv, #328): every action has a button, nothing in an evening needs
+# a key, and Ctrl+Alt is AltGr on German keyboards. "" = not set; set one in Settings -> Hotkeys.
 HOTKEYS = {
-    "pause": "Ctrl+Alt+P",  # auto-resumes at the next match
-    "new_match": "Ctrl+Alt+M",  # manual override only; matches split themselves (#21)
-    "lookup": "Ctrl+Alt+F",  # "Who's that?": YapTracker to the front, search focused (#27)
-    "save": "Ctrl+Alt+S",  # optional: keep the last 20 s of chat as a debug sample (#110)
+    "pause": "",  # auto-resumes at the next match
+    "new_match": "",  # manual override only; matches split themselves (#21)
+    "lookup": "",  # "Who's that?": YapTracker to the front, search focused (#27)
+    "save": "",  # optional: keep the last 20 s of chat as a debug sample (#110)
 }
 
 
 def hotkeys(path: Path | None = None) -> dict[str, str]:
-    """Action -> combo, e.g. {"pause": "Ctrl+Alt+P", ...}; changed ones from Settings (#32)."""
+    """Action -> combo, e.g. {"pause": "Ctrl+Alt+P", "save": ""}; "" = not set (#32, #328)."""
     saved = _load(path or paths.config_file()).get("hotkeys", {})
     return {action: saved.get(action, combo) for action, combo in HOTKEYS.items()}
 

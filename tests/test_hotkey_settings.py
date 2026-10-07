@@ -1,20 +1,37 @@
 """Settings -> Hotkeys (#32): change a hotkey by pressing it; clashes are shown, never saved."""
 
+import json
+
 import pytest
 from nicegui.testing import User, user_simulation
 
-from yaptracker import config, runtime
+from yaptracker import config, hotkeys, paths, runtime
 from yaptracker.hotkeys import check
 from yaptracker.ui import shell
 from yaptracker.ui.hotkeys import clash, combo_from
 
 
-def test_defaults_and_a_changed_one_persists():
-    assert config.hotkeys() == {"pause": "Ctrl+Alt+P", "new_match": "Ctrl+Alt+M",
-                                "lookup": "Ctrl+Alt+F", "save": "Ctrl+Alt+S"}  # fmt: skip
+def test_none_set_by_default_and_a_set_one_persists():
+    assert config.hotkeys() == {"pause": "", "new_match": "", "lookup": "", "save": ""}  # (#328)
     config.save_hotkey("pause", "Ctrl+Shift+F8")
     assert config.hotkeys()["pause"] == "Ctrl+Shift+F8"
-    assert config.hotkeys()["lookup"] == "Ctrl+Alt+F"
+    assert config.hotkeys()["lookup"] == ""
+
+
+def test_a_combo_saved_before_the_update_still_works():
+    """Only changed combos were ever saved: Void's Dvorak one stays, the rest is unbound."""
+    paths.config_file().parent.mkdir(parents=True, exist_ok=True)
+    paths.config_file().write_text(json.dumps({"hotkeys": {"pause": "Ctrl+Alt+N"}}))
+    assert config.hotkeys() == {"pause": "Ctrl+Alt+N", "new_match": "", "lookup": "", "save": ""}
+    assert runtime.keycap("pause") == "Ctrl Alt N" and runtime.keycap("lookup") == ""
+
+
+def test_an_empty_combo_never_reaches_parse(monkeypatch):
+    seen = []
+    monkeypatch.setattr(hotkeys, "parse", lambda combo: seen.append(combo) or (0, 0))
+    listener = hotkeys.HotkeyListener({"": lambda: None, "Ctrl+Alt+N": lambda: None})
+    assert [combo for combo, _ in listener._bindings] == ["Ctrl+Alt+N"]
+    assert clash("pause", "Ctrl+Alt+P") is None  # unbound actions don't clash with anything
 
 
 def test_key_presses_become_combos_by_key_position():
@@ -30,6 +47,7 @@ def test_what_cant_be_a_hotkey():
     assert check("F9") is None
     assert "Ctrl or Alt" in check("Shift+P")  # you couldn't type a capital P anymore
     assert "Ctrl or Alt" in check("P")
+    config.save_hotkey("lookup", "Ctrl+Alt+F")
     assert clash("pause", "Ctrl+Alt+F") == "Already used for Who's that?."
     assert clash("pause", "Ctrl+Alt+P") is None  # its own combo
 
@@ -49,6 +67,8 @@ def press(user, code, ctrl=True, alt=True, shift=False):
 
 async def test_change_a_hotkey_in_settings(user: User, monkeypatch):
     config.save_setup_state("done")
+    config.save_hotkey("lookup", "Ctrl+Alt+F")
+    config.save_hotkey("pause", "Ctrl+Alt+P")
     bound = []
     monkeypatch.setattr(runtime, "bind_hotkeys", bound.append)
     await user.open("/")
@@ -73,12 +93,33 @@ async def test_change_a_hotkey_in_settings(user: User, monkeypatch):
     await user.should_see("Ctrl Alt Q")  # the Pause button's keycap follows
 
 
+async def test_not_set_by_default_and_clear_unbinds_at_once(user: User, monkeypatch):
+    config.save_setup_state("done")
+    bound = []
+    monkeypatch.setattr(runtime, "bind_hotkeys", bound.append)
+    await user.open("/")
+    await user.should_not_see("Ctrl Alt")  # no keycap chips in Live (#328)
+    user.find(marker="nav-settings").click()
+    await user.should_see("Optional. Everything works without hotkeys")
+    for action in ("pause", "new_match", "lookup", "save"):
+        user.find(marker=f"hotkey-unset-{action}")  # "Not set"
+    await user.should_not_see("Clear")
+    user.find(marker="hotkey-change-save").click()
+    press(user, "KeyN")
+    await user.should_see("Ctrl Alt N")
+    user.find(marker="hotkey-clear-save").click()
+    assert config.hotkeys()["save"] == "" and bound[-1] is True  # registered again, without it
+    user.find(marker="hotkey-unset-save")
+    await user.should_not_see("Ctrl Alt N")
+
+
 async def test_another_app_has_it(user: User, monkeypatch):
     config.save_setup_state("done")
 
     class Taken:
         failed = ["Ctrl+Alt+S"]
 
+    config.save_hotkey("save", "Ctrl+Alt+S")
     monkeypatch.setattr(runtime, "hotkeys", Taken())
     await user.open("/")
     user.find(marker="nav-settings").click()

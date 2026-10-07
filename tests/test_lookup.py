@@ -35,7 +35,7 @@ def store(tmp_path, monkeypatch):
 async def test_a_name_from_the_scoreboard_finds_them(user: User, store):
     await user.open("/")
     await user.should_see("Who's that?")
-    await user.should_see("Ctrl Alt F")  # the hotkey, shown on the box
+    await user.should_not_see("Ctrl Alt F")  # no hotkey by default, no keycap (#328)
     user.find(marker="lookup-box").type("noodlebnk")
     await user.should_see("Bestie")
     user.find(marker="lookup-result").click()
