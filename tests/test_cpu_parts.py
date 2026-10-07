@@ -31,3 +31,22 @@ def test_a_part_counts_its_own_threads_cpu():
     with parts.part("match signals"):
         sum(i * i for i in range(200_000))  # some real work on this thread
     assert parts._spent["match signals"] > 0
+
+
+def test_the_line_says_the_state_of_its_minute(caplog):
+    """In match / between matches / paused / no game (#351), as the FPS lines say it (#187)."""
+    clock, state = [0.0], ["between matches"]
+    parts = CpuParts(lambda: clock[0], lambda: clock[0] / 10)
+    parts.state = lambda: state[0]
+    parts.tick()
+    with caplog.at_level(logging.INFO, logger="yaptracker.cpu_parts"):
+        clock[0] = 30.0
+        state[0] = "in match"
+        parts.tick()
+        clock[0] = 60.0
+        parts.tick()  # crossed: both
+        clock[0] = 120.0
+        parts.tick()  # a whole minute in the match
+    first, second = [r.getMessage() for r in caplog.records]
+    assert first.startswith("cpu parts (between matches + in match): reading 0.0 %")
+    assert second.startswith("cpu parts (in match): ")

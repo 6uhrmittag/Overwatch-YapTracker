@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · CPU line per state (#351)
+- Behind the scenes: the log's once-a-minute CPU line says whether that minute was in a match, between matches, paused or without the game, so each can be measured on its own.
+
 ### 2026-10-07 · Ranked spotted more often (#342)
 - When hero select's queue ("COMPETITIVE", "UNRANKED"…) didn't read at first, YapTracker now looks again while hero select is up, also with two colour tricks against glare. So more ranked matches get their "Competitive" reading.
 
