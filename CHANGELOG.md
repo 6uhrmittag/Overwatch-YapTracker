@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-07 · Ranked spotted more often (#342)
+- When hero select's queue ("COMPETITIVE", "UNRANKED"…) didn't read at first, YapTracker now looks again while hero select is up, also with two colour tricks against glare. So more ranked matches get their "Competitive" reading.
+
 ### 2026-10-07 · Two lines no longer glued together (#329)
 - When OCR read a name's brackets as I or l ("IBravolnCharliel: …"), the line was glued onto the one above. A row with its own chat icon now always starts a new line, and such a name comes out without the misread brackets.
 

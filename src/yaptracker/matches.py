@@ -139,6 +139,19 @@ class MatchTracker:
             else:
                 self._start_match(ts, source, mode, map_name)
 
+    def learn_info(self, mode: str | None, map_name: str | None) -> None:
+        """Hero select's queue or map, read on a later look (#342): the running match gets
+        what it didn't have yet. The reading mode follows at once (#331)."""
+        with self._lock:
+            if not self.running or self._match_source != "heroselect":
+                return
+            mode, map_name = self.match_mode or mode, self.match_map or map_name
+            if (mode, map_name) == (self.match_mode, self.match_map):
+                return
+            self.match_mode, self.match_map = mode, map_name
+            self._store.set_match_source(self.match_id, "heroselect", mode, map_name)
+            log.info("match %d: hero select read again: %s, %s", self.match_id, mode, map_name)
+
     def adoptable(self, ts: float | None = None) -> bool:
         """A match the chat, the end screen or a key press started a moment ago: hero select
         now takes it over instead of starting another one."""

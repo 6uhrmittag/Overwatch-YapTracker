@@ -39,6 +39,9 @@ MATCH = 80  # rapidfuzz ratio on the letters only; OCR may lose or swap a letter
 REARM_S = 120  # the banner must be gone this long before a new hero select counts
 IN_MATCH_EVERY_S = 5.0  # hero select looked for at most this often inside a running match
 BETWEEN_EVERY_S = 2.0  # and between matches: the screen is up 20 s+, the start 1 s later at most
+# The queue decides how chat is read since #331. Missed at the first look (a frame between
+# animations, HDR glare): looked at again on later sightings of the banner, this often (#342).
+INFO_TRIES = 5
 
 
 def signal_regions(width: int, height: int) -> dict[str, Region]:
@@ -152,6 +155,29 @@ def parse_info(lines: list[str]) -> tuple[str | None, str | None]:
     return game_lists.queue(lines[0]), map_name
 
 
+def _variants(image: np.ndarray):
+    """The info corner as is, then two looks that keep white words on glare (#342): the
+    inverted saturation (white text, coloured light) and the blue channel (white on yellow)."""
+    yield image
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    yield cv2.merge([255 - hsv[:, :, 1]] * 3)
+    yield cv2.merge([image[:, :, 0]] * 3)
+
+
+def read_info(read_lines: Callable[[np.ndarray], list[str]], image: np.ndarray | None):
+    """(mode, map) of the info corner; the variants only while the queue is still unknown.
+    On Marv's 88 start samples they found 4 more queues and changed none that was read."""
+    mode = map_name = None
+    if image is None:
+        return mode, map_name
+    for variant in _variants(image):
+        found_mode, found_map = parse_info(read_lines(np.ascontiguousarray(variant)))
+        mode, map_name = mode or found_mode, map_name or found_map
+        if mode:
+            break
+    return mode, map_name
+
+
 class HeroSelect:
     """Calls on_start(mode, map) once per hero select."""
 
@@ -164,8 +190,11 @@ class HeroSelect:
         rearm_s: float = REARM_S,
         match_running: Callable[[], bool] = lambda: False,
         adoptable: Callable[[], bool] = lambda: False,
+        on_info: Callable[[str | None, str | None], None] = lambda mode, map_name: None,
     ) -> None:
-        self._read_line, self._read_lines = read_line, read_lines
+        self._read_line, self._read_lines, self._on_info = read_line, read_lines, on_info
+        self._info_left = 0  # later looks at the info corner while the queue is unknown (#342)
+        self._known: tuple[str | None, str | None] = (None, None)
         self._match_running, self._adoptable = match_running, adoptable
         self._on_start, self._clock, self._rearm_s = on_start, clock, rearm_s
         self._active = False
@@ -198,8 +227,11 @@ class HeroSelect:
             self._last_seen = now
             if not self._active:
                 self._active = True
-                info = signals.get("heroselect_info")
-                self._on_start(*parse_info(self._read_lines(info) if info is not None else []))
+                self._known = read_info(self._read_lines, signals.get("heroselect_info"))
+                self._info_left = INFO_TRIES if self._known[0] is None else 0
+                self._on_start(*self._known)
+            elif self._info_left:
+                self._look_again(signals.get("heroselect_info"))
             return
         self._look_for_details(signals, now)
         # Backup: hero select was missed (e.g. YapTracker started late), the round start isn't.
@@ -217,6 +249,17 @@ class HeroSelect:
         elif self._active and now - self._last_seen >= self._rearm_s:
             self._active = False
 
+    def _look_again(self, info: np.ndarray | None) -> None:
+        """Hero select is still up and its queue unknown: another look (#342)."""
+        self._info_left -= 1
+        mode, map_name = read_info(self._read_lines, info)
+        known = (self._known[0] or mode, self._known[1] or map_name)
+        if known != self._known:
+            self._known = known
+            self._on_info(*known)
+        if known[0]:
+            self._info_left = 0
+
     def _look_for_details(self, signals: dict[str, np.ndarray], now: float) -> None:
         """On a bright map HDR washes the banner out to white on white, but not the key hint
         "F1 HERO DETAILS" at the bottom (#300). Changing hero in a match or the Practice Range
@@ -231,7 +274,7 @@ class HeroSelect:
             return
         if self._details_at is None or now - self._details_at > DETAILS_FRESH_S:
             info = signals.get("heroselect_info")  # once per hero select: usually washed out too
-            self._details_info = parse_info(self._read_lines(info) if info is not None else [])
+            self._details_info = read_info(self._read_lines, info)
         self._details_at = now
 
     def _confirm(self, now: float) -> bool:
