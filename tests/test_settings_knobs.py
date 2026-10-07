@@ -54,8 +54,12 @@ async def test_reading_card_changes_apply_at_once(user: User, monkeypatch):
     await user.should_see("Read the chat")
     user.find(marker="gap-3.0").click()
     assert reader.min_gap_s == 3.0 and config.read_every_s() == 3.0
-    user.find(marker="engine-rapidocr").click()
-    assert config.ocr_engine() == "rapidocr"
+    await user.should_see("Other matches")
+    user.find(marker="competitive-best").click()
+    assert config.reading("competitive") == "best"
+    user.find(marker="other-light").click()
+    assert config.reading("other") == "light"
+    await user.should_not_see("After the match")  # until #332 builds it
 
 
 async def test_back_up_now_button(user: User, monkeypatch, tmp_path):

@@ -303,9 +303,9 @@ def _open_store() -> Callable[[], None]:
     from yaptracker.familiar import FamiliarFaces
     from yaptracker.lines import LinePictures
     from yaptracker.matches import MatchTracker
-    from yaptracker.ocr import engine as ocr
     from yaptracker.players import PlayerMatcher
     from yaptracker.reader import ChatReader
+    from yaptracker.reading_mode import ReadingMode
     from yaptracker.store.backups import DailyBackup
     from yaptracker.store.repo import Store
 
@@ -338,8 +338,14 @@ def _open_store() -> Callable[[], None]:
             config.identity,
             on_shaky=lambda name: runtime.debug.save_chat("new-player"),
         )
+        runtime.reading = ReadingMode(
+            lambda: runtime.matches,
+            lambda: config.reading("competitive"),
+            lambda: config.reading("other"),
+            config.ocr_engine,
+        )
         runtime.reader = ChatReader(
-            lambda image: ocr.get(config.ocr_engine()).read(image, scale=runtime.ocr_scale()),
+            lambda image: runtime.reading.read(image, runtime.ocr_scale()),
             runtime.store,
             runtime.matches,
             identity=config.identity,
@@ -351,6 +357,7 @@ def _open_store() -> Callable[[], None]:
             players=runtime.players,
             on_player=runtime.familiar.heard,
             min_gap_s=config.read_every_s(),
+            modes=runtime.reading.take_counts,
         )
         runtime.reader.start()
 

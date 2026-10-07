@@ -7,6 +7,7 @@ from math import gcd
 from pathlib import Path
 
 from yaptracker import __version__, paths
+from yaptracker import reading_mode as modes
 from yaptracker.capture.changes import ChangeDetector
 from yaptracker.capture.source import Region, RelativeRegion, default_chat_region
 from yaptracker.identity import Identity
@@ -114,6 +115,29 @@ def save_ocr_engine(name: str, path: Path | None = None) -> None:
     path = path or paths.config_file()
     data = _load(path)
     data["ocr_engine"] = name
+    _save(path, data)
+
+
+def reading(kind: str, path: Path | None = None) -> str:
+    """How chat is read during Competitive ("competitive") or other matches ("other") (#331).
+
+    Windows OCR picked as the reader by hand (Void's stopgap, #330) carries over once: every
+    match reads light, and the reader of the calibration preview goes back to RapidOCR."""
+    path = path or paths.config_file()
+    data = _load(path)
+    if data.get("ocr_engine") == modes.LIGHT_ENGINE and "reading" not in data:
+        data["reading"] = {"competitive": modes.LIGHT, "other": modes.LIGHT}
+        data["ocr_engine"] = ocr.DEFAULT
+        _save(path, data)
+    default = modes.DEFAULT_COMPETITIVE if kind == "competitive" else modes.DEFAULT_OTHER
+    chosen = data.get("reading", {}).get(kind, default)
+    return chosen if chosen in modes.CHOICES else default
+
+
+def save_reading(kind: str, choice: str, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["reading"] = {**data.get("reading", {}), kind: choice}
     _save(path, data)
 
 
