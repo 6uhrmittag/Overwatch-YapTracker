@@ -1,8 +1,16 @@
 """Sessions and matches split themselves (#21): real store, fake clock."""
 
+import logging
+
 import pytest
 
-from yaptracker.matches import AFTER_END_GAP_S, QUIET_GAP_S, SESSION_GAP_S, MatchTracker
+from yaptracker.matches import (
+    AFTER_END_GAP_S,
+    LONGEST_MATCH_S,
+    QUIET_GAP_S,
+    SESSION_GAP_S,
+    MatchTracker,
+)
 from yaptracker.pause import Pause
 from yaptracker.store.repo import Store
 
@@ -39,16 +47,40 @@ def test_first_chat_of_the_evening_starts_session_1_match_1(store):
 
 def test_long_silence_then_chat_is_the_next_match(store):
     tracker = MatchTracker(store, Pause())
-    tracker.capture_alive(T0)
-    tracker.new_match(T0, source="heroselect")  # chat alone would be chat outside a match (#307)
-    play(tracker, T0, 120, chat_every=10)
+    play(tracker, T0, 240, chat_every=10)  # 4 min of chat: a match, its hero select missed
     store.add_message(ts=T0 + 10, channel="match", text="hi", match_id=tracker.match_id)
-    play(tracker, T0 + 120, QUIET_GAP_S + 10)  # 5+ minutes: no chat at all
-    tracker.chat_changed(T0 + 120 + QUIET_GAP_S + 10)
+    play(tracker, T0 + 240, QUIET_GAP_S + 10)  # 5+ minutes: no chat at all
+    tracker.chat_changed(T0 + 240 + QUIET_GAP_S + 10)
     first, second = matches(store)
-    assert first[2] == T0 + 110  # ended at its last chat change
-    assert second[1] == T0 + 120 + QUIET_GAP_S + 10
+    assert first[2] == T0 + 230  # ended at its last chat change
+    assert second[1] == T0 + 240 + QUIET_GAP_S + 10
     assert tracker.status()[:2] == (1, 2)  # empty matches wouldn't count (#270): it has a line
+
+
+def test_a_quiet_chat_doesnt_split_a_hero_select_match(store, caplog):
+    """#377, 2026-10-10 16:06: "gl hf", then nobody typed for 5 min in a running match."""
+    caplog.set_level(logging.INFO, "yaptracker.matches")
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    tracker.new_match(T0, source="heroselect", mode="UNRANKED")
+    tracker.chat_changed(T0 + 30)  # "gl hf"
+    play(tracker, T0 + 30, 6 * 60)  # 6 min quiet
+    tracker.chat_changed(T0 + 30 + 6 * 60)  # a hero switch line: still the same match
+    assert [m[3] for m in matches(store)] == ["heroselect"] and tracker.running
+    assert "match 1: 5 min quiet, but hero select started it and no end was seen" in caplog.text
+    tracker.end_match(T0 + 600, "defeat")
+    tracker.chat_changed(T0 + 600 + 6 * 60)  # after its end screen: the next match
+    assert [m[3] for m in matches(store)] == ["heroselect", "gap"]
+
+
+def test_a_hero_select_match_ends_with_a_quiet_chat_25_min_after_its_start(store):
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    tracker.new_match(T0, source="heroselect")
+    tracker.chat_changed(T0 + LONGEST_MATCH_S - QUIET_GAP_S)
+    tracker.chat_changed(T0 + LONGEST_MATCH_S - 1)  # less than 5 min quiet: same match
+    tracker.chat_changed(T0 + LONGEST_MATCH_S + QUIET_GAP_S)  # longer than any match
+    assert [m[3] for m in matches(store)] == ["heroselect", "gap"]
 
 
 def test_a_normal_chatty_match_is_not_split(store):

@@ -342,7 +342,7 @@ def _open_store() -> Callable[[], None]:
     from yaptracker.debug import DebugSamples
     from yaptracker.familiar import FamiliarFaces
     from yaptracker.lines import LinePictures
-    from yaptracker.matches import MatchTracker, merge_mirror_rounds
+    from yaptracker.matches import MatchTracker, merge_split_matches
     from yaptracker.ocr import engine as ocr
     from yaptracker.players import PlayerMatcher
     from yaptracker.read_again import ReadAgain
@@ -371,14 +371,14 @@ def _open_store() -> Callable[[], None]:
             log.error("%s", error)
             runtime.data_too_new = str(error)
             return
-        try:  # one match per real match, also for Competitive rounds split before (#371)
-            merge_mirror_rounds(
+        try:  # one match per real match, also for matches split before (#371, #377)
+            merge_split_matches(
                 runtime.store,
                 later.unread_matches(paths.data_dir() / UNREAD_DIR),
                 lambda: before_merge(runtime.store.backup_to, paths.backup_dir()),
             )
         except Exception:
-            log.exception("merging mirror rounds failed; the matches stay as they are")
+            log.exception("merging split matches failed; the matches stay as they are")
         runtime.backups = DailyBackup(
             runtime.store.backup_to,
             paths.backup_dir(),

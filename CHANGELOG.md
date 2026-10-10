@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · A quiet chat no longer splits a match (#377)
+- When nobody types for five minutes in the middle of a match, the next line now stays in that match instead of starting a new one without a map. A match ends with its end screen or the next hero select.
+- Matches split like that before are put back together at the next start, with all their lines and the result. YapTracker backs up your data first, and the log names every merge.
+
 ### 2026-10-10 · Menu changes counted (#350)
 - Behind the scenes: between matches, the log line "no chat in the box between matches" now also says how many frames looked new that minute, so the next evening shows how often the menu's art fools change detection.
 
