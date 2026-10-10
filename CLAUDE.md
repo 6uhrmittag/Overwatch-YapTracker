@@ -174,7 +174,7 @@ Closes #
 ### Not in v1 — already filed as `parked` issues, ignore them
 Video/recording import · Overwolf game events · reading OverLooker's files ·
 Tab-scoreboard OCR / full rosters · tags · review queue · PaddleOCR GPU ·
-installer · in-app auto-updater · tray icon · statistics/charts ·
+installer · tray icon · statistics/charts ·
 sharing notes between Marv's and Void's PCs (Void runs their own instance;
 match export/import between instances is v2).
 
@@ -242,8 +242,9 @@ of view, like OBS or the Snipping Tool.
 - **No input to the game.** Never send keystrokes/clicks to the Overwatch window.
   Global hotkeys registered by our app (`RegisterHotKey`) are fine.
 - **No overlay on the game.** The UI is its own window (second monitor or alt-tab).
-- **Local-only.** No telemetry, no cloud, no uploads. Only network call allowed:
-  the update script fetching GitHub releases.
+- **Local-only.** No telemetry, no cloud, no uploads. Only network calls allowed:
+  the update script fetching GitHub releases, and the app's **update check** (#46: once a day,
+  on by default, switchable; only `api.github.com/repos/6uhrmittag/Overwatch-YapTracker/releases`).
   Decided exception for later (#263, parked): **optional** chat translation via DeepL API Free
   with the user's own key, off by default, sending only the text of foreign-language lines.
   Same for the **OpenRouter bridge** (#326, parked): vision + text models with the user's own key,
