@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · Update now (#46)
+- **Update now** in the update banner, in What's new and in Settings → About: YapTracker closes, a window shows the download, and the new version starts by itself. Your data stays where it is.
+- During a match the button says **After this match**: an update never interrupts a game.
+- If the update fails (no internet, say), the window says why and YapTracker starts again as it was.
+
 ### 2026-10-10 · A new version? YapTracker tells you (#46)
 - When a newer YapTracker is out, Live shows a calm banner with **What's new** (every change since your version) and **Later**. Settings → About says the same, with **Check now**.
 - YapTracker asks GitHub once a day which version is newest, never during a match. Nothing else is sent. Settings → About → **Check for updates once a day** switches it off.

@@ -1,7 +1,9 @@
 """A newer YapTracker is out (#46): the daily check, What's new, the banner and About."""
 
+import asyncio
 import logging
 import urllib.error
+from pathlib import Path
 
 import pytest
 from nicegui.testing import User, user_simulation
@@ -120,3 +122,61 @@ async def test_about_checks_now_and_has_the_switch(user: User, monkeypatch):
     await user.should_see("Up to date (v0.5.412), checked at")
     user.find(marker="update-switch").click()
     assert config.update_check() is False
+
+
+def test_update_now_runs_from_the_install_root_only(monkeypatch, tmp_path):
+    from yaptracker import updates
+
+    monkeypatch.setattr(updates.sys, "platform", "win32")
+    monkeypatch.setattr(updates.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(updates.sys, "executable", "/x/YapTracker/app/YapTracker.exe")
+    assert updates.install_root() == Path("/x/YapTracker")
+    monkeypatch.setattr(updates.sys, "executable", "/x/Downloads/YapTracker/YapTracker.exe")
+    assert updates.install_root() is None  # unpacked somewhere else: update.ps1 by hand
+    assert "Only in the installed YapTracker" in updates.cannot_update_now()
+    assert updates.cannot_update_now(match_running=True) == "Updates wait until the match is over."
+    with pytest.raises(RuntimeError):
+        updates.start_update("v0.5.412")
+
+
+def test_update_now_copies_the_script_to_temp_and_starts_it(monkeypatch, tmp_path):
+    from yaptracker import updates
+
+    script = tmp_path / "bundle" / "update.ps1"
+    script.parent.mkdir()
+    script.write_text("param($InstallRoot)", encoding="ascii")
+    started = []
+    monkeypatch.setattr(updates, "bundled_script", lambda: script)
+    monkeypatch.setattr(updates, "install_root", lambda: Path("/x/O'Brien/YapTracker"))
+    monkeypatch.setattr(updates.tempfile, "gettempdir", lambda: str(tmp_path))
+    monkeypatch.setattr(updates.subprocess, "Popen", lambda cmd, **kw: started.append(cmd))
+    updates.start_update("v0.5.412")
+    copy = tmp_path / "YapTracker-update.ps1"
+    assert copy.read_text(encoding="ascii") == "param($InstallRoot)"
+    (cmd,) = started
+    assert cmd[:2] == ["powershell.exe", "-NoProfile"]
+    assert f"& '{copy}' -InstallRoot '/x/O''Brien/YapTracker'" in cmd[-1]  # quoted for PowerShell
+    assert "Start-Process '/x/O''Brien/YapTracker/app/YapTracker.exe'" in cmd[-1]
+
+
+async def test_update_now_waits_for_the_match_and_says_why_it_cant(user: User, monkeypatch):
+    from yaptracker import updates
+    from yaptracker.ui import updates as ui_updates
+
+    config.save_setup_state("done")
+    check = UpdateCheck("0.5.405", lambda: True, fetch=lambda: RELEASES)
+    check.check()
+    monkeypatch.setattr(runtime, "updates", check)
+    await user.open("/")
+    await user.should_see("YapTracker v0.5.412 is out.")
+    button = next(iter(user.find(marker="update-now").elements))
+    assert "Only in the installed YapTracker" in button.props["title"]  # this is a source run
+    calls = []
+    monkeypatch.setattr(updates, "cannot_update_now", lambda running: None)
+    monkeypatch.setattr(updates, "start_update", lambda newest: calls.append(newest))
+    monkeypatch.setattr(ui_updates, "quit_app", lambda: calls.append("quit"))
+    await asyncio.sleep(1.2)  # the button looks again every second
+    assert "disabled" not in button.props
+    user.find(marker="update-now").click()
+    await user.should_see("Updating: YapTracker closes now and is back in a minute.")
+    assert calls[0] == "v0.5.412"

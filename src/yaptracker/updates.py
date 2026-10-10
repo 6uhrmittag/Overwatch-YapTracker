@@ -5,16 +5,25 @@ one GET of the repo's release list, nothing sent but the request. On by default,
 Settings -> About. Never during a match: it waits until the match is over. Offline or rate
 limited: one log line, the next try a day later. Pre-releases count while YapTracker is on
 v0; from v1.0.0 on, only stable releases.
+
+Update now runs the update.ps1 bundled with the app (the same script as by hand): from %TEMP%,
+since the app folder is replaced, in its own console with the download bar. YapTracker quits;
+the script swaps the app folder, never touches the data folder and starts YapTracker again.
 """
 
 import json
 import logging
 import re
+import shutil
+import subprocess
+import sys
+import tempfile
 import threading
 import time
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -147,3 +156,62 @@ class UpdateCheck:
             if self.due():
                 self.check()
             self._stop.wait(POLL_S)
+
+
+def install_root() -> Path | None:
+    """<root>\\app\\YapTracker.exe -> <root>, the folder update.ps1 installs into. None when this
+    isn't an installed YapTracker (run from source, --dev, or unpacked somewhere else)."""
+    if not getattr(sys, "frozen", False) or sys.platform != "win32":
+        return None
+    app_dir = Path(sys.executable).parent
+    return app_dir.parent if app_dir.name.lower() == "app" else None
+
+
+def bundled_script() -> Path | None:
+    """tools/update.ps1 as the build bundled it (packaging/yaptracker.spec)."""
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+    script = base / "tools" / "update.ps1"
+    return script if script.exists() else None
+
+
+def _quoted(path: Path) -> str:
+    return "'" + str(path).replace("'", "''") + "'"
+
+
+def update_command(script: Path, root: Path) -> list[str]:
+    """PowerShell running update.ps1, and afterwards making sure YapTracker runs again: also when
+    the script stops early (already the newest) or fails (offline: the old app stays, the console
+    stays open so the reason can be read)."""
+    exe = _quoted(root / "app" / "YapTracker.exe")
+    code = (
+        f"try {{ & {_quoted(script)} -InstallRoot {_quoted(root)} }} catch {{ "
+        "Write-Host $_ -ForegroundColor Red; "
+        "Read-Host 'The update failed, YapTracker stays as it was. Press Enter to start it' }; "
+        "if (-not (Get-Process YapTracker -ErrorAction SilentlyContinue)) "
+        f"{{ Start-Process {exe} }}"
+    )
+    return ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", code]
+
+
+def cannot_update_now(match_running: bool = False) -> str | None:
+    """Why Update now can't run now, or None when it can."""
+    if match_running:
+        return "Updates wait until the match is over."
+    if install_root() is None:
+        return "Only in the installed YapTracker. Here: run update.ps1 from the tools folder."
+    if bundled_script() is None:
+        return "update.ps1 is missing from this build: run it from the tools folder."
+    return None
+
+
+def start_update(newest: str | None) -> None:
+    """Start update.ps1 in its own console; the caller quits YapTracker next. Raises when it
+    can't start (then YapTracker just keeps running)."""
+    script, root = bundled_script(), install_root()
+    if script is None or root is None:
+        raise RuntimeError(cannot_update_now())
+    copy = Path(tempfile.gettempdir()) / "YapTracker-update.ps1"
+    shutil.copyfile(script, copy)
+    subprocess.Popen(update_command(copy, root), cwd=tempfile.gettempdir(),
+                     creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0))  # fmt: skip
+    log.info("update: Update now to %s, update.ps1 started for %s, quitting", newest, root)
