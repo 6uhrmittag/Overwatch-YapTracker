@@ -1,4 +1,4 @@
-"""Yap snaps (#64): picked lines -> a pretty PNG, names hidden unless you say otherwise."""
+"""Yap snaps (#64): picked lines -> a pretty PNG, names shown unless you hide them (#366)."""
 
 import time
 from types import SimpleNamespace
@@ -11,7 +11,7 @@ from yaptracker import config, paths, runtime
 from yaptracker.glyphs import GLYPH
 from yaptracker.snaps import SCALE, WIDTH, render, save, snap_lines
 from yaptracker.store.repo import Store
-from yaptracker.ui import shell
+from yaptracker.ui import shell, snap_dialog
 
 
 def line(channel, who, text, role=None):
@@ -28,7 +28,7 @@ CHAT = [
 
 
 def test_hidden_names_are_numbered_by_first_appearance_also_in_the_text():
-    shown = [(s.who, s.text) for s in snap_lines(CHAT)]
+    shown = [(s.who, s.text) for s in snap_lines(CHAT, hide_names=True)]
     assert shown == [
         ("", "[Player 1] started playing Overwatch."),
         ("Player 2", "gl hf wahoo"),
@@ -39,10 +39,10 @@ def test_hidden_names_are_numbered_by_first_appearance_also_in_the_text():
 
 
 def test_names_shown_or_me_and_crew_kept():
-    assert [s.who for s in snap_lines(CHAT, hide_names=False)] == [
+    assert [s.who for s in snap_lines(CHAT)] == [
         "", "NoodleBonk", "tortillaTank", "MoonPebble", "ana",
     ]  # fmt: skip
-    kept = snap_lines(CHAT, keep_crew=True)
+    kept = snap_lines(CHAT, hide_names=True, keep_crew=True)
     assert [s.who for s in kept] == ["", "Player 2", "tortillaTank", "MoonPebble", "Player 3"]
     assert kept[3].text == "on it, tortillaTank " + GLYPH
 
@@ -79,6 +79,13 @@ async def test_pick_lines_preview_and_save(user: User, tmp_path, monkeypatch):
                                  match_id=match) for n, (who, text) in enumerate(said)]  # fmt: skip
         monkeypatch.setattr(runtime, "store", store)
         monkeypatch.setattr(paths, "pictures_dir", lambda: tmp_path / "Pictures" / "YapTracker")
+        hidden = []  # Hide names per drawn snap (#366)
+
+        def spy(messages, hide_names=False, *args, **kwargs):
+            hidden.append(hide_names)
+            return snap_lines(messages, hide_names, *args, **kwargs)
+
+        monkeypatch.setattr(snap_dialog, "snap_lines", spy)
         await user.open("/")
         user.find(marker="nav-sessions").click()
         user.find(marker=f"session-{session}").click()
@@ -93,7 +100,10 @@ async def test_pick_lines_preview_and_save(user: User, tmp_path, monkeypatch):
         user.find(marker=f"line-{ids[1]}").click()
         user.find(marker="snap-make").click()
         await user.should_see(marker="snap-preview")
-        await user.should_see("Hidden names become Player 1, 2, 3")
+        await user.should_see("hidden names become Player 1, 2, 3")
+        assert hidden and not any(hidden)  # opens with names shown (#366)
+        user.find(marker="snap-hide").click()
+        assert hidden[-1] is True  # and Hide names still hides them
         user.find(marker="snap-save").click()
         await user.should_see("Saved to")
         assert list((tmp_path / "Pictures" / "YapTracker").glob("yapsnap-*.png"))

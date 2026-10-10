@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · Yap snaps show names (#366)
+- A yap snap now shows the names as they are. Switch on **Hide names** for a snap you post anywhere; it starts off each time.
+
 ### 2026-10-10 · Privacy test knows two more words (#369)
 - Behind the scenes: the test that keeps real player names out of the code no longer mistakes two players named like ordinary words for a leak.
 
