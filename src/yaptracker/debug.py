@@ -19,6 +19,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from yaptracker.sizes import FolderSizes
+
 # A missed end screen only shows when the next match starts (hero select, or chat after the
 # 5-minute gap), so the overview frames of the last few minutes are kept to look back at it.
 BUFFER_S = 6 * 60
@@ -49,6 +51,21 @@ def folder_size(folder: Path) -> int:
     return sum(f.stat().st_size for f in folder.rglob("*") if f.is_file())
 
 
+def samples_in(folder: Path) -> list[tuple[Path, int]]:
+    """The one walk at start (#387): each sample folder (in its day folder) with its size, and
+    each loose file (corrections, things put there by hand)."""
+    found: list[tuple[Path, int]] = []
+    if not folder.exists():
+        return found
+    for top in folder.iterdir():
+        if top.is_file():
+            found.append((top, top.stat().st_size))
+            continue
+        for item in top.iterdir():
+            found.append((item, folder_size(item) if item.is_dir() else item.stat().st_size))
+    return found
+
+
 class DebugSamples:
     def __init__(
         self,
@@ -66,6 +83,8 @@ class DebugSamples:
         self._signals: dict[str, np.ndarray] = {}
         self._chat: deque[tuple[float, np.ndarray, list, list]] = deque()
         self._chat_sampled_at = -math.inf
+        self._cleaning = threading.Lock()
+        self.sizes = FolderSizes()  # counted once, then kept up to date (#387)
 
     def on_signals(self, signals: dict[str, np.ndarray], paused: bool = False) -> None:
         """About once a second from the capture thread: signal crops, every few s an overview."""
@@ -109,6 +128,7 @@ class DebugSamples:
             (sample / f"{time.strftime('%H-%M-%S', time.localtime(ts))}.jpg").write_bytes(jpg)
         for name, crop in signals.items():
             cv2.imwrite(str(sample / f"{name}.png"), crop)
+        self.sizes.set(sample, folder_size(sample))
         self.clean_up()
         return sample
 
@@ -158,6 +178,7 @@ class DebugSamples:
         (sample / "sample.json").write_text(
             json.dumps(sample_json, ensure_ascii=False, indent=1), encoding="utf-8"
         )
+        self.sizes.set(sample, folder_size(sample))
         self.clean_up()
         return sample
 
@@ -175,8 +196,10 @@ class DebugSamples:
                   "fixed": text}  # fmt: skip
         target = folder / f"{stem}.json"
         target.write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
+        self.sizes.set(target, target.stat().st_size)
         if picture is not None and picture.exists():
-            shutil.copy(picture, folder / f"{stem}{picture.suffix}")
+            copy = Path(shutil.copy(picture, folder / f"{stem}{picture.suffix}"))
+            self.sizes.set(copy, copy.stat().st_size)
         return target
 
     def channel_correction(self, message, channel: str, picture: Path | None) -> Path | None:
@@ -192,32 +215,42 @@ class DebugSamples:
                   "fixed_channel": channel}  # fmt: skip
         target = folder / f"{stem}.json"
         target.write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
+        self.sizes.set(target, target.stat().st_size)
         if picture is not None and picture.exists():
-            shutil.copy(picture, folder / f"{stem}{picture.suffix}")
+            copy = Path(shutil.copy(picture, folder / f"{stem}{picture.suffix}"))
+            self.sizes.set(copy, copy.stat().st_size)
         return target
 
-    def clean_up(self) -> None:
-        """Day folders older than 14 days go, then the oldest samples until under the cap."""
-        if not self._folder.exists():
-            return
-        oldest_kept = time.strftime(
-            "%Y-%m-%d", time.localtime(self._clock() - self._keep_days * 86400)
-        )
-        days = sorted(p for p in self._folder.iterdir() if p.is_dir())
-        for day in days:
-            if day.name < oldest_kept:
-                shutil.rmtree(day)
-        samples = sorted(s for day in days if day.exists() for s in day.iterdir() if s.is_dir())
-        sizes = {s: folder_size(s) for s in samples}
-        total = sum(sizes.values())
-        for sample in samples:  # names sort by date, then time
-            if total <= self._cap_bytes:
-                break
-            shutil.rmtree(sample)
-            total -= sizes[sample]
-        for day in days:
-            if day.exists() and not any(day.iterdir()):
-                day.rmdir()
+    def start(self, background: bool = True) -> None:
+        """At start: count the folder once in the background, then clean up."""
+        self.sizes.count(lambda: samples_in(self._folder), self.clean_up, background)
 
-    def size_bytes(self) -> int:
-        return folder_size(self._folder)
+    def clean_up(self) -> None:
+        """Day folders older than 14 days go, then the oldest samples until under the cap.
+        Sizes come from the running tally, never from walking (#387); not before it's counted."""
+        if not self.sizes.ready.is_set() or not self._folder.exists():
+            return
+        with self._cleaning:
+            oldest_kept = time.strftime(
+                "%Y-%m-%d", time.localtime(self._clock() - self._keep_days * 86400)
+            )
+            days = sorted(p for p in self._folder.iterdir() if p.is_dir())
+            for day in days:
+                if day.name < oldest_kept:
+                    shutil.rmtree(day, ignore_errors=True)
+                    self.sizes.drop(day)
+            samples = sorted(s for d in days if d.exists() for s in d.iterdir() if s.is_dir())
+            sizes = self.sizes.snapshot()
+            total = sum(sizes.get(sample, 0) for sample in samples)
+            for sample in samples:  # names sort by date, then time
+                if total <= self._cap_bytes:
+                    break
+                shutil.rmtree(sample, ignore_errors=True)
+                total -= self.sizes.drop(sample)
+            for day in days:
+                if day.exists() and not any(day.iterdir()):
+                    day.rmdir()
+
+    def size_bytes(self) -> int | None:
+        """None while it's still being counted at start."""
+        return self.sizes.total()

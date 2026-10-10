@@ -47,5 +47,5 @@ def test_the_oldest_months_go_first_once_over_the_cap(tmp_path):
     for month, size in [("2026-08", 600), ("2026-09", 600), ("2026-10", 600)]:
         (folder / month).mkdir(parents=True)
         (folder / month / "1.webp").write_bytes(b"x" * size)
-    LinePictures(folder, cap_bytes=1300).clean_up()
+    LinePictures(folder, cap_bytes=1300).start(background=False)
     assert sorted(p.name for p in folder.iterdir()) == ["2026-09", "2026-10"]

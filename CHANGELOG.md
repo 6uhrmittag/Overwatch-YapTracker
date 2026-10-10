@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · Settings opens at once (#387)
+- Settings opens right away again instead of after 1–2 seconds. The sizes of the line pictures and debug samples are counted once when YapTracker starts, and show "…" for that moment.
+- Behind the scenes: saving a debug sample no longer re-measures every older sample, and any view that takes 150 ms or more to open says so in the log (`ui: settings took … ms`).
+
 ### 2026-10-10 · CPU by thread (#350)
 - Behind the scenes: once a minute the log now also splits YapTracker's CPU by thread (`cpu threads: …`), to find where the time between matches goes. Most of it doesn't belong to any measured part yet.
 

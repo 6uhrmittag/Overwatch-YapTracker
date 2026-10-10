@@ -264,9 +264,12 @@ async def test_settings_shows_debug_samples_and_their_size(user: User, monkeypat
 
     (tmp_path / "debug" / "2026-10-01" / "12-00-00-end").mkdir(parents=True)
     (tmp_path / "debug" / "2026-10-01" / "12-00-00-end" / "a.jpg").write_bytes(b"x" * 2_500_000)
-    monkeypatch.setattr(runtime, "debug", DebugSamples(tmp_path / "debug", config.debug_samples))
+    debug = DebugSamples(tmp_path / "debug", config.debug_samples)
+    monkeypatch.setattr(runtime, "debug", debug)
     await user.open("/")
     user.find(marker="nav-settings").click()
+    await user.should_see("Debug samples: \u2026, kept 14 days and 1 GB at most")  # counting (#387)
+    debug.start(background=False)
     await user.should_see("Debug samples: 2.5 MB, kept 14 days and 1 GB at most")
     assert config.debug_samples()  # on in pre-releases
     user.find(marker="debug-switch").click()

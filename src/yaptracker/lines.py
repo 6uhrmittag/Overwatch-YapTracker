@@ -16,15 +16,17 @@ import cv2
 import numpy as np
 
 from yaptracker.capture.source import Region
+from yaptracker.sizes import FolderSizes
 
 CAP_BYTES = 2_000_000_000
 PAD = 2  # px above and below the line's box, so outlines stay whole
 
 
-def folder_size(folder: Path) -> int:
+def pictures_in(folder: Path) -> list[tuple[Path, int]]:
+    """Every picture and its size: the one walk, at start (#387)."""
     if not folder.exists():
-        return 0
-    return sum(f.stat().st_size for f in folder.rglob("*.webp"))
+        return []
+    return [(f, f.stat().st_size) for f in folder.rglob("*.webp")]
 
 
 class LinePictures:
@@ -35,8 +37,8 @@ class LinePictures:
         cap_bytes: int = CAP_BYTES,
     ) -> None:
         self._folder, self._enabled, self._cap_bytes = folder, enabled, cap_bytes
-        self._lock = threading.Lock()
-        self._written = 0  # bytes since the last clean-up check
+        self._lock = threading.Lock()  # one clean-up at a time
+        self.sizes = FolderSizes()  # counted once, then kept up to date (#387)
 
     def path(self, message_id: int, ts: float) -> Path:
         return self._folder / time.strftime("%Y-%m", time.localtime(ts)) / f"{message_id}.webp"
@@ -55,26 +57,27 @@ class LinePictures:
         target = self.path(message_id, ts)
         target.parent.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(str(target), crop, [cv2.IMWRITE_WEBP_QUALITY, 101])  # > 100 = lossless
-        with self._lock:
-            self._written += target.stat().st_size
-            check = self._written > 50_000_000  # every ~50 MB, not on every line
-            if check:
-                self._written = 0
-        if check:
+        self.sizes.set(target, target.stat().st_size)  # over an older one: only the difference
+        total = self.sizes.total()
+        if total is not None and total > self._cap_bytes:
             self.clean_up()
         return target
 
-    def clean_up(self) -> None:
-        """Oldest months first until under the cap."""
-        if not self._folder.exists():
-            return
-        months = sorted(p for p in self._folder.iterdir() if p.is_dir())
-        total = folder_size(self._folder)
-        for month in months:
-            if total <= self._cap_bytes:
-                break
-            total -= folder_size(month)
-            shutil.rmtree(month)
+    def start(self, background: bool = True) -> None:
+        """At start: count the folder once in the background, then clean up."""
+        self.sizes.count(lambda: pictures_in(self._folder), self.clean_up, background)
 
-    def size_bytes(self) -> int:
-        return folder_size(self._folder)
+    def clean_up(self) -> None:
+        """Oldest months first until under the cap. Not before the folder is counted."""
+        if not self.sizes.ready.is_set() or not self._folder.exists():
+            return
+        with self._lock:
+            for month in sorted(p for p in self._folder.iterdir() if p.is_dir()):
+                if (self.sizes.total() or 0) <= self._cap_bytes:
+                    break
+                shutil.rmtree(month, ignore_errors=True)
+                self.sizes.drop(month)
+
+    def size_bytes(self) -> int | None:
+        """None while it's still being counted at start."""
+        return self.sizes.total()
