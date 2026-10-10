@@ -137,10 +137,24 @@ def title_end(text: str) -> tuple[bool, str | None]:
         return True, None
     if fuzz.ratio(letters[:14], "SUMMARYREWARDS") >= MATCH:
         return True, None
+    if found := _outcome_first(letters):
+        return True, found[0]
+    return False, None
+
+
+def title_map(text: str) -> str | None:
+    """The map after the outcome in the title strip: "VICTORY ESPERANCA" -> Esperança (#383),
+    matched against the game lists like hero select's."""
+    found = _outcome_first(_letters(text))
+    return game_lists.map_name(found[1]) if found else None
+
+
+def _outcome_first(letters: str) -> tuple[str, str] | None:
+    """(outcome, the letters after it) when the title starts with VICTORY, DEFEAT or DRAW."""
     for word, outcome in OUTCOMES.items():  # the map name follows the outcome
         if len(letters) > len(word) + 2 and fuzz.ratio(letters[: len(word)], word) >= 85:
-            return True, outcome
-    return False, None
+            return outcome, letters[len(word) :]
+    return None
 
 
 def parse_info(lines: list[str]) -> tuple[str | None, str | None]:
@@ -298,7 +312,8 @@ class HeroSelect:
 
 
 class EndScreen:
-    """Calls on_end(outcome) once per match end, and again if the outcome only shows up later."""
+    """Calls on_end(outcome) once per match end, and again if the outcome only shows up later;
+    on_map(map) once when the title strip names the map (#383)."""
 
     def __init__(
         self,
@@ -307,17 +322,19 @@ class EndScreen:
         clock: Callable[[], float] = time.monotonic,
         rearm_s: float = REARM_S,
         title_every_s: float = 3.0,
+        on_map: Callable[[str], None] = lambda map_name: None,
     ) -> None:
         self._read_line, self._on_end, self._clock = read_line, on_end, clock
-        self._rearm_s, self._title_every_s = rearm_s, title_every_s
+        self._rearm_s, self._title_every_s, self._on_map = rearm_s, title_every_s, on_map
         self._active = False
+        self._map_said = False
         self._outcome: str | None = None
         self._last_seen = 0.0
         self._title_read = float("-inf")
 
     def update(self, signals: dict[str, np.ndarray]) -> None:
         now = self._clock()
-        seen, outcome = False, None
+        seen, outcome, map_name = False, None, None
         banner = signals.get("end_banner")
         # The banner is up for ~4 s: read it every second, unless the outcome is known already.
         if banner is not None and self._outcome is None and has_colour(banner):
@@ -328,11 +345,15 @@ class EndScreen:
         if not seen and title is not None and now - self._title_read >= self._title_every_s:
             self._title_read = now
             if has_bright_text(title, height_1440=END_TITLE_HEIGHT):
-                seen, outcome = title_end(self._read_line(title))
+                text = self._read_line(title)
+                (seen, outcome), map_name = title_end(text), title_map(text)
         if seen:
             self._last_seen = now
             if not self._active or (outcome and not self._outcome):
                 self._active, self._outcome = True, self._outcome or outcome
                 self._on_end(outcome)
+            if map_name and not self._map_said:  # after on_end: the match is over by then
+                self._map_said = True
+                self._on_map(map_name)
         elif self._active and now - self._last_seen >= self._rearm_s:
-            self._active, self._outcome = False, None
+            self._active, self._outcome, self._map_said = False, None, False

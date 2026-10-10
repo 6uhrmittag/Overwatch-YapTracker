@@ -171,6 +171,10 @@ class Store:
             (session_id, ts, source, mode, map_name),
         )
 
+    def set_match_map(self, match_id: int, map_name: str) -> None:
+        """The end screen named the map of a match that had none (#383)."""
+        self._write("UPDATE matches SET map = ? WHERE id = ? AND map IS NULL", (map_name, match_id))
+
     def set_match_source(
         self,
         match_id: int,

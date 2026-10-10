@@ -231,6 +231,34 @@ def test_title_reads(text, result):
     assert title_end(text) == result
 
 
+@pytest.mark.parametrize(
+    "text, map_name",
+    [("VICTORY ESPERANCA", "Esperança"), ("DEFEATECHENWALDEE", "Eichenwalde"),
+     ("VICTORY ROUTE 66", "Route 66"), ("DRAW KING'S ROW", "King's Row"),
+     ("VICTORY QXZW", None), ("PLAY OF THE GAME MAUGA", None), ("UNRANKED ATTACK", None),
+     ("UMMARYREWARS", None)],
+)  # fmt: skip
+def test_the_title_names_the_map(text, map_name):
+    """#383: "VICTORY <MAP>" in the title strip; garbage after the outcome is no map."""
+    assert signals.title_map(text) == map_name
+
+
+def test_the_end_screen_names_the_map_once_after_the_end():
+    clock, calls = Clock(), []
+    victory = banner("VICTORY!", (150, 230, 60))
+    title, quiet = strip("VICTORY ESPERANCA"), strip(None)
+    es = EndScreen(lambda img: {id(victory): "VICTORY!", id(title): "VICTORY ESPERANCA"}.get(
+        id(img), ""), lambda outcome: calls.append(("end", outcome)), clock,
+        on_map=lambda map_name: calls.append(("map", map_name)))  # fmt: skip
+    for t in range(4):
+        clock.now = t
+        es.update({"end_banner": victory, "end_title": quiet})
+    for t in range(4, 30):  # the title strip stays: read every 3 s, the map said once
+        clock.now = t
+        es.update({"end_banner": quiet, "end_title": title})
+    assert calls == [("end", "victory"), ("map", "Esperança")]
+
+
 def end_screen(reads, clock):
     ends = []
     return EndScreen(lambda img: reads.get(id(img), ""), ends.append, clock), ends
@@ -273,11 +301,15 @@ def test_the_next_end_counts_once_the_end_screens_were_gone_long_enough():
     assert ends == ["defeat", "defeat"]
 
 
-def test_real_recording_of_two_matches_gives_two_matches_with_outcomes(monkeypatch, tmp_path):
+@pytest.mark.parametrize("corner", [True, False])
+def test_real_recording_of_two_matches_gives_two_matches_with_outcomes(
+    monkeypatch, tmp_path, caplog, corner
+):
     """The whole evening path: hero select starts, end screen ends, real MatchTracker and store.
 
     Same recording as above; per second the read of each crop, or null where the cheap check
-    said "nothing here" (then nothing is read).
+    said "nothing here" (then nothing is read). Without hero select's corner (corner=False),
+    the maps come from the end screen's title, "VICTORY ESPERANCA" (#383).
     """
     import yaptracker.signals as signals
     from yaptracker.matches import MatchTracker
@@ -299,22 +331,24 @@ def test_real_recording_of_two_matches_gives_two_matches_with_outcomes(monkeypat
                                                              map_name=map_name),
                     clock, match_running=lambda: tracker.running)  # fmt: skip
     es = EndScreen(lambda img: texts[id(img)], lambda outcome: tracker.end_match(outcome=outcome),
-                   clock)  # fmt: skip
+                   clock, on_map=tracker.end_map)  # fmt: skip
     for tick in ticks:
         clock.now = tick["t"]
         tracker.capture_alive()
         crops = {name: np.zeros((2, 2, 3), np.uint8) for name in names}
         for name in names:
             texts[id(crops[name])] = tick.get(name) if name != "heroselect_info" else ""
-        lines[id(crops["heroselect_info"])] = tick.get("heroselect_info", [])
+        lines[id(crops["heroselect_info"])] = tick.get("heroselect_info", []) if corner else []
         hs.update(crops)
         es.update(crops)
     rows = store._read("SELECT started_at, ended_at, outcome, source, map FROM matches ORDER BY id")
     store.close()
     assert [(s - t0, e - t0, o, src, m) for s, e, o, src, m in rows] == [
         (88.0, 657.0, "victory", "heroselect", "Esperança"),
-        (769.0, 1348.0, "defeat", "heroselect", "Eichenwalde"),
+        # the recording stops 1 s into "DEFEAT EICHENWALDE", between two title reads (3 s)
+        (769.0, 1348.0, "defeat", "heroselect", "Eichenwalde" if corner else None),
     ]
+    assert "the end screen says" not in caplog.text  # agrees with hero select
 
 
 FOUR_K = json.loads((Path(__file__).parent / "fixtures" / "signals" / "4k-hdr.json").read_text(

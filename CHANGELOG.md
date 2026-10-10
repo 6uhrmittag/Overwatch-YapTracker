@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · The map from the end screen (#383)
+- A match whose hero select YapTracker missed now gets its map from the end screen ("VICTORY ESPERANÇA"), so Sessions shows it too. A map that hero select already read is never replaced.
+- Behind the scenes: if the end screen names another map than hero select did, the log says so. That's the check that YapTracker doesn't write wrong maps.
+
 ### 2026-10-10 · More maps known (#378)
 - Grímsvötn, the new Escort map, is now recognized. It was read correctly three times since yesterday, but YapTracker didn't know the name yet.
 - When the queue and the map run together in one reading ("UNRANKED MIDTOWN"), or the map is washed out at first, hero select is now looked at again until the map is there too, not only until the queue is known.

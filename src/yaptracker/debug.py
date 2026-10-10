@@ -89,8 +89,9 @@ class DebugSamples:
                 self._overviews.popleft()
 
     def match_event(self, what: str) -> Path | None:
-        """'start' / 'end': the newest overview and crops. 'missed-end' and 'missed-start-…'
-        (#170): every buffered overview, to look back at what the detection didn't see."""
+        """'start' / 'end' / 'end-map' (#383): the newest overview and crops. 'missed-end' and
+        'missed-start-…' (#170): every buffered overview, to look back at what the detection
+        didn't see."""
         if not self._enabled():
             return None
         with self._lock:
