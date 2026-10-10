@@ -149,6 +149,10 @@ Pill shape, 2 px ink-coloured border, uppercase 800 weight, hard shadow
 | "Look who's back!" | familiar-face card |
 | "Who's that?" | quick lookup |
 
+**Never "typing".** Overwatch shows no typing indicator for other players; YapTracker only sees
+lines that were **sent** and appear in the chat box. Say "writes in chat", "a new line", "chat" -
+never "types"/"is typing". The only typing YapTracker knows is your own unsent input field (#254).
+
 ## Voice
 
 Short, warm, a little cheeky. Never mean about players, never blames the user.
@@ -156,7 +160,7 @@ Short, warm, a little cheeky. Never mean about players, never blames the user.
 | Situation | Copy |
 |---|---|
 | No chat yet | No yaps yet. Suspiciously quiet lobby. |
-| Listening, nobody typing | Ears open. Nobody's typing right now. |
+| Listening, no new chat | Ears open. No new yaps right now. |
 | Game not running | Waiting for Overwatch. I'll be right here. |
 | Paused | Ears covered. Nothing is being saved. |
 | Lookup, no match | Never met them. Want to add them? |
