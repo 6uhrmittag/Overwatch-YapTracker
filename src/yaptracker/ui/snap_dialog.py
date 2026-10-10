@@ -1,7 +1,8 @@
 """The yap snap preview (#64, #65): exactly the PNG that gets saved, with its look next to it.
 
 The look (preset, colours, font, switches) is remembered for the next snap. Hide names is not:
-it starts on every time, so a snap is safe to post unless you decide otherwise.
+it starts off every time (Marv, #366: snaps mostly go to friends, and switching names back on
+for each snap was the annoying part). Switch it on for a snap you post anywhere.
 """
 
 import re
@@ -30,18 +31,18 @@ _COPY = (
 
 
 def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> None:  # noqa: C901 - split up after v1 (#311)
-    state = {"hide": True, "crew": False, "image": None,
+    state = {"hide": False, "crew": False, "image": None,
              "style": Style.from_dict(config.snap_style())}  # fmt: skip
     with ui.dialog() as dialog, ui.element("section").classes("yt-card yt-snap"):
         with ui.element("div").classes("yt-card-body"):
             ui.label("Your yap snap").classes("yt-h2")
             preview = ui.image().classes("yt-snap-preview").mark("snap-preview")
             with ui.element("div").classes("yt-row yt-wrap"):
-                switch("Hide names", True, lambda on: flip("hide", on)).mark("snap-hide")
+                switch("Hide names", False, lambda on: flip("hide", on)).mark("snap-hide")
                 switch("Keep me & my crew", False, lambda on: flip("crew", on)).mark("snap-crew")
             ui.label(
-                "Hidden names become Player 1, 2, 3... in the lines and in the text, so the snap "
-                "is safe to post anywhere."
+                "Swap player names for placeholders before you share: hidden names become "
+                "Player 1, 2, 3... in the lines and in the text."
             ).classes("yt-hint")
             looks = ui.element("div").classes("yt-snap-looks").mark("snap-looks")
             with ui.element("div").classes("yt-row"):
