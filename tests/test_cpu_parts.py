@@ -2,8 +2,9 @@
 whole app."""
 
 import logging
+import threading
 
-from yaptracker.cpu_parts import CpuParts
+from yaptracker.cpu_parts import CpuParts, thread_seconds
 
 
 def test_one_line_a_minute_with_every_part_the_rest_and_the_whole(caplog):
@@ -50,3 +51,24 @@ def test_the_line_says_the_state_of_its_minute(caplog):
     first, second = [r.getMessage() for r in caplog.records]
     assert first.startswith("cpu parts (between matches + in match): reading 0.0 %")
     assert second.startswith("cpu parts (in match): ")
+
+
+def test_a_second_line_splits_the_minute_by_thread(caplog):
+    """#350: "rest" between matches is the biggest share and no part says why."""
+    me = threading.get_native_id()
+    clock, seconds = [0.0], {me: 5.0, 4242: 1.0, 4243: 0.1}  # 4242, 4243: not Python threads
+    parts = CpuParts(lambda: clock[0], lambda: clock[0] / 10, threads=lambda: dict(seconds))
+    parts.state = lambda: "between matches"
+    parts.tick()
+    with caplog.at_level(logging.INFO, logger="yaptracker.cpu_parts"):
+        clock[0], seconds[me], seconds[4242], seconds[4243] = 60.0, 11.0, 2.8, 0.2
+        parts.tick()
+    name = threading.current_thread().name
+    assert caplog.records[-1].getMessage() == (
+        f"cpu threads (between matches): {name} 10.0 %, native 3.2 %"  # under 0.5 %: left out
+    )
+
+
+def test_this_process_threads_have_cpu_times():
+    found = thread_seconds()
+    assert threading.get_native_id() in found and all(s >= 0 for s in found.values())
