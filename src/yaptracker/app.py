@@ -507,4 +507,8 @@ def run(
         ui.run(shell.root, host=DEV_HOST, port=DEV_PORT, show=False, **common)
     else:
         app.native.window_args.update(native_window_args(background))
+        if sys.platform == "win32":  # born on its saved screen, at its size (#365)
+            from yaptracker import window_place
+
+            app.native.window_args.update(window_place.birth_args())
         ui.run(shell.root, native=True, window_size=WINDOW_SIZE, **common)
