@@ -394,6 +394,7 @@ html, body { background: var(--yt-night); }
   /* A newer YapTracker is out (#46): calm, not the orange heads-up. */
   .yt-banner--calm { background: var(--yt-panel-raised); border-color: var(--yt-line-strong); }
   .yt-whats-new { width: min(640px, calc(100vw - 32px)); }
+  .yt-whats-new .yt-btn { white-space: nowrap; flex-shrink: 0; }
   .yt-release-notes { margin: 4px 0; padding-left: 20px; list-style: disc; max-height: min(55vh, 520px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; color: var(--yt-text-soft); font-size: 15px; }
 
   /* Settings -> About: Last evenings (#379). Scrolls sideways in a narrow window. */

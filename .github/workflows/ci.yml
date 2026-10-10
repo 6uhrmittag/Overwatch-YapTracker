@@ -90,7 +90,7 @@ jobs:
       - name: What capturing costs with the rate setting, for comparison (#248)
         run: python tools/capture_cost.py --seconds 5
       - name: Windows-only tests (Windows OCR, WGC capture, hotkeys, autostart, system info)
-        run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py tests/test_hotkeys_windows.py tests/test_autostart_windows.py tests/test_process_windows.py tests/test_priority_windows.py tests/test_system_info_windows.py tests/test_capture_gdi_windows.py tests/test_window_place_windows.py -v
+        run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py tests/test_hotkeys_windows.py tests/test_autostart_windows.py tests/test_process_windows.py tests/test_priority_windows.py tests/test_system_info_windows.py tests/test_capture_gdi_windows.py tests/test_window_place_windows.py tests/test_update_now_windows.py -v
       - run: pyinstaller --noconfirm packaging/yaptracker.spec
       - name: Licenses ship with the app
         run: |
@@ -101,6 +101,8 @@ jobs:
           if ($dml) { throw "DirectML.dll is in the app, but GPU OCR is out of v1" }
           $lists = Get-ChildItem dist/YapTracker -Recurse -Filter game_lists.json  # (#276)
           if (-not $lists) { throw "game_lists.json is not in the app: modes and maps would be none" }
+          $script = Get-ChildItem dist/YapTracker -Recurse -Filter update.ps1  # Update now (#46)
+          if (-not $script) { throw "update.ps1 is not in the app: Update now couldn't run" }
       - name: Smoke test (window opens and loads the page)
         timeout-minutes: 5
         run: ./tools/smoke-test.ps1 -Exe dist/YapTracker/YapTracker.exe
