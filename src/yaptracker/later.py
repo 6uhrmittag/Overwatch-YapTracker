@@ -34,6 +34,16 @@ KEEP_S = 2 * 24 * 3600  # frames saved at quit older than this aren't read any m
 INDEX = "index.json"  # written last: a folder without it was cut off mid-write
 
 
+def unread_matches(unread: Path) -> set[int]:
+    """The matches whose chat frames the last quit kept for this start (#349), without loading
+    them: their match must stay as it is until they're read (#371)."""
+    try:
+        index = json.loads((unread / INDEX).read_text(encoding="utf-8"))
+        return {entry["match"] for entry in index if entry.get("match") is not None}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return set()
+
+
 @dataclass
 class Kept:
     since: float  # when its read gap began; a newer frame within the gap replaces it

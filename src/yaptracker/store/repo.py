@@ -207,6 +207,46 @@ class Store:
                 "UPDATE chat_messages SET match_id = ? WHERE match_id = ?", (to_match, from_match)
             ).rowcount
 
+    def same_map_pairs(self, within_s: float) -> list[tuple]:
+        """Two matches in a row of one session on the same map, the first without a result,
+        started within `within_s` of each other (#371): one match split at a side swap.
+        (first id, second id, map, first mode, second mode), oldest first."""
+        return self._read(
+            "SELECT a.id, b.id, a.map, a.mode, b.mode FROM matches b JOIN matches a ON a.id = "
+            "(SELECT p.id FROM matches p WHERE p.session_id = b.session_id AND (p.started_at, "
+            "p.id) < (b.started_at, b.id) ORDER BY p.started_at DESC, p.id DESC LIMIT 1) "
+            "WHERE a.map IS NOT NULL AND a.map = b.map AND a.outcome IS NULL "
+            "AND b.started_at - a.started_at <= ? ORDER BY a.started_at, a.id",
+            (within_s,),
+        )
+
+    def merge_matches(self, first: int, second: int, mode: str | None) -> int:
+        """The second match becomes part of the first (#371): its lines, end, result and heart
+        move over, then it's gone. One transaction. The number of lines moved."""
+        with self._lock:
+            conn = self._conn
+            conn.execute("BEGIN")
+            try:
+                moved = conn.execute("UPDATE chat_messages SET match_id = ? WHERE match_id = ?",
+                                     (first, second)).rowcount  # fmt: skip
+                conn.execute(
+                    "UPDATE matches SET mode = ?, "
+                    "ended_at = (SELECT ended_at FROM matches WHERE id = ?), "
+                    "outcome = (SELECT outcome FROM matches WHERE id = ?), "
+                    "loved_at = COALESCE(loved_at, (SELECT loved_at FROM matches WHERE id = ?)) "
+                    "WHERE id = ?",
+                    (mode, second, second, second, first),
+                )
+                conn.execute("DELETE FROM matches WHERE id = ?", (second,))
+                conn.execute("COMMIT")
+            except BaseException:
+                conn.execute("ROLLBACK")
+                raise
+            return moved
+
+    def newest_match(self) -> int | None:
+        return self._read("SELECT MAX(id) FROM matches")[0][0]
+
     def set_loved(self, match_id: int, at: float | None) -> None:
         """Heart a match (#282): when it was loved, or None to take it back."""
         self._write("UPDATE matches SET loved_at = ? WHERE id = ?", (at, match_id))

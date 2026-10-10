@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · Old split rounds put back together (#371)
+- Competitive Escort and Hybrid matches that were split into two (one per side) are merged into one match at the next start, with all their lines, the heart and the result. YapTracker backs up your data first, and the log names every merge.
+
 ### 2026-10-10 · Competitive rounds stay one match (#364)
 - In Competitive on Escort and Hybrid maps, where both teams take turns attacking, the side swap's hero select no longer starts a second match: Sessions shows one match with all its rounds.
 - If YapTracker couldn't read the queue, a second round on the same map tells it the match is Competitive, so your Competitive reading choice applies from then on.

@@ -96,7 +96,8 @@ KEEP_MERGE_BACKUPS = 10
 
 
 def before_merge(backup: Callable[[Path], None], folder: Path) -> Path:
-    """A copy right before two players are merged (#28), so a merge can always be undone."""
+    """A copy right before two players (#28) or matches (#371) are merged, so a merge can
+    always be undone."""
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / f"yaptracker-before-merge-{time.strftime('%Y%m%d-%H%M%S')}.db"
     backup(target)
