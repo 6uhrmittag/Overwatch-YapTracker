@@ -81,7 +81,7 @@ Everything lives in `%LOCALAPPDATA%\YapTracker\data` (**Settings → Your data �
 
 ## Privacy
 
-Chat logs, line pictures and debug samples contain other players' names and messages. They are stored only on your PC and never uploaded anywhere. The only network access is `update.ps1` fetching releases from GitHub. Yap snaps can hide names with one switch, and exports can anonymize them.
+Chat logs, line pictures and debug samples contain other players' names and messages. They are stored only on your PC and never uploaded anywhere. The only network access is asking GitHub for YapTracker's list of releases: `update.ps1` when you update, and YapTracker itself once a day, to tell you when a new version is out (never during a match). Nothing else is sent. Settings → About → **Check for updates once a day** switches the daily look off. Yap snaps can hide names with one switch, and exports can anonymize them.
 
 ## Known limits
 

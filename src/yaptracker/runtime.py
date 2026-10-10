@@ -19,6 +19,7 @@ from yaptracker.reader import ChatReader
 from yaptracker.reading_mode import ReadingMode
 from yaptracker.store.backups import DailyBackup
 from yaptracker.store.repo import Store
+from yaptracker.updates import UpdateCheck
 
 
 def ocr_scale() -> float:
@@ -54,5 +55,6 @@ familiar: FamiliarFaces | None = None  # "Look who's back!" cards (#26), with th
 evenings: Evenings | None = None  # one quality line per evening (#379), with the store
 hotkeys = None  # the HotkeyListener (Windows app only); .failed = keys another app owns
 bind_hotkeys: Callable[[bool], None] | None = None  # (re)register them; None in --dev and tests
+updates: UpdateCheck | None = None  # once a day: a newer YapTracker? (#46)
 data_too_new: str | None = None  # the database is from a newer YapTracker (#352)
 lookup_requested = 0.0  # monotonic time of the last Ctrl+Alt+F; the UI focuses the search box

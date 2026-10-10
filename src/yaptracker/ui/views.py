@@ -41,6 +41,7 @@ from yaptracker.ui.quick_verdict import CLICK_NOT_DRAG, clickable_name
 from yaptracker.ui.reading import reading_card
 from yaptracker.ui.setup import setup_wizard, startup_card
 from yaptracker.ui.snap_dialog import snap_dialog
+from yaptracker.ui.updates import update_banner, update_section
 
 
 def _header(title: str) -> None:
@@ -382,6 +383,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
     with ui.element("div").classes("yt-banner yt-hidden").mark("size-hint") as size_hint:
         size_text = ui.label().classes("yt-grow")
         button("Got it", lambda: size_checked(), "quiet").mark("size-ok")
+    update_refresh = update_banner()  # a newer YapTracker is out (#46)
     if config.setup_state() == "skipped":  # once, after skipping setup (#76)
         with ui.element("div").classes("yt-banner").mark("setup-hint") as setup_hint:
             ui.label(
@@ -645,6 +647,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             size_hint.classes(remove="yt-hidden")
         else:
             size_hint.classes(add="yt-hidden")
+        update_refresh()
         frame = watcher.last_frame if watcher else None
         wanted = config.show_what_i_see() or (check_size and not peeking["closed"])
         set_button_label(peek, "Hide what I see" if config.show_what_i_see() else "Show what I see")
@@ -824,6 +827,7 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                     ui.label("About").classes("yt-h2")
                 with ui.element("div").classes("yt-card-body"):
                     ui.label(f"YapTracker {__version__}").classes("yt-meta")
+                    update_section()  # once a day: a newer version? (#46)
                     rate, asked = CAPTURE.per_second(), CAPTURE.asked_fps  # really delivered (#187)
                     ui.label(
                         f"Capture: {rate:.1f} frames/s from Windows (asked for {asked:g})"

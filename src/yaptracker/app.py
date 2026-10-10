@@ -502,6 +502,21 @@ def native_window_args(background: bool) -> dict:
     }
 
 
+def _check_for_updates(smoke_test: bool) -> None:
+    """Once a day: is a newer YapTracker out? (#46) The smoke test never goes online."""
+    from yaptracker import __version__
+    from yaptracker.updates import UpdateCheck
+
+    runtime.updates = UpdateCheck(
+        __version__,
+        config.update_check,
+        busy=lambda: runtime.matches is not None and runtime.matches.running,
+    )
+    if not smoke_test:
+        app.on_startup(runtime.updates.start)
+        app.on_shutdown(runtime.updates.stop)
+
+
 def run(
     *,
     dev: bool = False,
@@ -518,6 +533,7 @@ def run(
         start_with_windows.apply_at_start(autostart)
         _keep_window_place(background)
     _watch_for_overwatch(dev)
+    _check_for_updates(smoke_test)
     app.on_shutdown(close_store)
     if smoke_test:
         _arm_smoke_test()
