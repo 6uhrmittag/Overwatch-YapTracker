@@ -7,6 +7,7 @@ connected screen; otherwise Windows' default place, so it never opens off-screen
 """
 
 import logging
+import math
 import threading
 import time
 from collections.abc import Callable
@@ -16,8 +17,9 @@ log = logging.getLogger(__name__)
 TITLE_BAR = 32  # px of the window's top that must stay reachable to drag it
 SETTLE_S = 1.0  # saved once it stopped moving this long
 POLL_S = 2.0
-BORDER = 10  # px a window may stick out of the work area: Windows' invisible resize border
+BORDER = 10  # px a window may stick out of the work area at 100 %: Windows' invisible border
 ARRIVE_S = 1.0  # after a move to a screen with other scaling, the window resizes itself (#299)
+LATE_S = 3.0  # read back once more: a late WM_DPICHANGED would show by then (#365)
 
 Rect = tuple[int, int, int, int]  # x, y, width, height in screen pixels
 
@@ -51,12 +53,8 @@ def visible(place: Place, screens: list[Rect], share: float = 0.25) -> bool:
     return covered >= share * width * TITLE_BAR
 
 
-def clamp(rect: Rect, works: list[Rect]) -> Rect:
-    """The rect fitted into the work area it's mostly on (#299): never wider or taller than it,
-    the title bar always inside. Windows' invisible border (BORDER) may stick out, so a snapped
-    half stays as it is. `works`: every monitor's work area."""
-    if not works:
-        return rect
+def home(rect: Rect, areas: list[Rect]) -> int:
+    """Index of the area the rect is mostly on, else the nearest one. `areas` must not be empty."""
     x, y, w, h = rect
 
     def overlap(area: Rect) -> int:
@@ -67,15 +65,48 @@ def clamp(rect: Rect, works: list[Rect]) -> Rect:
         ax, ay, aw, ah = area
         return abs(x + w / 2 - (ax + aw / 2)) + abs(y + h / 2 - (ay + ah / 2))
 
-    wx, wy, ww, wh = max(works, key=lambda a: (overlap(a), -distance(a)))
-    wx, wy, ww, wh = wx - BORDER, wy - BORDER, ww + 2 * BORDER, wh + 2 * BORDER
+    return max(range(len(areas)), key=lambda i: (overlap(areas[i]), -distance(areas[i])))
+
+
+def border(dpi: int) -> int:
+    """Windows' invisible resize border grows with the screen's scaling: 7 px at 100 %, 11 at
+    150 %, a maximised window's 8 and 12 (#365). BORDER is 100 %'s with room to spare."""
+    return math.ceil(BORDER * max(dpi, 96) / 96)
+
+
+def clamp(rect: Rect, works: list[Rect], dpis: list[int] | None = None) -> Rect:
+    """The rect fitted into the work area it's mostly on (#299): never wider or taller than it,
+    the title bar always inside. Windows' invisible border may stick out, so a snapped half
+    stays as it is. `works`: every monitor's work area; `dpis`: their scaling (96 if unknown)."""
+    if not works:
+        return rect
+    x, y, w, h = rect
+    i = home(rect, works)
+    edge = border(dpis[i] if dpis else 96)
+    wx, wy, ww, wh = works[i]
+    wx, wy, ww, wh = wx - edge, wy - edge, ww + 2 * edge, wh + 2 * edge
     w, h = min(w, ww), min(h, wh)
     return min(max(x, wx), wx + ww - w), min(max(y, wy), wy + wh - h), w, h
 
 
-def fit(place: Place, works: list[Rect]) -> Place:
+def fit(place: Place, works: list[Rect], dpis: list[int] | None = None) -> Place:
     """The whole place clamped (#299): where it is and where it goes when un-maximised."""
-    return Place(clamp(place.rect, works), clamp(place.normal, works), place.maximized)
+    return Place(clamp(place.rect, works, dpis), clamp(place.normal, works, dpis),
+                 place.maximized)  # fmt: skip
+
+
+def birth(saved: Place | None, found: list["Monitor"]) -> dict:
+    """pywebview's x, y, width and height for the saved place (#365): the window is born on its
+    own screen, so it never has to cross to a screen with other scaling, which left it too tall.
+    pywebview multiplies them by the scaling of the screen it's created on: the main one."""
+    if saved is None or not found or not visible(saved, [m.rect for m in found]):
+        return {}
+    wanted = fit(saved, [m.work for m in found], [m.dpi for m in found])
+    x, y, w, h = wanted.normal if wanted.maximized else wanted.rect
+    main = next((m for m in found if m.rect[:2] == (0, 0)), found[0])
+    scale = main.dpi / 96
+    return {"x": round(x / scale), "y": round(y / scale),
+            "width": max(1, round(w / scale)), "height": max(1, round(h / scale))}  # fmt: skip
 
 
 class Keeper:
@@ -167,6 +198,57 @@ def apply(hwnd: int, place: Place, minimized: bool = False) -> None:
         user32.SetWindowPos(hwnd, None, x, y, w, h, 0x0004 | 0x0010)  # NOZORDER | NOACTIVATE
 
 
+def move(hwnd: int, x: int, y: int) -> None:
+    """Only the window's top-left: it keeps its size (SWP_NOSIZE)."""
+    _, _, user32, _ = _win32()
+    user32.SetWindowPos(hwnd, None, x, y, 0, 0, 0x0001 | 0x0004 | 0x0010)
+
+
+_AWARENESS = {0: "DPI unaware", 1: "system DPI aware", 2: "per-monitor DPI aware"}
+
+
+def _screen_dpi(hwnd: int) -> int | None:
+    """The scaling of the screen the window is on, as a DPI; None if Windows won't say."""
+    try:
+        ctypes, wintypes, user32, _ = _win32()
+        user32.MonitorFromWindow.restype = wintypes.HMONITOR
+        user32.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
+        shcore = ctypes.windll.shcore
+        shcore.GetDpiForMonitor.argtypes = [wintypes.HMONITOR, ctypes.c_int,
+                                            ctypes.POINTER(wintypes.UINT),
+                                            ctypes.POINTER(wintypes.UINT)]  # fmt: skip
+        dpi_x, dpi_y = wintypes.UINT(0), wintypes.UINT(0)
+        shcore.GetDpiForMonitor(user32.MonitorFromWindow(hwnd, 2), 0, ctypes.byref(dpi_x),
+                                ctypes.byref(dpi_y))  # fmt: skip  # 2: the nearest screen
+        return int(dpi_x.value) or None
+    except Exception:
+        return None
+
+
+def describe(hwnd: int) -> str:
+    """Where the window is and how it scales (#365): its own DPI, its screen's DPI and how
+    DPI aware its process is. A window that doesn't follow its screen's DPI is resized by
+    Windows when it crosses screens."""
+    try:
+        ctypes, wintypes, user32, _ = _win32()
+        user32.GetDpiForWindow.argtypes = [wintypes.HWND]
+        user32.GetWindowDpiAwarenessContext.restype = ctypes.c_void_p
+        user32.GetWindowDpiAwarenessContext.argtypes = [wintypes.HWND]
+        user32.GetAwarenessFromDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+        user32.AreDpiAwarenessContextsEqual.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        context = user32.GetWindowDpiAwarenessContext(hwnd)
+        awareness = _AWARENESS.get(user32.GetAwarenessFromDpiAwarenessContext(context), "?")
+        if user32.AreDpiAwarenessContextsEqual(context, _PER_MONITOR_AWARE_V2):
+            awareness = "per-monitor DPI aware v2"
+        place = read(hwnd)
+        return (
+            f"at {place.rect if place else None}, window {user32.GetDpiForWindow(hwnd)} dpi,"
+            f" its screen {_screen_dpi(hwnd)} dpi, {awareness}"
+        )
+    except Exception as error:  # a diagnosis never stops the restore
+        return f"no DPI details ({error})"
+
+
 @dataclass(frozen=True)
 class Monitor:
     rect: Rect
@@ -218,6 +300,27 @@ def screens() -> list[Rect]:
     return [m.rect for m in monitors()]
 
 
+def birth_args() -> dict:
+    """`birth` on this PC, for pywebview's window before it opens; {} on any hiccup. On its own
+    thread, so the caller's DPI awareness stays as it was."""
+    from yaptracker import config
+
+    args: dict = {}
+
+    def work() -> None:
+        try:
+            args.update(birth(Place.from_dict(config.window_place() or {}), monitors()))
+        except Exception:
+            log.warning("window: no saved place to open at", exc_info=True)
+
+    thread = threading.Thread(target=work, name="window birth", daemon=True)
+    thread.start()
+    thread.join(5)
+    if args:
+        log.info("window: opens at %s (main screen's units)", args)
+    return dict(args)
+
+
 def keep(find: Callable[[], int | None], minimized: bool, stop: threading.Event) -> None:
     """The app's window thread: restore the saved place once the window exists, then save
     changes. Stops with `stop`; any Windows hiccup only costs the place, never the app."""
@@ -234,19 +337,20 @@ def keep(find: Callable[[], int | None], minimized: bool, stop: threading.Event)
         found = monitors()
         log.info("window: screens %s", "; ".join(  # so the next report explains itself (#299)
             f"{m.rect} work {m.work} at {round(100 * m.dpi / 96)} %" for m in found))  # fmt: skip
-        works = [m.work for m in found]
+        works, dpis = [m.work for m in found], [m.dpi for m in found]
         saved = Place.from_dict(config.window_place() or {})
         if saved is not None and visible(saved, [m.rect for m in found]):
-            wanted = fit(saved, works)
+            wanted = fit(saved, works, dpis)
             if wanted != saved:
-                log.info("window: saved place %s doesn't fit its screen, now %s", saved.rect,
-                         wanted.rect)  # fmt: skip
-            restore(hwnd, wanted, minimized, stop)
+                log.info("window: saved place %s (normal %s) doesn't fit its screen, now %s"
+                         " (normal %s)", saved.rect, saved.normal, wanted.rect,
+                         wanted.normal)  # fmt: skip
+            restore(hwnd, wanted, minimized, stop, found)
             saved = wanted
         elif saved is not None:
             log.info("window: saved place %s is off every screen, default place", saved.rect)
         keeper = Keeper(lambda: read(hwnd), lambda p: config.save_window_place(asdict(p)), saved,
-                        fit=lambda p: fit(p, works))  # fmt: skip
+                        fit=lambda p: fit(p, works, dpis))  # fmt: skip
         _kept.update(hwnd=hwnd, keeper=keeper)
         while not stop.wait(POLL_S):
             keeper.check()
@@ -257,24 +361,38 @@ def keep(find: Callable[[], int | None], minimized: bool, stop: threading.Event)
 _kept: dict = {}  # the window and its keeper, once found
 
 
-def restore(hwnd: int, wanted: Place, minimized: bool, stop: threading.Event) -> None:
-    """Back at the saved place, checked: moved to a screen with other scaling, the window
-    resizes itself after our move (WM_DPICHANGED, #299). Then it's on the right screen, and a
-    second move sticks."""
-    apply(hwnd, wanted, minimized)
+def restore(hwnd: int, wanted: Place, minimized: bool, stop: threading.Event,
+            found: list[Monitor] | None = None) -> None:  # fmt: skip
+    """Back at the saved place, checked (#299). The window is born on its screen (`birth`,
+    #365); if it isn't there anyway, it's moved there first and only sized once it took on that
+    screen's scaling: sized while crossing to other scaling, it came back too tall."""
+    log.info("window: found %s", describe(hwnd))
     if minimized or wanted.maximized:
+        apply(hwnd, wanted, minimized)
         log.info("window: back at %s%s", wanted.rect, " (maximised)" if wanted.maximized else "")
         return
+    target = found[home(wanted.rect, [m.rect for m in found])] if found else None
+    if target is not None and _screen_dpi(hwnd) != target.dpi:
+        move(hwnd, *wanted.rect[:2])
+        for _ in range(10):  # its scaling follows within a moment
+            if _screen_dpi(hwnd) == target.dpi or stop.wait(ARRIVE_S / 10):
+                break
+        log.info("window: moved to its screen first, now %s", describe(hwnd))
+    apply(hwnd, wanted)
     stop.wait(ARRIVE_S)
     got = read(hwnd)
-    if got is None or got.rect == wanted.rect:
+    if got is not None and got.rect != wanted.rect:
+        apply(hwnd, wanted)
+    stop.wait(LATE_S - ARRIVE_S)
+    late = read(hwnd)
+    if got is None or late is None or got.rect == late.rect == wanted.rect:
         log.info("window: back at %s", wanted.rect)
         return
-    apply(hwnd, wanted)
-    stop.wait(ARRIVE_S / 2)
-    again = read(hwnd)
-    log.info("window: asked %s, got %s, after a second move %s", wanted.rect, got.rect,
-             again.rect if again else None)  # fmt: skip
+    log.info("window: asked %s, got %s after %g s, %s after %g s; %s", wanted.rect, got.rect,
+             ARRIVE_S, late.rect, LATE_S, describe(hwnd))  # fmt: skip
+    if target is not None and late.rect[3] > target.work[3] + 2 * border(target.dpi):
+        log.warning("window: still taller than its screen (%d of %d px): something in the window"
+                    " keeps it that tall", late.rect[3], target.work[3])  # fmt: skip
 
 
 def reset() -> bool:
