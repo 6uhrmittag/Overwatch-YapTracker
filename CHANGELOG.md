@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · Privacy test knows two more words (#369)
+- Behind the scenes: the test that keeps real player names out of the code no longer mistakes two players named like ordinary words for a leak.
+
 ### 2026-10-10 · Opens on its own screen at its size (#365)
 - YapTracker now opens straight on the screen you left it on, at the size you left it, instead of opening on the main screen and moving over. That should end the window coming back too tall on a second screen with other scaling.
 - Behind the scenes: the log says how the window scales at every start (its DPI, its screen's DPI, its DPI awareness), and how it really landed after 1 and 3 seconds.
