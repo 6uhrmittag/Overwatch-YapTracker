@@ -71,10 +71,12 @@ class MatchTracker:
         clock: Callable[[], float] = time.time,
         on_missed_end: Callable[[], None] = lambda: None,
         on_missed_start: Callable[[str], None] = lambda source: None,
+        on_session_end: Callable[[int], None] = lambda session: None,
     ) -> None:
         self._store, self._pause, self._clock = store, pause, clock
         self._on_missed_end = on_missed_end  # a new match began, but no end screen was seen (#63)
         self._on_missed_start = on_missed_start  # a match began without its hero select (#170)
+        self._on_session_end = on_session_end  # its evening line (#379)
         self._lock = threading.Lock()  # capture thread, hotkey thread and UI all call in
         self.session_id: int | None = None
         self.match_id: int | None = None
@@ -263,6 +265,7 @@ class MatchTracker:
                     self._store.end_match(self.match_id, self._last_alive)
                 if self.session_id is not None:
                     self._store.end_session(self.session_id, self._last_alive)
+                    self._on_session_end(self.session_id)
 
     def status(self) -> Status | None:
         """Where the evening is, for the Live header; None before capture ever started."""
@@ -280,6 +283,7 @@ class MatchTracker:
             if self.running:
                 self._store.end_match(self.match_id, self._last_alive)
             self._store.end_session(self.session_id, self._last_alive)
+            self._on_session_end(self.session_id)
         self.session_id = self._store.start_session(ts)
         self.match_id = self.match_started_at = self.match_map = self._last_chat = None
         self.previous_match_id = self.match_mode = None

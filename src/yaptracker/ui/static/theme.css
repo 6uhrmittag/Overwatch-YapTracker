@@ -391,6 +391,13 @@ html, body { background: var(--yt-night); }
   .yt-line-edited { font-size: 12px; font-weight: 700; color: var(--yt-faint); cursor: help; }
   .yt-line-edit { flex: 1 1 16ch; min-width: 16ch; padding: 0 10px; border-radius: 10px; background: var(--yt-panel-inset); border: 1px solid var(--yt-accent); }
 
+  /* Settings -> About: Last evenings (#379). Scrolls sideways in a narrow window. */
+  .yt-evenings { overflow-x: auto; margin: 4px 0; }
+  .yt-evenings table { border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--yt-text-soft); }
+  .yt-evenings th { padding: 4px 10px; border-bottom: 1px solid var(--yt-line-strong); font-weight: 800; color: var(--yt-muted); text-align: right; white-space: nowrap; }
+  .yt-evenings td { padding: 4px 10px; border-bottom: 1px solid var(--yt-line); text-align: right; white-space: nowrap; }
+  .yt-evenings th:first-child, .yt-evenings td:first-child { padding-left: 0; text-align: left; }
+
   /* Text can be selected and copied (#221); the chrome around it can't. */
   button, .yt-rail, .yt-btn, .yt-seg, .yt-sticker, .yt-verdict, .yt-quick, .yt-keycap, .yt-chip,
   .yt-pill, .yt-switch-row, .yt-line-time, .yt-line-ch, .yt-crew-badge, .yt-line-times { user-select: none; }

@@ -256,12 +256,17 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         running = runtime.matches is None or runtime.matches.running
         return capture_region(config.chat_region(width, height), height, running)
 
+    def evening_over() -> None:  # Overwatch closed: maybe for tonight (#379)
+        if runtime.evenings is not None and runtime.matches is not None:
+            runtime.evenings.record(runtime.matches.session_id)
+
     def make_watcher() -> CaptureWatcher:
         common = {
             "paused": paused,
             "on_alive": on_alive,
             "health": runtime.health,
             "on_signals": on_signals,
+            "on_closed": evening_over,
         }
         if dev:
             runtime.window_size = (2560, 1440)  # the demo stands in for a 1440p Overwatch window
@@ -340,6 +345,7 @@ def _open_store() -> Callable[[], None]:
     from yaptracker import later
     from yaptracker.capture.health import CaptureHealth
     from yaptracker.debug import DebugSamples
+    from yaptracker.evenings import Evenings
     from yaptracker.familiar import FamiliarFaces
     from yaptracker.lines import LinePictures
     from yaptracker.matches import MatchTracker, merge_mirror_rounds
@@ -385,8 +391,14 @@ def _open_store() -> Callable[[], None]:
             busy=lambda: runtime.watcher is not None and runtime.watcher.state == "capturing",
         )
         runtime.backups.start()  # now (first start of the day), or once Overwatch is closed
+        runtime.evenings = Evenings(paths.data_dir() / "evenings.json", runtime.store)
+        try:  # the evenings since 2026-10-01 as a baseline, once (#379)
+            runtime.evenings.backfill()
+        except Exception:
+            log.exception("filling in the evenings failed")
         runtime.matches = MatchTracker(runtime.store, runtime.pause, on_missed_end=missed_end,
-                                       on_missed_start=missed_start)  # fmt: skip
+                                       on_missed_start=missed_start,
+                                       on_session_end=runtime.evenings.record)  # fmt: skip
         runtime.health = CaptureHealth(runtime.store)
         runtime.familiar = FamiliarFaces(runtime.store, config.identity)
         runtime.players = PlayerMatcher(

@@ -29,6 +29,7 @@ from yaptracker.ui.components import (
     switch,
 )
 from yaptracker.ui.crew import crew_card
+from yaptracker.ui.evenings import evenings_table
 from yaptracker.ui.exports import export_card
 from yaptracker.ui.familiar_cards import familiar_card
 from yaptracker.ui.heart import Heart
@@ -857,6 +858,8 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                     def copy_system_info() -> None:
                         ui.clipboard.write("\n".join(system_info.summary()))
                         copied.set_text("Copied. Paste it into a chat.")
+
+                    evenings_table()  # how well each evening was read (#379)
 
                     with ui.element("div").classes("yt-row"):  # opens where you left it (#253)
                         button("Reset window position", lambda: reset_place(), "quiet").mark(

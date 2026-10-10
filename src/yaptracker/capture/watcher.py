@@ -24,6 +24,7 @@ class CaptureWatcher:
         on_alive: Callable[[], None] = lambda: None,
         health: CaptureHealth | None = None,
         on_signals: Callable[[Frame], None] = lambda frame: None,
+        on_closed: Callable[[], None] = lambda: None,
     ) -> None:
         self._find_window = find_window
         self._open_source = open_source
@@ -33,6 +34,7 @@ class CaptureWatcher:
         self._on_alive = on_alive  # every frame, paused or not: the evening is still going (#21)
         self._health = health  # gap records (#75)
         self._on_signals = on_signals  # match signals (#93); they run even while paused
+        self._on_closed = on_closed  # Overwatch closed after capturing: the evening line (#379)
         self._failures = 0  # in a row; the retry wait grows with them
         self._stop = threading.Event()
         self._reopen = threading.Event()
@@ -73,7 +75,7 @@ class CaptureWatcher:
             window = self._find_window()
             if window is None:
                 if self._failures:  # it broke and then the game went: no more loss
-                    self._health_call("game_closed")
+                    self._game_closed()
                 self.state, self._failures = "waiting", 0
                 self._stop.wait(self._poll_s)
                 continue
@@ -91,12 +93,16 @@ class CaptureWatcher:
                 self.last_error, reason = str(error), "crash"
             self.state, self.window = "waiting", None
             if reason is None:
-                self._health_call("game_closed")
+                self._game_closed()
                 self._failures = 0
                 continue
             self._health_call("lost", reason)
             self._failures += 1
             self._stop.wait(min(60.0, self._poll_s * 2 ** (self._failures - 1)))
+
+    def _game_closed(self) -> None:
+        self._health_call("game_closed")
+        self._on_closed()
 
     def _health_call(self, method: str, *args) -> None:
         if self._health is not None:
