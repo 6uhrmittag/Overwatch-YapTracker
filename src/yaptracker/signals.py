@@ -41,6 +41,7 @@ IN_MATCH_EVERY_S = 5.0  # hero select looked for at most this often inside a run
 BETWEEN_EVERY_S = 2.0  # and between matches: the screen is up 20 s+, the start 1 s later at most
 # The queue decides how chat is read since #331. Missed at the first look (a frame between
 # animations, HDR glare): looked at again on later sightings of the banner, this often (#342).
+# The map too (#378): Sessions shows it, and the mirror-round rule needs it (#364).
 INFO_TRIES = 5
 
 
@@ -165,15 +166,16 @@ def _variants(image: np.ndarray):
 
 
 def read_info(read_lines: Callable[[np.ndarray], list[str]], image: np.ndarray | None):
-    """(mode, map) of the info corner; the variants only while the queue is still unknown.
-    On Marv's 88 start samples they found 4 more queues and changed none that was read."""
+    """(mode, map) of the info corner; the variants only while the queue or the map is still
+    unknown. On Marv's 88 start samples they found 4 more queues and changed none that was
+    read (#342); the map: OCR may read queue and map as one line ("UNRANKE MIDTOWN", #378)."""
     mode = map_name = None
     if image is None:
         return mode, map_name
     for variant in _variants(image):
         found_mode, found_map = parse_info(read_lines(np.ascontiguousarray(variant)))
         mode, map_name = mode or found_mode, map_name or found_map
-        if mode:
+        if mode and map_name:
             break
     return mode, map_name
 
@@ -228,7 +230,7 @@ class HeroSelect:
             if not self._active:
                 self._active = True
                 self._known = read_info(self._read_lines, signals.get("heroselect_info"))
-                self._info_left = INFO_TRIES if self._known[0] is None else 0
+                self._info_left = INFO_TRIES if None in self._known else 0
                 self._on_start(*self._known)
             elif self._info_left:
                 self._look_again(signals.get("heroselect_info"))
@@ -250,14 +252,14 @@ class HeroSelect:
             self._active = False
 
     def _look_again(self, info: np.ndarray | None) -> None:
-        """Hero select is still up and its queue unknown: another look (#342)."""
+        """Hero select is still up and its queue or map unknown: another look (#342, #378)."""
         self._info_left -= 1
         mode, map_name = read_info(self._read_lines, info)
         known = (self._known[0] or mode, self._known[1] or map_name)
         if known != self._known:
             self._known = known
             self._on_info(*known)
-        if known[0]:
+        if None not in known:
             self._info_left = 0
 
     def _look_for_details(self, signals: dict[str, np.ndarray], now: float) -> None:
@@ -287,6 +289,10 @@ class HeroSelect:
         ):
             return False
         self._active, self._last_seen, self._details_at = True, now, None
+        # "HERO DETAILS" also shows on menus (role select, the map vote): the hero select seen
+        # after it still gets its info corner read (#378)
+        self._known = self._details_info
+        self._info_left = INFO_TRIES if None in self._known else 0
         self._on_start(*self._details_info)
         return True
 

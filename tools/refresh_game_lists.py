@@ -26,8 +26,10 @@ QUEUES = ["UNRANKED", "COMPETITIVE", "QUICK PLAY", "ARCADE", "CUSTOM GAME", "PRA
 # Kept even if the API drops or lacks them (a hero or map the game still shows).
 FALLBACK = {
     "heroes": ["Soldier: 76", "Torbjörn", "Wrecking Ball", "Lúcio"],
-    "maps": ["Route 66", "King's Row", "Esperança", "Paraíso", "New Junk City"],
+    "maps": ["Route 66", "King's Row", "Esperança", "Paraíso", "New Junk City", "Grímsvötn"],
 }
+# Map types the API doesn't have yet (#378): Grímsvötn shows the Escort truck in hero select.
+FALLBACK_TYPES = {"Grímsvötn": ["escort"]}
 
 
 def fetch(endpoint: str, locale: str) -> list[dict]:
@@ -42,14 +44,14 @@ def fetch(endpoint: str, locale: str) -> list[dict]:
 
 def main() -> None:
     lists = {}
-    map_types: dict[str, list[str]] = {}  # every map name, both languages -> its types (#364)
+    map_types = dict(FALLBACK_TYPES)  # every map name, both languages -> its types (#364)
     for kind in ("heroes", "maps"):
         names = set(FALLBACK[kind])
         for locale in LOCALES:
             for item in fetch(kind, locale):
                 names.add(item["name"])
-                if kind == "maps":
-                    map_types[item["name"]] = sorted(item.get("gamemodes", []))
+                if kind == "maps" and item.get("gamemodes"):
+                    map_types[item["name"]] = sorted(item["gamemodes"])
         lists[kind] = sorted(names, key=str.casefold)
     types = {name: map_types[name] for name in sorted(map_types, key=str.casefold)}
     data = {"source": f"{API} ({', '.join(LOCALES)}) + hand-written queue names (#276)",
