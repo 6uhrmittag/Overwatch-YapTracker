@@ -235,6 +235,16 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
             runtime.watcher.reopen()  # black window: the screen it's on instead (#236)
 
     found = {"hwnd": None, "window_capture": False}  # the display line follows (#214)
+    from yaptracker.capture.wgc import CaptureRate
+
+    def match_running() -> bool:
+        return runtime.matches is None or runtime.matches.running
+
+    def reopen() -> None:
+        if runtime.watcher is not None:
+            runtime.watcher.reopen()
+
+    rate = CaptureRate(match_running, reopen)  # 2 frames a second between matches (#350)
 
     def open_source(hwnd: int):
         from yaptracker.capture.wgc import WgcFrameSource, has_rate_setting, windows_build
@@ -242,8 +252,9 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         found["hwnd"] = hwnd
         build = windows_build()
         found["window_capture"] = has_rate_setting(build) and not runtime.screen.screen
+        rate.fps = None
         if found["window_capture"]:
-            return WgcFrameSource(hwnd, region_for, signals_for=crops_for)
+            return WgcFrameSource(hwnd, region_for, signals_for=crops_for, fps=rate.opened())
         from yaptracker.capture.gdi import GdiFrameSource
 
         if runtime.screen.screen:
@@ -259,8 +270,8 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
             hwnd, found["hwnd"] = found["hwnd"], None
             system_info.game_found(hwnd, width, height)
         runtime.window_size = (width, height)  # the Live view hints when this changes (#84)
-        running = runtime.matches is None or runtime.matches.running
-        return capture_region(config.chat_region(width, height), height, running)
+        rate.check()  # a match started or ended: the other frame rate (#350)
+        return capture_region(config.chat_region(width, height), height, match_running())
 
     def evening_over() -> None:  # Overwatch closed: maybe for tonight (#379)
         if runtime.evenings is not None and runtime.matches is not None:
