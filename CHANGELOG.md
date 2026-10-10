@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · Privacy test knows two more words (#369)
+- Behind the scenes: the test that keeps real player names out of the code no longer mistakes two players named like ordinary words for a leak.
+
 ### 2026-10-07 · Quitting keeps the chat (#349)
 - If you close YapTracker right after a ranked match, before it read that match's chat, the chat is kept and read at the next start, into the right match, with the times it was said.
 - Behind the scenes: the crash note for unread chat was never written (a bug since #335); a crash mid-match now really shows up as "not recorded".
