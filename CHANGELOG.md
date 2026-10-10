@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · Lighter between matches (#350)
+- Between matches YapTracker now asks Windows for 2 pictures of the game a second instead of 4, in a match still 4. Windows copies the whole game window for each one, and between matches that was the biggest part of YapTracker's CPU. Menu chat stays on screen for seconds, so nothing is missed.
+
 ### 2026-10-10 · Choose how much space line pictures take (#389)
 - Settings → Your data has a slider for the line pictures, from 50 MB to 5 GB (2 GB unless you change it). It shows what's used against the limit: "Line pictures: 78 MB of 2 GB".
 - Lowering it says first what goes ("Frees 340 MB: the pictures before August go") and deletes it when you let go, oldest months first. Raising it deletes nothing.

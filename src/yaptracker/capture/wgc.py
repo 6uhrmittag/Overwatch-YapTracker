@@ -38,6 +38,38 @@ def has_rate_setting(build: int) -> bool:
     return build >= SINCE["minimum_update_interval"][0]
 
 
+MATCH_FPS, MENU_FPS = 4.0, 2.0  # frames a second asked from Windows, in and between matches
+
+
+class CaptureRate:
+    """4 frames a second in a match, 2 between matches (#350). Windows copies every frame it
+    delivers from the GPU, the whole 4K window, before we see it: between matches (menus,
+    where it really sends all 4) that was most of YapTracker's CPU. Menu chat stays for seconds,
+    so 2 a second miss nothing. The rate is fixed per capture session: a change reopens it
+    (no gap, #236's path)."""
+
+    def __init__(self, running: Callable[[], bool], reopen: Callable[[], None]) -> None:
+        self._running, self._reopen = running, reopen
+        self.fps: float | None = None  # of the open window capture; None: none open, or GDI
+
+    def wanted(self) -> float:
+        return MATCH_FPS if self._running() else MENU_FPS
+
+    def opened(self) -> float:
+        """A window capture opens now: at this rate."""
+        self.fps = self.wanted()
+        log.info("capture: asking Windows for %g frames a second (%s)", self.fps,
+                 "in a match" if self.fps == MATCH_FPS else "between matches")  # fmt: skip
+        return self.fps
+
+    def check(self) -> None:
+        """Every frame: the match started or ended, so the capture opens again at the other
+        rate. Once: until it's open again."""
+        if self.fps is not None and self.fps != self.wanted():
+            self.fps = None
+            self._reopen()
+
+
 def capture_options(build: int, fps: float) -> tuple[dict, list[str]]:
     """What to ask WGC for on this Windows, and what it can't do (left at Windows' default)."""
     wanted = {"cursor_capture": False, "draw_border": False,
