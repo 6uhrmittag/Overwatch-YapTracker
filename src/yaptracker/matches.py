@@ -4,7 +4,8 @@
   app restarts - the newest session continues if it was active recently).
 - A **match** starts with the first chat change of a session, and again when chat comes back
   after >= 5 min of silence (source 'gap'). Hero select (#93) starts one too; the end screens
-  (#94) end it with its outcome.
+  (#94) end it with its outcome. A match hero select started isn't split by a quiet chat (#377):
+  it ends with its end screen, the next hero select, or 25 min after its start.
 - By hand (#269), rarely needed: Start match / End match (Ctrl+Alt+M). A start by hand that
   hero select follows within 3 min is that match; one that never gets a line is dropped when
   it's ended by hand or the next match starts, so pressing twice or early leaves nothing.
@@ -16,7 +17,7 @@
   between rounds. Hero select on the same map, with no result yet, is the next round, not a
   new match. Only Competitive has those rounds: a match whose queue wasn't read becomes
   Competitive by its second round. Matches split before that, or missed by the rule, are
-  merged at the next start (#371).
+  merged at the next start (#371), and so are hero-select matches a quiet chat split (#377).
 """
 
 import logging
@@ -48,6 +49,9 @@ RESUME_MATCH_S = 10 * 60
 # rounds a match can take ~20 min; hero select later than this is a new match.
 ROUND_MATCH_S = 25 * 60
 MIRROR_TYPES = frozenset({"escort", "hybrid"})
+# A match hero select started goes on through a quiet chat (#377) up to this long after its
+# start: longer than any real match (Marv's longest from hero select to end screen: 17 min).
+LONGEST_MATCH_S = 25 * 60
 
 
 class Status(NamedTuple):
@@ -126,7 +130,12 @@ class MatchTracker:
             elif last is not None and ts - max(last, self.match_started_at) >= QUIET_GAP_S:
                 # quiet since the match started, not since old chat: hero select can start a
                 # match long after the last line of the one before
-                self._start_match(ts, "gap")
+                too_long = ts - self.match_started_at >= LONGEST_MATCH_S
+                if self._match_source != "heroselect" or too_long:
+                    self._start_match(ts, "gap")
+                else:  # nobody typed for a while in a running match: normal (#377)
+                    log.info("match %d: 5 min quiet, but hero select started it and no end was "
+                             "seen - same match", self.match_id)  # fmt: skip
             self._last_chat = ts
 
     def chat_activity(self, ts: float) -> None:
@@ -352,27 +361,42 @@ class MatchTracker:
         log.info("match %d goes on: YapTracker was away %d s", self.match_id, ts - ended)
 
 
-def merge_mirror_rounds(store: Store, keep: set[int], backup: Callable[[], object]) -> int:
-    """At start (#371): two matches in a row on the same map, the first without a result, are
-    one match split at a side swap (before #364, or missed by its rule). The second becomes part
-    of the first. Never the newest match (it may go on, #275), nor one whose chat frames still
-    wait to be read (#349, `keep`); never two different queues that were both read. `backup`
-    runs before the first merge. The number of merges."""
+def merge_split_matches(store: Store, keep: set[int], backup: Callable[[], object]) -> int:
+    """At start: one match split in two becomes one again. Never the newest match (it may go
+    on, #275), nor one whose chat frames still wait to be read (#349, `keep`). `backup` runs
+    before the first merge. The number of merges.
+
+    - A Competitive side swap (#371): two matches in a row on the same map, the first without a
+      result (before #364, or missed by its rule). Never two different queues that were both read.
+    - A quiet chat (#377, before its fix): the chat started a match 5+ min after the last line of
+      a hero-select match that had no end and was still running."""
     merged = 0
     while True:
-        newest = store.newest_match()
-        pair = next((p for p in store.same_map_pairs(ROUND_MATCH_S)
-                     if newest not in p[:2] and not keep & set(p[:2])
-                     and not (p[3] and p[4] and p[3] != p[4])), None)  # fmt: skip
+        pair = _split_pair(store, keep)
         if pair is None:
             return merged
         if not merged:
-            log.info("database backed up to %s before merging mirror rounds", backup())
-        first, second, map_name, mode = pair[0], pair[1], pair[2], pair[3] or pair[4]
-        types = game_lists.map_type(map_name)
-        if mode is None and (not types or types & MIRROR_TYPES):
-            mode = "COMPETITIVE"  # only Competitive has rounds with a hero select between
+            log.info("database backed up to %s before merging split matches", backup())
+        first, second, mode, why = pair
         moved = store.merge_matches(first, second, mode)
         merged += 1
-        log.info("merged match %d into %d: mirror round on %s (%d lines moved)", second, first,
-                 map_name, moved)  # fmt: skip
+        log.info("merged match %d into %d: %s (%d lines moved)", second, first, why, moved)
+
+
+def _split_pair(store: Store, keep: set[int]) -> tuple | None:
+    """The oldest match split in two: (first, second, mode after the merge, why), or None."""
+    newest = store.newest_match()
+
+    def free(first: int, second: int) -> bool:
+        return newest not in (first, second) and not keep & {first, second}
+
+    for first, second, map_name, mode_a, mode_b in store.same_map_pairs(ROUND_MATCH_S):
+        if free(first, second) and not (mode_a and mode_b and mode_a != mode_b):
+            mode, types = mode_a or mode_b, game_lists.map_type(map_name)
+            if mode is None and (not types or types & MIRROR_TYPES):
+                mode = "COMPETITIVE"  # only Competitive has rounds with a hero select between
+            return first, second, mode, f"mirror round on {map_name}"
+    for first, second, mode in store.quiet_split_pairs(LONGEST_MATCH_S, QUIET_GAP_S):
+        if free(first, second):
+            return first, second, mode, "split by a quiet chat, no end in between"
+    return None
