@@ -207,17 +207,36 @@ class Store:
                 "UPDATE chat_messages SET match_id = ? WHERE match_id = ?", (to_match, from_match)
             ).rowcount
 
+    # Every match (b) with the match before it in its session (a), for repairs (#371, #377).
+    _PAIRS = (
+        "FROM matches b JOIN matches a ON a.id = (SELECT p.id FROM matches p WHERE p.session_id "
+        "= b.session_id AND (p.started_at, p.id) < (b.started_at, b.id) "
+        "ORDER BY p.started_at DESC, p.id DESC LIMIT 1) "
+    )
+
     def same_map_pairs(self, within_s: float) -> list[tuple]:
         """Two matches in a row of one session on the same map, the first without a result,
         started within `within_s` of each other (#371): one match split at a side swap.
         (first id, second id, map, first mode, second mode), oldest first."""
         return self._read(
-            "SELECT a.id, b.id, a.map, a.mode, b.mode FROM matches b JOIN matches a ON a.id = "
-            "(SELECT p.id FROM matches p WHERE p.session_id = b.session_id AND (p.started_at, "
-            "p.id) < (b.started_at, b.id) ORDER BY p.started_at DESC, p.id DESC LIMIT 1) "
+            f"SELECT a.id, b.id, a.map, a.mode, b.mode {self._PAIRS}"
             "WHERE a.map IS NOT NULL AND a.map = b.map AND a.outcome IS NULL "
             "AND b.started_at - a.started_at <= ? ORDER BY a.started_at, a.id",
             (within_s,),
+        )
+
+    def quiet_split_pairs(self, longest_s: float, quiet_s: float) -> list[tuple]:
+        """A hero-select match without a result, then a match the chat started `quiet_s` or more
+        after its end and less than `longest_s` after its start (#377): one match a quiet chat
+        split. Its end is exactly its last line, so the next start closed it, not an end
+        screen or End match. (first id, second id, first mode), oldest first."""
+        return self._read(
+            f"SELECT a.id, b.id, a.mode {self._PAIRS}"
+            "WHERE a.source = 'heroselect' AND a.outcome IS NULL AND b.source = 'gap' "
+            "AND b.started_at - a.started_at < ? AND b.started_at - a.ended_at >= ? "
+            "AND a.ended_at = (SELECT MAX(ts) FROM chat_messages WHERE match_id = a.id) "
+            "ORDER BY a.started_at, a.id",
+            (longest_s, quiet_s),
         )
 
     def merge_matches(self, first: int, second: int, mode: str | None) -> int:
