@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · Competitive rounds stay one match (#364)
+- In Competitive on Escort and Hybrid maps, where both teams take turns attacking, the side swap's hero select no longer starts a second match: Sessions shows one match with all its rounds.
+- If YapTracker couldn't read the queue, a second round on the same map tells it the match is Competitive, so your Competitive reading choice applies from then on.
+
 ### 2026-10-10 · Yap snaps show names (#366)
 - A yap snap now shows the names as they are. Switch on **Hide names** for a snap you post anywhere; it starts off each time.
 
