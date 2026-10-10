@@ -391,6 +391,10 @@ html, body { background: var(--yt-night); }
   .yt-line-edited { font-size: 12px; font-weight: 700; color: var(--yt-faint); cursor: help; }
   .yt-line-edit { flex: 1 1 16ch; min-width: 16ch; padding: 0 10px; border-radius: 10px; background: var(--yt-panel-inset); border: 1px solid var(--yt-accent); }
 
+  /* Settings: how much space line pictures may take (#389). The label keeps its width. */
+  .yt-cap { align-items: center; gap: 18px; }
+  .yt-cap .yt-switch-label { white-space: nowrap; min-width: 17ch; }
+
   /* A newer YapTracker is out (#46): calm, not the orange heads-up. */
   .yt-banner--calm { background: var(--yt-panel-raised); border-color: var(--yt-line-strong); }
   .yt-whats-new { width: min(640px, calc(100vw - 32px)); }

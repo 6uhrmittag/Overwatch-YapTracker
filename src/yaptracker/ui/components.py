@@ -188,3 +188,25 @@ def callout_toggle(feed: ui.element) -> Callable[[int], None]:
         say()
 
     return count
+
+
+def megabytes(size: int) -> str:
+    """78.3 MB, 1.2 GB."""
+    return f"{size / 1e9:.1f} GB" if size >= 1e9 else f"{size / 1e6:.1f} MB"
+
+
+def size_label(
+    read: Callable[[], int | None], say: Callable[[str], str]
+) -> tuple[ui.label, Callable[[], bool]]:
+    """A folder's size, still being counted for a moment after the start (#387): "…" until it's
+    known, then filled in. Also returns its fill, for a caller that changed the folder."""
+    label = ui.label().classes("yt-meta")
+
+    def fill() -> bool:
+        size = read()
+        label.set_text(say("\u2026" if size is None else megabytes(size)))
+        return size is not None
+
+    if not fill():
+        timer = ui.timer(1.0, lambda: fill() and timer.deactivate())
+    return label, fill

@@ -76,7 +76,7 @@ async def test_settings_never_walks_a_folder(user: User, monkeypatch, tmp_path, 
     caplog.set_level(logging.INFO, "yaptracker.ui.timing")
     await user.open("/")
     user.find(marker="nav-settings").click()
-    await user.should_see("Line pictures: 0.0 MB, 2 GB at most")
+    await user.should_see("Line pictures: 0.0 MB of 2 GB")
     line = next(r.getMessage() for r in caplog.records if "ui: settings took" in r.getMessage())
     assert "pictures" in line and "debug" in line
 

@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · Choose how much space line pictures take (#389)
+- Settings → Your data has a slider for the line pictures, from 50 MB to 5 GB (2 GB unless you change it). It shows what's used against the limit: "Line pictures: 78 MB of 2 GB".
+- Lowering it says first what goes ("Frees 340 MB: the pictures before August go") and deletes it when you let go, oldest months first. Raising it deletes nothing.
+
 ### 2026-10-10 · Settings opens at once (#387)
 - Settings opens right away again instead of after 1–2 seconds. The sizes of the line pictures and debug samples are counted once when YapTracker starts, and show "…" for that moment.
 - Behind the scenes: saving a debug sample no longer re-measures every older sample, and any view that takes 150 ms or more to open says so in the log (`ui: settings took … ms`).

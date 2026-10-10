@@ -3,7 +3,6 @@
 import html
 import string
 import time
-from collections.abc import Callable
 
 import numpy as np
 from nicegui import run, ui
@@ -28,6 +27,7 @@ from yaptracker.ui.components import (
     count,
     saved_chip,
     set_button_label,
+    size_label,
     switch,
 )
 from yaptracker.ui.crew import crew_card
@@ -39,6 +39,7 @@ from yaptracker.ui.hotkeys import hotkeys_card
 from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark, show_mark
 from yaptracker.ui.lookup import lookup_card
 from yaptracker.ui.picker import LinePicker
+from yaptracker.ui.picture_cap import picture_cap
 from yaptracker.ui.quick_verdict import CLICK_NOT_DRAG, clickable_name
 from yaptracker.ui.reading import reading_card
 from yaptracker.ui.setup import setup_wizard, startup_card
@@ -688,21 +689,6 @@ def _listening() -> str:
     return "Ears open. No new yaps right now."
 
 
-def _size_label(read: Callable[[], int | None], say: Callable[[str], str]) -> ui.label:
-    """A folder's size, which is still being counted for a moment after the start (#387):
-    "…" until it's known, then filled in."""
-    label = ui.label().classes("yt-meta")
-
-    def fill() -> bool:
-        size = read()
-        label.set_text(say("\u2026" if size is None else f"{size / 1_000_000:.1f} MB"))
-        return size is not None
-
-    if not fill():
-        timer = ui.timer(1.0, lambda: fill() and timer.deactivate())
-    return label
-
-
 def settings() -> None:  # noqa: C901 - split up after v1 (#311)
     body = ui.element("div").classes("yt-view")
 
@@ -789,14 +775,7 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                         "Keep line pictures", config.line_pictures(), config.save_line_pictures
                     ).mark("pictures-switch")
                     with timing.part("pictures"):  # counted at start, never walked here
-                        _size_label(
-                            lambda: runtime.pictures.size_bytes() if runtime.pictures else 0,
-                            lambda size: f"Line pictures: {size}, 2 GB at most",
-                        ).mark("pictures-size")
-                    ui.label(
-                        "Each chat line as it looked, so hearts and icons OCR can't spell are kept "
-                        "(click a line in Live). Switch off only if disk space is tight."
-                    ).classes("yt-hint")
+                        picture_cap()  # how much space they may take (#389)
                     ui.label(
                         "A copy goes to the backups folder every day (never during a match) and "
                         "before every database update. Updating YapTracker never touches this "
@@ -817,10 +796,10 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                         "Collect debug samples", config.debug_samples(), config.save_debug_samples
                     ).mark("debug-switch")
                     with timing.part("debug"):
-                        _size_label(
+                        size_label(
                             lambda: runtime.debug.size_bytes() if runtime.debug else 0,
                             lambda size: f"Debug samples: {size}, kept 14 days and 1 GB at most",
-                        ).mark("debug-size")
+                        )[0].mark("debug-size")
                     ui.label(
                         "Match starts and ends, screens I might have missed and chat I found hard, "
                         "so they can be fixed later. Other players' names are in there: it never "
