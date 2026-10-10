@@ -231,7 +231,7 @@ def settings_line() -> str:
     on = {True: "on", False: "off"}
     return (f"settings: OCR {engine}, Competitive {config.reading('competitive')}, other "
             f"{config.reading('other')}, read every {config.read_every_s():g} s, debug samples "
-            f"{on[config.debug_samples()]}")  # fmt: skip
+            f"{on[config.debug_samples()]}, update check {on[config.update_check()]}")  # fmt: skip
 
 
 def log_at_start() -> None:

@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · A new version? YapTracker tells you (#46)
+- When a newer YapTracker is out, Live shows a calm banner with **What's new** (every change since your version) and **Later**. Settings → About says the same, with **Check now**.
+- YapTracker asks GitHub once a day which version is newest, never during a match. Nothing else is sent. Settings → About → **Check for updates once a day** switches it off.
+
 ### 2026-10-10 · The map from the end screen (#383)
 - A match whose hero select YapTracker missed now gets its map from the end screen ("VICTORY ESPERANÇA"), so Sessions shows it too. A map that hero select already read is never replaced.
 - Behind the scenes: if the end screen names another map than hero select did, the log says so. That's the check that YapTracker doesn't write wrong maps.

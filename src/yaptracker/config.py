@@ -322,6 +322,18 @@ def save_line_pictures(on: bool, path: Path | None = None) -> None:
     _save(path, data)
 
 
+def update_check(path: Path | None = None) -> bool:
+    """Ask GitHub once a day whether a newer YapTracker is out (#46): on unless switched off."""
+    return _load(path or paths.config_file()).get("update_check", True)
+
+
+def save_update_check(on: bool, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["update_check"] = on
+    _save(path, data)
+
+
 def debug_samples(path: Path | None = None) -> bool:
     """Collect debug samples (#63): on by default while YapTracker is a v0.x pre-release."""
     return _load(path or paths.config_file()).get("debug_samples", __version__.startswith("0."))
