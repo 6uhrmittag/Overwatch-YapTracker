@@ -8,6 +8,7 @@ from yaptracker.capture.changes import ChangeDetector
 from yaptracker.capture.health import CaptureHealth
 from yaptracker.capture.watcher import CaptureWatcher
 from yaptracker.debug import DebugSamples
+from yaptracker.evenings import Evenings
 from yaptracker.familiar import FamiliarFaces
 from yaptracker.lines import LinePictures
 from yaptracker.matches import MatchTracker
@@ -50,6 +51,7 @@ backups: DailyBackup | None = None  # one copy of the database a day (#125), wit
 pictures: LinePictures | None = None  # the picture of every chat line (#120)
 players: PlayerMatcher | None = None  # speakers -> players (#23); reloaded after a merge
 familiar: FamiliarFaces | None = None  # "Look who's back!" cards (#26), with the store
+evenings: Evenings | None = None  # one quality line per evening (#379), with the store
 hotkeys = None  # the HotkeyListener (Windows app only); .failed = keys another app owns
 bind_hotkeys: Callable[[bool], None] | None = None  # (re)register them; None in --dev and tests
 data_too_new: str | None = None  # the database is from a newer YapTracker (#352)

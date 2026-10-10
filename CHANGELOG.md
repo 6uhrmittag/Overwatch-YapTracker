@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · How well each evening was read (#379)
+- Settings → About has a new **Last evenings** table: one row per evening with its matches, how often the map, queue and result were read, how many lines I wasn't sure about, how many you fixed by hand, and how much CPU YapTracker used. A real drop in reading quality now shows at a glance.
+- The evenings since October 1 are filled in once at the first start, so there's something to compare with right away.
+- Behind the scenes: at the end of every evening (Overwatch closed, YapTracker quits, or the next evening starts) the log gets one `evening` line with the same numbers and more detail.
+
 ### 2026-10-10 · A quiet chat no longer splits a match (#377)
 - When nobody types for five minutes in the middle of a match, the next line now stays in that match instead of starting a new one without a map. A match ends with its end screen or the next hero select.
 - Matches split like that before are put back together at the next start, with all their lines and the result. YapTracker backs up your data first, and the log names every merge.

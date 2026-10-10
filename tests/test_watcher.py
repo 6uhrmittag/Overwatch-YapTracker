@@ -99,3 +99,16 @@ def test_a_snapshot_only_while_capturing():
     assert watcher.snapshot() is None  # waiting for the game
     watcher.state, watcher._source = "capturing", source
     assert watcher.snapshot().shape == (1440, 2560, 3)  # the whole "window", for Calibrate (#112)
+
+
+def test_overwatch_closing_after_capture_is_said_once():
+    """The evening line (#379): the game went after capturing, not while it was never there."""
+    windows = iter([None, 42])
+    closed = []
+    watcher = CaptureWatcher(lambda: next(windows, None), lambda hwnd: FakeSource(2),
+                             poll_s=0.01, on_closed=lambda: closed.append(1))  # fmt: skip
+    watcher.start()
+    wait_for(lambda: watcher.frames == 2 and watcher.state == "waiting")
+    time.sleep(0.05)
+    watcher.stop()
+    assert closed == [1]
