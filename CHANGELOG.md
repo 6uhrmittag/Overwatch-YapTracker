@@ -5,7 +5,7 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ## v0.5: on the way to v1.0
 
 ### 2026-10-10 · More maps known (#378)
-- Grímsvötn, the new Escort map, is now recognised. It was read correctly three times since yesterday, but YapTracker didn't know the name yet.
+- Grímsvötn, the new Escort map, is now recognized. It was read correctly three times since yesterday, but YapTracker didn't know the name yet.
 - When the queue and the map run together in one reading ("UNRANKED MIDTOWN"), or the map is washed out at first, hero select is now looked at again until the map is there too, not only until the queue is known.
 - A match that the "HERO DETAILS" hint confirmed on a menu (role select, the map vote) now still gets its queue and map from the hero select that follows.
 
