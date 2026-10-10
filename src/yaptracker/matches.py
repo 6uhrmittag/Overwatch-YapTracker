@@ -15,7 +15,8 @@
 - Competitive Escort and Hybrid (#364): each team attacks once, so hero select shows again
   between rounds. Hero select on the same map, with no result yet, is the next round, not a
   new match. Only Competitive has those rounds: a match whose queue wasn't read becomes
-  Competitive by its second round.
+  Competitive by its second round. Matches split before that, or missed by the rule, are
+  merged at the next start (#371).
 """
 
 import logging
@@ -345,3 +346,29 @@ class MatchTracker:
         self._match_source = closed[5]
         self._store.reopen_match(self.match_id)
         log.info("match %d goes on: YapTracker was away %d s", self.match_id, ts - ended)
+
+
+def merge_mirror_rounds(store: Store, keep: set[int], backup: Callable[[], object]) -> int:
+    """At start (#371): two matches in a row on the same map, the first without a result, are
+    one match split at a side swap (before #364, or missed by its rule). The second becomes part
+    of the first. Never the newest match (it may go on, #275), nor one whose chat frames still
+    wait to be read (#349, `keep`); never two different queues that were both read. `backup`
+    runs before the first merge. The number of merges."""
+    merged = 0
+    while True:
+        newest = store.newest_match()
+        pair = next((p for p in store.same_map_pairs(ROUND_MATCH_S)
+                     if newest not in p[:2] and not keep & set(p[:2])
+                     and not (p[3] and p[4] and p[3] != p[4])), None)  # fmt: skip
+        if pair is None:
+            return merged
+        if not merged:
+            log.info("database backed up to %s before merging mirror rounds", backup())
+        first, second, map_name, mode = pair[0], pair[1], pair[2], pair[3] or pair[4]
+        types = game_lists.map_type(map_name)
+        if mode is None and (not types or types & MIRROR_TYPES):
+            mode = "COMPETITIVE"  # only Competitive has rounds with a hero select between
+        moved = store.merge_matches(first, second, mode)
+        merged += 1
+        log.info("merged match %d into %d: mirror round on %s (%d lines moved)", second, first,
+                 map_name, moved)  # fmt: skip
