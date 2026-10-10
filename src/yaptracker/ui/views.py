@@ -680,7 +680,7 @@ def _listening() -> str:
     if tidied and tidied[0] == runtime.matches.match_id and (tidied[1] or tidied[2]):
         fixed, found = count(tidied[1], "line", "lines"), tidied[2]
         return f"Tidied up the last match: {fixed} fixed, {found} found."
-    return "Ears open. Nobody's typing right now."
+    return "Ears open. No new yaps right now."
 
 
 def settings() -> None:  # noqa: C901 - split up after v1 (#311)
@@ -835,9 +835,9 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                     elif CAPTURE.how != "WGC":  # Windows 10 and 11 before 24H2 (#248)
                         ui.label(
                             "This Windows sends every frame the game draws, so I only copy the "
-                            "chat box from the screen, twice a second (once while nobody types). "
-                            "Keep other windows off "
-                            "it: what's on top is what I read."
+                            "chat box from the screen, twice a second (once a second while the "
+                            "chat doesn't change). Keep other windows off it: what's on top is "
+                            "what I read."
                         ).classes("yt-hint").mark("capture-gdi")
                     elif CAPTURE.cannot:  # settings this Windows lacks are left out (#216)
                         ui.label(

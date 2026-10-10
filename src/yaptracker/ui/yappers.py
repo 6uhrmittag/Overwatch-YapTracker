@@ -114,7 +114,7 @@ def _list(open_profile: Callable[[int], None]) -> None:
             players = matching(players, store.player_names(), state["query"])
             if not players:
                 ui.label(
-                    "Never met them. Check the spelling, or they haven't typed in chat yet."
+                    "Never met them. Check the spelling, or they haven't written in chat yet."
                     if state["query"]
                     else "Nobody with that verdict yet."
                 ).classes("yt-hint").mark("yapper-none")
