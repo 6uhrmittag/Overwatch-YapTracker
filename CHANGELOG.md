@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · CPU by thread (#350)
+- Behind the scenes: once a minute the log now also splits YapTracker's CPU by thread (`cpu threads: …`), to find where the time between matches goes. Most of it doesn't belong to any measured part yet.
+
 ### 2026-10-10 · Update now (#46)
 - **Update now** in the update banner, in What's new and in Settings → About: YapTracker closes, a window shows the download, and the new version starts by itself. Your data stays where it is.
 - During a match the button says **After this match**: an update never interrupts a game.
