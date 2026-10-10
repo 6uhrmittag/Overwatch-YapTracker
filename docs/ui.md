@@ -56,6 +56,9 @@ So every screen has to answer "what is this and what do I do?" on its own.
 - **Nothing is only reachable by hotkey.** Every hotkey has a visible button
   (with its keycap chip).
 - **Icons in the rail and icon-only buttons have a tooltip** with the plain word.
+- **Switches stack, one per row, each with its own hint right under it** (Marv, #397). Never a
+  row of several switches side by side with one shared hint below: you can't tell which hint
+  belongs to which switch.
 - **No feature needs a manual.** If a PR needs a paragraph of explanation for the
   user, the UI isn't done yet: add a hint, better copy, or a sensible default.
 
