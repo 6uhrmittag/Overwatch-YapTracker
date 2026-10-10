@@ -375,7 +375,8 @@ def _open_store() -> Callable[[], None]:
     def open_store() -> None:
         runtime.debug = DebugSamples(paths.debug_dir(), config.debug_samples)
         runtime.debug.start()  # counted once, then 14 days / 1 GB, also after a long break
-        runtime.pictures = LinePictures(paths.lines_dir(), config.line_pictures)
+        runtime.pictures = LinePictures(paths.lines_dir(), config.line_pictures,
+                                        config.picture_cap_mb() * 1_000_000)  # fmt: skip
         runtime.pictures.start()  # counted once in the background (#387), then 2 GB at most
         try:
             runtime.store = Store.open()

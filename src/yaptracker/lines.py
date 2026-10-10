@@ -81,3 +81,25 @@ class LinePictures:
     def size_bytes(self) -> int | None:
         """None while it's still being counted at start."""
         return self.sizes.total()
+
+    @property
+    def cap_bytes(self) -> int:
+        return self._cap_bytes
+
+    def set_cap(self, cap_bytes: int) -> None:
+        """Settings' slider (#389); clean_up() then deletes what's over it, raising deletes
+        nothing."""
+        self._cap_bytes = cap_bytes
+
+    def would_free(self, cap_bytes: int) -> tuple[int, str | None]:
+        """What a cap of `cap_bytes` would delete, as clean_up() does it: (bytes, the oldest
+        month kept, "2026-10"; None when every month goes). From the tally, no walking."""
+        months: dict[str, int] = {}
+        for unit, size in self.sizes.snapshot().items():
+            months[unit.parent.name] = months.get(unit.parent.name, 0) + size
+        left, freed = sum(months.values()), 0
+        for month in sorted(months):
+            if left - freed <= cap_bytes:
+                return freed, month
+            freed += months[month]
+        return freed, None

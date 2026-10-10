@@ -485,6 +485,6 @@ async def test_the_save_hotkey_has_a_button_too(user: User, monkeypatch, tmp_pat
 async def test_settings_explain_themselves(user: User):
     await user.open("/")
     user.find(marker="nav-settings").click()
-    await user.should_see("Switch off only if disk space is tight.")  # line pictures
+    await user.should_see("When the limit is reached, the oldest months go first.")  # (#389)
     user.find(marker="calibrate").click()
     await user.should_see("only for when RapidOCR won't start")  # the OCR engine switch
