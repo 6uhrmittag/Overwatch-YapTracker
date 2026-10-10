@@ -102,7 +102,7 @@ def _when(ts: float | None, started_at: float | None) -> str:
 
 def snap_lines(
     messages: list,
-    hide_names: bool = True,
+    hide_names: bool = False,
     keep_crew: bool = False,
     started_at: float | None = 0.0,
 ) -> list[SnapLine]:

@@ -8,6 +8,12 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 - In Competitive on Escort and Hybrid maps, where both teams take turns attacking, the side swap's hero select no longer starts a second match: Sessions shows one match with all its rounds.
 - If YapTracker couldn't read the queue, a second round on the same map tells it the match is Competitive, so your Competitive reading choice applies from then on.
 
+### 2026-10-10 · Yap snaps show names (#366)
+- A yap snap now shows the names as they are. Switch on **Hide names** for a snap you post anywhere; it starts off each time.
+
+### 2026-10-10 · Privacy test knows two more words (#369)
+- Behind the scenes: the test that keeps real player names out of the code no longer mistakes two players named like ordinary words for a leak.
+
 ### 2026-10-10 · Opens on its own screen at its size (#365)
 - YapTracker now opens straight on the screen you left it on, at the size you left it, instead of opening on the main screen and moving over. That should end the window coming back too tall on a second screen with other scaling.
 - Behind the scenes: the log says how the window scales at every start (its DPI, its screen's DPI, its DPI awareness), and how it really landed after 1 and 3 seconds.
