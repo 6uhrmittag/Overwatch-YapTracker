@@ -42,9 +42,12 @@ def test_a_menu_without_chat_is_read_every_6_s_until_chat_shows_up(store, caplog
     assert not reader.menu  # in a match: read as usual
     running[0] = False
     reader._load_since -= 61  # a minute has passed: the log says it
+    for _ in range(9):  # frames the menu's art made look new (#350)
+        reader.offer(menu)
     with caplog.at_level(logging.INFO, logger="yaptracker.reader"):
         reader.read_frame(1020.0, menu)
     assert f"no chat in the box between matches, reading every {MENU_GAP_S:g} s" in caplog.text
+    assert "; 9 changed frames in 6" in caplog.text  # 61 s and a bit
     reader.read_frame(1026.0, chat)  # someone types: back to normal at once
     assert not reader.menu
 
