@@ -119,6 +119,7 @@ class ChatReader:
         self.busy_s = 0.0  # CPU time spent reading (OCR runs on this thread, #108)
         self._load_since, self._load_cpu = time.monotonic(), time.process_time()
         self._load_busy, self._load_frames = 0.0, 0
+        self._offered = 0  # frames with new text since the last log line (#350)
         self.busy = False  # the last minute was above the CPU goal: read less often (#249)
         self._no_chat = 0  # reads in a row without a chat line (#115)
 
@@ -129,6 +130,7 @@ class ChatReader:
         if mode == AFTER:  # not read now, but the match knows chat is going on (#307, #345)
             self._matches.chat_activity(ts)
         with self._wake:  # wakes the reader either way: kept frames are looked at every 2 s
+            self._offered += 1  # for the menu's log line (#350)
             if mode == AFTER or len(self.later):
                 self.later.add(ts, image, self._matches.match_id, mode)
             else:
@@ -402,11 +404,12 @@ class ChatReader:
                      self._load_frames, 1000 * self._load_busy / self._load_frames,
                      f" ({modes})" if modes else "", whole,
                      "; reading every 3 s for a minute" if self.busy else "")  # fmt: skip
-            if self.menu:
-                log.info("chat reading: no chat in the box between matches, reading every %g s",
-                         MENU_GAP_S)  # fmt: skip
+            if self.menu:  # how often the menu "changed" without chat: the goal is <= 6/min (#350)
+                log.info("chat reading: no chat in the box between matches, reading every %g s;"
+                         " %d changed frames in %.0f s", MENU_GAP_S, self._offered,
+                         wall)  # fmt: skip
             self._load_since, self._load_cpu = now, cpu
-            self._load_busy, self._load_frames = 0.0, 0
+            self._load_busy, self._load_frames, self._offered = 0.0, 0, 0
 
 
 def _span(first: float, last: float) -> str:

@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · Menu changes counted (#350)
+- Behind the scenes: between matches, the log line "no chat in the box between matches" now also says how many frames looked new that minute, so the next evening shows how often the menu's art fools change detection.
+
 ### 2026-10-10 · Old split rounds put back together (#371)
 - Competitive Escort and Hybrid matches that were split into two (one per side) are merged into one match at the next start, with all their lines, the heart and the result. YapTracker backs up your data first, and the log names every merge.
 
