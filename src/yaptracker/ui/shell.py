@@ -7,7 +7,7 @@ from pathlib import Path
 from nicegui import app, ui
 
 from yaptracker import runtime
-from yaptracker.ui import icons, search, sessions, views, yappers
+from yaptracker.ui import icons, search, sessions, timing, views, yappers
 from yaptracker.ui.quick_verdict import UndoBar
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -84,7 +84,7 @@ def root() -> None:
             else:
                 button.classes(remove="is-active").props(remove="aria-current")
         content.clear()
-        with content:
+        with content, timing.view(key):  # slow views say so in the log (#387)
             next(v for v in VIEWS if v.key == key).render(**kwargs)
 
     # Other views can switch views: a familiar-face card opens the profile (#26).

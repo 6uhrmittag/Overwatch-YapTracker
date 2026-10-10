@@ -81,7 +81,7 @@ def test_old_days_and_the_oldest_samples_go_first(tmp_path, clock):
     for day, name, size in existing:
         (folder / day / name).mkdir(parents=True)
         (folder / day / name / "x.jpg").write_bytes(b"x" * size)
-    DebugSamples(folder, lambda: True, clock, cap_bytes=1300).clean_up()
+    DebugSamples(folder, lambda: True, clock, cap_bytes=1300).start(background=False)
     assert files(folder) == ["2026-09-30", "2026-10-01"]  # 30 days old: gone
     assert files(folder / "2026-09-30") == ["21-00-00-end"]  # oldest went to fit 1300 bytes
 

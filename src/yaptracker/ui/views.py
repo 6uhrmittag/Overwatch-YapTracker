@@ -3,6 +3,7 @@
 import html
 import string
 import time
+from collections.abc import Callable
 
 import numpy as np
 from nicegui import run, ui
@@ -18,6 +19,7 @@ from yaptracker.glyphs import GLYPH
 from yaptracker.matches import AFTER_END_GAP_S
 from yaptracker.snaps import MAX_LINES
 from yaptracker.store.backups import last_backup
+from yaptracker.ui import timing
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.components import (
     SPICY,
@@ -686,6 +688,21 @@ def _listening() -> str:
     return "Ears open. No new yaps right now."
 
 
+def _size_label(read: Callable[[], int | None], say: Callable[[str], str]) -> ui.label:
+    """A folder's size, which is still being counted for a moment after the start (#387):
+    "…" until it's known, then filled in."""
+    label = ui.label().classes("yt-meta")
+
+    def fill() -> bool:
+        size = read()
+        label.set_text(say("\u2026" if size is None else f"{size / 1_000_000:.1f} MB"))
+        return size is not None
+
+    if not fill():
+        timer = ui.timer(1.0, lambda: fill() and timer.deactivate())
+    return label
+
+
 def settings() -> None:  # noqa: C901 - split up after v1 (#311)
     body = ui.element("div").classes("yt-view")
 
@@ -739,7 +756,8 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                 with ui.element("div").classes("yt-card-body"):
                     ui.label(str(paths.data_dir())).classes("yt-meta yt-mono")
                     if runtime.store is not None:
-                        stats, db = runtime.store.stats(), paths.db_file()
+                        with timing.part("stats"):
+                            stats, db = runtime.store.stats(), paths.db_file()
                         size = db.stat().st_size / 1_000_000 if db.exists() else 0.0
                         ui.label(
                             f"{count(stats.messages, 'yap', 'yaps')}, "
@@ -770,10 +788,11 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                     switch(
                         "Keep line pictures", config.line_pictures(), config.save_line_pictures
                     ).mark("pictures-switch")
-                    pictures = runtime.pictures.size_bytes() / 1_000_000 if runtime.pictures else 0
-                    ui.label(f"Line pictures: {pictures:.1f} MB, 2 GB at most").classes(
-                        "yt-meta"
-                    ).mark("pictures-size")
+                    with timing.part("pictures"):  # counted at start, never walked here
+                        _size_label(
+                            lambda: runtime.pictures.size_bytes() if runtime.pictures else 0,
+                            lambda size: f"Line pictures: {size}, 2 GB at most",
+                        ).mark("pictures-size")
                     ui.label(
                         "Each chat line as it looked, so hearts and icons OCR can't spell are kept "
                         "(click a line in Live). Switch off only if disk space is tight."
@@ -797,10 +816,11 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                     switch(
                         "Collect debug samples", config.debug_samples(), config.save_debug_samples
                     ).mark("debug-switch")
-                    size = runtime.debug.size_bytes() / 1_000_000 if runtime.debug else 0.0
-                    ui.label(
-                        f"Debug samples: {size:.1f} MB, kept 14 days and 1 GB at most"
-                    ).classes("yt-meta").mark("debug-size")
+                    with timing.part("debug"):
+                        _size_label(
+                            lambda: runtime.debug.size_bytes() if runtime.debug else 0,
+                            lambda size: f"Debug samples: {size}, kept 14 days and 1 GB at most",
+                        ).mark("debug-size")
                     ui.label(
                         "Match starts and ends, screens I might have missed and chat I found hard, "
                         "so they can be fixed later. Other players' names are in there: it never "

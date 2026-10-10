@@ -374,9 +374,9 @@ def _open_store() -> Callable[[], None]:
 
     def open_store() -> None:
         runtime.debug = DebugSamples(paths.debug_dir(), config.debug_samples)
-        runtime.debug.clean_up()  # 14 days / 1 GB, also after a long break
+        runtime.debug.start()  # counted once, then 14 days / 1 GB, also after a long break
         runtime.pictures = LinePictures(paths.lines_dir(), config.line_pictures)
-        runtime.pictures.clean_up()  # 2 GB, oldest months first
+        runtime.pictures.start()  # counted once in the background (#387), then 2 GB at most
         try:
             runtime.store = Store.open()
         except NewerDatabaseError as error:  # an older build: say so, touch nothing (#352)
