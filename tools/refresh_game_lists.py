@@ -9,6 +9,7 @@ for this (CLAUDE.md: local-only); run this by hand when a new hero or map ships,
 """
 
 import json
+import re
 import time
 import urllib.request
 from pathlib import Path
@@ -29,24 +30,37 @@ FALLBACK = {
 }
 
 
-def fetch(endpoint: str, locale: str) -> list[str]:
+def fetch(endpoint: str, locale: str) -> list[dict]:
     request = urllib.request.Request(f"{API}/{endpoint}?locale={locale}",
                                      headers={"User-Agent": "YapTracker build tools"})  # fmt: skip
     with urllib.request.urlopen(request, timeout=30) as response:
-        return [item["name"].replace("\u2019", "'") for item in json.load(response)]
+        items = json.load(response)
+    for item in items:
+        item["name"] = item["name"].replace("\u2019", "'")
+    return items
 
 
 def main() -> None:
     lists = {}
+    map_types: dict[str, list[str]] = {}  # every map name, both languages -> its types (#364)
     for kind in ("heroes", "maps"):
         names = set(FALLBACK[kind])
         for locale in LOCALES:
-            names.update(fetch(kind, locale))
+            for item in fetch(kind, locale):
+                names.add(item["name"])
+                if kind == "maps":
+                    map_types[item["name"]] = sorted(item.get("gamemodes", []))
         lists[kind] = sorted(names, key=str.casefold)
+    types = {name: map_types[name] for name in sorted(map_types, key=str.casefold)}
     data = {"source": f"{API} ({', '.join(LOCALES)}) + hand-written queue names (#276)",
-            "fetched": time.strftime("%Y-%m-%d"), "queues": QUEUES, **lists}  # fmt: skip
+            "fetched": time.strftime("%Y-%m-%d"), "queues": QUEUES, **lists,
+            "map_types": types}  # fmt: skip
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    text = json.dumps(data, ensure_ascii=False, indent=1)
+    # a map's types on its own line: ["escort"], ["control", "flashpoint"]
+    text = re.sub(r'\[\n\s+("[a-z-]+"(?:,\n\s+"[a-z-]+")*)\n\s+\]',
+                  lambda m: "[" + re.sub(r",\n\s+", ", ", m[1]) + "]", text)  # fmt: skip
+    OUT.write_text(text + "\n", encoding="utf-8")
     print(f"{OUT}: {len(lists['heroes'])} heroes, {len(lists['maps'])} maps, {len(QUEUES)} queues")
 
 

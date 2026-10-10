@@ -61,3 +61,9 @@ def map_name(text: str | None) -> str | None:
 def hero(text: str | None) -> str | None:
     """A hero name from a comms-wheel line, e.g. "Zenyata" -> Zenyatta; None if unknown."""
     return _best(text, lists()["heroes"])
+
+
+def map_type(name: str | None) -> frozenset[str]:
+    """The map's types ("escort", "hybrid", "control"...) as the API names them (#364); empty
+    for a map the lists don't know. `name` as map_name() returns it."""
+    return frozenset(lists().get("map_types", {}).get(name or "", ()))

@@ -12,6 +12,10 @@
   is the next match whose hero select was missed (source 'gap'; older matches say 'endscreen').
 - YapTracker restarted mid-match (an update): the match its shutdown closed goes on (#275).
 - Every match start ends a pause (#20).
+- Competitive Escort and Hybrid (#364): each team attacks once, so hero select shows again
+  between rounds. Hero select on the same map, with no result yet, is the next round, not a
+  new match. Only Competitive has those rounds: a match whose queue wasn't read becomes
+  Competitive by its second round.
 """
 
 import logging
@@ -20,7 +24,9 @@ import time
 from collections.abc import Callable
 from typing import NamedTuple
 
+from yaptracker import game_lists
 from yaptracker.pause import Pause
+from yaptracker.reading_mode import competitive
 from yaptracker.store.repo import Store
 
 log = logging.getLogger(__name__)
@@ -37,6 +43,10 @@ AFTER_END_GAP_S = 90
 OUTSIDE_CHAT_S = 3 * 60
 # YapTracker restarted mid-match (an update, #275): within this, the match goes on.
 RESUME_MATCH_S = 10 * 60
+# Hero select between rounds of one match (#364): Competitive Escort and Hybrid. With extra
+# rounds a match can take ~20 min; hero select later than this is a new match.
+ROUND_MATCH_S = 25 * 60
+MIRROR_TYPES = frozenset({"escort", "hybrid"})
 
 
 class Status(NamedTuple):
@@ -74,6 +84,7 @@ class MatchTracker:
         self.match_ended_at: float | None = None
         self.match_outcome: str | None = None
         self._match_source: str | None = None
+        self._round = 1  # of the running match (#364)
         self._before_hand: tuple | None = None  # where things were before a start by hand
         self._last_alive: float | None = None
         self._last_chat: float | None = None
@@ -133,7 +144,9 @@ class MatchTracker:
         """Ctrl+Alt+M, or hero select (#93) with the mode and map it showed."""
         ts = self._clock() if ts is None else ts
         with self._lock:
-            if source == "heroselect" and self._adoptable(ts):
+            if source == "heroselect" and self._next_round(ts, mode, map_name):
+                self._start_round(mode, map_name)
+            elif source == "heroselect" and self._adoptable(ts):
                 log.info("match %d: hero select (%s, %s) takes over its start (%s)",
                          self.match_id, mode, map_name, self._match_source)  # fmt: skip
                 by_hand = self._match_source == "hotkey"  # its start was a guess: hero select's
@@ -146,6 +159,40 @@ class MatchTracker:
                 self._pause.next_match_started()
             else:
                 self._start_match(ts, source, mode, map_name)
+
+    def _next_round(self, ts: float, mode: str | None, map_name: str | None) -> bool:
+        """Hero select again while a hero-select match runs without a result (#364): the same
+        map is its next round. Map unread: a Competitive Escort or Hybrid match's next round.
+        Another map or queue is always a new match: a round never changes either, and the
+        game doesn't give you the same map twice in a row."""
+        if not (self.running and self._match_source == "heroselect"):
+            return False
+        if ts - self.match_started_at > ROUND_MATCH_S:
+            return False
+        if mode and self.match_mode and mode != self.match_mode:
+            return False  # another queue: a new match
+        if map_name and self.match_map:
+            return map_name == self.match_map
+        return competitive(mode or self.match_mode) and bool(
+            game_lists.map_type(self.match_map or map_name) & MIRROR_TYPES
+        )
+
+    def _start_round(self, mode: str | None, map_name: str | None) -> None:
+        """The next round of the running match: no new match. A second round on the same map
+        only happens in Competitive, so an unread queue becomes Competitive (unless the map
+        is known to be another type) and the Competitive reading setting applies at once."""
+        self._round += 1
+        same_map = map_name is not None and map_name == self.match_map
+        log.info("match %d: round %d (%s, no result yet)", self.match_id, self._round,
+                 "same map" if same_map else "Competitive Escort/Hybrid")  # fmt: skip
+        new_mode, new_map = self.match_mode or mode, self.match_map or map_name
+        types = game_lists.map_type(new_map)
+        if new_mode is None and same_map and (not types or types & MIRROR_TYPES):
+            new_mode = "COMPETITIVE"
+            log.info("match %d: Competitive, from a mirror round", self.match_id)
+        if (new_mode, new_map) != (self.match_mode, self.match_map):
+            self.match_mode, self.match_map = new_mode, new_map
+            self._store.set_match_source(self.match_id, "heroselect", new_mode, new_map)
 
     def learn_info(self, mode: str | None, map_name: str | None) -> None:
         """Hero select's queue or map, read on a later look (#342): the running match gets
@@ -264,6 +311,7 @@ class MatchTracker:
                      "%d line(s) go to match %d", outside, moved, self.match_id)  # fmt: skip
         self.match_started_at, self.match_map, self._match_source = ts, map_name, source
         self.match_mode, self.match_ended_at, self.match_outcome = mode, None, None
+        self._round = 1
         self._pause.next_match_started()
         if source != "heroselect":
             self._on_missed_start(source)
