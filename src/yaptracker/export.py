@@ -239,7 +239,7 @@ def session_markdown(session: dict, gaps: dict[int, list]) -> str:
             lines.append(
                 f"- {_clock(item['time'])} \u00b7 {channel} \u00b7 {name}{_md(item['text'])}"
             )
-        out.append("\n".join(lines or ["Nobody typed in this match."]) + "\n")
+        out.append("\n".join(lines or ["Nobody wrote in chat in this match."]) + "\n")
     return "\n".join(out)
 
 

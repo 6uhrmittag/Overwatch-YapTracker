@@ -2,7 +2,7 @@
 
 **Remember who you played Overwatch with — and what they said.**
 
-YapTracker reads Overwatch's text chat from the screen, keeps a local log of every message, and lets you keep notes and a verdict on the people you meet. When someone you already know types in chat, YapTracker shows you who they are, when you last played together, and what you wrote about them — so you can say hi.
+YapTracker reads Overwatch's text chat from the screen, keeps a local log of every message, and lets you keep notes and a verdict on the people you meet. When someone you already know writes in chat, YapTracker shows you who they are, when you last played together, and what you wrote about them — so you can say hi.
 
 ![YapTracker's Live view: chat streaming in, and a "Look who's back!" card for a player met before](https://raw.githubusercontent.com/6uhrmittag/Overwatch-YapTracker/screenshots/readme-live.png)
 
@@ -20,7 +20,7 @@ YapTracker reads Overwatch's text chat from the screen, keeps a local log of eve
 1. In Overwatch: **Options → Video → Display mode: Borderless Windowed**, and text chat switched on.
 2. Install with the command under [Install & update](#install--update). Answer **Y** to "Start YapTracker with Windows?": from then on it waits quietly until Overwatch starts.
 3. On first start, the setup walks you through three steps: it finds Overwatch, you drag a box around the chat, and you add your own name and your crew (the people you queue with).
-4. Play. Chat appears in **Live**; when someone you've met before types, their card pops up. Nothing needs a key press: Live says whether you're in a match, the match is over, or you're between matches, and a new match starts by itself at hero select.
+4. Play. Chat appears in **Live**; when someone you've met before writes in chat, their card pops up. Nothing needs a key press: Live says whether you're in a match, the match is over, or you're between matches, and a new match starts by itself at hero select.
 5. Afterwards: **Yappers** for verdicts and notes, **Sessions** for the evening match by match, **Search** for that one line.
 
 **Competitive costs your game nothing:** in ranked, YapTracker reads the chat **after the match**, and faces from it pop up then as "Look who was there!". Other matches are read live. Both are in **Settings → Reading**, with a third way, **Live, light**, that reads live at almost no cost.
@@ -86,7 +86,7 @@ Chat logs, line pictures and debug samples contain other players' names and mess
 ## Known limits
 
 - **Tested at** 2560×1440 and 3840×2160, the latter with Windows HDR on, on Windows 11 with an NVIDIA card. Other 16:9 sizes scale along; other aspect ratios need a calibration.
-- **Windows 10** (and Windows 11 before 24H2) can't hand YapTracker just 4 frames a second; it would copy every frame the game draws. So there YapTracker copies only the chat box from the screen, twice a second (once a second while nobody types). Each copy makes the game wait a moment for the screen, so on Windows 10 YapTracker can cost the game up to about 10 fps. It also reads what's on screen, so keep other windows off the chat box. **Settings → About** says which way your PC reads.
+- **Windows 10** (and Windows 11 before 24H2) can't hand YapTracker just 4 frames a second; it would copy every frame the game draws. So there YapTracker copies only the chat box from the screen, twice a second (once a second while the chat doesn't change). Each copy makes the game wait a moment for the screen, so on Windows 10 YapTracker can cost the game up to about 10 fps. It also reads what's on screen, so keep other windows off the chat box. **Settings → About** says which way your PC reads.
 - **A black picture from the game window** (e.g. the game on the other graphics card): after a few seconds YapTracker reads the screen Overwatch is on instead, the same way, and says so in Live. It tries the window again at the next start. In exclusive Fullscreen the screen is black too: switch to Borderless Windowed.
 - **Languages:** English and German chat are measured (umlauts and ß included). Other languages aren't tested; chat in other scripts (Cyrillic, Korean…) may come out wrong.
 - **Emoji and game icons** show as `◇` in the text; click a line to see its picture.
@@ -96,7 +96,7 @@ Chat logs, line pictures and debug samples contain other players' names and mess
 - **Reading after the match** keeps the match's chat in memory until it's over, then reads it in a minute or so. Quit YapTracker before that and it reads the chat at the next start (within 2 days). A crash loses it; Sessions then shows that time as not recorded.
 - **Live, light** (Windows OCR) misses some lines and letters during the match. Once the game is idle, YapTracker reads the match again with the best reader and fixes them.
 - **Unknown queue:** if hero select couldn't be read (glare, or YapTracker started mid-match), the match is read the lighter of your two settings.
-- **Only who typed:** players who never chat aren't logged (type their name in **Who's that?** to add them). No match stats, no full lobbies.
+- **Only who writes in chat:** players who never chat aren't logged (type their name in **Who's that?** to add them). No match stats, no full lobbies.
 - **CPU:** reading chat costs about 16–18 % of one core over a 1440p recording, and an estimated 25 % at 4K. It always reads on the CPU, never on your graphics card: that's the game's. Whether YapTracker costs any FPS is still being measured.
 - Windows only.
 

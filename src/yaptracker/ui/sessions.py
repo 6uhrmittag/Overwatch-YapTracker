@@ -115,7 +115,7 @@ def _match_list(session, back, open_match) -> None:
     with ui.element("section").classes("yt-card yt-card--list"):
         with ui.element("div").classes("yt-card-body").mark("matches"):
             if not matches:
-                ui.label("No match in this session: YapTracker ran, nobody typed.").classes(
+                ui.label("No match in this session: YapTracker ran, nobody wrote in chat.").classes(
                     "yt-hint"
                 )
             for number, match in enumerate(matches, start=1):
@@ -238,7 +238,7 @@ def _transcript(match, number: int, back) -> None:
     with ui.element("section").classes("yt-card yt-card--list"):
         with ui.element("div").classes("yt-card-body yt-transcript").mark("transcript") as body:
             if not events:
-                ui.label("Nobody typed in this match. Suspiciously quiet lobby.").classes("yt-hint")
+                ui.label("No yaps in this match. Suspiciously quiet lobby.").classes("yt-hint")
             last = None  # the row before, to count repeated callouts
             for _, kind, item in sorted(events, key=lambda e: (e[0], e[1] != "start")):
                 if kind in ("start", "end", "gap"):

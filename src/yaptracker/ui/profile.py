@@ -210,7 +210,7 @@ def _yaps(player_id: int, callouts: bool = False) -> None:
     store = runtime.store
     messages = store.player_messages(player_id, callouts)
     if not messages:
-        ui.label("They haven't typed anything yet. Strong silent type.").classes("yt-hint")
+        ui.label("They haven't written anything yet. Strong silent type.").classes("yt-hint")
         return
     by_match: dict[int | None, list] = {}
     for message in messages:
