@@ -219,6 +219,23 @@ class MatchTracker:
             self._store.set_match_source(self.match_id, "heroselect", mode, map_name)
             log.info("match %d: hero select read again: %s, %s", self.match_id, mode, map_name)
 
+    def end_map(self, map_name: str) -> bool:
+        """The end screen's title named the map ("VICTORY ESPERANÇA", #383): the match it just
+        ended takes it if it has none, e.g. its hero select was missed. Never overwrites one;
+        says so when hero select read another (a wrong map is worse than none). True: taken."""
+        with self._lock:
+            if self.match_id is None or self.match_ended_at is None:
+                return False
+            if self.match_map:
+                if self.match_map != map_name:
+                    log.warning("match %d: the end screen says %s, hero select said %s",
+                                self.match_id, map_name, self.match_map)  # fmt: skip
+                return False
+            self.match_map = map_name
+            self._store.set_match_map(self.match_id, map_name)
+            log.info("match %d: map from the end screen: %s", self.match_id, map_name)
+            return True
+
     def adoptable(self, ts: float | None = None) -> bool:
         """A match the chat, the end screen or a key press started a moment ago: hero select
         now takes it over instead of starting another one."""

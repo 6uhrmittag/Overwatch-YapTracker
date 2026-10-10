@@ -285,3 +285,19 @@ def test_a_hearted_chat_match_stays(store):
     store.set_loved(gap, T0 + 5)
     tracker.new_match(T0 + 400, source="heroselect")
     assert played(store) == [(gap, "gap")] and len(store.messages(gap)) == 1
+
+
+def test_the_end_screen_gives_a_match_without_a_map_its_map(store, caplog):
+    """#383: hero select missed (the round-start backup started it): "VICTORY ILIOS"."""
+    caplog.set_level(logging.INFO, "yaptracker.matches")
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    tracker.new_match(T0, source="heroselect")  # no info corner: no map
+    assert not tracker.end_map("Ilios")  # still running: not yet
+    tracker.end_match(T0 + 600, "victory")
+    assert tracker.end_map("Ilios") and tracker.status().map_name == "Ilios"
+    tracker.new_match(T0 + 700, source="heroselect", map_name="Busan")
+    tracker.end_match(T0 + 1300, "defeat")
+    assert not tracker.end_map("Oasis")  # never over a map hero select read
+    assert store._read("SELECT map FROM matches ORDER BY id") == [("Ilios",), ("Busan",)]
+    assert "match 2: the end screen says Oasis, hero select said Busan" in caplog.text

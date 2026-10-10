@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · The map from the end screen (#383)
+- A match whose hero select YapTracker missed now gets its map from the end screen ("VICTORY ESPERANÇA"), so Sessions shows it too. A map that hero select already read is never replaced.
+- Behind the scenes: if the end screen names another map than hero select did, the log says so. That's the check that YapTracker doesn't write wrong maps.
+
 ### 2026-10-10 · No more "typing" (#382)
 - Overwatch doesn't show when someone is typing, and YapTracker never pretended to know: it sees lines once they're sent. The words now say so. Live says "Ears open. No new yaps right now.", and Sessions, Yappers, the export, Settings → About and the README say "writes in chat" or "no yaps" instead of "types".
 

@@ -171,7 +171,13 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         adoptable=chat_started_match,
         on_info=hero_select_info,
     )
-    end_screen = EndScreen(read_line, match_over)
+
+    def end_map(map_name: str) -> None:  # "VICTORY <MAP>": for a match without one (#383)
+        taken = runtime.matches is not None and runtime.matches.end_map(map_name)
+        if taken and runtime.debug is not None:  # proof for the next evening's check
+            runtime.debug.match_event("end-map")
+
+    end_screen = EndScreen(read_line, match_over, on_map=end_map)
 
     def fps_state() -> str:  # one row each of the FPS test (#187), and where in the evening
         playing = runtime.matches is not None and runtime.matches.running  # menus: 60 fps (#302)
