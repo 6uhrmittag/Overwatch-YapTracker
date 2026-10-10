@@ -3,7 +3,7 @@
 from dataclasses import asdict
 
 from yaptracker import config
-from yaptracker.window_place import SETTLE_S, Keeper, Place, visible
+from yaptracker.window_place import SETTLE_S, Keeper, Monitor, Place, visible
 
 LEFT = (0, 0, 2560, 1440)
 RIGHT = (2560, 0, 1920, 1080)
@@ -112,3 +112,45 @@ def test_the_keeper_never_saves_more_than_fits():
     keeper.check()
     (place,) = saved
     assert place.rect[3] <= SECOND_WORK[3] + 20 and place.normal[3] <= SECOND_WORK[3] + 20
+
+
+# Marv's screens as Windows reports them (#365): the 1080p one at 100 %, the 4K main one at 150 %.
+SECOND_100 = Monitor((-1920, 1078, 1920, 1080), (-1920, 1078, 1920, 1032), 96)
+MAIN_150 = Monitor((0, 0, 3840, 2160), (0, 0, 3840, 2088), 144)
+
+
+def test_a_snapped_half_on_a_150_percent_screen_fits_with_its_wider_border():
+    """At 150 % Windows' invisible border is 11 px, more than 100 %'s allowance (#365)."""
+    from yaptracker.window_place import BORDER, border, clamp
+
+    snapped = (1909, 0, 1942, 2099)  # right half of the 4K screen, 11 px border left/right/below
+    works, dpis = [MAIN_150.work, SECOND_100.work], [144, 96]
+    assert clamp(snapped, works, dpis) == snapped
+    assert clamp((-966, 1078, 972, 1038), works, dpis) == (-966, 1078, 972, 1038)
+    assert border(96) == BORDER and border(144) >= 12
+    sticks_out = (1909, 0, 1942 + 20, 2099)  # really too wide: still clamped
+    assert clamp(sticks_out, works, dpis) != sticks_out
+
+
+def test_the_window_is_born_on_its_saved_screen_in_the_main_screens_units():
+    """pywebview multiplies x, y, width, height by the main screen's scaling (#365)."""
+    from yaptracker.window_place import birth
+
+    found = [SECOND_100, MAIN_150]
+    saved = Place((-966, 1078, 972, 1038), (-1680, 1068, 1690, 1052))  # Marv's config.json
+    args = birth(saved, found)
+    assert args == {"x": -644, "y": 719, "width": 648, "height": 692}
+    physical = [int(args[k] * 1.5) for k in ("x", "y", "width", "height")]
+    assert all(abs(a - b) <= 1 for a, b in zip(physical, saved.rect, strict=True))
+    same_screen = Place((667, 106, 2042, 1911), (667, 106, 2042, 1911))  # 2026-10-09
+    assert birth(same_screen, found) == {"x": 445, "y": 71, "width": 1361, "height": 1274}
+
+
+def test_no_birth_place_without_a_saved_place_on_a_screen():
+    from yaptracker.window_place import birth
+
+    assert birth(None, [SECOND_100, MAIN_150]) == {}
+    gone = Place((-966, 1078, 972, 1038), (-966, 1078, 972, 1038))
+    assert birth(gone, [MAIN_150]) == {}  # its screen was unplugged
+    maxed = Place((-1928, 1070, 1936, 1048), (-1680, 1068, 1690, 1052), maximized=True)
+    assert birth(maxed, [SECOND_100, MAIN_150])["x"] == -1120  # born at its un-maximised place
