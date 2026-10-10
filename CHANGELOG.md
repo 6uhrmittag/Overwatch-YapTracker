@@ -4,13 +4,16 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-10 · No more "typing" (#382)
+- Overwatch doesn't show when someone is typing, and YapTracker never pretended to know: it sees lines once they're sent. The words now say so. Live says "Ears open. No new yaps right now.", and Sessions, Yappers, the export, Settings → About and the README say "writes in chat" or "no yaps" instead of "types".
+
 ### 2026-10-10 · How well each evening was read (#379)
 - Settings → About has a new **Last evenings** table: one row per evening with its matches, how often the map, queue and result were read, how many lines I wasn't sure about, how many you fixed by hand, and how much CPU YapTracker used. A real drop in reading quality now shows at a glance.
 - The evenings since October 1 are filled in once at the first start, so there's something to compare with right away.
 - Behind the scenes: at the end of every evening (Overwatch closed, YapTracker quits, or the next evening starts) the log gets one `evening` line with the same numbers and more detail.
 
 ### 2026-10-10 · A quiet chat no longer splits a match (#377)
-- When nobody types for five minutes in the middle of a match, the next line now stays in that match instead of starting a new one without a map. A match ends with its end screen or the next hero select.
+- When nobody writes in chat for five minutes in the middle of a match, the next line now stays in that match instead of starting a new one without a map. A match ends with its end screen or the next hero select.
 - Matches split like that before are put back together at the next start, with all their lines and the result. YapTracker backs up your data first, and the log names every merge.
 
 ### 2026-10-10 · Menu changes counted (#350)
@@ -59,7 +62,7 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 - When hero select's queue ("COMPETITIVE", "UNRANKED"…) didn't read at first, YapTracker now looks again while hero select is up, also with two colour tricks against glare. So more ranked matches get their "Competitive" reading.
 
 ### 2026-10-07 · Lighter in the menus (#115)
-- Between matches, when the chat box only shows menu art and no chat, YapTracker reads it every 6 s instead of every 1.5–3 s. As soon as someone types, it's back to normal.
+- Between matches, when the chat box only shows menu art and no chat, YapTracker reads it every 6 s instead of every 1.5–3 s. As soon as a new line shows up, it's back to normal.
 
 ### 2026-10-07 · New season's hero (#318)
 - The new hero Doctrine is known by name, so their callouts ("Enemy Doctrine!") count as callouts, not yaps.
@@ -106,7 +109,7 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 - The new map Watchpoint: Grimsvotn is known by name, so its matches show it in Sessions.
 
 ### 2026-10-06 · Gentler on Windows 10 (#319)
-- On Windows 10, YapTracker copies from the screen far less often: the chat box twice a second instead of 4 times (once while nobody types), and the match screens in 4 pieces instead of 7. The game waits for each copy, so it waits much less.
+- On Windows 10, YapTracker copies from the screen far less often: the chat box twice a second instead of 4 times (once a second while the chat doesn't change), and the match screens in 4 pieces instead of 7. The game waits for each copy, so it waits much less.
 
 ### 2026-10-04 · No more fake matches (#307)
 - Chat outside a match (login lines, the Practice Range while you queue) no longer counts as a match of its own. It shows at the top of the next match, before a "The match starts" line, with a minus time.
@@ -142,14 +145,14 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 - Behind the scenes: the Windows capture test accepts the runner refusing capture settings, which the app already handles, so CI stops failing at random.
 
 ### 2026-10-04 · Long umlaut runs (#266)
-- Stretched words keep every umlaut too: "täääätüüüütatäääää" now reads exactly as typed.
+- Stretched words keep every umlaut too: "täääätüüüütatäääää" now reads exactly as written.
 
 ### 2026-10-04 · Callouts read right (#290)
 - Callouts are written as the comms wheel says them: "Eall back!" becomes Fall back!, "Enemy llari!" Enemy Illari!, and pieces like "My" or "/ Enemy" are no longer lines of their own.
 - A callout read once with a garbled name is the same line as the clear one, not a second yap.
 
 ### 2026-10-04 · Callouts out of the way (#289)
-- Live and match transcripts hide comms-wheel callouts ("Group up!", "Enemy Sombra!") by default, so the chat is what people typed. The Callouts switch next to the channel names shows them again, with a count of how many are hidden.
+- Live and match transcripts hide comms-wheel callouts ("Group up!", "Enemy Sombra!") by default, so the chat is what people wrote. The Callouts switch next to the channel names shows them again, with a count of how many are hidden.
 
 ### 2026-10-04 · Real map, mode and hero names (#276)
 - Maps, modes and heroes are matched against Overwatch's real names: "ESPERANCA" becomes Esperança, "Zenyata" Zenyatta, and garbage like "INRONKED ALU9CK" is left out instead of stored.
@@ -243,7 +246,7 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.3: Remember people (M3)
 - Yappers: everyone you've met, with verdict stickers (Bestie, Fun, Meh, Nope), notes that save themselves and every yap they wrote.
-- "Look who's back!": a card pops up when someone you've met before types in chat.
+- "Look who's back!": a card pops up when someone you've met before writes in chat.
 - "Who's that?": look up a name from the scoreboard (Ctrl+Alt+F), typos forgiven.
 - Merge two yappers that are one person, or add someone by hand.
 - Spicy yaps: lines Overwatch or you marked, with a heads-up when those players are back. Never an automatic verdict.
