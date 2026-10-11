@@ -62,7 +62,8 @@ def test_command_line(tmp_path):
     base = [sys.executable, str(SCRIPT), "--pr", str(pr), "--repo", "o/r", "--tag", "v2"]
     out = subprocess.run([*base, "--previous", "v1"], capture_output=True, text=True, check=True)
     assert out.stdout.startswith("### What's new\n- Chat lines")
-    pr.write_text("null", encoding="utf-8")
-    out = subprocess.run([*base, "--subject", "Fix a typo"], capture_output=True, text=True,
-                         check=True)  # fmt: skip
-    assert "- Behind the scenes: Fix a typo" in out.stdout
+    for no_pr in ("null", "\n", ""):  # gh prints an empty line for a commit without a PR (#398)
+        pr.write_text(no_pr, encoding="utf-8")
+        out = subprocess.run([*base, "--subject", "Fix a typo"], capture_output=True, text=True,
+                             check=True)  # fmt: skip
+        assert "- Behind the scenes: Fix a typo" in out.stdout
