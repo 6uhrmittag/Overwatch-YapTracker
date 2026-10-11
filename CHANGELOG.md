@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · Title bar fully on the screen (#414)
+- YapTracker's title bar is no longer cut off at the top of your second screen: a window is never placed above its screen's top edge, only Windows' invisible border at the sides and below may stick out. A place saved 10 px too high moves down at the next start.
+
 ### 2026-10-11 · Opens at its size on a second screen (#410)
 - YapTracker opens on your second screen at the size you left it, instead of too tall with its top above the screen. It's born right there, and Windows no longer gets the place in two different units when the second screen has other scaling than the main one.
 
