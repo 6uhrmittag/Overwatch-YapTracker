@@ -143,3 +143,60 @@ def test_an_older_line_read_more_exactly_doesnt_steal_the_match():
     for t in (400.5, 402.0):  # the same line, now read with its icon
         stored += len(dedup.update(t, [yap("Group up! ◇", "zappy", kind="comms")])[0])
     assert stored == 1
+
+
+def test_lines_an_earlier_read_missed_are_stored_between_their_neighbours():
+    """#423: "[VoidCrowned]: Tracks" and "You endorsed Trashy!" showed up only in later reads,
+    between two stored lines. New were only the rows below the last known one, so they were
+    never stored. Now they are, once, right after the line above them."""
+
+    def read(*texts):
+        return parse([OcrLine(t, 0.99, Region(64, 10 + 40 * n, 400, 24))
+                      for n, t in enumerate(texts)])  # fmt: skip
+
+    dedup = Dedup()
+    dedup.update(100.0, read("[Void]: cute Mei skin so yeah"))
+    dedup.update(101.0, read("[Void]: cute Mei skin so yeah", "You endorsed Backpflaume!"))
+    later = read("[Void]: cute Mei skin so yeah", "[Void]: Tracks", "You endorsed Trashy!",
+                 "You endorsed Backpflaume!")  # fmt: skip
+    new, _ = dedup.update(103.0, later)
+    assert [(y.best.text, y.after) for y in new] == [("Tracks", 1), ("You endorsed Trashy!", 1)]
+    assert 100.0 < new[0].first_seen < new[1].first_seen < 101.0  # between the lines around
+    assert dedup.update(106.0, later)[0] == []  # stored once
+    assert [y.best.text for y in dedup.recent] == [
+        "cute Mei skin so yeah",
+        "Tracks",
+        "You endorsed Trashy!",
+        "You endorsed Backpflaume!",
+    ]
+
+
+def test_a_misreading_between_known_lines_is_no_new_line():
+    """Only rows that look like no known line, read well, between lines that follow each other:
+    a garbled re-reading or a weak row stays out."""
+    dedup = Dedup()
+    rows = ["[Pip]: hello there", "[Bo]: hi", "[Pip]: gg all"]
+    first = [OcrLine(t, 0.99, Region(64, 10 + 40 * n, 400, 24)) for n, t in enumerate(rows)]
+    dedup.update(100.0, parse(first))
+    rows = ["[Pip]: hello there", "[Pip]: hello thera", "[Bo]: hi", "[Kim]: weak", "[Pip]: gg all"]
+    again = [OcrLine(t, 0.5 if "weak" in t else 0.99, Region(64, 10 + 40 * n, 400, 24))
+             for n, t in enumerate(rows)]  # fmt: skip
+    assert dedup.update(103.0, parse(again))[0] == []
+    rows = ["[Pip]: hello there", "[Kim]: new?", "[Pip]: gg all"]
+    skipped = [OcrLine(t, 0.99, Region(64, 10 + 40 * n, 400, 24)) for n, t in enumerate(rows)]
+    assert dedup.update(106.0, parse(skipped))[0] == []  # "[Bo]: hi" skipped: could be it
+
+
+def test_lines_that_differ_only_in_a_name_stay_apart_and_one_word_lines_stay():
+    """#423's suspects 2 and 3, checked: not the cause, and they stay that way."""
+    rows = ["You endorsed Trashy!", "You endorsed Backpflaume!", "[Pip]: gg", "[Bo]: gg",
+            "[VoidCrowned]: Tracks"]  # fmt: skip
+    lines = parse([OcrLine(t, 0.99, Region(64, 10 + 40 * n, 400, 24)) for n, t in enumerate(rows)])
+    new, _ = Dedup().update(100.0, lines)
+    assert [(y.best.speaker, y.best.text) for y in new] == [
+        (None, "You endorsed Trashy!"),
+        (None, "You endorsed Backpflaume!"),
+        ("Pip", "gg"),
+        ("Bo", "gg"),
+        ("VoidCrowned", "Tracks"),
+    ]
