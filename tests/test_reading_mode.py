@@ -159,10 +159,22 @@ def test_the_log_line_says_which_mode_read(store, engines, caplog, monkeypatch):
 
 
 def test_defaults_and_choices_persist():
-    assert (config.reading("competitive"), config.reading("other")) == ("after", "best")
-    config.save_reading("other", "light")
-    config.save_reading("competitive", "nonsense")  # hand-edited: back to the default
+    """Fresh: Competitive after the match, other matches live and light (#413)."""
     assert (config.reading("competitive"), config.reading("other")) == ("after", "light")
+    config.save_reading("other", "best")
+    config.save_reading("competitive", "nonsense")  # hand-edited: back to the default
+    assert (config.reading("competitive"), config.reading("other")) == ("after", "best")
+
+
+def test_a_saved_reading_choice_keeps_best_for_other_matches():
+    """#413: Marv set Competitive to best when other matches defaulted to best; his other
+    matches stay best. Someone choosing only after the new default gets light there."""
+    paths.config_file().parent.mkdir(parents=True, exist_ok=True)
+    paths.config_file().write_text(json.dumps({"reading": {"competitive": "best"}}))
+    assert (config.reading("competitive"), config.reading("other")) == ("best", "best")
+    paths.config_file().write_text("{}")  # a new install
+    config.save_reading("competitive", "best")
+    assert config.reading("other") == "light"
 
 
 def test_windows_ocr_picked_by_hand_carries_over_to_every_match():

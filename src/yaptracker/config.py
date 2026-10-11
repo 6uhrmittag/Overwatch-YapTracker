@@ -130,6 +130,12 @@ def reading(kind: str, path: Path | None = None) -> str:
         data["reading"] = {"other": modes.LIGHT}
         data["ocr_engine"] = ocr.DEFAULT
         _save(path, data)
+    if "reading" in data and "light_default" not in data:
+        # Other matches read light by default since #413; before, best. Someone who already
+        # set a reading choice keeps best there unless they chose otherwise (Marv's stays).
+        data["reading"].setdefault("other", modes.BEST)
+        data["light_default"] = True
+        _save(path, data)
     default = modes.DEFAULT_COMPETITIVE if kind == "competitive" else modes.DEFAULT_OTHER
     chosen = data.get("reading", {}).get(kind, default)
     return chosen if chosen in modes.CHOICES else default
@@ -138,6 +144,7 @@ def reading(kind: str, path: Path | None = None) -> str:
 def save_reading(kind: str, choice: str, path: Path | None = None) -> None:
     path = path or paths.config_file()
     data = _load(path)
+    data.setdefault("light_default", True)  # chosen after #413: no carry-over of the old default
     data["reading"] = {**data.get("reading", {}), kind: choice}
     _save(path, data)
 

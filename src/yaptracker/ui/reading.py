@@ -26,11 +26,13 @@ def reading_card() -> None:
                 ui.label("Other matches").classes("yt-setting-name")
                 other = ui.element("div").classes("yt-seg").mark("reading-other")
             ui.label(
-                "How I read the chat during a match. After the match costs your game nothing: "
-                "I keep the chat pictures and read them once it's over, so faces show up after "
-                "the match. Light reading costs almost nothing and shows faces live, but misses "
-                "some words; I fix it up after the match with the best reader. Between matches "
-                "I always read with the best quality: the game is idle then."
+                "Light reads live and costs your game almost nothing; afterwards I tidy up with "
+                "the best reader. Pick best if you want the most accurate lines right away."
+            ).classes("yt-hint").mark("reading-other-hint")
+            ui.label(
+                "After the match costs your game nothing: I keep the chat pictures and read them "
+                "once it's over, so faces show up after the match. Between matches I always read "
+                "with the best quality: the game is idle then."
             ).classes("yt-hint")
             ui.label(
                 "Competitive is spotted at hero select. If I can't tell (glare, or I started "
