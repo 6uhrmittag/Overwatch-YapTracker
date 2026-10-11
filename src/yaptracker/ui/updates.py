@@ -7,7 +7,7 @@ from collections.abc import Callable
 from nicegui import app, run, ui
 
 from yaptracker import config, runtime, updates
-from yaptracker.ui.components import button, set_button_label, switch
+from yaptracker.ui.components import button, switch
 
 HINT = "Asks GitHub which version is newest. Nothing else is sent."
 HOW = "Update now closes YapTracker, updates it and starts it again. Your data stays."
@@ -50,7 +50,7 @@ def whats_new() -> None:
 
 
 def update_now_button() -> Callable[[], None]:
-    """Update now (#46): runs the bundled update.ps1 and quits. "After this match" while one runs;
+    """Update now (#46): runs the bundled update.ps1 and quits, whenever you click it (#416);
     off with the reason where it can't run. Returns its refresh."""
     b = button("Update now", lambda: go(), "primary").mark("update-now")
     said = ui.label().classes("yt-hint").mark("update-now-said")
@@ -58,12 +58,10 @@ def update_now_button() -> Callable[[], None]:
     shown = {"state": None}
 
     def refresh() -> None:
-        running = runtime.matches is not None and runtime.matches.running
-        why = updates.cannot_update_now(running)
-        if (running, why) == shown["state"]:
+        why = updates.cannot_update_now()
+        if why == shown["state"]:
             return
-        shown["state"] = (running, why)
-        set_button_label(b, "After this match" if running else "Update now")
+        shown["state"] = why
         if why:
             b.props(f'disabled title="{why}"')
         else:

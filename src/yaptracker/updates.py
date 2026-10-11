@@ -193,10 +193,9 @@ def update_command(script: Path, root: Path) -> list[str]:
     return ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", code]
 
 
-def cannot_update_now(match_running: bool = False) -> str | None:
-    """Why Update now can't run now, or None when it can."""
-    if match_running:
-        return "Updates wait until the match is over."
+def cannot_update_now() -> str | None:
+    """Why Update now can't run here, or None when it can. A running match doesn't stop it
+    (Marv, #416): you decide when to update."""
     if install_root() is None:
         return "Only in the installed YapTracker. Here: run update.ps1 from the tools folder."
     if bundled_script() is None:
