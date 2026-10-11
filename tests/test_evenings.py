@@ -110,6 +110,18 @@ def test_evenings_since_october_are_filled_in_once(store, log_file, tmp_path, ca
     assert evenings.last() == []
 
 
+def test_evenings_from_before_the_chat_column_get_it_filled_in(store, log_file, tmp_path):
+    """#403: rows written before the share of lines without a channel existed get it from the
+    database once; everything else in them stays as it was (the CPU came from old logs)."""
+    tracker = MatchTracker(store, Pause())
+    an_evening(tracker, store)
+    old = {"session": tracker.session_id, "date": "2026-10-10", "lines": 5, "cpu": 25.0}
+    (tmp_path / "evenings.json").write_text(json.dumps([old]), encoding="utf-8")
+    evenings = Evenings(tmp_path / "evenings.json", store, lambda since: [])
+    evenings.backfill()
+    assert evenings.last() == [{**old, "unknown": 20.0}]
+
+
 def test_without_matches_or_log_lines_nothing_is_made_up(store, tmp_path):
     evenings = Evenings(tmp_path / "evenings.json", store, lambda since: [])
     tracker = MatchTracker(store, Pause(), on_session_end=evenings.record)

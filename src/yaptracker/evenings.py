@@ -152,6 +152,7 @@ class Evenings:
         """Once, while there's no file yet: the evenings since `since`, as a baseline."""
         with self._lock:
             if self._path.exists():
+                self._fill_in_chat()
                 return
             start = time.mktime(time.strptime(since, "%Y-%m-%d"))
             logged = minutes(self._files(start))
@@ -160,6 +161,16 @@ class Evenings:
             for evening in done:
                 log.info("%s (filled in)", line(evening))
             self._save(done)  # an empty file too: filled in once
+
+    def _fill_in_chat(self) -> None:
+        """Evenings from before #403 lack the share of lines without a channel: from the
+        database, once, so the column has a baseline."""
+        old = [e for e in self._load() if "unknown" not in e]
+        for e in old:
+            _, (count, *_, unknown) = self._store.evening(e["session"], LOW_CONFIDENCE)
+            e["unknown"] = _share(unknown, count)
+        if old:
+            self._save(old)
 
     def _load(self) -> list[dict]:
         try:
