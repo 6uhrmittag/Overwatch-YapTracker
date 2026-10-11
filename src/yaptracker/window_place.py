@@ -20,6 +20,7 @@ POLL_S = 2.0
 BORDER = 10  # px a window may stick out of the work area at 100 %: Windows' invisible border
 ARRIVE_S = 1.0  # after a move to a screen with other scaling, the window resizes itself (#299)
 LATE_S = 3.0  # read back once more: a late WM_DPICHANGED would show by then (#365)
+NEAR = 2  # px: born this close to its place is at its place (rounding, #420)
 
 Rect = tuple[int, int, int, int]  # x, y, width, height in screen pixels
 
@@ -108,8 +109,24 @@ def birth(saved: Place | None, found: list["Monitor"]) -> dict:
     wanted = fit(saved, [m.work for m in found], [m.dpi for m in found])
     x, y, w, h = wanted.normal if wanted.maximized else wanted.rect
     scale = found[home((x, y, w, h), [m.rect for m in found])].dpi / 96
-    return {"x": round(x / scale), "y": round(y / scale),
+    args = {"x": round(x / scale), "y": round(y / scale),
             "width": max(1, round(w / scale)), "height": max(1, round(h / scale))}  # fmt: skip
+    if wanted.maximized:  # maximised by pywebview itself: no move from outside (#420)
+        args["maximized"] = True
+    return args
+
+
+def near(a: Rect, b: Rect, px: int = NEAR) -> bool:
+    """Two rects the same but for rounding: the birth lands 1 px off now and then (#420)."""
+    return all(abs(p - q) <= px for p, q in zip(a, b, strict=True))
+
+
+def born_only(window_dpi: int | None, screen_dpi: int | None) -> bool:
+    """The window can only be placed at its birth (#420): pywebview's window is system DPI
+    aware, and on a screen with other scaling than its own every move from outside lands half
+    in its units (Marv's: asked top 1065, got 710 = x 2/3, both with SetWindowPlacement and
+    SetWindowPos). The birth (`birth`) puts it right; then it's left alone."""
+    return bool(window_dpi and screen_dpi and window_dpi != screen_dpi)
 
 
 def in_window_units(rect: Rect, window_dpi: int, screen_dpi: int) -> Rect:
@@ -231,6 +248,16 @@ def move(hwnd: int, x: int, y: int) -> None:
 
 
 _AWARENESS = {0: "DPI unaware", 1: "system DPI aware", 2: "per-monitor DPI aware"}
+
+
+def _window_dpi(hwnd: int) -> int | None:
+    """The window's own DPI (pywebview's: the main screen's); None if Windows won't say."""
+    try:
+        _, wintypes, user32, _ = _win32()
+        user32.GetDpiForWindow.argtypes = [wintypes.HWND]
+        return int(user32.GetDpiForWindow(hwnd)) or None
+    except Exception:
+        return None
 
 
 def _screen_dpi(hwnd: int) -> int | None:
@@ -403,14 +430,19 @@ def restore(hwnd: int, wanted: Place, minimized: bool, stop: threading.Event,
     screen's scaling: sized while crossing to other scaling, it came back too tall."""
     log.info("window: found %s", describe(hwnd))
     born = read(hwnd)
-    if not (minimized or wanted.maximized) and born is not None and born.rect == wanted.rect:
+    target = found[home(wanted.rect, [m.rect for m in found])] if found else None
+    if target is not None and born_only(_window_dpi(hwnd), target.dpi):
+        log.info("window: left where it was born, %s for %s: on a screen with other scaling a "
+                 "move from outside lands half in the window's units (#420)",
+                 born.rect if born else "minimised", wanted.rect)  # fmt: skip
+        return
+    if not (minimized or wanted.maximized) and born is not None and near(born.rect, wanted.rect):
         log.info("window: born at its place %s", wanted.rect)  # nothing to fix (#410)
         return
     if minimized or wanted.maximized:
         apply(hwnd, wanted, minimized)
         log.info("window: back at %s%s", wanted.rect, " (maximised)" if wanted.maximized else "")
         return
-    target = found[home(wanted.rect, [m.rect for m in found])] if found else None
     if target is not None and _screen_dpi(hwnd) != target.dpi:
         move(hwnd, *wanted.rect[:2])
         for _ in range(10):  # its scaling follows within a moment

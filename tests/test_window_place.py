@@ -178,3 +178,20 @@ def test_no_birth_place_without_a_saved_place_on_a_screen():
     assert birth(gone, [MAIN_150]) == {}  # its screen was unplugged
     maxed = Place((-1928, 1070, 1936, 1048), (-1680, 1068, 1690, 1052), maximized=True)
     assert birth(maxed, [SECOND_100, MAIN_150])["x"] == -1680  # born at its un-maximised place
+
+
+def test_a_window_on_a_screen_with_other_scaling_stays_where_it_was_born():
+    """#420: born at (-966, 1064, 972, 1038) for (-966, 1065, ...), 1 px off, the restore moved
+    it and it landed at (-966, 710, 970, 1393): any move from outside lands half in the
+    window's units there. Within rounding it's at its place; on another scaling it's never
+    moved from outside; a maximised one is born maximised."""
+    from yaptracker.window_place import birth, born_only, near
+
+    assert near((-966, 1064, 972, 1038), (-966, 1065, 972, 1038))
+    assert not near((-966, 710, 970, 1393), (-966, 1065, 972, 1038))
+    assert born_only(144, 96)  # pywebview's window (150 % main screen) on the 100 % screen
+    assert not born_only(144, 144) and not born_only(96, 96) and not born_only(None, 96)
+    maxed = Place((-1928, 1070, 1936, 1048), (-1680, 1068, 1690, 1052), maximized=True)
+    assert birth(maxed, [SECOND_100, MAIN_150])["maximized"] is True
+    assert "maximized" not in birth(Place((-966, 1078, 972, 1038), (-966, 1078, 972, 1038)),
+                                    [SECOND_100, MAIN_150])  # fmt: skip

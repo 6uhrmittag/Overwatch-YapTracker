@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · Second screen: it stays where it opens (#420)
+- On your second screen YapTracker stays where it opens, at the saved place, instead of jumping up with its title bar above the screen. A move after the start was what pushed it up; there's none anymore when the screen has other scaling than the main one.
+
 ### 2026-10-11 · Friend notices start no match (#417)
 - A friend notice in the menu, like "2 friends playing Overwatch.", no longer starts a match that then runs until the next hero select. Only typed chat and callouts do. The notices are still kept, as lines outside a match.
 
