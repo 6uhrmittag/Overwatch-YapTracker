@@ -54,7 +54,8 @@ def main() -> None:
     parser.add_argument("--previous", default="")
     parser.add_argument("--subject", default="")
     args = parser.parse_args()
-    pr = json.loads(Path(args.pr).read_text(encoding="utf-8") or "null")
+    # A commit without a PR: gh prints an empty line for `.[0] // null` (#398).
+    pr = json.loads(Path(args.pr).read_text(encoding="utf-8").strip() or "null")
     print(notes(pr, args.repo, args.tag, args.previous or None, args.subject), end="")
 
 

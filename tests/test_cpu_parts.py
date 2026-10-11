@@ -3,6 +3,7 @@ whole app."""
 
 import logging
 import threading
+import time
 
 from yaptracker.cpu_parts import CpuParts, thread_seconds
 
@@ -29,8 +30,12 @@ def test_one_line_a_minute_with_every_part_the_rest_and_the_whole(caplog):
 
 def test_a_part_counts_its_own_threads_cpu():
     parts = CpuParts(lambda: 0.0, lambda: 0.0)
+    deadline = time.perf_counter() + 5
     with parts.part("match signals"):
-        sum(i * i for i in range(200_000))  # some real work on this thread
+        started = time.thread_time()
+        # Real work on this thread until its CPU time moves: Windows counts in ~16 ms steps (#398)
+        while time.thread_time() == started and time.perf_counter() < deadline:
+            sum(i * i for i in range(10_000))
     assert parts._spent["match signals"] > 0
 
 

@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · Pre-releases again (#398)
+- Behind the scenes: two hiccups in the build had stopped new pre-releases after v0.5.420. This one also brings the lighter capture between matches (#350).
+
 ### 2026-10-10 · Lighter between matches (#350)
 - Between matches YapTracker now asks Windows for 2 pictures of the game a second instead of 4, in a match still 4. Windows copies the whole game window for each one, and between matches that was the biggest part of YapTracker's CPU. Menu chat stays on screen for seconds, so nothing is missed.
 
