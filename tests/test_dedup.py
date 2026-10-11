@@ -146,7 +146,7 @@ def test_an_older_line_read_more_exactly_doesnt_steal_the_match():
 
 
 def test_lines_an_earlier_read_missed_are_stored_between_their_neighbours():
-    """#423: "[VoidCrowned]: Tracks" and "You endorsed Trashy!" showed up only in later reads,
+    """#423: "[MoonPebble]: Tracks" and "You endorsed Nibbler!" showed up only in later reads,
     between two stored lines. New were only the rows below the last known one, so they were
     never stored. Now they are, once, right after the line above them."""
 
@@ -156,18 +156,18 @@ def test_lines_an_earlier_read_missed_are_stored_between_their_neighbours():
 
     dedup = Dedup()
     dedup.update(100.0, read("[Void]: cute Mei skin so yeah"))
-    dedup.update(101.0, read("[Void]: cute Mei skin so yeah", "You endorsed Backpflaume!"))
-    later = read("[Void]: cute Mei skin so yeah", "[Void]: Tracks", "You endorsed Trashy!",
-                 "You endorsed Backpflaume!")  # fmt: skip
+    dedup.update(101.0, read("[Void]: cute Mei skin so yeah", "You endorsed Waffelbrot!"))
+    later = read("[Void]: cute Mei skin so yeah", "[Void]: Tracks", "You endorsed Nibbler!",
+                 "You endorsed Waffelbrot!")  # fmt: skip
     new, _ = dedup.update(103.0, later)
-    assert [(y.best.text, y.after) for y in new] == [("Tracks", 1), ("You endorsed Trashy!", 1)]
+    assert [(y.best.text, y.after) for y in new] == [("Tracks", 1), ("You endorsed Nibbler!", 1)]
     assert 100.0 < new[0].first_seen < new[1].first_seen < 101.0  # between the lines around
     assert dedup.update(106.0, later)[0] == []  # stored once
     assert [y.best.text for y in dedup.recent] == [
         "cute Mei skin so yeah",
         "Tracks",
-        "You endorsed Trashy!",
-        "You endorsed Backpflaume!",
+        "You endorsed Nibbler!",
+        "You endorsed Waffelbrot!",
     ]
 
 
@@ -189,21 +189,21 @@ def test_a_misreading_between_known_lines_is_no_new_line():
 
 def test_lines_that_differ_only_in_a_name_stay_apart_and_one_word_lines_stay():
     """#423's suspects 2 and 3, checked: not the cause, and they stay that way."""
-    rows = ["You endorsed Trashy!", "You endorsed Backpflaume!", "[Pip]: gg", "[Bo]: gg",
-            "[VoidCrowned]: Tracks"]  # fmt: skip
+    rows = ["You endorsed Nibbler!", "You endorsed Waffelbrot!", "[Pip]: gg", "[Bo]: gg",
+            "[MoonPebble]: Tracks"]  # fmt: skip
     lines = parse([OcrLine(t, 0.99, Region(64, 10 + 40 * n, 400, 24)) for n, t in enumerate(rows)])
     new, _ = Dedup().update(100.0, lines)
     assert [(y.best.speaker, y.best.text) for y in new] == [
-        (None, "You endorsed Trashy!"),
-        (None, "You endorsed Backpflaume!"),
+        (None, "You endorsed Nibbler!"),
+        (None, "You endorsed Waffelbrot!"),
         ("Pip", "gg"),
         ("Bo", "gg"),
-        ("VoidCrowned", "Tracks"),
+        ("MoonPebble", "Tracks"),
     ]
 
 
 def test_a_misread_callout_name_is_its_heroes_recent_speaker():
-    """#424: "VolaCrowned (Doctrine): Good work!" next to VoidCrowned's Doctrine callouts made a
+    """#424: "MoanPabble (Doctrine): Good work!" next to MoonPebble's Doctrine callouts made a
     new player and lost the crew mark. One hero is one player: the near-miss name is fixed.
     Void really said "Good work!" twice: both stay lines (no merging by text)."""
     from yaptracker.dedup import hero_speaker
@@ -212,15 +212,15 @@ def test_a_misread_callout_name_is_its_heroes_recent_speaker():
         return OcrLine(text, 0.98, Region(64, y, 400, 24))
 
     dedup = Dedup()
-    dedup.update(100.0, parse([callout("VoidCrowned (Doctrine): Thanks!", 10)]))
-    (misread,) = parse([callout("VolaCrowned (Doctrine): Good work!", 50)])
-    assert hero_speaker(misread, dedup.recent) == "VoidCrowned"
+    dedup.update(100.0, parse([callout("MoonPebble (Doctrine): Thanks!", 10)]))
+    (misread,) = parse([callout("MoanPabble (Doctrine): Good work!", 50)])
+    assert hero_speaker(misread, dedup.recent) == "MoonPebble"
     (other,) = parse([callout("Bobsled (Doctrine): Good work!", 50)])  # not a near miss
     assert hero_speaker(other, dedup.recent) is None
-    (ana,) = parse([callout("VolaCrowned (Ana): Hello!", 50)])  # another hero: nothing to go by
+    (ana,) = parse([callout("MoanPabble (Ana): Hello!", 50)])  # another hero: nothing to go by
     assert hero_speaker(ana, dedup.recent) is None
-    two = parse([callout("VoidCrowned (Doctrine): Thanks!", 10),
-                 callout("VoidCrowned (Doctrine): Good work!", 50),
-                 callout("VoidCrowned (Doctrine): Good work!", 90)])  # fmt: skip
+    two = parse([callout("MoonPebble (Doctrine): Thanks!", 10),
+                 callout("MoonPebble (Doctrine): Good work!", 50),
+                 callout("MoonPebble (Doctrine): Good work!", 90)])  # fmt: skip
     new, _ = dedup.update(101.0, two)
     assert [y.best.text for y in new] == ["Good work!", "Good work!"]

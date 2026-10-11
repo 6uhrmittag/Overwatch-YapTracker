@@ -156,7 +156,7 @@ def test_the_box_starts_at_the_first_real_word():
 
 
 def test_a_line_that_said_nothing_yet_is_no_line():
-    """#424: "VoidCrowned (Doctrine) to W7 (Mei):" before its next row was read, or "[Pip]:",
+    """#424: "MoonPebble (Doctrine) to Kim (Mei):" before its next row was read, or "[Pip]:",
     were stored with empty text. Not a line until a read has its text; with it, it is one."""
     alone = parse([_line("Bo (Doctrine) to Pip (Mei):", 10), _line("[Pip]:", 50)])
     assert [p.kind for p in alone] == ["cut", "cut"]

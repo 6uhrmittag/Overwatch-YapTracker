@@ -4,11 +4,16 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · No empty lines, no new player for a misread callout name (#424)
+- A callout whose message wasn't read yet is no longer stored as an empty line; the full line comes with the next read. The empty lines already stored go once at the next start (a backup is made first).
+- A callout with a misread name (one letter off) keeps the name its hero had in the lines before, so it stays with the right player, and your crew stays your crew.
+- Behind the scenes: real player names that slipped into the code and the changelog with #423 are replaced by made-up ones.
+
 ### 2026-10-11 · The chat field's hint is no line (#422)
 - "PRESS TAB TO CYCLE CHANNELS", the hint in Overwatch's empty chat field, is never stored as a line from "Match" anymore. The one already stored goes at the next start, with the player "Match" it made (a backup is made first).
 
 ### 2026-10-11 · Missed lines are stored after all (#423)
-- A line that one read missed and a later read found between two stored lines is stored now, in its place, in the match it belongs to. "[VoidCrowned]: Tracks" and "You endorsed Trashy!" after Oct 11's match were lost this way.
+- A line that one read missed and a later read found between two stored lines is stored now, in its place, in the match it belongs to. Two lines after a match on Oct 11 were lost this way.
 
 ### 2026-10-11 · Second screen: it stays where it opens (#420)
 - On your second screen YapTracker stays where it opens, at the saved place, instead of jumping up with its title bar above the screen. A move after the start was what pushed it up; there's none anymore when the screen has other scaling than the main one.

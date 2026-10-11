@@ -83,7 +83,7 @@ NEAR_NAME = 70  # a callout's speaker this close to its hero's recent speaker is
 
 def hero_speaker(line: ChatLine, recent: list["Yap"]) -> str | None:
     """The name a callout's hero had in recent lines, when this line's name is a near miss of
-    it (#424): "VolaCrowned (Doctrine)" next to "VoidCrowned (Doctrine)" lines is VoidCrowned.
+    it (#424): "MoanPabble (Doctrine)" next to "MoonPebble (Doctrine)" lines is MoonPebble.
     One hero is one player in a match. None when the line's name is fine or nothing fits."""
     if line.kind != "comms" or not line.hero or not line.speaker:
         return None
@@ -198,7 +198,7 @@ class Dedup:
     def _between(self, ts: float, lines: list[ChatLine], pairs: list) -> list[tuple[int, Yap]]:
         """Rows between two known lines that follow each other, matching nothing: lines an
         earlier read missed (#423). Only new rows were the ones below the last known line, so
-        "[VoidCrowned]: Tracks" and "You endorsed Trashy!", seen later between two stored lines,
+        "[MoonPebble]: Tracks" and "You endorsed Nibbler!", seen later between two stored lines,
         were never stored. Only good readings that look like no known line count; where known
         lines were skipped in between, a row may be one of them misread, so it doesn't."""
         found: list[tuple[int, Yap]] = []

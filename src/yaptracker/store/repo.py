@@ -585,6 +585,11 @@ class Store:
         """(id, text) of lines whose text is LIKE the pattern (case-insensitive), deleted too."""
         return self._read("SELECT id, text FROM chat_messages WHERE text LIKE ?", (pattern,))
 
+    def empty_lines(self) -> list[int]:
+        """Lines stored without text or icon (#424), deleted ones too."""
+        rows = self._read("SELECT id FROM chat_messages WHERE trim(text) = '' AND NOT has_glyphs")
+        return [row[0] for row in rows]
+
     def remove_lines(self, ids: list[int]) -> int:
         """Lines that were never chat (#422) gone for good, and the players only they made
         (no other line, no notes, no verdict). One transaction; returns how many players went."""
