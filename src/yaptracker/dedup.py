@@ -97,6 +97,7 @@ class Yap:
     readings: Counter = field(default_factory=Counter)  # key -> times read
     lines: dict[str, ChatLine] = field(default_factory=dict)  # key -> its most confident read
     match_keys: set[str] = field(default_factory=set)
+    after: int | None = None  # read between known lines: the yap right above it (#423)
     last: ChatLine | None = None  # the reading from the newest frame (its box is on that frame)
 
     @property
@@ -166,6 +167,7 @@ class Dedup:
             yap.add(lines[i])
             if _stored(yap.best) != before:
                 improved.append(yap)
+        missed = self._between(ts, lines, pairs)
         last = pairs[-1][0] if pairs else -1
         new = []
         for line in lines[last + 1 :]:
@@ -174,7 +176,37 @@ class Dedup:
             self._next_id += 1
             new.append(yap)
         self.recent = (self.recent + new)[-self._keep :]
-        return new, improved
+        return [yap for _, yap in missed] + new, improved
+
+    def _between(self, ts: float, lines: list[ChatLine], pairs: list) -> list[tuple[int, Yap]]:
+        """Rows between two known lines that follow each other, matching nothing: lines an
+        earlier read missed (#423). Only new rows were the ones below the last known line, so
+        "[VoidCrowned]: Tracks" and "You endorsed Trashy!", seen later between two stored lines,
+        were never stored. Only good readings that look like no known line count; where known
+        lines were skipped in between, a row may be one of them misread, so it doesn't."""
+        found: list[tuple[int, Yap]] = []
+        for (i0, j0), (i1, j1) in zip(pairs, pairs[1:], strict=False):
+            if j1 != j0 + 1:
+                continue
+            above, below = self.recent[j0], self.recent[j1]
+            rows = lines[i0 + 1 : i1]
+            for step, line in enumerate(rows, start=1):
+                k = match_key(line)
+                if line.quality < GOOD or any(y.similarity(k) >= SAME for y in self.recent):
+                    continue
+                # between the lines around it, so it sorts where it was said
+                gap = below.first_seen - above.first_seen
+                at = above.first_seen + gap * step / (len(rows) + 1)
+                yap = Yap(self._next_id, min(ts, at), after=above.id)
+                yap.add(line)
+                self._next_id += 1
+                found.append((j0, yap))
+        if found:  # into the history at their place, for the next reads
+            below: dict[int, list[Yap]] = {}
+            for j, yap in found:
+                below.setdefault(j, []).append(yap)
+            self.recent = [y for j, old in enumerate(self.recent) for y in (old, *below.get(j, []))]
+        return found
 
     def _align(self, keys: list[str]) -> list[tuple[int, int]]:
         """Matched (line, recent) index pairs, in order: most matches, then the newest entries,

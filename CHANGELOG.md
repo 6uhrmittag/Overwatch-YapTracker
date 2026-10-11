@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · Missed lines are stored after all (#423)
+- A line that one read missed and a later read found between two stored lines is stored now, in its place, in the match it belongs to. "[VoidCrowned]: Tracks" and "You endorsed Trashy!" after Oct 11's match were lost this way.
+
 ### 2026-10-11 · Second screen: it stays where it opens (#420)
 - On your second screen YapTracker stays where it opens, at the saved place, instead of jumping up with its title bar above the screen. A move after the start was what pushed it up; there's none anymore when the screen has other scaling than the main one.
 
