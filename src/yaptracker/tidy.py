@@ -6,7 +6,8 @@ finds is put next to the stored light line:
 - the same line (close in time, folded text alike, as in #293): the best reading replaces the
   light one. Lines fixed or deleted by hand stay as they are.
 - no such line: the light reader missed it; it's inserted at its real time.
-- a light line the best reading never confirms stays as it is.
+- a light line the best reading never confirms, while a kept frame from its time was read, is
+  removed: a repeat or a piece the light reader made up (#432). Lines touched by hand stay.
 """
 
 from dataclasses import dataclass, field
@@ -35,6 +36,17 @@ class TidyMatch:
     light: dict[int, tuple] = field(default_factory=dict)  # stored line -> its light reading
     fixed: set[int] = field(default_factory=set)  # lines that now differ from the light reading
     found: int = 0
+    seen: list[float] = field(default_factory=list)  # times of the kept frames read (#432)
+
+    def unconfirmed(self, stored: list[tuple[Message, bool]], hands_off: set[int]) -> list[int]:
+        """Light lines no best reading paired with, though a kept frame from their time was
+        read: repeats and pieces the light reader made (#432). Never one touched by hand, nor
+        one this tidy-up put in."""
+        mine = {message_id for message_id in self.links.values() if message_id is not None}
+        return [message.id for message, deleted in stored
+                if not deleted and message.id not in self.taken and message.id not in mine
+                and message.id not in hands_off
+                and any(abs(message.ts - t) <= NEAR_S for t in self.seen)]  # fmt: skip
 
     def place(self, yap: Yap, stored: list[tuple[Message, bool]]) -> tuple[Message, bool] | None:
         """The stored light line this best reading is, if any: the most alike one close in time.
