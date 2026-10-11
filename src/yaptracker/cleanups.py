@@ -10,6 +10,29 @@ from yaptracker.store.backups import before_merge
 log = logging.getLogger(__name__)
 
 
+def normalise_places_once(store, backups: Path, done: Callable[[], bool],
+                          save: Callable[[], object]) -> int:  # fmt: skip
+    """Matches from before #276 keep hero select's raw readings ("3 COLO SEO", a map read as
+    the mode): through the game lists once, what still matches nothing cleared (#435).
+    Returns how many matches changed."""
+    from yaptracker import game_lists
+
+    if done():
+        return 0
+    changes = []
+    for match_id, raw_map, raw_mode in store.match_places():
+        now = (game_lists.map_name(raw_map), game_lists.queue(raw_mode))
+        if now != (raw_map, raw_mode):
+            changes.append((match_id, *now))
+    if changes:
+        before_merge(store.backup_to, backups, "cleanup")
+        for match_id, map_name, mode in changes:
+            store.set_match_place(match_id, map_name, mode)
+        log.info("normalised map and mode of %d older match(es) (#435)", len(changes))
+    save()
+    return len(changes)
+
+
 def remove_empty_lines_once(store, backups: Path, done: Callable[[], bool],
                             save: Callable[[], object]) -> int:  # fmt: skip
     """Lines stored without any text (#424): a callout whose message row wasn't read yet, or

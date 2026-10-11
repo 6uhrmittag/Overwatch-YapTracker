@@ -222,6 +222,18 @@ def save_channel_colours(colours: dict[str, float], path: Path | None = None) ->
     _save(path, data)
 
 
+def places_normalised(path: Path | None = None) -> bool:
+    """Older matches' map and mode went through the game lists once (#435)."""
+    return _load(path or paths.config_file()).get("places_normalised", False)
+
+
+def save_places_normalised(path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["places_normalised"] = True
+    _save(path, data)
+
+
 def empty_removed(path: Path | None = None) -> bool:
     """Lines stored without text were removed once (#424)."""
     return _load(path or paths.config_file()).get("empty_removed", False)

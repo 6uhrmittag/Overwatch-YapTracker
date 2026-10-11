@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · Map names written right (#435)
+- Sessions writes map names like "King's Row" instead of "King'S Row".
+- Matches from the first days get their map and mode from the game lists once ("3 Colo Seo" becomes Colosseo); what was only misread text is cleared. A backup is made first.
+
 ### 2026-10-11 · The tidy-up shows itself and clears up (#432)
 - The tidy-up after a light match says in the log when it starts, pauses for the next match, resumes and finishes ("tidied match N: … fixed, … found, … removed").
 - It removes light-read repeats and pieces that the best reader doesn't see in the same moments; lines you fixed or flagged by hand always stay.

@@ -10,7 +10,7 @@ from nicegui import ui
 
 from yaptracker import config, runtime
 from yaptracker.ui import icons
-from yaptracker.ui.components import button, callout_toggle, count, sub_page, when
+from yaptracker.ui.components import button, callout_toggle, count, place_name, sub_page, when
 from yaptracker.ui.heart import Heart
 from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.snap_dialog import snap_dialog
@@ -137,7 +137,7 @@ def _match_list(session, back, open_match) -> None:
                     if store.gaps_between(match.started_at, _match_end(match)):
                         ui.label("incomplete").classes("yt-incomplete").mark("incomplete")
                     ui.element("div").classes("yt-grow")
-                    mode = f"{match.mode.title()} \u00b7 " if match.mode else ""
+                    mode = f"{place_name(match.mode)} \u00b7 " if match.mode else ""
                     ui.label(
                         f"{mode}{_clock(match.started_at)} \u00b7 "
                         f"{_length(match.started_at, _match_end(match))} \u00b7 "
@@ -146,7 +146,7 @@ def _match_list(session, back, open_match) -> None:
 
 
 def _title(match, number: int) -> str:
-    return f"Match {number}" + (f" on {match.map.title()}" if match.map else "")
+    return f"Match {number}" + (f" on {place_name(match.map)}" if match.map else "")
 
 
 def _no_read_again(match_id: int) -> str | None:
