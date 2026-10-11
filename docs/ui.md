@@ -127,6 +127,8 @@ Pill shape, 2 px ink-coloured border, uppercase 800 weight, hard shadow
 
 - **Icon rail:** 76 px wide, 52 px targets, active item = orange filled
   rounded square. Items: Live · Yappers · Sessions · Search · Settings (bottom).
+  Clicking the **current** tab does nothing on its main view, and from a sub-page (profile,
+  transcript, calibration) goes back to the tab's main view, with no opening animation (#404).
 - **Status pill:** Listening (green, pulsing) · Paused (orange) · Waiting for
   Overwatch (muted). While listening it names the match (#268): *In a match*
   (map · mode · time) · *Match over* (result, for the 90 s of post-match chat) ·
