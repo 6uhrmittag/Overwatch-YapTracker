@@ -132,18 +132,30 @@ def test_a_snapped_half_on_a_150_percent_screen_fits_with_its_wider_border():
     assert clamp(sticks_out, works, dpis) != sticks_out
 
 
-def test_the_window_is_born_on_its_saved_screen_in_the_main_screens_units():
-    """pywebview multiplies x, y, width, height by the main screen's scaling (#365)."""
+def test_the_window_is_born_on_its_saved_screen_in_that_screens_units():
+    """#410: given (-644, 721, 648, 692) for the 100 % screen, Marv's window was found at
+    exactly (-644, 721, 648, 692): pywebview's x 1.5 is mapped back by Windows (96/144), so the
+    numbers are in the units of the screen it lands on, not the main screen's (#365)."""
     from yaptracker.window_place import birth
 
     found = [SECOND_100, MAIN_150]
     saved = Place((-966, 1078, 972, 1038), (-1680, 1068, 1690, 1052))  # Marv's config.json
-    args = birth(saved, found)
-    assert args == {"x": -644, "y": 719, "width": 648, "height": 692}
-    physical = [int(args[k] * 1.5) for k in ("x", "y", "width", "height")]
-    assert all(abs(a - b) <= 1 for a, b in zip(physical, saved.rect, strict=True))
-    same_screen = Place((667, 106, 2042, 1911), (667, 106, 2042, 1911))  # 2026-10-09
+    assert birth(saved, found) == {"x": -966, "y": 1078, "width": 972, "height": 1038}
+    same_screen = Place((667, 106, 2042, 1911), (667, 106, 2042, 1911))  # 2026-10-09, 150 %
     assert birth(same_screen, found) == {"x": 445, "y": 71, "width": 1361, "height": 1274}
+
+
+def test_set_window_placement_reads_the_rect_in_the_windows_own_units():
+    """#410: SetWindowPlacement, given Marv's place in real pixels, put the top at 721 (x 2/3)
+    while SetWindowPos put the bottom at 2120: 1399 px tall. Converted, it lands right."""
+    from yaptracker.window_place import in_window_units
+
+    marv = (-966, 1082, 972, 1038)
+    assert in_window_units(marv, 96, 144) == (-644, 721, 648, 692)  # what Windows made of it
+    converted = in_window_units(marv, 144, 96)
+    assert converted == (-1449, 1623, 1458, 1557)
+    assert in_window_units(converted, 96, 144) == marv  # read back: the same place
+    assert in_window_units(marv, 144, 144) == marv  # same scaling: nothing to convert
 
 
 def test_no_birth_place_without_a_saved_place_on_a_screen():
@@ -153,4 +165,4 @@ def test_no_birth_place_without_a_saved_place_on_a_screen():
     gone = Place((-966, 1078, 972, 1038), (-966, 1078, 972, 1038))
     assert birth(gone, [MAIN_150]) == {}  # its screen was unplugged
     maxed = Place((-1928, 1070, 1936, 1048), (-1680, 1068, 1690, 1052), maximized=True)
-    assert birth(maxed, [SECOND_100, MAIN_150])["x"] == -1120  # born at its un-maximised place
+    assert birth(maxed, [SECOND_100, MAIN_150])["x"] == -1680  # born at its un-maximised place

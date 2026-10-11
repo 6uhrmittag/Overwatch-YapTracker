@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · Opens at its size on a second screen (#410)
+- YapTracker opens on your second screen at the size you left it, instead of too tall with its top above the screen. It's born right there, and Windows no longer gets the place in two different units when the second screen has other scaling than the main one.
+
 ### 2026-10-11 · Fewer false ◇ (#402)
 - Plain lines no longer get a ◇ for an icon that isn't there. It came from the game's scenery right after a short line: something bright behind it for a moment. A ◇ now needs the icon in at least half of the readings, and bright scenery doesn't count.
 - System lines (`[Name] left the game.`, `You endorsed …!`) never get one, and a `[Report]` link with a ◇ after it is still taken off and marks the line spicy.
