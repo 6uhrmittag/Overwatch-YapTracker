@@ -214,5 +214,8 @@ def parse(
         for line in group[1:]:
             box = _union(box, line.box)
         parsed = replace(_classify(text, confidence, box), head=group[0].box)
-        result.append(replace(parsed, kind="cut") if i == 0 and top_is_cut else parsed)
+        # Said nothing yet: "Name (Hero) to Other (Hero):" before its next row shows up, or
+        # "[Name]:" with the rest unread. Not a line until a read has its text (#424).
+        empty = parsed.kind in ("message", "comms") and not parsed.text.strip()
+        result.append(replace(parsed, kind="cut") if (i == 0 and top_is_cut) or empty else parsed)
     return result

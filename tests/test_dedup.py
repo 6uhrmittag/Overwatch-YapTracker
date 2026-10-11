@@ -200,3 +200,27 @@ def test_lines_that_differ_only_in_a_name_stay_apart_and_one_word_lines_stay():
         ("Bo", "gg"),
         ("VoidCrowned", "Tracks"),
     ]
+
+
+def test_a_misread_callout_name_is_its_heroes_recent_speaker():
+    """#424: "VolaCrowned (Doctrine): Good work!" next to VoidCrowned's Doctrine callouts made a
+    new player and lost the crew mark. One hero is one player: the near-miss name is fixed.
+    Void really said "Good work!" twice: both stay lines (no merging by text)."""
+    from yaptracker.dedup import hero_speaker
+
+    def callout(text, y):
+        return OcrLine(text, 0.98, Region(64, y, 400, 24))
+
+    dedup = Dedup()
+    dedup.update(100.0, parse([callout("VoidCrowned (Doctrine): Thanks!", 10)]))
+    (misread,) = parse([callout("VolaCrowned (Doctrine): Good work!", 50)])
+    assert hero_speaker(misread, dedup.recent) == "VoidCrowned"
+    (other,) = parse([callout("Bobsled (Doctrine): Good work!", 50)])  # not a near miss
+    assert hero_speaker(other, dedup.recent) is None
+    (ana,) = parse([callout("VolaCrowned (Ana): Hello!", 50)])  # another hero: nothing to go by
+    assert hero_speaker(ana, dedup.recent) is None
+    two = parse([callout("VoidCrowned (Doctrine): Thanks!", 10),
+                 callout("VoidCrowned (Doctrine): Good work!", 50),
+                 callout("VoidCrowned (Doctrine): Good work!", 90)])  # fmt: skip
+    new, _ = dedup.update(101.0, two)
+    assert [y.best.text for y in new] == ["Good work!", "Good work!"]

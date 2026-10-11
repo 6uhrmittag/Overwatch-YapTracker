@@ -78,6 +78,23 @@ def text_key(who: str | None, text: str) -> str:
     return " ".join(key.split()).lower()
 
 
+NEAR_NAME = 70  # a callout's speaker this close to its hero's recent speaker is a misreading
+
+
+def hero_speaker(line: ChatLine, recent: list["Yap"]) -> str | None:
+    """The name a callout's hero had in recent lines, when this line's name is a near miss of
+    it (#424): "VolaCrowned (Doctrine)" next to "VoidCrowned (Doctrine)" lines is VoidCrowned.
+    One hero is one player in a match. None when the line's name is fine or nothing fits."""
+    if line.kind != "comms" or not line.hero or not line.speaker:
+        return None
+    same_hero = [y.best for y in recent if y.best.kind == "comms" and y.best.hero == line.hero]
+    names = Counter(said.speaker for said in same_hero if said.speaker)
+    if not names or line.speaker in names:
+        return None
+    name = names.most_common(1)[0][0]
+    return name if fuzz.ratio(line.speaker.lower(), name.lower()) >= NEAR_NAME else None
+
+
 def _plain(text: str) -> str:
     """The text without its "◇" marks, to compare readings of one line."""
     return " ".join(text.replace(GLYPH, " ").split())
