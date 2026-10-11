@@ -32,6 +32,7 @@ FADE_S = 10.0  # a line is visible for ~9 s after it first appears (measured on 
 # its prompt (54 samples, 2026-10-01), then fades (#179).
 HISTORY_S = 20.0
 KEEP = 40  # recent lines to match against; an open chat box shows about 8
+PART_MIN = 4  # letters: a shorter reading isn't taken for the beginning of another line (#432)
 UNSTORED_S = 60.0  # a row seen-but-not-stored is forgotten after this long out of sight (#425)
 
 
@@ -96,6 +97,18 @@ def hero_speaker(line: ChatLine, recent: list["Yap"]) -> str | None:
     return name if fuzz.ratio(line.speaker.lower(), name.lower()) >= NEAR_NAME else None
 
 
+def _same_speaker(a: str | None, b: str | None) -> bool:
+    """Two readings of one name (light OCR: "uwultrar rww", a "]" read as "l")."""
+    if not a or not b:
+        return a == b
+    return fuzz.ratio(_folded(clean(a)), _folded(clean(b))) >= NEAR_NAME
+
+
+def _folded(text: str) -> str:
+    """Folded, lower-case, single-spaced text: to see whether one reading begins another."""
+    return " ".join(_fold(text).lower().split())
+
+
 def _plain(text: str) -> str:
     """The text without its "◇" marks, to compare readings of one line."""
     return " ".join(text.replace(GLYPH, " ").split())
@@ -130,6 +143,14 @@ class Yap:
             return (q >= GOOD, q >= GOOD and _accented(self.lines[k].text), self.readings[k], q)
 
         best = self.lines[max(self.readings, key=rank)]
+        start, read = _folded(best.text), self.readings[key(best)]
+        # read at least as often: map text glued once to the end ("gg TOURING EM") stays out
+        longer = [line for k, line in self.lines.items()
+                  if line.quality >= GOOD and self.readings[k] >= read
+                  and _folded(line.text).startswith(start)
+                  and len(_folded(line.text)) > len(start)]  # fmt: skip
+        if longer:  # light OCR read the beginning first ("so please n"): the whole line (#432)
+            best = max(longer, key=lambda line: len(_folded(line.text)))
         # ◇ when at least half of the good readings saw the icon (#402). One reading out of many
         # was enough before (#259), and the map behind a line changes while it's on screen:
         # sooner or later something bright sat right after the text. Icon callouts always
@@ -143,6 +164,10 @@ class Yap:
                 return best
             return replace(best, text=self.lines[marked[0]].text)
         return replace(best, text=plain) if GLYPH in best.text else best
+
+    def total(self) -> int:
+        """How often this line was read, all readings together."""
+        return sum(self.readings.values())
 
     @property
     def weak(self) -> bool:
@@ -168,6 +193,7 @@ class Dedup:
         self._next_id = 1
         self._open_until = -1.0  # the history stays on screen for a while after the chat closes
         self.unstored: list[ChatLine] = []  # rows seen twice but never stored, this read (#425)
+        self._between_seen: dict[tuple[str, int], int] = {}  # a missed line, read how often
         self._seen_unstored: dict[str, tuple[int, float]] = {}  # key -> (times seen, last seen)
 
     def update(self, ts: float, lines: list[ChatLine]) -> tuple[list[Yap], list[Yap]]:
@@ -179,7 +205,11 @@ class Dedup:
         chat_open = ts <= self._open_until
         lines = [line for line in lines if line.kind in YAP_KINDS]
         pairs = self._align([match_key(line) for line in lines])
-        pairs = [p for n, p in enumerate(pairs) if self._valid(ts, pairs, n, chat_open)]
+        # Three known lines in order, two of them long faded: the opened chat's history, also
+        # when its input row wasn't read (light OCR, #432), so they aren't new again.
+        faded = sum(1 for _, j in pairs if ts - self.recent[j].first_seen > self._fade_s)
+        history = len(pairs) >= 3 and faded >= 2
+        pairs = [p for n, p in enumerate(pairs) if self._valid(ts, pairs, n, chat_open or history)]
         improved = []
         for i, j in pairs:
             yap = self.recent[j]
@@ -191,6 +221,14 @@ class Dedup:
         last = pairs[-1][0] if pairs else -1
         new = []
         for line in lines[last + 1 :]:
+            whole = self._part_of(line)
+            if whole is not None:  # the beginning of a known line, or that line read whole
+                if whole.total() <= 2 and len(_folded(line.text)) > len(_folded(whole.best.text)):
+                    before = _stored(whole.best)
+                    whole.add(line)
+                    if _stored(whole.best) != before and whole not in improved:
+                        improved.append(whole)
+                continue
             yap = Yap(self._next_id, ts)
             yap.add(line)
             self._next_id += 1
@@ -219,6 +257,23 @@ class Dedup:
                 report.append(line)
         return report
 
+    def _part_of(self, line: ChatLine) -> "Yap | None":
+        """A recent line this row is the beginning of, or whose beginning it is, said by a
+        similar name (#432): light OCR read "so please n" and "were in the" off longer lines."""
+        text = _folded(line.text)
+        if len(text) < PART_MIN:
+            return None
+        for yap in reversed(self.recent):
+            said = yap.best
+            if said.kind != line.kind or not _same_speaker(said.speaker, line.speaker):
+                continue
+            other = _folded(said.text)
+            if len(other) < PART_MIN or other == text:
+                continue
+            if other.startswith(text) or (text.startswith(other) and yap.total() <= 2):
+                return yap
+        return None
+
     def _between(self, ts: float, lines: list[ChatLine], pairs: list) -> list[tuple[int, Yap]]:
         """Rows between two known lines that follow each other, matching nothing: lines an
         earlier read missed (#423). Only new rows were the ones below the last known line, so
@@ -235,6 +290,12 @@ class Dedup:
                 k = match_key(line)
                 if line.quality < GOOD or any(y.similarity(k) >= SAME for y in self.recent):
                     continue
+                if self._part_of(line) is not None:
+                    continue  # a piece of a known line (#432)
+                seen = self._between_seen.get((k, above.id), 0) + 1
+                self._between_seen[(k, above.id)] = seen
+                if seen < 2:
+                    continue  # read the same way twice first: never from one reading (#432)
                 # between the lines around it, so it sorts where it was said
                 gap = below.first_seen - above.first_seen
                 at = above.first_seen + gap * step / (len(rows) + 1)

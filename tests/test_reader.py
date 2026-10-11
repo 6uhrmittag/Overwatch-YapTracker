@@ -297,6 +297,7 @@ def test_a_line_missed_after_a_match_goes_to_that_match_in_its_place(store):
     after = tracker.match_id
     tracker.end_match(1002.0, "victory")
     tracker.new_match(1004.0, source="heroselect")  # the next match starts
+    reader.read_frame(1005.0, later)  # read twice before it counts (#432)
     reader.read_frame(1006.0, later)
     assert [m.text for m in store.messages(after)] == ["cute Mei skin so yeah", "Tracks",
                                                        "You endorsed Bo!"]  # fmt: skip
