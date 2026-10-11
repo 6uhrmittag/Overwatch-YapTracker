@@ -159,6 +159,7 @@ def test_lines_an_earlier_read_missed_are_stored_between_their_neighbours():
     dedup.update(101.0, read("[Void]: cute Mei skin so yeah", "You endorsed Waffelbrot!"))
     later = read("[Void]: cute Mei skin so yeah", "[Void]: Tracks", "You endorsed Nibbler!",
                  "You endorsed Waffelbrot!")  # fmt: skip
+    assert dedup.update(102.0, later)[0] == []  # read once: wait for a second reading (#432)
     new, _ = dedup.update(103.0, later)
     assert [(y.best.text, y.after) for y in new] == [("Tracks", 1), ("You endorsed Nibbler!", 1)]
     assert 100.0 < new[0].first_seen < new[1].first_seen < 101.0  # between the lines around
@@ -240,3 +241,45 @@ def test_a_row_seen_twice_but_never_stored_is_reported_once():
     reported = [[line.text for line in (dedup.update(t, seen), dedup.unstored)[1]]
                 for t in (102.0, 104.0, 106.0)]  # fmt: skip
     assert reported == [[], ["from before", "sneaky"], []]
+
+
+def _rows(*texts):
+    return parse([OcrLine(t, 1.0, Region(64, 10 + 40 * n, 400, 24)) for n, t in enumerate(texts)])
+
+
+def test_the_opened_chats_history_is_known_even_without_its_input_row():
+    """#432: light OCR didn't read the open box's input row, so three old lines in its history
+    counted as faded, the alignment dropped them and the whole frame was stored again."""
+    dedup = Dedup()
+    dedup.update(100.0, _rows("[Pip]: please not"))
+    dedup.update(101.0, _rows("[Pip]: please not", "[Pip]: were in the same team btw"))
+    dedup.update(102.0, _rows("[Pip]: please not", "[Pip]: were in the same team btw",
+                              "[Pip]: so please no killing"))  # fmt: skip
+    history = _rows("[Pip]: please not", "[Pipl: were in the same team btw",
+                    "[Pip]: so please no killing")  # fmt: skip
+    assert dedup.update(300.0, history)[0] == []  # minutes later, the box opened: no repeats
+
+
+def test_a_light_reading_of_a_lines_beginning_is_no_new_line():
+    """#432: "so please n", "so please" and "were in the" were stored as lines of their own."""
+    dedup = Dedup()
+    for t in (100.0, 101.0, 102.0):
+        dedup.update(t, _rows("[Pip]: were in the same team btw", "[Pip]: so please no killing"))
+    for piece in ("[Pip]: so please n", "[Pipl: so please", "[Pip]: were in the"):
+        assert dedup.update(103.0, _rows("[Pip]: so please no killing", piece))[0] == [], piece
+
+
+def test_a_beginning_read_first_becomes_the_whole_line():
+    """The beginning came first ("so please n"): the whole reading replaces it, no second line."""
+    dedup = Dedup()
+    (first,), _ = dedup.update(100.0, _rows("[Pip]: so please n"))
+    new, improved = dedup.update(101.0, _rows("[Pip]: so please no killing"))
+    assert new == [] and improved == [first] and first.best.text == "so please no killing"
+
+
+def test_short_lines_that_start_alike_stay_two_lines():
+    """ "gg" and then "gg wp" are two lines: too short to be a piece of each other."""
+    dedup = Dedup()
+    dedup.update(100.0, _rows("[Pip]: gg"))
+    new, _ = dedup.update(101.0, _rows("[Pip]: gg", "[Pip]: gg wp"))
+    assert [y.best.text for y in new] == ["gg wp"]
