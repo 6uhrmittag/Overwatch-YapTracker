@@ -215,6 +215,18 @@ def save_channel_colours(colours: dict[str, float], path: Path | None = None) ->
     _save(path, data)
 
 
+def chat_colours(path: Path | None = None) -> dict[str, str]:
+    """The chat colours picked in Settings (#401), e.g. {"team": "#00c1ff"}; the rest default."""
+    return _load(path or paths.config_file()).get("chat_colours", {})
+
+
+def save_chat_colours(colours: dict[str, str], path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["chat_colours"] = colours
+    _save(path, data)
+
+
 def identity(path: Path | None = None) -> Identity:
     saved = _load(path or paths.config_file())
     return Identity(me=tuple(saved.get("my_names", [])), crew=tuple(saved.get("crew", [])))

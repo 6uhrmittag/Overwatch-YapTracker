@@ -10,8 +10,8 @@ from dataclasses import replace
 
 from nicegui import ui
 
-from yaptracker import config, logs, paths
-from yaptracker.snaps import PRESETS, Style, preset_of, render, save, snap_lines, with_preset
+from yaptracker import chat_colours, config, logs, paths
+from yaptracker.snaps import PRESETS, preset_of, remembered, render, save, snap_lines, with_preset
 from yaptracker.ui.components import allow_switch, button, switch
 
 _FONTS = {"nunito": "Nunito Sans", "barlow": "Barlow Condensed"}
@@ -38,7 +38,7 @@ _COPY = (
 
 def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> None:  # noqa: C901 - split up after v1 (#311)
     state = {"hide": False, "crew": False, "image": None,
-             "style": Style.from_dict(config.snap_style())}  # fmt: skip
+             "style": remembered(config.snap_style(), chat_colours.current())}  # fmt: skip
     with ui.dialog() as dialog, ui.element("section").classes("yt-card yt-snap"):
         with ui.element("div").classes("yt-card-body"):
             ui.label("Your yap snap").classes("yt-h2")
@@ -105,11 +105,12 @@ def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> 
     def show_presets() -> None:
         style, box = state["style"], state["presets"]
         presets = {key: label for key, (label, _) in PRESETS.items()}
-        if preset_of(style) is None:
+        chosen = preset_of(style, chat_colours.current())
+        if chosen is None:
             presets["custom"] = "Custom"
         box.clear()
         with box:
-            segment(presets, preset_of(style) or "custom", pick_preset, "preset")
+            segment(presets, chosen or "custom", pick_preset, "preset")
 
     def draw() -> None:
         lines = snap_lines(messages, state["hide"], state["crew"], started_at)
@@ -129,7 +130,7 @@ def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> 
 
     def pick_preset(key: str) -> None:
         if key in PRESETS:
-            state["style"] = with_preset(state["style"], key)
+            state["style"] = with_preset(state["style"], key, chat_colours.current())
             restyle()
 
     def colour(key: str, value: str | None) -> None:
