@@ -20,6 +20,7 @@ from yaptracker.snaps import MAX_LINES
 from yaptracker.store.backups import last_backup
 from yaptracker.ui import timing
 from yaptracker.ui.calibrate import calibrate
+from yaptracker.ui.chat_colours import chat_colours_card
 from yaptracker.ui.components import (
     SPICY,
     button,
@@ -726,6 +727,7 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                         ).classes("yt-hint")
             reading_card()
             crew_card()
+            chat_colours_card()
             startup_card()
             hotkeys_card()
             with ui.element("section").classes("yt-card").mark("data"):

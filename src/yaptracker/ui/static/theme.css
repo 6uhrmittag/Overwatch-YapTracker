@@ -27,10 +27,11 @@
   --yt-accent-shadow: #b86a10;
   --yt-ok: #7ce38b;
   --yt-danger: #ff5c66;
-  --yt-team: #5cc3ff;
-  --yt-match: #ffae4d;
+  --yt-team: #00c1ff;  /* chat colours: Overwatch's defaults, changeable in Settings (#401) */
+  --yt-match: #fd8d00;
   --yt-group: #7ce38b;
   --yt-system: #8a93a6;
+  --yt-chat: #9aa3b5;
   --yt-display: "Barlow Condensed", sans-serif;
   --yt-body: "Nunito Sans", system-ui, sans-serif;
 }
@@ -320,7 +321,13 @@ html, body { background: var(--yt-night); }
   .yt-read-chip { flex-shrink: 0; width: 64px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
   .yt-read-speaker { font-weight: 800; margin-right: 6px; }
   .yt-read-line.is-ignored { opacity: .5; }
-  .yt-ch-chat, .yt-ch-ignored { color: var(--yt-muted); }
+  .yt-ch-chat { color: var(--yt-chat); }
+  .yt-colour-rows { display: flex; flex-direction: column; gap: 4px; }  /* Settings -> Chat colours (#401) */
+  .yt-colour-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; }
+  .yt-colour-pick { width: 170px; }
+  .yt-colour-sample { flex: 1; min-width: 260px; }
+  .yt-hint--warn { margin-top: -4px; color: var(--yt-danger); }
+  .yt-ch-ignored { color: var(--yt-muted); }
   .yt-ch-unknown { color: var(--yt-danger); }
 
   /* Me & my crew */

@@ -39,8 +39,8 @@ class Style:
     card: str = "#1a1f29"
     text: str = "#f2f4f8"
     accent: str = "#ff9c2a"
-    team: str = "#5cc3ff"
-    match: str = "#ffae4d"
+    team: str = "#00c1ff"  # the chat colours' defaults (#401); the night look takes yours
+    match: str = "#fd8d00"
     group: str = "#7ce38b"
     system: str = "#8a93a6"
     font: str = "nunito"  # nunito / barlow: the bundled fonts, nothing else
@@ -71,17 +71,37 @@ PRESETS = {
 }  # fmt: skip
 
 
-def preset_of(style: Style) -> str | None:
+_GROUND = ("background", "card", "text", "accent")
+
+
+def _preset(key: str, chat: dict[str, str] | None) -> Style:
+    """A preset's colours. The night look is YapTracker's, so it takes your chat colours (#401)."""
+    preset = PRESETS[key][1]
+    if key == "night" and chat:
+        preset = replace(preset, **{c: chat[c] for c in _CHANNELS if c in chat})
+    return preset
+
+
+def preset_of(style: Style, chat: dict[str, str] | None = None) -> str | None:
     """Which preset these colours are, or None for custom colours."""
-    for key, (_, preset) in PRESETS.items():
-        if all(getattr(style, c) == getattr(preset, c) for c in _LOOKS):
+    for key in PRESETS:
+        if all(getattr(style, c) == getattr(_preset(key, chat), c) for c in _LOOKS):
             return key
     return None
 
 
-def with_preset(style: Style, key: str) -> Style:
+def with_preset(style: Style, key: str, chat: dict[str, str] | None = None) -> Style:
     """The preset's colours; the font and the switches stay as they were."""
-    return replace(style, **{c: getattr(PRESETS[key][1], c) for c in _LOOKS})
+    return replace(style, **{c: getattr(_preset(key, chat), c) for c in _LOOKS})
+
+
+def remembered(saved: dict, chat: dict[str, str]) -> Style:
+    """The last snap's look. In the night look the lines follow your chat colours, also when you
+    changed them since (#401)."""
+    style = Style.from_dict(saved)
+    if all(getattr(style, c) == getattr(PRESETS["night"][1], c) for c in _GROUND):
+        style = with_preset(style, "night", chat)
+    return style
 
 
 def _mix(a: str, b: str, t: float) -> str:
@@ -197,7 +217,7 @@ def _layout(lines: list[SnapLine], width: int, style: Style) -> tuple[list[tuple
                         _face("nunito", 12, 800)))  # fmt: skip
         x = start
         pieces = [(f"{line.who}: ", colour, 800)] if line.who else []
-        text_colour = soft if line.channel == "system" else style.text
+        text_colour = colour if line.channel == "system" else style.text  # like Live (#401)
         pieces += [(token, text_colour, 400) for token in _tokens(line.text)]
         for token, token_colour, weight in pieces:
             runs = [] if token.strip() == GLYPH else _runs(token, 17, weight, style.font)
