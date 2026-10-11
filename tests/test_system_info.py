@@ -34,7 +34,7 @@ def test_the_start_block(monkeypatch, caplog):
         "system: YapTracker v0.0.0.dev0 | Windows 11 Pro 24H2 (build 26100.4061)",
         "system: CPU Intel(R) Core(TM) i7-13700K, 16 cores / 24 threads | RAM 32 GB",
         "system: GPU 0 NVIDIA GeForce RTX 4090 (24 GB) | GPU 1 AMD Radeon(TM) Graphics (iGPU)",
-        "system: settings: OCR RapidOCR, Competitive after, other best, read every 1.5 s, "
+        "system: settings: OCR RapidOCR, Competitive after, other light, read every 1.5 s, "
         "debug samples on, update check on",
     ]  # the same card listed twice by Windows counts once
 
@@ -56,7 +56,7 @@ def test_settings_are_logged_again_when_they_change(caplog):
         config.save_debug_samples(False)
         config.save_identity(["Pickle"], ["Waffle"])  # not a setting of the line: no new line
         config.save_update_check(False)
-    head = "OCR RapidOCR, Competitive after, other best, read every"
+    head = "OCR RapidOCR, Competitive after, other light, read every"
     assert [r.getMessage().split(f"settings: {head} ")[1] for r in caplog.records] == [
         "1.5 s, debug samples on, update check on",
         "3 s, debug samples on, update check on",

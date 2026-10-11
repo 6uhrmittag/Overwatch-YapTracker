@@ -26,7 +26,7 @@ COMPETITIVE_QUEUES = frozenset({"COMPETITIVE", "GEWERTET"})  # game_lists.queue 
 LIGHT_ENGINE = ocr.WindowsOcrEngine.name
 CHOICES = (AFTER, LIGHT, BEST)  # lightest on the game first (#345)
 DEFAULT_COMPETITIVE = AFTER  # Marv + Void (#330): ranked must be smooth
-DEFAULT_OTHER = BEST
+DEFAULT_OTHER = LIGHT  # Marv, #115/#413: live and light, tidied up with best when idle
 
 
 def competitive(queue: str | None) -> bool:
