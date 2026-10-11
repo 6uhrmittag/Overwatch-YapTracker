@@ -72,10 +72,11 @@ def test_a_player_called_match_is_still_a_message():
     assert (line.kind, line.speaker) == ("message", "Match")
 
 
-def test_comms_line_with_nothing_after_the_colon_is_kept_not_a_crash():
-    # Real shape (#88): the message text sat on the next visual line and wasn't joined.
+def test_comms_line_with_nothing_after_the_colon_is_read_but_no_line_yet():
+    # Real shape (#88): the message text sat on the next visual line and wasn't joined. No
+    # crash; and no line with empty text either until a read has it (#424).
     (line,) = parse([_line("Ana (Ana) to Bo (Zarya):", 10)])
-    assert (line.kind, line.speaker, line.target, line.text) == ("comms", "Ana", "Bo", "")
+    assert (line.kind, line.speaker, line.target, line.text) == ("cut", "Ana", "Bo", "")
 
 
 def test_friends_online_is_a_system_line_without_a_name():
@@ -152,6 +153,15 @@ def test_the_box_starts_at_the_first_real_word():
              ("gg", Region(160, 10, 20, 24)))  # fmt: skip
     (line,) = parse([OcrLine("* [Pickle]: gg", 0.99, Region(20, 10, 160, 24), parts)])
     assert line.text == "gg" and line.box == line.head == Region(64, 10, 116, 24)
+
+
+def test_a_line_that_said_nothing_yet_is_no_line():
+    """#424: "MoonPebble (Doctrine) to Kim (Mei):" before its next row was read, or "[Pip]:",
+    were stored with empty text. Not a line until a read has its text; with it, it is one."""
+    alone = parse([_line("Bo (Doctrine) to Pip (Mei):", 10), _line("[Pip]:", 50)])
+    assert [p.kind for p in alone] == ["cut", "cut"]
+    (joined,) = parse([_line("Bo (Doctrine) to Pip (Mei):", 10), _line("Good work!", 38)])
+    assert (joined.kind, joined.text) == ("comms", "Good work!")
 
 
 @pytest.mark.parametrize("reading", ["[Match]: PRESS TAB TO CYCLE CHANNELS",

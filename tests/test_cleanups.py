@@ -28,3 +28,24 @@ def test_stored_chat_field_hints_go_once_with_the_player_they_made(tmp_path):
                                        lambda: done.append(True)) == 0  # once  # fmt: skip
     finally:
         store.close()
+
+
+def test_lines_stored_without_text_go_once(tmp_path):
+    """#424: a callout stored before its message row was read had empty text (30 such lines in
+    Marv's data). They go once; a line with only an icon (◇) stays."""
+    from yaptracker.cleanups import remove_empty_lines_once
+
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    try:
+        match = store.start_match(store.start_session(T0), T0, "heroselect", "UNRANKED")
+        for n, text in enumerate(["", "  ", "gg", "◇"]):
+            store.add_message(ts=T0 + n, channel="team", text=text, speaker_raw="Void",
+                              hero="Doctrine", match_id=match, has_glyphs=text == "◇")  # fmt: skip
+        done = []
+        assert remove_empty_lines_once(store, tmp_path / "backups", lambda: bool(done),
+                                       lambda: done.append(True)) == 2  # fmt: skip
+        assert [m.text for m in store.messages(match)] == ["gg", "◇"]
+        assert remove_empty_lines_once(store, tmp_path / "backups", lambda: bool(done),
+                                       lambda: done.append(True)) == 0  # fmt: skip
+    finally:
+        store.close()

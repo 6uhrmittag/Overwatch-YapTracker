@@ -14,12 +14,13 @@ import math
 import threading
 import time
 from collections.abc import Callable
+from dataclasses import replace
 
 import numpy as np
 
 from yaptracker import channels, glyphs, priority
 from yaptracker.cpu_parts import CPU
-from yaptracker.dedup import FADE_S, YAP_KINDS, Dedup, Yap, match_key
+from yaptracker.dedup import FADE_S, YAP_KINDS, Dedup, Yap, hero_speaker, match_key
 from yaptracker.identity import Identity
 from yaptracker.input_row import without_input
 from yaptracker.later import Kept, LaterFrames
@@ -293,7 +294,10 @@ class ChatReader:
         ):
             self._save_colours({"group": learned["group"]})  # seen only when someone uses it
         known = {**saved, **self._seen_colours}
-        return ocr, self._identity().apply(channels.assign(parsed, image, known))
+        lines = channels.assign(parsed, image, known)
+        lines = [replace(line, speaker=name) if (name := hero_speaker(line, self._dedup.recent))
+                 else line for line in lines]  # a misread callout name (#424)  # fmt: skip
+        return ocr, self._identity().apply(lines)
 
     def tidy_frame(self, kept: Kept) -> None:
         """One kept frame of a light match, read with the best quality and put next to the
