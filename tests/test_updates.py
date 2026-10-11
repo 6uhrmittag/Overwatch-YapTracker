@@ -4,6 +4,7 @@ import asyncio
 import logging
 import urllib.error
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from nicegui.testing import User, user_simulation
@@ -134,7 +135,6 @@ def test_update_now_runs_from_the_install_root_only(monkeypatch, tmp_path):
     monkeypatch.setattr(updates.sys, "executable", "/x/Downloads/YapTracker/YapTracker.exe")
     assert updates.install_root() is None  # unpacked somewhere else: update.ps1 by hand
     assert "Only in the installed YapTracker" in updates.cannot_update_now()
-    assert updates.cannot_update_now(match_running=True) == "Updates wait until the match is over."
     with pytest.raises(RuntimeError):
         updates.start_update("v0.5.412")
 
@@ -159,7 +159,9 @@ def test_update_now_copies_the_script_to_temp_and_starts_it(monkeypatch, tmp_pat
     assert "Start-Process '/x/O''Brien/YapTracker/app/YapTracker.exe'" in cmd[-1]
 
 
-async def test_update_now_waits_for_the_match_and_says_why_it_cant(user: User, monkeypatch):
+async def test_update_now_works_any_time_and_says_why_it_cant(user: User, monkeypatch):
+    """#416: no "After this match": Marv decides when to update (a menu line had started a
+    match that never ended, and the button stayed greyed out)."""
     from yaptracker import updates
     from yaptracker.ui import updates as ui_updates
 
@@ -172,11 +174,15 @@ async def test_update_now_waits_for_the_match_and_says_why_it_cant(user: User, m
     button = next(iter(user.find(marker="update-now").elements))
     assert "Only in the installed YapTracker" in button.props["title"]  # this is a source run
     calls = []
-    monkeypatch.setattr(updates, "cannot_update_now", lambda running: None)
+    monkeypatch.setattr(updates, "cannot_update_now", lambda: None)
     monkeypatch.setattr(updates, "start_update", lambda newest: calls.append(newest))
     monkeypatch.setattr(ui_updates, "quit_app", lambda: calls.append("quit"))
+    monkeypatch.setattr(runtime, "matches", SimpleNamespace(running=True))  # a match runs
     await asyncio.sleep(1.2)  # the button looks again every second
     assert "disabled" not in button.props
+    assert [c.text for c in button.default_slot.children if "yt-btn-label" in c.classes] == [
+        "Update now"
+    ]
     user.find(marker="update-now").click()
     await user.should_see("Updating: YapTracker closes now and is back in a minute.")
     assert calls[0] == "v0.5.412"
