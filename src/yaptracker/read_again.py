@@ -8,6 +8,7 @@ has no picture, so it can't be found this way (the tidy-up of #336 keeps whole f
 """
 
 import logging
+import re
 import threading
 import unicodedata
 from collections.abc import Callable
@@ -23,6 +24,7 @@ from yaptracker.ocr.engine import OcrLine
 from yaptracker.parser import ChatLine, parse
 
 log = logging.getLogger(__name__)
+_MARKED = re.compile(r"(?:\s*" + glyphs.GLYPH + r")+\s*$")  # "◇" at the end of a line (#402)
 WAIT_S = 2.0  # a match runs, or nothing to do: look again this often
 
 
@@ -40,6 +42,18 @@ def better(message, line: ChatLine) -> bool:
     ) > letters(message.speaker_raw, message.text)
 
 
+def check_marks_once(again: "ReadAgain", store, checked: Callable[[], bool],
+                     save: Callable[[], object]) -> None:  # fmt: skip
+    """At the first start with #402: the "◇" at the end of stored lines, checked once."""
+    if checked():
+        return
+    marked = store.lines_with_a_trailing_mark()
+    if marked:
+        again.check_marks(marked, on_done=save)
+    else:
+        save()
+
+
 @dataclass
 class Job:
     """One "read again": a match's lines or one line, and how far it got."""
@@ -48,6 +62,8 @@ class Job:
     ids: list[int]
     done: int = 0
     better: list[int] = field(default_factory=list)
+    marks: bool = False  # only check the "◇" at the end (#402)
+    on_done: Callable[[], object] | None = None
 
     @property
     def finished(self) -> bool:
@@ -86,6 +102,11 @@ class ReadAgain:
         ok = message is not None and self._readable(message)
         return self._add(Job(message.match_id if message else None, [message_id] if ok else []))
 
+    def check_marks(self, ids: list[int], on_done: Callable[[], object]) -> Job:
+        """Once (#402): lines stored with a "◇" at the end, checked against their picture with
+        the stricter look; where nothing is there, the mark goes. Pictures stay as they are."""
+        return self._add(Job(None, ids, marks=True, on_done=on_done))
+
     def job(self, match_id: int | None) -> Job | None:
         """The newest job of that match, finished or not (for its progress line)."""
         with self._lock:
@@ -97,9 +118,11 @@ class ReadAgain:
             job = next((j for j in self._jobs if not j.finished), None)
         if job is None or not self._idle():
             return False
-        message_id = job.ids[job.done]
+        message_id = job.ids[job.done] if job.ids else None
         try:
-            improved = self._again(message_id)
+            improved = message_id is not None and (self._marks if job.marks else self._again)(
+                message_id
+            )
         except Exception:
             log.exception("reading line %d again failed", message_id)
             improved = False
@@ -107,9 +130,14 @@ class ReadAgain:
             job.done += 1
             if improved:
                 job.better.append(message_id)
-        if job.finished:
+        if job.finished and job.marks:
+            log.info("checked the \u25c7 of %d line(s) once: %d had no icon after the text, "
+                     "mark removed (#402)", len(job.ids), len(job.better))  # fmt: skip
+        elif job.finished:
             log.info("read %d line(s) again (match %s): %d better", len(job.ids), job.match_id,
                      len(job.better))  # fmt: skip
+        if job.finished and job.on_done is not None:
+            job.on_done()
         return True
 
     def start(self) -> None:
@@ -137,6 +165,23 @@ class ReadAgain:
 
     def _readable(self, message) -> bool:
         return message.edited_at is None and self._pictures.path(message.id, message.ts).exists()
+
+    def _marks(self, message_id: int) -> bool:
+        """The "◇" at the end of one line: still an icon there, read with today's rules?"""
+        message = self._store.message(message_id)
+        if message is None or message.edited_at is not None or not _MARKED.search(message.text):
+            return False
+        if message.channel != "system":  # system lines never end with an icon
+            image = cv2.imread(str(self._pictures.path(message.id, message.ts)))
+            if image is None:
+                return False
+            lines = [line for line in parse(glyphs.mark(image, self._read(image)))
+                     if line.kind in YAP_KINDS]  # fmt: skip
+            if len(lines) != 1 or _MARKED.search(lines[0].text):
+                return False  # can't tell which line it is, or the icon is still there
+        text = _MARKED.sub("", message.text)
+        self._store.drop_trailing_mark(message.id, text, glyphs.has_glyphs(text))
+        return True
 
     def _again(self, message_id: int) -> bool:
         message = self._store.message(message_id)

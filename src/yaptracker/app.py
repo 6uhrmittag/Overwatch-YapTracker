@@ -368,7 +368,7 @@ def _open_store() -> Callable[[], None]:
     from yaptracker.matches import MatchTracker, merge_split_matches
     from yaptracker.ocr import engine as ocr
     from yaptracker.players import PlayerMatcher
-    from yaptracker.read_again import ReadAgain
+    from yaptracker.read_again import ReadAgain, check_marks_once
     from yaptracker.reader import ChatReader
     from yaptracker.reading_mode import AFTER, ReadingMode
     from yaptracker.store.backups import DailyBackup, before_merge
@@ -471,6 +471,8 @@ def _open_store() -> Callable[[], None]:
             link=lambda name, ts, conf: runtime.players.link(name, ts, conf),
         )
         runtime.read_again.start()
+        check_marks_once(runtime.read_again, runtime.store, config.marks_checked,
+                         config.save_marks_checked)  # fmt: skip
 
     def close_store() -> None:
         if runtime.backups is not None:

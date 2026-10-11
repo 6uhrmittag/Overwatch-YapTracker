@@ -164,3 +164,29 @@ async def test_a_match_without_pictures_disables_it_too(user: User, store, pictu
     await open_match(user, store, match)
     await user.should_see("No line pictures left for this match")
     assert "disabled" in user.find(marker="read-again").elements.pop().props
+
+
+def test_marks_the_map_made_are_checked_once_and_dropped(store, pictures):
+    """#402: lines stored with a "◇" at the end are checked once against their picture with the
+    stricter look; where no icon is there, the mark goes. A real icon stays, and so do system
+    lines' text and every picture."""
+    from yaptracker.read_again import check_marks_once
+
+    match = store.start_match(store.start_session(T0), T0, "heroselect", "QUICK PLAY")
+    false = saved(store, pictures, match, 10, "gg wp ◇", has_glyphs=True)
+    real = saved(store, pictures, match, 20, "love u ◇", has_glyphs=True)
+    system = store.add_message(ts=T0 + 30, channel="system", text="You endorsed Pip! ◇",
+                               match_id=match, has_glyphs=True)  # fmt: skip
+    again = ReadAgain(store, pictures, engine({10: "[Pip]: gg wp", 20: "[Pip]: love u ◇"}),
+                      idle=lambda: True)  # fmt: skip
+    done = []
+    check_marks_once(again, store, lambda: bool(done), lambda: done.append(True))
+    while again.run_once():
+        pass
+    texts = {m.id: (m.text, bool(m.has_glyphs)) for m in store.messages(match)}
+    assert texts[false] == ("gg wp", False)
+    assert texts[real] == ("love u ◇", True)
+    assert texts[system] == ("You endorsed Pip!", False)
+    assert done == [True] and pictures.path(false, T0 + 10).exists()
+    check_marks_once(again, store, lambda: bool(done), lambda: done.append(True))  # never again
+    assert done == [True]

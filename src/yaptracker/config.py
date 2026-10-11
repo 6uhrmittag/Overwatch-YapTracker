@@ -215,6 +215,18 @@ def save_channel_colours(colours: dict[str, float], path: Path | None = None) ->
     _save(path, data)
 
 
+def marks_checked(path: Path | None = None) -> bool:
+    """The "◇" at the end of stored lines was checked once with the stricter look (#402)."""
+    return _load(path or paths.config_file()).get("marks_checked", False)
+
+
+def save_marks_checked(path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["marks_checked"] = True
+    _save(path, data)
+
+
 def chat_colours(path: Path | None = None) -> dict[str, str]:
     """The chat colours picked in Settings (#401), e.g. {"team": "#00c1ff"}; the rest default."""
     return _load(path or paths.config_file()).get("chat_colours", {})

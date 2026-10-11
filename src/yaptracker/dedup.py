@@ -111,16 +111,19 @@ class Yap:
             return (q >= GOOD, q >= GOOD and _accented(self.lines[k].text), self.readings[k], q)
 
         best = self.lines[max(self.readings, key=rank)]
-        if GLYPH in best.text:
-            return best
-        for line in self.lines.values():  # an icon one good reading saw stays (#259)
-            if (
-                line.quality >= GOOD
-                and GLYPH in line.text
-                and _plain(line.text) == _plain(best.text)
-            ):
-                return replace(best, text=line.text)
-        return best
+        # ◇ when at least half of the good readings saw the icon (#402). One reading out of many
+        # was enough before (#259), and the map behind a line changes while it's on screen:
+        # sooner or later something bright sat right after the text. Icon callouts always
+        # carry theirs (parser), so the comms icons that came and went are covered.
+        plain = _plain(best.text)
+        same = [k for k, line in self.lines.items()
+                if line.quality >= GOOD and _plain(line.text) == plain] or [key(best)]  # fmt: skip
+        marked = [k for k in same if GLYPH in self.lines[k].text]
+        if 2 * sum(self.readings[k] for k in marked) >= sum(self.readings[k] for k in same) > 0:
+            if GLYPH in best.text or not marked:
+                return best
+            return replace(best, text=self.lines[marked[0]].text)
+        return replace(best, text=plain) if GLYPH in best.text else best
 
     @property
     def weak(self) -> bool:

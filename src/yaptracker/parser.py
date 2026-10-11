@@ -73,7 +73,9 @@ ICON_CALLOUTS = frozenset({"thanks!", "group up!", "fall back!", "i need healing
 _INPUT = re.compile(r"^\[(Match|Team|Group)\](?!" + _COLON + ")")
 _PROMPT = re.compile(r"^\[?(?P<word>[A-Za-z]{3,6})\](?!\s*" + _COLON + ")")
 _PROMPTS = ("Match", "Team", "Group")
-_REPORT = re.compile(r"\s*\[Report\]\s*$")
+_REPORT = re.compile(r"\s*\[Report\](?:\s*" + GLYPH + r")*\s*$")  # a ◇ after it isn't an icon
+# Overwatch puts no icon after a system line's text: a ◇ there is the map behind it (#402).
+_TRAILING_GLYPH = re.compile(r"(?:\s*" + GLYPH + r")+\s*$")
 
 
 @dataclass(frozen=True)
@@ -165,10 +167,11 @@ def _classify(text: str, confidence: float, box: Region) -> ChatLine:
         return replace(line, kind="message", speaker=m["name"], text=said)
     if m := _SYSTEM_NAMED.match(text):
         if _SYSTEM_PHRASE.match(m["text"]):
+            text = _TRAILING_GLYPH.sub("", text)
             return replace(line, kind="system", channel="system", speaker=m["name"], text=text)
         return replace(line, kind="message", speaker=m["name"], text=m["text"].strip())
     if _SYSTEM_PLAIN.match(text):
-        return replace(line, kind="system", channel="system")
+        return replace(line, kind="system", channel="system", text=_TRAILING_GLYPH.sub("", text))
     return line
 
 
