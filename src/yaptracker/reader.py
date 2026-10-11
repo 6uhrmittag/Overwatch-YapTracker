@@ -107,6 +107,7 @@ class ChatReader:
         # Light matches (#336): their changed frames, read again with the best quality when idle
         self.tidy_frames = LaterFrames(lambda: self.min_gap_s, None)
         self._tidy: TidyMatch | None = None
+        self._tidy_paused = False  # said once in the log (#432)
         self.tidied: tuple[int, int, int] | None = None  # (match, fixed, found) of the last one
         self.min_gap_s = min_gap_s  # Settings can change it while running (#152)
         self._last_read = -math.inf  # monotonic time of the last read's start
@@ -162,6 +163,7 @@ class ChatReader:
     def _run(self) -> None:
         priority.lower_this_thread()  # OCR waits for the game, not the other way round (#187)
         while True:
+            self._note_tidy_paused()
             with self._wake:
                 while (self._pending is None and not self._stop and not self._kept_due()
                        and not self._tidy_due()):  # fmt: skip
@@ -310,8 +312,15 @@ class ChatReader:
         if self._tidy is None or self._tidy.match_id != kept.match_id:
             self._tidied()
             self._tidy = TidyMatch(kept.match_id)
+            log.info("tidy: match %d started, %d frame(s) kept", kept.match_id,
+                     len(self.tidy_frames) + 1)  # fmt: skip
+        elif self._tidy_paused:
+            log.info("tidy: match %d resumed, %d frame(s) left", kept.match_id,
+                     len(self.tidy_frames) + 1)  # fmt: skip
+        self._tidy_paused = False
         started = time.thread_time()
         tidy = self._tidy
+        tidy.seen.append(kept.ts)
         _, lines = self._lines(kept.image, self._read_kept(kept.image, BEST))
         new, improved = tidy.dedup.update(kept.ts, lines)
         stored = self._store.match_lines(kept.match_id) if new else []
@@ -353,12 +362,26 @@ class ChatReader:
             self._players) else None  # fmt: skip
 
     def _tidied(self) -> None:
-        """A match's tidy-up is done: the log line and Live's note (#336)."""
+        """A match's tidy-up is done: light lines no best reading confirmed go (#432), then the
+        log line and Live's note (#336)."""
         tidy, self._tidy = self._tidy, None
         if tidy is None:
             return
-        log.info("tidied match %d: %d fixed, %d found", tidy.match_id, len(tidy.fixed), tidy.found)
+        stored = self._store.match_lines(tidy.match_id)
+        doomed = tidy.unconfirmed(stored, self._store.hand_touched(tidy.match_id))
+        self._store.remove_lines(doomed)
+        log.info("tidied match %d: %d fixed, %d found, %d removed (light readings the best reader "
+                 "didn't confirm: repeats, pieces)", tidy.match_id, len(tidy.fixed), tidy.found,
+                 len(doomed))  # fmt: skip
         self.tidied = (tidy.match_id, len(tidy.fixed), tidy.found)
+
+    def _note_tidy_paused(self) -> None:
+        """A tidy-up waits while the next match runs: said once (#432)."""
+        if self._tidy is not None and len(self.tidy_frames) and not self._idle():
+            if not self._tidy_paused:
+                log.info("tidy: match %d paused, %d frame(s) left: a match runs",
+                         self._tidy.match_id, len(self.tidy_frames))  # fmt: skip
+            self._tidy_paused = True
 
     @property
     def menu(self) -> bool:

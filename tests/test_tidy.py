@@ -135,3 +135,58 @@ def _wait(done, timeout=10.0):
     while not done():
         assert time.monotonic() < end, "the reader didn't get there in time"
         time.sleep(0.01)
+
+
+def test_light_repeats_and_pieces_the_best_reader_doesnt_confirm_go(store, caplog):
+    """#432: light stored "so please no killing" twice (the opened box) and a piece of it;
+    the best reading of the same frames has it once. The rest goes, a line fixed by hand stays."""
+    first, opened = np.zeros((100, 400, 3), np.uint8), np.zeros((100, 400, 3), np.uint8)
+    best = {id(first): [line("[Pip]: so please no killing", 10)],
+            id(opened): [line("[Pip]: so please no killing", 10),
+                         line("[Match] PRESS TAB TO CYCLE CHANNELS", 70)]}  # fmt: skip
+    tracker, clock = match(store, mode="QUICK PLAY"), [T0 + 5]
+    reader = reader_for(store, tracker, best, clock)
+    m = tracker.match_id
+    real = store.add_message(ts=T0 + 5, channel="match", text="so please no killing",
+                             speaker_raw="Pip", match_id=m)  # fmt: skip
+    piece = store.add_message(ts=T0 + 6, channel="match", text="so please n", speaker_raw="Pip",
+                              match_id=m)  # fmt: skip
+    repeat = store.add_message(ts=T0 + 60, channel="match", text="so please no killing",
+                               speaker_raw="Pipl", match_id=m)  # fmt: skip
+    mine = store.add_message(ts=T0 + 61, channel="match", text="wp", speaker_raw="Pip", match_id=m)
+    store.edit_message(mine, "well played", T0 + 70)  # touched by hand: never removed
+    reader.keep_for_tidy(first)
+    clock[0] = T0 + 60
+    reader.keep_for_tidy(opened)
+    with caplog.at_level(logging.INFO, logger="yaptracker.reader"):
+        while (kept := reader.tidy_frames.pop()) is not None:
+            reader.tidy_frame(kept)
+    left = {msg.id for msg in store.messages(m)}
+    assert real in left and mine in left and piece not in left and repeat not in left
+    assert f"tidied match {m}: 1 fixed, 0 found, 2 removed" in caplog.text  # fixed: its reading
+
+
+def test_the_tidy_up_says_when_it_starts_pauses_and_resumes(store, caplog):
+    a, b = np.zeros((100, 400, 3), np.uint8), np.zeros((100, 400, 3), np.uint8)
+    best = {id(a): [line("[Pip]: hi", 10)], id(b): [line("[Pip]: hi", 10)]}
+    tracker, clock = match(store), [T0 + 5]
+    idle = [True]
+    reader = reader_for(store, tracker, best, clock, idle=lambda: idle[0])
+    reader.keep_for_tidy(a)
+    reader.keep_for_tidy(b)
+    m = tracker.match_id
+    with caplog.at_level(logging.INFO, logger="yaptracker.reader"):
+        reader.tidy_frame(reader.tidy_frames.pop())
+        idle[0] = False  # the next match starts
+        reader._note_tidy_paused()
+        reader._note_tidy_paused()  # said once
+        idle[0] = True
+        reader.tidy_frame(reader.tidy_frames.pop())
+    said = [r.getMessage() for r in caplog.records if "tid" in r.getMessage()]
+    assert said == [
+        f"tidy: match {m} started, 2 frame(s) kept",
+        f"tidy: match {m} paused, 1 frame(s) left: a match runs",
+        f"tidy: match {m} resumed, 1 frame(s) left",
+        f"tidied match {m}: 0 fixed, 1 found, 0 removed (light readings the best reader didn't "
+        "confirm: repeats, pieces)",
+    ]

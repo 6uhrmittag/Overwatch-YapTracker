@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · The tidy-up shows itself and clears up (#432)
+- The tidy-up after a light match says in the log when it starts, pauses for the next match, resumes and finishes ("tidied match N: … fixed, … found, … removed").
+- It removes light-read repeats and pieces that the best reader doesn't see in the same moments; lines you fixed or flagged by hand always stay.
+
 ### 2026-10-11 · Other matches read live and light by default (#413)
 - New installs read "Other matches" live and light: it costs your game almost nothing, and the best reader tidies up afterwards. Competitive stays "After the match". A choice you already made stays as it is.
 

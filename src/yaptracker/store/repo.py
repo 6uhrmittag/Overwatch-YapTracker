@@ -673,6 +673,16 @@ class Store:
         )
         return [Message(*row) for row in rows]
 
+    def hand_touched(self, match_id: int) -> set[int]:
+        """Lines of a match someone fixed, moved, deleted or flagged by hand: a tidy-up never
+        removes them (#432)."""
+        rows = self._read(
+            "SELECT id FROM chat_messages WHERE match_id = ? AND (edited_at IS NOT NULL OR "
+            "channel_ocr IS NOT NULL OR deleted_at IS NOT NULL OR flagged = 'manual')",
+            (match_id,),
+        )
+        return {row[0] for row in rows}
+
     def match_lines(self, match_id: int) -> list[tuple[Message, bool]]:
         """Every line of a match with whether it was deleted: a tidy-up must not bring a
         deleted line back as "found" (#336)."""
