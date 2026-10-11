@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from nicegui import app, run, ui
 
-from yaptracker import config, runtime, updates
+from yaptracker import config, paths, runtime, updates
 from yaptracker.ui.components import button, switch
 
 HINT = "Asks GitHub which version is newest. Nothing else is sent."
@@ -49,6 +49,51 @@ def whats_new() -> None:
     dialog.open()
 
 
+def after_update_dialog(found: dict) -> None:
+    """What's new since the version that ran before (#412). "Got it" means seen; offline (no
+    notes) it says so and tries again at the next start."""
+    notes = found.get("notes")
+    if runtime.after_update is not None and runtime.after_update.get("to") == found.get("to"):
+        runtime.after_update["shown"] = True  # opened from About: not again after the match
+    with ui.dialog() as dialog, ui.element("section").classes("yt-card yt-whats-new"):
+        with ui.element("div").classes("yt-card-body").mark("after-update"):
+            ui.label(f"What's new in v{found['to']}").classes("yt-h2")
+            if notes:
+                ui.label(f"Fresh paint! Here's what changed since v{found['from']}.").classes(
+                    "yt-meta"
+                )
+                with ui.element("ul").classes("yt-release-notes"):
+                    for note in notes:
+                        with ui.element("li"):
+                            ui.label(re.sub(r"\*\*|`", "", note))
+            else:
+                ui.label(
+                    f"Updated to v{found['to']}. I couldn't reach GitHub for the list: I'll show "
+                    "it at the next start."
+                ).classes("yt-hint")
+            with ui.element("div").classes("yt-row"):
+                ui.element("div").classes("yt-grow")
+                button("Got it", dialog.close, "primary").mark("after-update-ok")
+    if notes:
+        config.save_last_run_version(found["to"])  # shown: never again for this version
+    dialog.open()
+
+
+def watch_after_update() -> None:
+    """The first start of a new version: What's new once, never in a match (#412)."""
+
+    def look() -> None:
+        found = runtime.after_update
+        if found is None or found.get("shown"):
+            return
+        if runtime.matches is not None and runtime.matches.running:
+            return  # after the match
+        found["shown"] = True
+        after_update_dialog(found)
+
+    ui.timer(2.0, look)
+
+
 def update_now_button() -> Callable[[], None]:
     """Update now (#46): runs the bundled update.ps1 and quits, whenever you click it (#416);
     off with the reason where it can't run. Returns its refresh."""
@@ -68,7 +113,11 @@ def update_now_button() -> Callable[[], None]:
             b.props(remove="disabled title")
 
     def go() -> None:
-        newest = runtime.updates.newest if runtime.updates is not None else None
+        check = runtime.updates
+        newest = check.newest if check is not None else None
+        if check is not None and check.found is not None and check.found.notes:  # (#412)
+            updates.save_notes(paths.data_dir() / "whats_new.json", check.installed, newest,
+                               check.found.notes)  # fmt: skip
         try:
             updates.start_update(newest)
         except Exception as error:  # nothing started: YapTracker keeps running
@@ -121,6 +170,12 @@ def update_section() -> None:
         with ui.element("div").classes("yt-row") as newer:
             button("What's new", whats_new, "quiet").mark("update-about-notes")
             update_now_button()
+        this = runtime.updates and updates.notes_for(
+            runtime.updates.installed, paths.data_dir() / "whats_new.json"
+        )
+        if this:  # what came with this version, again (#412)
+            button(f"What changed in v{this['to']}", lambda: after_update_dialog(this),
+                   "quiet").mark("update-this-version")  # fmt: skip
     newer.set_visibility(bool(runtime.updates and runtime.updates.newest))
     switch("Check for updates once a day", config.update_check(), config.save_update_check).mark(
         "update-switch"
