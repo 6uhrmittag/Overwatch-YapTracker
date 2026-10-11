@@ -100,9 +100,11 @@ class UpdateCheck:
         busy: Callable[[], bool] = lambda: False,
         fetch: Callable[[], list[dict]] = fetch_releases,
         clock: Callable[[], float] = time.time,
+        cache: Path | None = None,
     ) -> None:
         self.installed = installed
         self._enabled, self._busy, self._fetch, self._clock = enabled, busy, fetch, clock
+        self._cache = cache  # the releases last fetched, for What's new after an update (#412)
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -129,6 +131,7 @@ class UpdateCheck:
             now = self._clock()
             try:
                 releases = candidates(self._fetch(), self.installed)
+                save_releases(self._cache, releases)
             except Exception as error:  # offline, rate limit, garbage: silent, tomorrow again
                 found = Found(now, error=f"{type(error).__name__}: {error}"[:200])
                 log.info("update: check failed (%s)", found.error)
@@ -156,6 +159,80 @@ class UpdateCheck:
             if self.due():
                 self.check()
             self._stop.wait(POLL_S)
+
+
+# What's new after an update (#412) ----------------------------------------------------------
+
+_KEPT = ("tag_name", "body", "prerelease", "draft")
+
+
+def save_releases(path: Path | None, releases: list[dict]) -> None:
+    """The fetched releases, trimmed to what What's new needs; no-op without a path."""
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    trimmed = [{k: r.get(k) for k in _KEPT} for r in releases]
+    path.write_text(json.dumps(trimmed, ensure_ascii=False), encoding="utf-8")
+
+
+def _load(path: Path) -> object:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def save_notes(path: Path, before: str, after: str | None, notes: list[str]) -> None:
+    """Update now: the notes it already has, for the first start of the new version."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = {"from": before.lstrip("v"), "to": (after or "").lstrip("v"), "notes": notes}
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
+def notes_for(installed: str, notes_file: Path) -> dict | None:
+    """What's new in the installed version, as last shown (#412): About can show it again."""
+    saved = _load(notes_file)
+    if (
+        isinstance(saved, dict)
+        and saved.get("notes")
+        and version(saved.get("to")) == version(installed)
+    ):
+        return saved
+    return None
+
+
+def after_update(installed: str, last_run: str | None, notes_file: Path, cache: Path,
+                 fetch: Callable[[], list[dict]] = fetch_releases) -> dict | None:  # fmt: skip
+    """What's new at the first start of a new version: {"from", "to", "notes"} (notes None:
+    offline, no list), or None (fresh install, same version, downgrade). From what Update now
+    saved, else the releases the daily check cached, else one fetch (the allowed URL)."""
+    now, before = version(installed), version(last_run)
+    if now is None or before is None or now <= before:
+        return None
+    saved = _load(notes_file)
+    if (
+        isinstance(saved, dict)
+        and saved.get("notes")
+        and (
+            version(saved.get("to")),
+            version(saved.get("from")),
+        )
+        == (now, before)
+    ):
+        return {"from": last_run, "to": installed, "notes": saved["notes"]}
+    releases = _load(cache)
+    if not isinstance(releases, list) or not any(version(r.get("tag_name")) == now
+                                                 for r in releases):  # fmt: skip
+        try:
+            releases = candidates(fetch(), installed)
+            save_releases(cache, releases)
+        except Exception as error:
+            log.info("update: no notes for What's new (%s)", type(error).__name__)
+            return {"from": last_run, "to": installed, "notes": None}
+    mine = [r for r in releases if version(r.get("tag_name")) and version(r["tag_name"]) <= now]
+    found = {"from": last_run, "to": installed, "notes": whats_new(mine, last_run)}
+    notes_file.write_text(json.dumps(found, ensure_ascii=False), encoding="utf-8")
+    return found
 
 
 def install_root() -> Path | None:

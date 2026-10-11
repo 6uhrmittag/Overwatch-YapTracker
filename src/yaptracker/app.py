@@ -530,10 +530,28 @@ def _check_for_updates(smoke_test: bool) -> None:
         __version__,
         config.update_check,
         busy=lambda: runtime.matches is not None and runtime.matches.running,
+        cache=paths.data_dir() / "releases.json",
     )
     if not smoke_test:
         app.on_startup(runtime.updates.start)
         app.on_shutdown(runtime.updates.stop)
+        threading.Thread(target=_whats_new_after_update, args=(__version__,), daemon=True,
+                         name="whats new").start()  # fmt: skip
+
+
+def _whats_new_after_update(installed: str) -> None:
+    """The first start of a new version: What's new since the one that ran before (#412). Not
+    on a fresh install, nor the first start with this: no version ran before that it knows."""
+    from yaptracker import updates
+
+    last = config.last_run_version()
+    found = None
+    if last is not None:
+        found = updates.after_update(installed, last, paths.data_dir() / "whats_new.json",
+                                     paths.data_dir() / "releases.json")  # fmt: skip
+    runtime.after_update = found
+    if found is None:
+        config.save_last_run_version(installed)
 
 
 def run(

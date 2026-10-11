@@ -7,6 +7,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-11 · Other matches read live and light by default (#413)
 - New installs read "Other matches" live and light: it costs your game almost nothing, and the best reader tidies up afterwards. Competitive stays "After the match". A choice you already made stays as it is.
 
+### 2026-10-11 · What's new after an update (#412)
+- After an update, YapTracker shows once what changed since the version you had: "Fresh paint! Here's what changed since …". Never in a match: it waits until the match is over.
+- Settings → About → "What changed in v…" shows it again any time.
+
 ### 2026-10-11 · Missed lines become a number (#425)
 - When YapTracker reads a chat line twice but doesn't store it, the log says so ("seen twice but never stored") and keeps a debug sample of that moment. The evening line counts them, so missing lines show up as a number instead of a feeling.
 

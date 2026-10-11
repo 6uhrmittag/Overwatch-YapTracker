@@ -56,5 +56,6 @@ evenings: Evenings | None = None  # one quality line per evening (#379), with th
 hotkeys = None  # the HotkeyListener (Windows app only); .failed = keys another app owns
 bind_hotkeys: Callable[[bool], None] | None = None  # (re)register them; None in --dev and tests
 updates: UpdateCheck | None = None  # once a day: a newer YapTracker? (#46)
+after_update: dict | None = None  # What's new since the version that ran before (#412)
 data_too_new: str | None = None  # the database is from a newer YapTracker (#352)
 lookup_requested = 0.0  # monotonic time of the last Ctrl+Alt+F; the UI focuses the search box

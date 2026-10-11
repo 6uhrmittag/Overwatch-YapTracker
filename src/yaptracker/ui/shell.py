@@ -9,6 +9,7 @@ from nicegui import app, ui
 from yaptracker import chat_colours, runtime
 from yaptracker.ui import icons, search, sessions, timing, views, yappers
 from yaptracker.ui.quick_verdict import UndoBar
+from yaptracker.ui.updates import watch_after_update
 
 STATIC_DIR = Path(__file__).parent / "static"
 STATIC_URL = "/static"
@@ -121,6 +122,7 @@ def root() -> None:
     ui.context.client.yt_undo = UndoBar()  # Saved + Undo after quick verdicts and notes (#220)
 
     show(VIEWS[0].key)
+    watch_after_update()  # What's new once after an update (#412)
 
     # Paused must be visible from any view and from the taskbar (#20).
     title = {"paused": None}
