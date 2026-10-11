@@ -26,8 +26,8 @@ def store(tmp_path, monkeypatch):
     session = s.start_session(NOW - 600)
     match = s.start_match(session, NOW - 600, "heroselect", "UNRANKED", "ESPERANCA")
     pid = s.add_player("NoodleBonk", NOW - 500)
-    s.add_message(ts=NOW - 500, channel="match", text="gg", match_id=match, speaker_raw="NoodleBonk",
-                  player_id=pid)  # fmt: skip
+    s.add_message(ts=NOW - 500, channel="match", text="gg", match_id=match,
+                  speaker_raw="NoodleBonk", player_id=pid)  # fmt: skip
     monkeypatch.setattr(runtime, "store", s)
     yield s
     s.close()
