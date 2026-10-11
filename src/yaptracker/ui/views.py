@@ -28,6 +28,7 @@ from yaptracker.ui.components import (
     saved_chip,
     set_button_label,
     size_label,
+    sub_page,
     switch,
 )
 from yaptracker.ui.crew import crew_card
@@ -693,6 +694,7 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
     body = ui.element("div").classes("yt-view")
 
     def overview(saved: bool = False) -> None:
+        sub_page(None)
         body.clear()
         with body:
             _header("Settings")
@@ -884,11 +886,13 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                         )
 
     def open_calibration() -> None:
+        sub_page(overview)  # the Settings icon goes back to the overview (#404)
         body.clear()
         with body:
             calibrate(on_done=overview)
 
     def open_setup() -> None:
+        sub_page(overview)
         body.clear()
         with body:
             setup_wizard(on_done=overview)

@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · Clicking the tab you're on (#404)
+- Clicking the icon of the tab you're already on no longer reloads it with the opening animation: on its main view nothing happens, so your scroll position and what you typed stay. Live never reloads or clears.
+- From a player's profile, a match transcript or calibration, that same icon takes you back to the tab's list or overview, without the animation.
+
 ### 2026-10-11 · Fewer lines filed as Chat (#403)
 - Match and team lines on a bright map (snow, sky, white walls) now get their channel from the diamond or the team icon in front, instead of landing in grey Chat.
 - Comms-wheel lines like `Name (Hero): Hello!` and system lines like `[Name] left the game.` are read again when the icon in front came out as a stray mark or space.

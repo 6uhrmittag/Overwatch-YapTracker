@@ -7,7 +7,7 @@ from nicegui import ui
 from rapidfuzz import fuzz
 
 from yaptracker import config, runtime
-from yaptracker.ui.components import VERDICTS, count, sticker, when
+from yaptracker.ui.components import VERDICTS, count, sticker, sub_page, when
 from yaptracker.ui.profile import profile
 from yaptracker.ui.quick_verdict import quick_buttons, set_verdict
 
@@ -36,11 +36,13 @@ def yappers(player_id: int | None = None) -> None:
     view = ui.element("div").classes("yt-view")
 
     def show_list() -> None:
+        sub_page(None)
         view.clear()
         with view:
             _list(open_profile)
 
     def open_profile(player_id: int) -> None:
+        sub_page(show_list)  # the Yappers icon goes back to the list (#404)
         view.clear()
         with view:
             profile(player_id, on_back=show_list)
