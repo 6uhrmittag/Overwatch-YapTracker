@@ -8,6 +8,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 - The tidy-up after a light match says in the log when it starts, pauses for the next match, resumes and finishes ("tidied match N: … fixed, … found, … removed").
 - It removes light-read repeats and pieces that the best reader doesn't see in the same moments; lines you fixed or flagged by hand always stay.
 
+### 2026-10-11 · Light reading: no repeats, no fragments (#432)
+- Opening the chat box no longer stores its history again as new lines, also when the light reader can't read the input row.
+- A line the light reader read only in part ("so please n", "were in the") is no line of its own anymore: it belongs to the whole line, and a whole reading that comes later replaces the part.
+- A line found between two known lines is stored only once it was read the same way twice.
+
 ### 2026-10-11 · Other matches read live and light by default (#413)
 - New installs read "Other matches" live and light: it costs your game almost nothing, and the best reader tidies up afterwards. Competitive stays "After the match". A choice you already made stays as it is.
 
