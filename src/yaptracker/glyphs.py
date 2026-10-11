@@ -19,8 +19,14 @@ from yaptracker.ocr.engine import OcrLine
 GLYPH = "\u25c7"  # ◇
 
 
-def _blob(image: np.ndarray, x0: int, x1: int, y0: int, y1: int, height: float) -> bool:
-    """A glyph-like blob in image[y0:y1, x0:x1], starting close to its left edge."""
+BRIGHT_MAP = 170  # brightness (0-255) of what's around the blob: above it, the map is bright
+
+
+def _blob(
+    image: np.ndarray, x0: int, x1: int, y0: int, y1: int, height: float, after: bool = False
+) -> bool:
+    """A glyph-like blob in image[y0:y1, x0:x1], starting close to its left edge. `after`: the
+    space after the last word, where the map behind short lines is what stands out most."""
     region = image[max(0, y0) : y1, max(0, x0) : min(image.shape[1], x1)]
     if region.shape[0] < 4 or region.shape[1] < height:
         return False
@@ -40,6 +46,8 @@ def _blob(image: np.ndarray, x0: int, x1: int, y0: int, y1: int, height: float) 
     blob = labels == i
     if not (~blob).any():
         return False
+    if after and (region.shape[1] - (x + w) < height or np.median(v[~blob]) >= BRIGHT_MAP):
+        return False  # runs on to the edge, or a bright map: scenery, not an icon (#402)
     brighter = v[blob].mean() - np.median(v[~blob])
     icon = brighter > 40 and s[blob].mean() < 90  # Overwatch's white/grey chat icons
     coloured = s[blob].mean() > 150 and area / (w * h) > 0.45  # a solid emoji, e.g. a heart
@@ -60,7 +68,7 @@ def mark(image: np.ndarray, lines: list[OcrLine]) -> list[OcrLine]:
             if n + 1 < len(parts):  # a gap between two words
                 if _blob(image, end + 1, parts[n + 1][1].x - 1, y0, y1, height):
                     pieces.append(GLYPH)
-            elif _blob(image, end + 1, int(end + 1 + 2.5 * height), y0, y1, height):
+            elif _blob(image, end + 1, int(end + 1 + 2.5 * height), y0, y1, height, after=True):
                 pieces.append(GLYPH)  # right after the last word
         found = GLYPH in pieces
         result.append(replace(line, text=" ".join(pieces)) if found else line)

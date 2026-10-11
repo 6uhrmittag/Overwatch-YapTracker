@@ -581,6 +581,23 @@ class Store:
             (channel, channel_ocr, message_id),
         )
 
+    def lines_with_a_trailing_mark(self) -> list[int]:
+        """Typed and system lines ending in "◇", not fixed by hand (#402): to check them once.
+        Comms lines (with a hero) keep theirs: their icons are real."""
+        rows = self._read(
+            "SELECT id FROM chat_messages WHERE hero IS NULL AND edited_at IS NULL AND "
+            "deleted_at IS NULL AND rtrim(text) LIKE ? ORDER BY id",
+            ("%\u25c7",),
+        )
+        return [row[0] for row in rows]
+
+    def drop_trailing_mark(self, message_id: int, text: str, has_glyphs: bool) -> None:
+        """The line without the "◇" the map behind it made (#402); nothing else changes."""
+        self._write(
+            "UPDATE chat_messages SET text = ?, has_glyphs = ? WHERE id = ? AND edited_at IS NULL",
+            (text, int(has_glyphs), message_id),
+        )
+
     def update_message(
         self,
         message_id: int,
