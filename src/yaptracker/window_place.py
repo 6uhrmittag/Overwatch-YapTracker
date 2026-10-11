@@ -98,15 +98,28 @@ def fit(place: Place, works: list[Rect], dpis: list[int] | None = None) -> Place
 def birth(saved: Place | None, found: list["Monitor"]) -> dict:
     """pywebview's x, y, width and height for the saved place (#365): the window is born on its
     own screen, so it never has to cross to a screen with other scaling, which left it too tall.
-    pywebview multiplies them by the scaling of the screen it's created on: the main one."""
+    They're in the units of the screen it lands on (#410): pywebview multiplies them by the
+    main screen's scaling, and Windows maps that back by the target screen's against the main
+    one's, because pywebview's process is system DPI aware. Marv's window, given (-644, 721)
+    for the 100 % screen, was found at (-644, 721)."""
     if saved is None or not found or not visible(saved, [m.rect for m in found]):
         return {}
     wanted = fit(saved, [m.work for m in found], [m.dpi for m in found])
     x, y, w, h = wanted.normal if wanted.maximized else wanted.rect
-    main = next((m for m in found if m.rect[:2] == (0, 0)), found[0])
-    scale = main.dpi / 96
+    scale = found[home((x, y, w, h), [m.rect for m in found])].dpi / 96
     return {"x": round(x / scale), "y": round(y / scale),
             "width": max(1, round(w / scale)), "height": max(1, round(h / scale))}  # fmt: skip
+
+
+def in_window_units(rect: Rect, window_dpi: int, screen_dpi: int) -> Rect:
+    """A rect in real pixels as SetWindowPlacement reads it for a window of another DPI (#410):
+    in the window's own units, which Windows maps by screen DPI / window DPI. Marv's top 1082
+    came out at 721 (x 2/3) on his 100 % screen for a window at 144 dpi."""
+    if not window_dpi or not screen_dpi or window_dpi == screen_dpi:
+        return rect
+    f = window_dpi / screen_dpi
+    x, y, w, h = rect
+    return round(x * f), round(y * f), round(w * f), round(h * f)
 
 
 class Keeper:
@@ -146,6 +159,7 @@ class Keeper:
 # Windows -----------------------------------------------------------------------------------
 
 _SW_SHOWNORMAL, _SW_SHOWMINIMIZED, _SW_SHOWMAXIMIZED, _SW_SHOWMINNOACTIVE = 1, 2, 3, 7
+_SW_SHOWNOACTIVATE = 4
 _PER_MONITOR_AWARE_V2 = -4
 
 
@@ -180,22 +194,33 @@ def read(hwnd: int) -> Place | None:
     if placement.showCmd == _SW_SHOWMINIMIZED or user32.IsIconic(hwnd):
         return None
     user32.GetWindowRect(hwnd, ctypes.byref(rect))
-    return Place(_rect(rect), _rect(placement.rcNormalPosition),
-                 placement.showCmd == _SW_SHOWMAXIMIZED)  # fmt: skip
+    user32.GetDpiForWindow.argtypes = [wintypes.HWND]
+    normal = _rect(placement.rcNormalPosition)  # in the window's own units, like apply's (#410)
+    window_dpi, screen_dpi = user32.GetDpiForWindow(hwnd), _screen_dpi(hwnd)
+    if window_dpi and screen_dpi and window_dpi != screen_dpi:
+        normal = in_window_units(normal, screen_dpi, window_dpi)  # back into real pixels
+    return Place(_rect(rect), normal, placement.showCmd == _SW_SHOWMAXIMIZED)
 
 
 def apply(hwnd: int, place: Place, minimized: bool = False) -> None:
-    """Back where it was. Maximised comes back maximised; a snapped half at its rectangle."""
+    """Back where it was. Maximised comes back maximised; a snapped half at its rectangle.
+    A normal window only gets SetWindowPos, in real pixels: SetWindowPlacement reads its rect in
+    the window's own units, and the two together left Marv's window 1399 px tall (#410)."""
     ctypes, wintypes, user32, Placement = _win32()
+    if not (minimized or place.maximized):
+        if user32.IsZoomed(hwnd) or user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, _SW_SHOWNOACTIVATE)  # back to normal, the game keeps focus
+        x, y, w, h = place.rect
+        user32.SetWindowPos(hwnd, None, x, y, w, h, 0x0004 | 0x0010)  # NOZORDER | NOACTIVATE
+        return
     placement = Placement(length=ctypes.sizeof(Placement))
     user32.GetWindowPlacement(hwnd, ctypes.byref(placement))
-    x, y, w, h = place.normal if place.maximized else place.rect
+    user32.GetDpiForWindow.argtypes = [wintypes.HWND]
+    rect = place.normal if place.maximized else place.rect
+    x, y, w, h = in_window_units(rect, user32.GetDpiForWindow(hwnd), _dpi_at(rect) or 96)
     placement.rcNormalPosition = wintypes.RECT(x, y, x + w, y + h)
-    placement.showCmd = (_SW_SHOWMINNOACTIVE if minimized
-                         else _SW_SHOWMAXIMIZED if place.maximized else _SW_SHOWNORMAL)  # fmt: skip
+    placement.showCmd = _SW_SHOWMINNOACTIVE if minimized else _SW_SHOWMAXIMIZED
     user32.SetWindowPlacement(hwnd, ctypes.byref(placement))
-    if not (minimized or place.maximized):  # the placement is in work-area units: exact rect
-        user32.SetWindowPos(hwnd, None, x, y, w, h, 0x0004 | 0x0010)  # NOZORDER | NOACTIVATE
 
 
 def move(hwnd: int, x: int, y: int) -> None:
@@ -221,6 +246,15 @@ def _screen_dpi(hwnd: int) -> int | None:
         shcore.GetDpiForMonitor(user32.MonitorFromWindow(hwnd, 2), 0, ctypes.byref(dpi_x),
                                 ctypes.byref(dpi_y))  # fmt: skip  # 2: the nearest screen
         return int(dpi_x.value) or None
+    except Exception:
+        return None
+
+
+def _dpi_at(rect: Rect) -> int | None:
+    """The scaling of the screen a rect is mostly on (real pixels); None if Windows won't say."""
+    try:
+        found = monitors()
+        return found[home(rect, [m.rect for m in found])].dpi if found else None
     except Exception:
         return None
 
@@ -367,6 +401,10 @@ def restore(hwnd: int, wanted: Place, minimized: bool, stop: threading.Event,
     #365); if it isn't there anyway, it's moved there first and only sized once it took on that
     screen's scaling: sized while crossing to other scaling, it came back too tall."""
     log.info("window: found %s", describe(hwnd))
+    born = read(hwnd)
+    if not (minimized or wanted.maximized) and born is not None and born.rect == wanted.rect:
+        log.info("window: born at its place %s", wanted.rect)  # nothing to fix (#410)
+        return
     if minimized or wanted.maximized:
         apply(hwnd, wanted, minimized)
         log.info("window: back at %s%s", wanted.rect, " (maximised)" if wanted.maximized else "")
