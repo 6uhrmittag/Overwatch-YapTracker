@@ -69,7 +69,7 @@ class ChatReader:
         colours: Callable[[], dict[str, float]] = dict,
         paused: Callable[[], bool] = lambda: False,
         clock: Callable[[], float] = time.time,
-        on_read: Callable[..., object] = lambda ts, image, ocr, lines, new: None,
+        on_read: Callable[..., object] = lambda ts, image, ocr, lines, new, unstored: None,
         min_gap_s: float = MIN_GAP_S,
         pictures=None,
         players=None,
@@ -276,7 +276,12 @@ class ChatReader:
                 if yap.best is yap.last:  # read better in this very frame: its picture, too
                     self._keep_picture(yap, image)
         self._count(time.thread_time() - started)
-        self._on_read(ts, image, ocr, lines, new)
+        unstored = self._dedup.unstored
+        if unstored:  # a missed line as a number, not a feeling (#425)
+            said = "; ".join(f"{line.speaker or ''}: {line.text}"[:50] for line in unstored)
+            log.info("chat reading: %d line(s) seen twice but never stored: %s", len(unstored),
+                     said)  # fmt: skip
+        self._on_read(ts, image, ocr, lines, new, unstored)
         return new
 
     def _lines(self, image: np.ndarray, ocr_lines: list[OcrLine]) -> tuple[list, list]:
