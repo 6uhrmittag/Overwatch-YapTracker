@@ -264,3 +264,19 @@ def test_lines_on_screen_when_a_match_starts_stay_with_the_match_before(store):
     reader.read_frame(1304.0, frames[3])  # typed in hero select
     assert [m.text for m in store.messages(first)] == ["gg", "what a game"]
     assert [m.text for m in store.messages(tracker.match_id)] == ["gl hf"]
+
+
+def test_a_friend_notice_in_the_menu_starts_no_match(store):
+    """#417: "2 friends playing Overwatch." in the menu started match 131, which never ended:
+    Update now waited for it, capture ran at the in-match rate. System lines start nothing;
+    typed chat still does (#307)."""
+    menu, chat = BLACK.copy(), BLACK.copy()
+    friends = line("2 friends playing Overwatch.")
+    reads = {id(menu): [friends], id(chat): [friends, line("[Pip]: anyone up?", y=40)]}
+    reader, tracker = reader_for(store, reads)
+    reader.read_frame(1000.0, menu)
+    assert tracker.match_id is None and not tracker.running
+    assert [m.text for m in store.messages_outside_matches()] == ["2 friends playing Overwatch."]
+    reader.read_frame(1010.0, chat)
+    assert tracker.running
+    assert [m.text for m in store.messages(tracker.match_id)] == ["anyone up?"]

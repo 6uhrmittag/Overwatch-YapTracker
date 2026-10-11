@@ -234,8 +234,11 @@ class ChatReader:
         new, improved = self._dedup.update(ts, lines)
         before = self._matches.match_id
         # first: a new match may start with this yap. Not for frames read after their match:
-        # they belong to it, also after a restart when no match is open yet (#349)
-        if new and (kept is None or kept.mode != AFTER):
+        # they belong to it, also after a restart when no match is open yet (#349). Not for a
+        # system line: "2 friends playing Overwatch." in the menu started a match that never
+        # ended (#417); friend notices and endorsements aren't match chat.
+        said = any(yap.best.kind != "system" for yap in new)
+        if said and (kept is None or kept.mode != AFTER):
             self._matches.chat_changed(ts)
         # The first read of a match that began without this chat can still show lines of the
         # match before (#179): those that were on screen in the read before it belong there.
