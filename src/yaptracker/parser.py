@@ -71,6 +71,10 @@ _SYSTEM_PLAIN = re.compile(r"^(?:" + "|".join(_NAMELESS_SYSTEM) + ")")
 # arrows, the fall-back arrow, a health cross). "Hello!" and "Enemy X!" have none.
 ICON_CALLOUTS = frozenset({"thanks!", "group up!", "fall back!", "i need healing!"})
 _INPUT = re.compile(r"^\[(Match|Team|Group)\](?!" + _COLON + ")")
+# The empty chat field's hint (#422): input whatever is read before it ("[Match]: PRESS TAB TO
+# CYCLE CHANNELS" with a misread colon was stored as a line from "Match"). Every reading in
+# Marv's samples is this English one; no German client sample yet.
+HINT = "PRESS TAB TO CYCLE CHANNELS"
 _PROMPT = re.compile(r"^\[?(?P<word>[A-Za-z]{3,6})\](?!\s*" + _COLON + ")")
 _PROMPTS = ("Match", "Team", "Group")
 _REPORT = re.compile(r"\s*\[Report\](?:\s*" + GLYPH + r")*\s*$")  # a ◇ after it isn't an icon
@@ -141,11 +145,18 @@ def _misread_prompt(text: str) -> bool:
     return any(fuzz.ratio(m["word"].lower(), p.lower()) >= 80 for p in _PROMPTS)
 
 
+def is_input_hint(text: str) -> bool:
+    """The empty chat field's hint, also misread ("RRESS TAB TO CYCLE CHANNELS", #422)."""
+    from rapidfuzz import fuzz
+
+    return len(text) >= len(HINT) // 2 and fuzz.partial_ratio(HINT, text.upper()) >= 85
+
+
 def _classify(text: str, confidence: float, box: Region) -> ChatLine:
     flagged = bool(_REPORT.search(text))
     text = _REPORT.sub("", text)
     line = ChatLine("unknown", "unknown", text, confidence, box, flagged=flagged)
-    if _INPUT.match(text) or _misread_prompt(text):
+    if _INPUT.match(text) or _misread_prompt(text) or is_input_hint(text):
         return replace(line, kind="input")
     if m := _COMMS.match(text):
         # Text can be empty: "Name (Hero) to Other (Hero):" with the message on the next line.
