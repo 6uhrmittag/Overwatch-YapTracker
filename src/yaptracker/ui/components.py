@@ -1,5 +1,6 @@
 """Shared building blocks from the style kit (docs/ui/mockup/Kit.dc.html)."""
 
+import contextlib
 import time
 from collections.abc import Callable, Sequence
 from typing import Literal
@@ -111,32 +112,53 @@ def saved_chip() -> None:
 
 
 def switch(
-    label: str, value: bool, on_change: Callable[[bool], object], disabled: bool = False
+    label: str,
+    value: bool,
+    on_change: Callable[[bool], object],
+    disabled: bool = False,
+    hint: str | None = None,
 ) -> ui.element:
-    """On/off switch; the whole row is the click target."""
-    state = {"on": value}
-    with (
-        ui.element("button")
-        .classes("yt-switch-row")
-        .props(f'type="button" role="switch" aria-checked="{str(value).lower()}"') as row
-    ):
-        ui.label(label).classes("yt-switch-label")
-        ui.element("span").classes("yt-switch" + (" is-on" if value else ""))
+    """On/off switch; the whole row is the click target. `hint`: its own line right under it
+    (switches stack one per row, each with its hint, #397)."""
+    with ui.element("div").classes("yt-switch-item") if hint else contextlib.nullcontext():
+        with (
+            ui.element("button")
+            .classes("yt-switch-row")
+            .props(f'type="button" role="switch" aria-checked="{str(value).lower()}"') as row
+        ):
+            ui.label(label).classes("yt-switch-label")
+            ui.element("span").classes("yt-switch" + (" is-on" if value else ""))
+        if hint:
+            ui.label(hint).classes("yt-hint")
     if disabled:
         row.props("disabled")
 
     def flip() -> None:
-        state["on"] = not state["on"]
-        row.props(f'aria-checked="{str(state["on"]).lower()}"')
-        track = row.default_slot.children[1]
-        if state["on"]:
-            track.classes(add="is-on")
-        else:
-            track.classes(remove="is-on")
-        on_change(state["on"])
+        on = row.props.get("aria-checked") != "true"
+        set_switch(row, on)
+        on_change(on)
 
     row.on("click", flip)
     return row
+
+
+def set_switch(row: ui.element, on: bool) -> None:
+    """Shows a switch on or off, without calling its on_change."""
+    row.props(f'aria-checked="{str(on).lower()}"')
+    track = row.default_slot.children[1]
+    if on:
+        track.classes(add="is-on")
+    else:
+        track.classes(remove="is-on")
+
+
+def allow_switch(row: ui.element, allowed: bool, why: str = "") -> None:
+    """A switch that only makes sense with another one: off and greyed out with the reason."""
+    if allowed:
+        row.props(remove="disabled title")
+    else:
+        set_switch(row, False)
+        row.props(f'disabled title="{why}"')
 
 
 def when(ts: float | None, now: float | None = None) -> str:

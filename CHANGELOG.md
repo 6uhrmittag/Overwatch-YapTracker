@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · One switch per row (#397)
+- Export and yap snaps: every switch has its own row and says right under it what it does, instead of several switches side by side with one hint for all.
+- Line pictures switch off while Anonymize names is on (they show the names), and Keep me & my crew only works with Hide names. Both are greyed out until then and say why.
+
 ### 2026-10-11 · Pre-releases again (#398)
 - Behind the scenes: two hiccups in the build had stopped new pre-releases after v0.5.420. This one also brings the lighter capture between matches (#350).
 
