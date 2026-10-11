@@ -8,6 +8,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 - Plain lines no longer get a ◇ for an icon that isn't there. It came from the game's scenery right after a short line: something bright behind it for a moment. A ◇ now needs the icon in at least half of the readings, and bright scenery doesn't count.
 - System lines (`[Name] left the game.`, `You endorsed …!`) never get one, and a `[Report]` link with a ◇ after it is still taken off and marks the line spicy.
 - Lines you already have are checked once against their picture, in the background between matches: where no icon is there, the ◇ goes. The pictures stay as they are.
+### 2026-10-11 · Clicking the tab you're on (#404)
+- Clicking the icon of the tab you're already on no longer reloads it with the opening animation: on its main view nothing happens, so your scroll position and what you typed stay. Live never reloads or clears.
+- From a player's profile, a match transcript or calibration, that same icon takes you back to the tab's list or overview, without the animation.
 
 ### 2026-10-11 · Your chat colours (#401)
 - Chat lines take Overwatch's own colours: Team `#00c1ff`, Match `#fd8d00`. System lines stay grey, and lines without a channel ("Chat") too.

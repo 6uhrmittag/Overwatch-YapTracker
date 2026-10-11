@@ -161,6 +161,13 @@ def allow_switch(row: ui.element, allowed: bool, why: str = "") -> None:
         row.props(f'disabled title="{why}"')
 
 
+def sub_page(back: Callable[[], None] | None) -> None:
+    """Tells the rail (#404) whether this tab shows a sub-page (a profile, a transcript,
+    calibration): then its icon goes back with `back`. None: the tab's main view, where clicking
+    its icon does nothing."""
+    ui.context.client.yt_back = back
+
+
 def when(ts: float | None, now: float | None = None) -> str:
     """'today', 'yesterday', 'Tuesday' within a week, else 'Sep 28'."""
     if ts is None:
