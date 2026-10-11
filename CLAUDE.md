@@ -412,6 +412,10 @@ bind Pause, Start/End match, Who's that? and Save sample in Settings → Hotkeys
   write the expected lines; Marv only spot-checks. No cloud OCR/LLM at runtime —
   the app stays local-only.
 - Chat is English **and German** (umlauts, ß). Every OCR change is measured on both (#118).
+- **Measurements on Marv's PC:** Marv plays with his own reading settings (e.g. best live in
+  Quick Play) and they stay as he set them; never change a user's saved choice. If a measurement
+  needs other settings (e.g. one match on *light* for the CPU goal), **ask Marv** in the issue to play
+  a match that way; batch such requests into one comment (#115).
 - Each new Overwatch season: refresh the game lists (`tools/refresh_game_lists.py`) and check
   the first evening's match signals in the log and debug frames (#318).
 
@@ -429,8 +433,10 @@ bind Pause, Start/End match, Who's that? and Save sample in Settings → Hotkeys
 - [ ] FPS: YapTracker costs at most **~5 % of in-match FPS** (median of the `game fps … in match`
       log lines, running vs paused/closed, same graphics settings). On Windows 10 (GDI capture) up to
       ~10 fps is accepted, written in README → Known limits (Marv, 2026-10-06, #187/#319).
-      CPU: YapTracker averages ≤ 15% of one core over an evening (target: powerful gaming PCs;
-      CPU only - GPU OCR failed the real test and is out of v1, #219)
+      CPU: with the **default reading settings** (Competitive: after the match; other matches: live light,
+      tidied up when idle), YapTracker averages ≤ 15% of one core over an evening (target: powerful gaming
+      PCs; CPU only - GPU OCR failed the real test and is out of v1, #219). A user who picks "best live"
+      trades CPU for quality: then only the FPS bar applies (Marv, 2026-10-11, #115)
 - [ ] Update via `tools/update.ps1` works from any v0 pre-release to v1.0.0
 - [ ] README: setup, calibration, hotkeys, known limits, tested resolution
 - [ ] `v1.0.0` released, M5 closed, everything else is `parked`
