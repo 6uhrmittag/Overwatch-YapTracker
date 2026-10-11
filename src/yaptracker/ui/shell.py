@@ -6,7 +6,7 @@ from pathlib import Path
 
 from nicegui import app, ui
 
-from yaptracker import runtime
+from yaptracker import chat_colours, runtime
 from yaptracker.ui import icons, search, sessions, timing, views, yappers
 from yaptracker.ui.quick_verdict import UndoBar
 
@@ -65,6 +65,7 @@ def _too_new(why: str) -> None:
 def root() -> None:
     """Build the whole window for one client."""
     ui.add_head_html(f'<link rel="stylesheet" href="{STATIC_URL}/theme.css">')
+    ui.add_css(chat_colours.css(chat_colours.current()))  # your chat colours (#401)
     ui.add_head_html(f'<script defer src="{STATIC_URL}/follow.js"></script>')  # Live follows (#166)
     ui.add_head_html(f'<script defer src="{STATIC_URL}/copy.js"></script>')  # clean copies (#221)
     ui.colors(primary="#ff9c2a", dark="#12151c", dark_page="#0d1016")

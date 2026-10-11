@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · Your chat colours (#401)
+- Chat lines take Overwatch's own colours: Team `#00c1ff`, Match `#fd8d00`. System lines stay grey, and lines without a channel ("Chat") too.
+- Settings → Chat colours: pick each channel's colour (picker or hex) and see a line in it right away, no restart. Reset to Overwatch defaults puts them back. A colour that's hard to read on the dark background says so, but you can keep it.
+- Yap snaps in the YapTracker night look use your chat colours, and system lines in a snap take the system colour like in Live.
+
 ### 2026-10-11 · Fewer lines filed as Chat (#403)
 - Match and team lines on a bright map (snow, sky, white walls) now get their channel from the diamond or the team icon in front, instead of landing in grey Chat.
 - Comms-wheel lines like `Name (Hero): Hello!` and system lines like `[Name] left the game.` are read again when the icon in front came out as a stray mark or space.
