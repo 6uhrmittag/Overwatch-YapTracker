@@ -10,7 +10,7 @@ from nicegui import ui
 
 from yaptracker import config, runtime
 from yaptracker.ui import icons
-from yaptracker.ui.components import button, callout_toggle, count, when
+from yaptracker.ui.components import button, callout_toggle, count, sub_page, when
 from yaptracker.ui.heart import Heart
 from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.snap_dialog import snap_dialog
@@ -51,16 +51,19 @@ def sessions(session_id: int | None = None, match_id: int | None = None) -> None
     view = ui.element("div").classes("yt-view")
 
     def show_sessions() -> None:
+        sub_page(None)
         view.clear()
         with view:
             _session_list(show_session)
 
     def show_session(session) -> None:
+        sub_page(show_sessions)  # the Sessions icon goes back to the list (#404)
         view.clear()
         with view:
             _match_list(session, show_sessions, lambda m, n: show_match(session, m, n))
 
     def show_match(session, match, number: int) -> None:
+        sub_page(show_sessions)
         view.clear()
         with view:
             _transcript(match, number, lambda: show_session(session))

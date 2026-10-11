@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · Clicking the tab you're on (#404)
+- Clicking the icon of the tab you're already on no longer reloads it with the opening animation: on its main view nothing happens, so your scroll position and what you typed stay. Live never reloads or clears.
+- From a player's profile, a match transcript or calibration, that same icon takes you back to the tab's list or overview, without the animation.
+
 ### 2026-10-11 · Your chat colours (#401)
 - Chat lines take Overwatch's own colours: Team `#00c1ff`, Match `#fd8d00`. System lines stay grey, and lines without a channel ("Chat") too.
 - Settings → Chat colours: pick each channel's colour (picker or hex) and see a line in it right away, no restart. Reset to Overwatch defaults puts them back. A colour that's hard to read on the dark background says so, but you can keep it.

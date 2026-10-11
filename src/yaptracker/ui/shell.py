@@ -74,11 +74,14 @@ def root() -> None:
         return
 
     buttons: dict[str, ui.element] = {}
+    client = ui.context.client  # not from the caller: a closed dialog has no context left
 
     current = {"view": None}
 
     def show(key: str, **kwargs) -> None:
         current["view"] = key
+        client.yt_back = None  # the view says when it opens a sub-page (#404)
+        content.classes(remove="yt-calm")
         for view_key, button in buttons.items():
             if view_key == key:
                 button.classes(add="is-active").props('aria-current="page"')
@@ -87,6 +90,18 @@ def root() -> None:
         content.clear()
         with content, timing.view(key):  # slow views say so in the log (#387)
             next(v for v in VIEWS if v.key == key).render(**kwargs)
+
+    def rail(key: str) -> None:
+        """Another tab opens as always. The tab you're on (#404): from a sub-page back to its main
+        view, without the pop-in; on its main view nothing happens, so nothing is lost."""
+        if key != current["view"]:
+            show(key)
+            return
+        back = getattr(client, "yt_back", None)
+        if back is not None:
+            client.yt_back = None
+            content.classes(add="yt-calm")
+            back()
 
     # Other views can switch views: a familiar-face card opens the profile (#26).
     ui.context.client.yt_show = show
@@ -97,11 +112,11 @@ def root() -> None:
                 ui.html(icons.LOGO, sanitize=False)
             for view in VIEWS:
                 if not view.bottom:
-                    buttons[view.key] = _rail_button(view, show)
+                    buttons[view.key] = _rail_button(view, rail)
             ui.element("div").classes("yt-rail-spacer")
             for view in VIEWS:
                 if view.bottom:
-                    buttons[view.key] = _rail_button(view, show)
+                    buttons[view.key] = _rail_button(view, rail)
         content = ui.element("main").classes("yt-main")
     ui.context.client.yt_undo = UndoBar()  # Saved + Undo after quick verdicts and notes (#220)
 
