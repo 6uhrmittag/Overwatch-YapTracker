@@ -136,3 +136,21 @@ async def test_anonymized_export_from_settings(user: User, store, monkeypatch, t
     (folder,) = (tmp_path / "Documents" / "YapTracker").glob("export-*-anonymized")
     assert (folder / "README.md").exists()  # Markdown is on by default
     assert "NoodleBonk" not in (folder / "yaptracker-export.json").read_text(encoding="utf-8")
+
+
+async def test_one_switch_per_row_and_no_pictures_when_anonymized(user: User):
+    """#397: every switch says right under it what it does; anonymizing switches the line
+    pictures off and greys them out with the reason, since the pictures show the names."""
+    config.save_setup_state("done")
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see("Also writes the readable .md files next to the JSON")
+    await user.should_see("Every name becomes Player-xxxx and your notes stay out. Safe to share.")
+    (pictures,) = user.find(marker="export-pictures").elements
+    user.find(marker="export-pictures").click()
+    assert pictures.props["aria-checked"] == "true"
+    user.find(marker="export-anonymize").click()
+    assert pictures.props["aria-checked"] == "false" and "disabled" in pictures.props
+    assert "show the names" in pictures.props["title"]
+    user.find(marker="export-anonymize").click()
+    assert "disabled" not in pictures.props

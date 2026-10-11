@@ -7,7 +7,7 @@ from nicegui import run, ui
 
 from yaptracker import logs, paths, runtime
 from yaptracker.export import export_all, export_folder, export_players
-from yaptracker.ui.components import button, switch
+from yaptracker.ui.components import allow_switch, button, switch
 
 
 def export_card() -> None:
@@ -26,23 +26,33 @@ def export_card() -> None:
                 "Everything: every session, match and yap, your yappers and the times nothing was "
                 "recorded, as one documented JSON file. Yours to keep, script or share."
             ).classes("yt-hint")
-            with ui.element("div").classes("yt-row yt-wrap"):
-                switch("Markdown too", True, lambda on: options.update(markdown=on)).mark(
-                    "export-markdown"
-                )
-                switch("Anonymize names", False, lambda on: options.update(anonymize=on)).mark(
-                    "export-anonymize"
-                )
-                switch("Line pictures", False, lambda on: options.update(pictures=on)).mark(
-                    "export-pictures"
-                )
-            ui.label(
-                "Anonymized: every name becomes Player-xxxx, your notes stay out, and so do the "
-                "line pictures (they show the names)."
-            ).classes("yt-hint")
+            with ui.element("div").classes("yt-switches"):  # one per row, each its hint (#397)
+                switch(
+                    "Markdown too",
+                    True,
+                    lambda on: options.update(markdown=on),
+                    hint="Also writes the readable .md files next to the JSON, for your notes app.",
+                ).mark("export-markdown")
+                switch(
+                    "Anonymize names",
+                    False,
+                    lambda on: anonymize(on),
+                    hint="Every name becomes Player-xxxx and your notes stay out. Safe to share.",
+                ).mark("export-anonymize")
+                pictures = switch(
+                    "Line pictures",
+                    False,
+                    lambda on: options.update(pictures=on),
+                    hint="Adds the picture of every line (they show the names, so they stay out "
+                    "when anonymized).",
+                ).mark("export-pictures")
             result = ui.label().classes("yt-meta yt-mono").mark("export-result")
     state = {"done": 0, "total": 0, "running": False}
     options = {"markdown": True, "anonymize": False, "pictures": False}
+
+    def anonymize(on: bool) -> None:
+        options.update(anonymize=on, pictures=options["pictures"] and not on)
+        allow_switch(pictures, not on, "Line pictures show the names: not in an anonymized export.")
 
     def export() -> None:
         if runtime.store is None:

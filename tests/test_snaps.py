@@ -102,8 +102,11 @@ async def test_pick_lines_preview_and_save(user: User, tmp_path, monkeypatch):
         await user.should_see(marker="snap-preview")
         await user.should_see("hidden names become Player 1, 2, 3")
         assert hidden and not any(hidden)  # opens with names shown (#366)
+        (crew,) = user.find(marker="snap-crew").elements
+        assert "disabled" in crew.props  # only means something with Hide names (#397)
         user.find(marker="snap-hide").click()
         assert hidden[-1] is True  # and Hide names still hides them
+        assert "disabled" not in crew.props
         user.find(marker="snap-save").click()
         await user.should_see("Saved to")
         assert list((tmp_path / "Pictures" / "YapTracker").glob("yapsnap-*.png"))

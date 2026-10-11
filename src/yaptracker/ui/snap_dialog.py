@@ -12,13 +12,19 @@ from nicegui import ui
 
 from yaptracker import config, logs, paths
 from yaptracker.snaps import PRESETS, Style, preset_of, render, save, snap_lines, with_preset
-from yaptracker.ui.components import button, switch
+from yaptracker.ui.components import allow_switch, button, switch
 
 _FONTS = {"nunito": "Nunito Sans", "barlow": "Barlow Condensed"}
 _COLOURS = {"background": "Background", "card": "Card", "text": "Text", "accent": "Accent",
             "team": "Team", "match": "Match"}  # fmt: skip
-_SWITCHES = {"timestamps": "Times", "channel_labels": "Channel labels", "footer": "Match and date",
-             "wordmark": "Wordmark", "rounded": "Round corners"}  # fmt: skip
+_CREW_WHY = "Only with Hide names: right now every name is shown."
+_SWITCHES = {  # (label, its hint)
+    "timestamps": ("Times", "The time each line was written, in front of it."),
+    "channel_labels": ("Channel labels", "TEAM, MATCH or GROUP in front of every line."),
+    "footer": ("Match and date", "The match and the day along the bottom."),
+    "wordmark": ("Wordmark", "YapTracker in the bottom corner."),
+    "rounded": ("Round corners", "Soft corners on the picture."),
+}
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 # Copy (#155): the preview's own PNG to the clipboard, in the browser (WebView2 or --dev).
 _COPY = (
@@ -37,13 +43,21 @@ def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> 
         with ui.element("div").classes("yt-card-body"):
             ui.label("Your yap snap").classes("yt-h2")
             preview = ui.image().classes("yt-snap-preview").mark("snap-preview")
-            with ui.element("div").classes("yt-row yt-wrap"):
-                switch("Hide names", False, lambda on: flip("hide", on)).mark("snap-hide")
-                switch("Keep me & my crew", False, lambda on: flip("crew", on)).mark("snap-crew")
-            ui.label(
-                "Swap player names for placeholders before you share: hidden names become "
-                "Player 1, 2, 3... in the lines and in the text."
-            ).classes("yt-hint")
+            with ui.element("div").classes("yt-switches"):  # one per row, each its hint (#397)
+                switch(
+                    "Hide names",
+                    False,
+                    lambda on: hide(on),
+                    hint="Before you share: hidden names become Player 1, 2, 3... in the lines "
+                    "and in the text.",
+                ).mark("snap-hide")
+                crew = switch(
+                    "Keep me & my crew",
+                    False,
+                    lambda on: flip("crew", on),
+                    hint="With Hide names: your own name and your crew's stay readable.",
+                ).mark("snap-crew")
+                allow_switch(crew, False, _CREW_WHY)
             looks = ui.element("div").classes("yt-snap-looks").mark("snap-looks")
             with ui.element("div").classes("yt-row"):
                 button("Save PNG", lambda: keep(), "primary").mark("snap-save")
@@ -82,11 +96,11 @@ def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> 
                         on_change=lambda e, k=key: colour(k, e.value),
                     )
                     picker.props("dense").classes("yt-snap-colour").mark(f"snap-colour-{key}")
-            with ui.element("div").classes("yt-row yt-wrap"):
-                for key, label in _SWITCHES.items():
-                    switch(label, getattr(style, key), lambda on, k=key: toggle(k, on)).mark(
-                        f"snap-{key}"
-                    )
+            with ui.element("div").classes("yt-switches"):
+                for key, (label, hint) in _SWITCHES.items():
+                    switch(
+                        label, getattr(style, key), lambda on, k=key: toggle(k, on), hint=hint
+                    ).mark(f"snap-{key}")
 
     def show_presets() -> None:
         style, box = state["style"], state["presets"]
@@ -126,6 +140,11 @@ def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> 
     def flip(key: str, on: bool) -> None:
         state[key] = on
         draw()
+
+    def hide(on: bool) -> None:
+        state["crew"] = state["crew"] and on
+        allow_switch(crew, on, _CREW_WHY)
+        flip("hide", on)
 
     def copied(result) -> None:
         saved.set_text("Copied: paste it into Discord or WhatsApp." if result == "ok"

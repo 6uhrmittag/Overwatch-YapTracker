@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · One switch per row (#397)
+- Export and yap snaps: every switch has its own row and says right under it what it does, instead of several switches side by side with one hint for all.
+- Line pictures switch off while Anonymize names is on (they show the names), and Keep me & my crew only works with Hide names. Both are greyed out until then and say why.
+
 ### 2026-10-10 · Lighter between matches (#350)
 - Between matches YapTracker now asks Windows for 2 pictures of the game a second instead of 4, in a match still 4. Windows copies the whole game window for each one, and between matches that was the biggest part of YapTracker's CPU. Menu chat stays on screen for seconds, so nothing is missed.
 
