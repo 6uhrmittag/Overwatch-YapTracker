@@ -280,3 +280,23 @@ def test_a_friend_notice_in_the_menu_starts_no_match(store):
     reader.read_frame(1010.0, chat)
     assert tracker.running
     assert [m.text for m in store.messages(tracker.match_id)] == ["anyone up?"]
+
+
+def test_a_line_missed_after_a_match_goes_to_that_match_in_its_place(store):
+    """#423: read later between two stored lines (the next match may run by then), it's stored
+    in the match of the line above it, sorted right after it."""
+    first, second, later = BLACK.copy(), BLACK.copy(), BLACK.copy()
+    reads = {id(first): [line("[Void]: cute Mei skin so yeah")],
+             id(second): [line("[Void]: cute Mei skin so yeah"), line("You endorsed Bo!", y=50)],
+             id(later): [line("[Void]: cute Mei skin so yeah"), line("[Void]: Tracks", y=50),
+                         line("You endorsed Bo!", y=90)]}  # fmt: skip
+    reader, tracker = reader_for(store, reads)
+    reader.read_frame(1000.0, first)
+    reader.read_frame(1001.0, second)  # this read missed "Tracks"
+    after = tracker.match_id
+    tracker.end_match(1002.0, "victory")
+    tracker.new_match(1004.0, source="heroselect")  # the next match starts
+    reader.read_frame(1006.0, later)
+    assert [m.text for m in store.messages(after)] == ["cute Mei skin so yeah", "Tracks",
+                                                       "You endorsed Bo!"]  # fmt: skip
+    assert store.messages(tracker.match_id) == []

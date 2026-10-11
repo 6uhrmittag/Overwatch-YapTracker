@@ -258,8 +258,11 @@ class ChatReader:
         for yap in new:
             player = self._player(yap, ts)
             match_id = previous if yap.id in old else current
+            if yap.after in self._stored:  # missed earlier, read between two lines (#423)
+                above = self._store.message(self._stored[yap.after])
+                match_id = above.match_id if above is not None else match_id
             self._stored[yap.id] = self._store.add_message(
-                ts=ts, match_id=match_id, player_id=player, **_fields(yap.best)
+                ts=yap.first_seen, match_id=match_id, player_id=player, **_fields(yap.best)
             )
             self._keep_picture(yap, image)
             if yap.best.channel != "system":  # "[x] started playing" is a friend online, not here
