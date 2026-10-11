@@ -82,9 +82,10 @@ So every screen has to answer "what is this and what do I do?" on its own.
 | `ok` | `#7ce38b` | Listening, saved |
 | `danger` | `#ff5c66` | Nope, errors |
 
-**Chat channels:** Team `#5cc3ff` · Match `#ffae4d` · Group `#7ce38b` ·
-System `#8a93a6` (italic). Channel colour goes on the channel label and the
-speaker name; message text stays `text`.
+**Chat channels** (Overwatch's own defaults, Void, #401): Team `#00c1ff` · Match `#fd8d00` ·
+Group `#7ce38b` · System `#ffff00` (italic) · unrecognised "Chat" stays `muted` grey. Channel colour
+goes on the channel label and the speaker name; message text stays `text`. System lines have no
+speaker, so their whole text is system yellow (italic), as in the game.
 
 ## Verdict stickers
 
