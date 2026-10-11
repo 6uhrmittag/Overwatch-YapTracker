@@ -49,3 +49,28 @@ def test_lines_stored_without_text_go_once(tmp_path):
                                        lambda: done.append(True)) == 0  # fmt: skip
     finally:
         store.close()
+
+
+def test_older_matches_map_and_mode_go_through_the_game_lists_once(tmp_path):
+    """#435: matches from before #276 kept hero select's raw readings."""
+    from yaptracker.cleanups import normalise_places_once
+
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    try:
+        session = store.start_session(T0)
+        rows = [("3 COLO SEO", "UINRK NKED"), ("66", "ATTACK"), ("KING'S ROW", "UNRANKED"),
+                ("Eichenwalde", "UNRANKED"), (None, None)]  # fmt: skip
+        ids = [store.start_match(session, T0 + n, "heroselect", mode, place)
+               for n, (place, mode) in enumerate(rows)]  # fmt: skip
+        done = []
+        assert normalise_places_once(store, tmp_path / "backups", lambda: bool(done),
+                                     lambda: done.append(True)) == 3  # fmt: skip
+        places = {i: (m, q) for i, m, q in store.match_places()}
+        assert [places[i] for i in ids] == [("Colosseo", "UNRANKED"), (None, None),
+                                            ("King's Row", "UNRANKED"), ("Eichenwalde", "UNRANKED"),
+                                            (None, None)]  # fmt: skip
+        assert list((tmp_path / "backups").glob("yaptracker-before-cleanup-*.db"))
+        assert normalise_places_once(store, tmp_path / "backups", lambda: bool(done),
+                                     lambda: done.append(True)) == 0  # fmt: skip
+    finally:
+        store.close()

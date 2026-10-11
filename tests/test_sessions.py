@@ -140,3 +140,18 @@ async def test_the_incomplete_badge(user: User, store, monkeypatch):
     await user.should_see(marker="incomplete")
     (badge,) = user.find(marker="incomplete").elements  # match 1 was complete
     assert f"match-{second}" in badge.parent_slot.parent._markers
+
+
+async def test_map_names_keep_their_apostrophe_case(user: User, store, monkeypatch):
+    """#435: str.title() turned "KING'S ROW" into "King'S Row"."""
+    config.save_setup_state("done")
+    session = store.start_session(EVENING)
+    match = store.start_match(session, EVENING + 60, "heroselect", "UNRANKED", "KING'S ROW")
+    store.add_message(
+        ts=EVENING + 90, channel="match", text="gg", speaker_raw="Pip", match_id=match
+    )
+    monkeypatch.setattr(runtime, "store", store)
+    await user.open("/")
+    user.find(marker="nav-sessions").click()
+    user.find(marker=f"session-{session}").click()
+    await user.should_see("Match 1 on King's Row")

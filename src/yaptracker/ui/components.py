@@ -1,6 +1,7 @@
 """Shared building blocks from the style kit (docs/ui/mockup/Kit.dc.html)."""
 
 import contextlib
+import string
 import time
 from collections.abc import Callable, Sequence
 from typing import Literal
@@ -166,6 +167,11 @@ def sub_page(back: Callable[[], None] | None) -> None:
     calibration): then its icon goes back with `back`. None: the tab's main view, where clicking
     its icon does nothing."""
     ui.context.client.yt_back = back
+
+
+def place_name(text: str) -> str:
+    """ "KING'S ROW" -> "King's Row" for maps and queues (str.title makes it "King'S Row")."""
+    return string.capwords(text.lower())
 
 
 def when(ts: float | None, now: float | None = None) -> str:

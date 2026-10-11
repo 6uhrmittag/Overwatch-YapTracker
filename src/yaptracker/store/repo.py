@@ -673,6 +673,13 @@ class Store:
         )
         return [Message(*row) for row in rows]
 
+    def match_places(self) -> list[tuple[int, str | None, str | None]]:
+        """(id, map, mode) of every match, as stored."""
+        return self._read("SELECT id, map, mode FROM matches ORDER BY id")
+
+    def set_match_place(self, match_id: int, map_name: str | None, mode: str | None) -> None:
+        self._write("UPDATE matches SET map = ?, mode = ? WHERE id = ?", (map_name, mode, match_id))
+
     def hand_touched(self, match_id: int) -> set[int]:
         """Lines of a match someone fixed, moved, deleted or flagged by hand: a tidy-up never
         removes them (#432)."""
