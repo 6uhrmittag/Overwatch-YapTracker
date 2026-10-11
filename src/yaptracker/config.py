@@ -370,6 +370,18 @@ def save_line_pictures(on: bool, path: Path | None = None) -> None:
     _save(path, data)
 
 
+def last_run_version(path: Path | None = None) -> str | None:
+    """The version that ran last (#412): a newer one starting shows What's new once."""
+    return _load(path or paths.config_file()).get("last_run_version")
+
+
+def save_last_run_version(installed: str, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["last_run_version"] = installed
+    _save(path, data)
+
+
 def update_check(path: Path | None = None) -> bool:
     """Ask GitHub once a day whether a newer YapTracker is out (#46): on unless switched off."""
     return _load(path or paths.config_file()).get("update_check", True)
