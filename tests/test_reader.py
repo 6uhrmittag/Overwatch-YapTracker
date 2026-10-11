@@ -127,7 +127,8 @@ def test_every_read_frame_goes_to_the_debug_samples_with_its_ocr(store):
     reader, _ = reader_for(store, {id(image): [line("[zappy]: gl hf", confidence=0.7)]},
                            on_read=lambda *args: seen.append(args))  # fmt: skip
     reader.read_frame(1000.0, image)
-    ((ts, frame, ocr, lines, new),) = seen
+    ((ts, frame, ocr, lines, new, unstored),) = seen
+    assert unstored == []  # nothing seen-but-not-stored (#425)
     assert (ts, frame is image, ocr[0].text, lines[0].speaker) == (1000.0, True, "[zappy]: gl hf",
                                                                     "zappy")  # fmt: skip
     assert [y.best.text for y in new] == ["gl hf"]

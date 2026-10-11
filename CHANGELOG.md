@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · Missed lines become a number (#425)
+- When YapTracker reads a chat line twice but doesn't store it, the log says so ("seen twice but never stored") and keeps a debug sample of that moment. The evening line counts them, so missing lines show up as a number instead of a feeling.
+
 ### 2026-10-11 · No empty lines, no new player for a misread callout name (#424)
 - A callout whose message wasn't read yet is no longer stored as an empty line; the full line comes with the next read. The empty lines already stored go once at the next start (a backup is made first).
 - A callout with a misread name (one letter off) keeps the name its hero had in the lines before, so it stays with the right player, and your crew stays your crew.

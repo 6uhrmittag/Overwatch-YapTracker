@@ -155,3 +155,11 @@ def test_the_hotkey_saves_on_purpose_and_a_pause_forgets(samples, clock):
     assert samples.save_chat().name.endswith("-chat")  # Ctrl+Alt+S, nothing hard needed
     samples.on_signals({}, paused=True)
     assert samples.save_chat() is None
+
+
+def test_a_line_seen_but_not_stored_is_worth_a_sample():
+    """#425: the reader passes rows it saw twice but never stored."""
+    from yaptracker.debug import why_hard
+
+    assert why_hard([], [], unstored=["a line"]) == ["seen-not-stored"]
+    assert why_hard([], []) == []

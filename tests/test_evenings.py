@@ -70,7 +70,11 @@ def test_the_end_of_an_evening_writes_its_line(store, log_file, tmp_path, caplog
     evenings = Evenings(tmp_path / "evenings.json", store, lambda since: [log_file])
     tracker = MatchTracker(store, Pause(), on_session_end=evenings.record)
     an_evening(tracker, store)
+    with log_file.open("a", encoding="utf-8") as log:  # (#425)
+        log.write(f"{clock(T0 + 200)} INFO yaptracker.reader: chat reading: 2 line(s) seen twice "
+                  "but never stored: Pip: hi; Bo: yo\n")  # fmt: skip
     tracker.stop()  # YapTracker quits
+    assert "· whole app 25 % of a core · seen but not stored 2" in caplog.text
     assert (
         "evening 2026-10-10: 2 matches (hero select 1, gap 1, hand 0) · map known 100 % · queue "
         "known 100 % · result 50 % · missed ends 1 · lines 5 (avg confidence 0.89, "

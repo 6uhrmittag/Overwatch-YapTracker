@@ -32,6 +32,11 @@ _MINUTE = re.compile(
     r"\d+ ms CPU each(?: \(([^)]*)\))?; whole app: ([\d.]+) %",
     re.MULTILINE,
 )
+_UNSTORED = re.compile(
+    r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d),\d+ INFO yaptracker\.reader: chat reading: (\d+) "
+    r"line\(s\) seen twice but never stored",
+    re.MULTILINE,
+)
 _CLOCK = "%Y-%m-%d %H:%M:%S"
 
 
@@ -51,6 +56,8 @@ def minutes(files: list[Path]) -> list[tuple[str, str, float]]:
         except OSError:
             continue
         found += [(m[1], m[2] or "", float(m[3])) for m in _MINUTE.finditer(text)]
+        # seen-but-not-stored lines (#425) ride along as a minute without CPU: mode "unstored"
+        found += [(m[1], f"unstored {m[2]}", -1.0) for m in _UNSTORED.finditer(text)]
     return found
 
 
@@ -65,9 +72,11 @@ def summarize(store: Store, session: SessionRow, logged: list[tuple]) -> dict | 
     sources = Counter(m[0] for m in played)
     start, end = (time.strftime(_CLOCK, time.localtime(t)) for t in (session.started_at,
                                                                     session.ended_at))  # fmt: skip
-    cpu, modes = [], Counter()
+    cpu, modes, unstored = [], Counter(), 0
     for clock, read, whole in logged:
-        if start <= clock <= end:
+        if start <= clock <= end and whole < 0:  # lines seen but never stored (#425)
+            unstored += int(read.rpartition(" ")[2])
+        elif start <= clock <= end:
             cpu.append(whole)
             for part in filter(None, read.split(", ")):
                 mode, _, n = part.rpartition(" ")
@@ -91,6 +100,7 @@ def summarize(store: Store, session: SessionRow, logged: list[tuple]) -> dict | 
         "fixed": fixed,
         "modes": {mode: modes[mode] for mode in READ_MODES} if modes else None,
         "cpu": round(sum(cpu) / len(cpu), 1) if cpu else None,
+        "unstored": unstored,
     }
 
 
@@ -105,7 +115,8 @@ def line(e: dict) -> str:
         f"{e['missed_ends']} · lines {e['lines']} (avg confidence {confidence}, low-confidence "
         f"{percent(e['low'])}, ◇ {percent(e['glyphs'])}, no channel "
         f"{percent(e.get('unknown'))}) · fixed by hand {e['fixed']} · read "
-        f"modes {modes} · whole app {percent(e['cpu'])} of a core"
+        f"modes {modes} · whole app {percent(e['cpu'])} of a core · seen but not stored "
+        f"{e.get('unstored', '-')}"
     )
 
 

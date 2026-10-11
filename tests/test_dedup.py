@@ -224,3 +224,19 @@ def test_a_misread_callout_name_is_its_heroes_recent_speaker():
                  callout("MoonPebble (Doctrine): Good work!", 90)])  # fmt: skip
     new, _ = dedup.update(101.0, two)
     assert [y.best.text for y in new] == ["Good work!", "Good work!"]
+
+
+def test_a_row_seen_twice_but_never_stored_is_reported_once():
+    """#425: an older line above an opened chat box, or one between known lines where another
+    was skipped, isn't stored: the second time it's seen it's reported, once."""
+
+    def rows(*texts):
+        return parse([OcrLine(t, 0.99, Region(64, 10 + 40 * n, 400, 24))
+                      for n, t in enumerate(texts)])  # fmt: skip
+
+    dedup = Dedup()
+    dedup.update(100.0, rows("[Pip]: one", "[Bo]: two", "[Kim]: three"))
+    seen = rows("[Old]: from before", "[Pip]: one", "[Zed]: sneaky", "[Kim]: three")
+    reported = [[line.text for line in (dedup.update(t, seen), dedup.unstored)[1]]
+                for t in (102.0, 104.0, 106.0)]  # fmt: skip
+    assert reported == [[], ["from before", "sneaky"], []]

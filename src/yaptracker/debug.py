@@ -31,9 +31,9 @@ CHAT_SAMPLE_EVERY_S = 60.0  # automatic chat samples at most once a minute
 LOW_CONFIDENCE = 0.85
 
 
-def why_hard(lines, new) -> list[str]:
+def why_hard(lines, new, unstored=()) -> list[str]:
     """Why a read chat frame is worth keeping; empty if it isn't (#110)."""
-    reasons = set()
+    reasons = {"seen-not-stored"} if unstored else set()  # (#425)
     for line in lines:  # map text behind the chat is unknown too, so: only chat-looking lines
         if line.kind == "unknown" and any(c in line.text for c in "[]:("):
             reasons.add("unparsed")
@@ -133,7 +133,7 @@ class DebugSamples:
         return sample
 
     def chat_read(
-        self, ts: float, image: np.ndarray, ocr: list, lines: list, new: list
+        self, ts: float, image: np.ndarray, ocr: list, lines: list, new: list, unstored=()
     ) -> Path | None:
         """Every chat frame the reader read (#108): kept 20 s; hard ones become a sample."""
         if not self._enabled():
@@ -142,7 +142,7 @@ class DebugSamples:
             self._chat.append((ts, image, ocr, lines))
             while self._chat and ts - self._chat[0][0] > CHAT_CONTEXT_S:
                 self._chat.popleft()
-            reasons = why_hard(lines, new)
+            reasons = why_hard(lines, new, unstored)
             if not reasons or ts - self._chat_sampled_at < CHAT_SAMPLE_EVERY_S:
                 return None
             self._chat_sampled_at = ts

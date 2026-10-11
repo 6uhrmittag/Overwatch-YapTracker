@@ -32,6 +32,7 @@ FADE_S = 10.0  # a line is visible for ~9 s after it first appears (measured on 
 # its prompt (54 samples, 2026-10-01), then fades (#179).
 HISTORY_S = 20.0
 KEEP = 40  # recent lines to match against; an open chat box shows about 8
+UNSTORED_S = 60.0  # a row seen-but-not-stored is forgotten after this long out of sight (#425)
 
 
 # Map text or a nameplate behind the box gets glued to the end of a line: "gg TOURING EM PORTU".
@@ -166,6 +167,8 @@ class Dedup:
         self.recent: list[Yap] = []
         self._next_id = 1
         self._open_until = -1.0  # the history stays on screen for a while after the chat closes
+        self.unstored: list[ChatLine] = []  # rows seen twice but never stored, this read (#425)
+        self._seen_unstored: dict[str, tuple[int, float]] = {}  # key -> (times seen, last seen)
 
     def update(self, ts: float, lines: list[ChatLine]) -> tuple[list[Yap], list[Yap]]:
         """(new, improved): yaps first seen in this frame, and earlier ones read better now."""
@@ -193,7 +196,28 @@ class Dedup:
             self._next_id += 1
             new.append(yap)
         self.recent = (self.recent + new)[-self._keep :]
+        used = {i for i, _ in pairs} | set(range(last + 1, len(lines)))
+        used |= {i for i, line in enumerate(lines) if any(line is y.last for _, y in missed)}
+        self.unstored = self._unstored(ts, [line for i, line in enumerate(lines) if i not in used])
         return [yap for _, yap in missed] + new, improved
+
+    def _unstored(self, ts: float, rows: list[ChatLine]) -> list[ChatLine]:
+        """Rows read well that look like no known line, yet weren't stored (#425): above the
+        oldest known line of an opened chat box, or between known lines where one was skipped.
+        The second time one is seen it's reported, once, so a missed line becomes a number
+        instead of a feeling."""
+        self._seen_unstored = {k: v for k, v in self._seen_unstored.items()
+                               if ts - v[1] <= UNSTORED_S}  # fmt: skip
+        report = []
+        for line in rows:
+            k = match_key(line)
+            if line.quality < GOOD or any(y.similarity(k) >= SAME for y in self.recent):
+                continue
+            seen = self._seen_unstored.get(k, (0, ts))[0] + 1
+            self._seen_unstored[k] = (seen, ts)
+            if seen == 2:
+                report.append(line)
+        return report
 
     def _between(self, ts: float, lines: list[ChatLine], pairs: list) -> list[tuple[int, Yap]]:
         """Rows between two known lines that follow each other, matching nothing: lines an
