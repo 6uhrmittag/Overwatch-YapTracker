@@ -82,7 +82,7 @@ So every screen has to answer "what is this and what do I do?" on its own.
 | `ok` | `#7ce38b` | Listening, saved |
 | `danger` | `#ff5c66` | Nope, errors |
 
-**Chat channels** (Overwatch's own defaults, Void, #401): Team `#00c1ff` · Match `#fd8d00` ·
+**Chat channels** (defaults = Overwatch's own, Void, #401; **configurable** in Settings → Chat colours, Marv): Team `#00c1ff` · Match `#fd8d00` ·
 Group `#7ce38b` · System `#ffff00` (italic) · unrecognised "Chat" stays `muted` grey. Channel colour
 goes on the channel label and the speaker name; message text stays `text`. System lines have no
 speaker, so their whole text is system yellow (italic), as in the game.
