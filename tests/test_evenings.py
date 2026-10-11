@@ -51,8 +51,9 @@ def an_evening(tracker, store):
     tracker.new_match(T0, source="heroselect", mode="UNRANKED", map_name="Eichenwalde")
     match = tracker.match_id
     for n, confidence in enumerate((0.99, 0.97, 0.5, 0.98)):
-        store.add_message(ts=T0 + 10 + n, channel="match", text=f"yap {n}", match_id=match,
-                          ocr_confidence=confidence, has_glyphs=n == 1)  # fmt: skip
+        store.add_message(ts=T0 + 10 + n, channel="unknown" if n == 3 else "match",
+                          text=f"yap {n}", match_id=match, ocr_confidence=confidence,
+                          has_glyphs=n == 1)  # fmt: skip
     edited = store.messages(match)[0].id
     store.edit_message(edited, "fixed by hand", T0 + 30)
     tracker.end_match(T0 + 100, "victory")
@@ -73,8 +74,8 @@ def test_the_end_of_an_evening_writes_its_line(store, log_file, tmp_path, caplog
     assert (
         "evening 2026-10-10: 2 matches (hero select 1, gap 1, hand 0) · map known 100 % · queue "
         "known 100 % · result 50 % · missed ends 1 · lines 5 (avg confidence 0.89, "
-        "low-confidence 20 %, ◇ 20 %) · fixed by hand 1 · read modes best 12, light 0, after 4 "
-        "· whole app 25 % of a core" in caplog.text
+        "low-confidence 20 %, ◇ 20 %, no channel 20 %) · fixed by hand 1 · read modes best 12, "
+        "light 0, after 4 · whole app 25 % of a core" in caplog.text
     )
     saved = json.loads((tmp_path / "evenings.json").read_text(encoding="utf-8"))
     assert [e["session"] for e in saved] == [tracker.session_id]
@@ -107,6 +108,18 @@ def test_evenings_since_october_are_filled_in_once(store, log_file, tmp_path, ca
     (tmp_path / "evenings.json").write_text("[]", encoding="utf-8")
     evenings.backfill()  # the file is there: never again
     assert evenings.last() == []
+
+
+def test_evenings_from_before_the_chat_column_get_it_filled_in(store, log_file, tmp_path):
+    """#403: rows written before the share of lines without a channel existed get it from the
+    database once; everything else in them stays as it was (the CPU came from old logs)."""
+    tracker = MatchTracker(store, Pause())
+    an_evening(tracker, store)
+    old = {"session": tracker.session_id, "date": "2026-10-10", "lines": 5, "cpu": 25.0}
+    (tmp_path / "evenings.json").write_text(json.dumps([old]), encoding="utf-8")
+    evenings = Evenings(tmp_path / "evenings.json", store, lambda since: [])
+    evenings.backfill()
+    assert evenings.last() == [{**old, "unknown": 20.0}]
 
 
 def test_without_matches_or_log_lines_nothing_is_made_up(store, tmp_path):
@@ -143,3 +156,5 @@ async def test_about_lists_the_last_evenings(user: User, store, log_file, tmp_pa
     await user.should_see(marker="evenings")
     table = user.find(marker="evenings").elements.pop().content
     assert "<td>Sat Oct 10</td><td>2</td><td>100 %</td>" in table
+    # lines 5 · unsure 20 % · read without a channel ("Chat") 20 % (#403) · fixed 1
+    assert "<td>5</td><td>20 %</td><td>20 %</td><td>1</td>" in table and "<th>Chat</th>" in table

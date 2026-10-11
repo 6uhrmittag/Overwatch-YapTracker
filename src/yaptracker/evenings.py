@@ -56,7 +56,9 @@ def minutes(files: list[Path]) -> list[tuple[str, str, float]]:
 
 def summarize(store: Store, session: SessionRow, logged: list[tuple]) -> dict | None:
     """The evening's numbers; None when it had no match."""
-    played, (count, confidence, low, glyphs, fixed) = store.evening(session.id, LOW_CONFIDENCE)
+    played, (count, confidence, low, glyphs, fixed, unknown) = store.evening(
+        session.id, LOW_CONFIDENCE
+    )
     if not played:
         return None
     hero = [m for m in played if m[0] == "heroselect"]
@@ -85,6 +87,7 @@ def summarize(store: Store, session: SessionRow, logged: list[tuple]) -> dict | 
         "confidence": None if confidence is None else round(confidence, 3),
         "low": _share(low, count),
         "glyphs": _share(glyphs, count),
+        "unknown": _share(unknown, count),  # read without a channel (#403)
         "fixed": fixed,
         "modes": {mode: modes[mode] for mode in READ_MODES} if modes else None,
         "cpu": round(sum(cpu) / len(cpu), 1) if cpu else None,
@@ -100,7 +103,8 @@ def line(e: dict) -> str:
         f"gap {e['gap']}, hand {e['hand']}) · map known {percent(e['map'])} · queue known "
         f"{percent(e['queue'])} · result {percent(e['result'])} · missed ends "
         f"{e['missed_ends']} · lines {e['lines']} (avg confidence {confidence}, low-confidence "
-        f"{percent(e['low'])}, ◇ {percent(e['glyphs'])}) · fixed by hand {e['fixed']} · read "
+        f"{percent(e['low'])}, ◇ {percent(e['glyphs'])}, no channel "
+        f"{percent(e.get('unknown'))}) · fixed by hand {e['fixed']} · read "
         f"modes {modes} · whole app {percent(e['cpu'])} of a core"
     )
 
@@ -148,6 +152,7 @@ class Evenings:
         """Once, while there's no file yet: the evenings since `since`, as a baseline."""
         with self._lock:
             if self._path.exists():
+                self._fill_in_chat()
                 return
             start = time.mktime(time.strptime(since, "%Y-%m-%d"))
             logged = minutes(self._files(start))
@@ -156,6 +161,16 @@ class Evenings:
             for evening in done:
                 log.info("%s (filled in)", line(evening))
             self._save(done)  # an empty file too: filled in once
+
+    def _fill_in_chat(self) -> None:
+        """Evenings from before #403 lack the share of lines without a channel: from the
+        database, once, so the column has a baseline."""
+        old = [e for e in self._load() if "unknown" not in e]
+        for e in old:
+            _, (count, *_, unknown) = self._store.evening(e["session"], LOW_CONFIDENCE)
+            e["unknown"] = _share(unknown, count)
+        if old:
+            self._save(old)
 
     def _load(self) -> list[dict]:
         try:
