@@ -361,6 +361,7 @@ def _open_store() -> Callable[[], None]:
     """
     from yaptracker import later
     from yaptracker.capture.health import CaptureHealth
+    from yaptracker.cleanups import remove_input_hints_once
     from yaptracker.debug import DebugSamples
     from yaptracker.evenings import Evenings
     from yaptracker.familiar import FamiliarFaces
@@ -473,6 +474,8 @@ def _open_store() -> Callable[[], None]:
         runtime.read_again.start()
         check_marks_once(runtime.read_again, runtime.store, config.marks_checked,
                          config.save_marks_checked)  # fmt: skip
+        remove_input_hints_once(runtime.store, paths.backup_dir(), config.hints_removed,
+                                config.save_hints_removed)  # fmt: skip
 
     def close_store() -> None:
         if runtime.backups is not None:

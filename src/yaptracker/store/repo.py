@@ -581,6 +581,37 @@ class Store:
             (channel, channel_ocr, message_id),
         )
 
+    def lines_like(self, pattern: str) -> list[tuple[int, str]]:
+        """(id, text) of lines whose text is LIKE the pattern (case-insensitive), deleted too."""
+        return self._read("SELECT id, text FROM chat_messages WHERE text LIKE ?", (pattern,))
+
+    def remove_lines(self, ids: list[int]) -> int:
+        """Lines that were never chat (#422) gone for good, and the players only they made
+        (no other line, no notes, no verdict). One transaction; returns how many players went."""
+        if not ids:
+            return 0
+        marks = ",".join("?" * len(ids))
+        with self._lock:
+            conn = self._conn
+            try:
+                conn.execute("BEGIN")
+                players = [row[0] for row in conn.execute(
+                    f"SELECT DISTINCT player_id FROM chat_messages WHERE id IN ({marks}) "
+                    "AND player_id IS NOT NULL", ids)]  # fmt: skip
+                conn.execute(f"DELETE FROM chat_messages WHERE id IN ({marks})", ids)
+                gone = 0
+                for pid in players:
+                    gone += conn.execute(
+                        "DELETE FROM players WHERE id = ? AND verdict IS NULL AND "
+                        "COALESCE(notes, '') = '' AND NOT EXISTS "
+                        "(SELECT 1 FROM chat_messages WHERE player_id = ?)", (pid, pid)
+                    ).rowcount  # fmt: skip
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+        return gone
+
     def lines_with_a_trailing_mark(self) -> list[int]:
         """Typed and system lines ending in "◇", not fixed by hand (#402): to check them once.
         Comms lines (with a hero) keep theirs: their icons are real."""

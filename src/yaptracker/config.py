@@ -215,6 +215,18 @@ def save_channel_colours(colours: dict[str, float], path: Path | None = None) ->
     _save(path, data)
 
 
+def hints_removed(path: Path | None = None) -> bool:
+    """The chat field's hint, once stored as a line, was removed (#422)."""
+    return _load(path or paths.config_file()).get("hints_removed", False)
+
+
+def save_hints_removed(path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["hints_removed"] = True
+    _save(path, data)
+
+
 def marks_checked(path: Path | None = None) -> bool:
     """The "◇" at the end of stored lines was checked once with the stricter look (#402)."""
     return _load(path or paths.config_file()).get("marks_checked", False)

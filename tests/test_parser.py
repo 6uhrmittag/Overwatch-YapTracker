@@ -152,3 +152,20 @@ def test_the_box_starts_at_the_first_real_word():
              ("gg", Region(160, 10, 20, 24)))  # fmt: skip
     (line,) = parse([OcrLine("* [Pickle]: gg", 0.99, Region(20, 10, 160, 24), parts)])
     assert line.text == "gg" and line.box == line.head == Region(64, 10, 116, 24)
+
+
+@pytest.mark.parametrize("reading", ["[Match]: PRESS TAB TO CYCLE CHANNELS",
+                                     "[Team] PRESS TAB TO CYCLE CHANNELS",
+                                     " [Team] PRESS TAB TO CYCLE CHANNELS",
+                                     "[Match] RRESS TAB TO CYCLE CHANNELS",
+                                     "PRESS TAB TO CYCLE CHANNELS"])  # fmt: skip
+def test_the_chat_fields_hint_is_input_whatever_comes_before_it(reading):
+    """#422: "[Match]: PRESS TAB TO CYCLE CHANNELS" (a misread colon) was stored as a line from
+    a player "Match". The hint is the empty chat field, never a line."""
+    (line,) = parse([_line(reading, 10)])
+    assert line.kind == "input"
+
+
+def test_a_line_about_tabs_is_still_chat():
+    (line,) = parse([_line("[Pip]: *opening a million tabs to check all sites*", 10)])
+    assert line.kind == "message"

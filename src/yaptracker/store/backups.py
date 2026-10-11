@@ -95,13 +95,13 @@ class DailyBackup:
 KEEP_MERGE_BACKUPS = 10
 
 
-def before_merge(backup: Callable[[Path], None], folder: Path) -> Path:
-    """A copy right before two players (#28) or matches (#371) are merged, so a merge can
-    always be undone."""
+def before_merge(backup: Callable[[Path], None], folder: Path, what: str = "merge") -> Path:
+    """A copy right before two players (#28) or matches (#371) are merged, or lines removed
+    (`what="cleanup"`, #422), so it can always be undone."""
     folder.mkdir(parents=True, exist_ok=True)
-    target = folder / f"yaptracker-before-merge-{time.strftime('%Y%m%d-%H%M%S')}.db"
+    target = folder / f"yaptracker-before-{what}-{time.strftime('%Y%m%d-%H%M%S')}.db"
     backup(target)
-    for old in sorted(folder.glob("yaptracker-before-merge-*.db"))[:-KEEP_MERGE_BACKUPS]:
+    for old in sorted(folder.glob(f"yaptracker-before-{what}-*.db"))[:-KEEP_MERGE_BACKUPS]:
         old.unlink()
     return target
 
