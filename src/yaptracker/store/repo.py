@@ -342,7 +342,7 @@ class Store:
     def evening(self, session_id: int, low: float) -> tuple[list[tuple], tuple]:
         """One evening's quality numbers (#379): its played matches (source, map, mode, outcome),
         and its lines, deleted ones too: (count, average confidence, below `low`, with ◇,
-        fixed by hand: text, channel or deleted)."""
+        fixed by hand: text, channel or deleted, read without a channel: "Chat", #403)."""
         played = self._read(
             f"SELECT source, map, mode, outcome FROM matches m WHERE session_id = ? AND "
             f"{_played('m')} ORDER BY started_at, id",
@@ -351,7 +351,8 @@ class Store:
         lines = self._read(
             "SELECT COUNT(*), AVG(c.ocr_confidence), COALESCE(SUM(c.ocr_confidence < ?), 0), "
             "COALESCE(SUM(c.has_glyphs), 0), COALESCE(SUM(c.edited_at IS NOT NULL OR "
-            "c.channel_ocr IS NOT NULL OR c.deleted_at IS NOT NULL), 0) FROM chat_messages c "
+            "c.channel_ocr IS NOT NULL OR c.deleted_at IS NOT NULL), 0), "
+            "COALESCE(SUM(COALESCE(c.channel_ocr, c.channel) = 'unknown'), 0) FROM chat_messages c "
             "JOIN matches m ON m.id = c.match_id WHERE m.session_id = ?",
             (low, session_id),
         )[0]

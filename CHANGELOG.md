@@ -4,6 +4,12 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · Fewer lines filed as Chat (#403)
+- Match and team lines on a bright map (snow, sky, white walls) now get their channel from the diamond or the team icon in front, instead of landing in grey Chat.
+- Comms-wheel lines like `Name (Hero): Hello!` and system lines like `[Name] left the game.` are read again when the icon in front came out as a stray mark or space.
+- When the icon can't be seen, YapTracker no longer guesses Team or Match from the colour on an HDR screen, where both look the same yellow: such a line stays Chat instead of landing in the wrong channel. You can still move it with a click.
+- Settings → About → Last evenings has a Chat column: the share of lines YapTracker couldn't place in Team, Match or Group, to watch it.
+
 ### 2026-10-11 · One switch per row (#397)
 - Export and yap snaps: every switch has its own row and says right under it what it does, instead of several switches side by side with one hint for all.
 - Line pictures switch off while Anonymize names is on (they show the names), and Keep me & my crew only works with Hide names. Both are greyed out until then and say why.

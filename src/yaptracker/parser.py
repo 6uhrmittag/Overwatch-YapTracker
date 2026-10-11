@@ -46,7 +46,7 @@ _NAMED_SYSTEM = (
     r"(?:started|stopped) playing\b",  # a friend coming online or going offline (#306)
     r"started spectating\b",  # often in the debug samples (#306)
     r"(?:has )?joined the (?:game|group)\b",
-    r"(?:has )?left the (?:game|group)\b",
+    r"(?:has )?l?eft the (?:game|group)\b",  # "eft the game.": OCR lost the l (#403)
     r"is now (?:online|offline|the group leader)\b",
     r"invited you\b",
     r"was invited to the group\b",  # Void's crop (#228)
@@ -99,6 +99,32 @@ class ChatLine:
 def _starts_line(text: str) -> bool:
     return any(p.match(text) for p in (_TYPED, _TYPED_NO_BRACKET, _TYPED_MISREAD, _COMMS_START,
                                        _SYSTEM_NAMED, _SYSTEM_PLAIN, _INPUT))  # fmt: skip
+
+
+# The channel icon read as a word: empty (" Name (Hero): Hello!") or a mark or digit
+# ("* Name (Hero): Hello!", "0 [Name] left the game.", #403).
+_ICON_WORD = re.compile(r"^(?:[^\s\w]{1,2}|\W?\d)\s+")
+
+
+def _without_icon_word(line: OcrLine) -> OcrLine:
+    """The line without its icon read as a word, if what's left starts a line. Its box then
+    starts at the first real word, so the icon is found left of it again."""
+    text, icon = line.text.strip(), ""
+    if (m := _ICON_WORD.match(text)) and not _starts_line(text) and _starts_line(text[m.end() :]):
+        text, icon = text[m.end() :], m[0].strip()
+    if text == line.text:
+        return line
+    parts = line.parts
+    while len(parts) > 1 and parts[0][0].strip() in ("", icon):
+        icon = icon if parts[0][0].strip() == "" else None  # only one word was the icon
+        parts = parts[1:]
+    box = line.box
+    if parts != line.parts:
+        x0, y0 = min(b.x for _, b in parts), min(b.y for _, b in parts)
+        x1 = max(b.x + b.width for _, b in parts)
+        y1 = max(b.y + b.height for _, b in parts)
+        box = Region(x0, y0, x1 - x0, y1 - y0)
+    return replace(line, text=text, box=box, parts=parts)
 
 
 def _misread_prompt(text: str) -> bool:
@@ -159,6 +185,7 @@ def parse(
     `has_icon(box)`: the row has its own channel icon, so it's never a wrap (#329)."""
     if not ocr_lines:
         return []
+    ocr_lines = [_without_icon_word(line) for line in ocr_lines]
     height = statistics.median(line.box.height for line in ocr_lines)
     first = ocr_lines[0]
     # The top line of a scrolled chat is cut in half: no readable start, low confidence.

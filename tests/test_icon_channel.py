@@ -130,3 +130,64 @@ def test_a_system_line_with_a_phrase_the_list_lacks_is_still_system(monkeypatch)
 
 def test_background_next_to_the_diamond_doesnt_make_it_people():
     assert channels_drawn([("diamond", "[Pickle]: gg", ORANGE, True)]) == ["match"]
+
+
+CYAN, PALE_YELLOW, RIM = (255, 240, 60), (140, 245, 255), (40, 60, 90)  # BGR
+
+
+def bright_frame(icon: str, background) -> tuple[np.ndarray, list[OcrLine]]:
+    """A chat line on a bright HDR map (#403): the icon and the text as bright and as coloured
+    as the background, only their dark rim and their colour set them apart."""
+    image = np.zeros((120, 900, 3), np.uint8)
+    image[:] = background
+    x, y = 100, 40
+    cx, cy = int(x - 1.05 * H), y + H // 2  # where it sits on real frames
+    if icon == "diamond":
+        r = int(0.2 * H)
+        corners = np.array([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)])
+        cv2.fillPoly(image, [corners], PALE_YELLOW)
+        cv2.polylines(image, [corners], True, RIM, 2)
+    else:
+        for dx, size in ((-13, 0), (13, 0), (0, 2)):  # three people, the middle one in front
+            cv2.circle(image, (cx + dx, cy - 6 - size), 4 + size, RIM, -1)
+            cv2.circle(image, (cx + dx, cy - 6 - size), 3 + size, PALE_YELLOW, -1)
+            cv2.ellipse(image, (cx + dx, cy + 5), (6 + size, 7 + size), 0, 0, 360, RIM, -1)
+            cv2.ellipse(image, (cx + dx, cy + 5), (4 + size, 6 + size), 0, 0, 360, PALE_YELLOW, -1)
+    for sx in range(x, x + 200, 12):  # thin letters: the box is mostly the map behind them
+        cv2.line(image, (sx, y + 8), (sx, y + H - 8), PALE_YELLOW, 2)
+    return image, [OcrLine("[Pickle]: hello everyone", 0.99, Region(x, y, 200, H))]
+
+
+def test_the_icon_on_a_bright_map_is_found_by_how_it_stands_out():
+    """#403: on a bright cyan map the old check saw one big blob; the icon's rim sets it apart."""
+    for icon, channel in (("diamond", "match"), ("team", "team")):
+        image, ocr = bright_frame(icon, CYAN)
+        (line,) = parse(ocr)
+        assert channels.icon_shape(image, line.head, channels.text_hue(image, line.box)) is None
+        assert [c.channel for c in channels.assign(parse(ocr), image, {})] == [channel], icon
+
+
+def test_a_busy_background_never_makes_a_wrong_channel():
+    """A diamond on camouflage looked like a few blobs: on a bright background only the sure
+    shapes count, so it's match or still unknown, never team or group."""
+    rng = np.random.default_rng(3)
+    for _ in range(20):
+        image, ocr = bright_frame("diamond", CYAN)
+        for _ in range(6):  # bright specks of the map around the icon
+            px, py = int(rng.integers(40, 98)), int(rng.integers(30, 85))
+            colour = tuple(int(c) for c in rng.integers(150, 256, 3))
+            cv2.circle(image, (px, py), int(rng.integers(2, 5)), colour, -1)
+        (line,) = channels.assign(parse(ocr), image, {})
+        assert line.channel in ("match", "unknown")
+
+
+def test_classify_on_background_keeps_only_the_sure_shapes():
+    real = {  # measured on Marv's bright 4K HDR frames, checked by eye (#403)
+        "diamond": channels.IconStats(1, 0.42, 0.42, 0.55, 0.9),
+        "three people": channels.IconStats(6, 0.92, 0.64, 0.38, 0.78),
+        "diamond on camouflage": channels.IconStats(5, 0.93, 0.71, 0.22, 0.06),
+        "two people": channels.IconStats(4, 0.59, 0.76, 0.42, 0.59),
+    }
+    got = {name: channels.classify_on_background(stats) for name, stats in real.items()}
+    assert got == {"diamond": "match", "three people": "team", "diamond on camouflage": None,
+                   "two people": None}  # fmt: skip

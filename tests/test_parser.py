@@ -126,3 +126,29 @@ def test_real_readings_of_one_line_are_stored_once():
             assert [t for _, t in mine].count("ww") <= 1
         else:
             assert any(t.startswith("fun game :3") for _, t in mine)  # chat, not system
+
+
+def test_the_icon_read_as_a_word_is_taken_off():
+    """#403: OCR reads the channel icon as an empty word, a mark or a digit in front. Lines like
+    that were filed as unknown (and comms lines lost their team channel)."""
+    readings = [" Bo (Doctrine): Hello!", "* Bo (Doctrine): Group up!",
+                "0 [Pickle] left the game.", ": Bo (Mei) to you: Thanks!", "  [Pickle]: gg wp",
+                '"2 Bo (Mei): Hello!', "[Pickle] eft the game."]  # fmt: skip
+    parsed = parse([_line(text, 10 + 40 * n) for n, text in enumerate(readings)])
+    assert [(p.kind, p.channel, p.speaker) for p in parsed] == [
+        ("comms", "team", "Bo"), ("comms", "team", "Bo"), ("system", "system", "Pickle"),
+        ("comms", "team", "Bo"), ("message", "unknown", "Pickle"), ("comms", "team", "Bo"),
+        ("system", "system", "Pickle"),  # the l of "left" lost
+    ]  # fmt: skip
+    assert parsed[2].text == "[Pickle] left the game."
+    # what isn't an icon stays: a count, a word
+    kept = parse([_line("1 friend playing Overwatch.", 10), _line("ok [Pickle]: gg", 50)])
+    assert [p.text for p in kept] == ["1 friend playing Overwatch.", "ok [Pickle]: gg"]
+
+
+def test_the_box_starts_at_the_first_real_word():
+    """The icon's own word is left out of the box, so the icon is found left of the text."""
+    parts = (("*", Region(20, 10, 16, 24)), ("[Pickle]:", Region(64, 10, 90, 24)),
+             ("gg", Region(160, 10, 20, 24)))  # fmt: skip
+    (line,) = parse([OcrLine("* [Pickle]: gg", 0.99, Region(20, 10, 160, 24), parts)])
+    assert line.text == "gg" and line.box == line.head == Region(64, 10, 116, 24)

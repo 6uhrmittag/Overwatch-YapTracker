@@ -2,9 +2,10 @@
 
 The text of [Name]: lines can't tell team from match chat. The icon in front can: a small
 diamond is match chat, the three-person icon is team chat. That holds on HDR screens too, where
-Windows washes match orange and team blue into the same pale yellow. When the icon is hidden
-(a bright background behind it), the colour decides. Colours are user settings (team chat is
-the "friendly" colour), so they are learned from lines whose channel the text already proves:
+Windows washes match orange and team blue into the same pale yellow. On a bright background the
+icon is found by how it stands out from it (#403); when it's still hidden, the colour decides,
+but only when it's clearly one channel's. Colours are user settings (team chat is the
+"friendly" colour), so they are learned from lines whose channel the text already proves:
 comms-wheel lines are team, system lines are system. Calibration saves them.
 """
 
@@ -111,6 +112,67 @@ def classify_icon(icon: IconStats | None) -> str | None:
     return None
 
 
+ICON_COLOUR = 50  # 0-255 per colour channel: blobs this close to the biggest one's colour
+CONTRAST = 60  # how much (0-255, any colour channel) the icon stands out from what's around it
+BRIGHT_TEAM_FILL, BRIGHT_TEAM_MIDDLE = 0.35, 0.6  # three people with the middle one in front
+
+
+def icon_on_background(image: np.ndarray, head: Region) -> IconStats | None:
+    """The icon in front of a bright background (#403): there everything is as bright and as
+    coloured as the icon, so icon_stats sees one big blob. The icon is what stands out from the
+    background around it (a median much wider than the icon); its dark rim keeps it apart."""
+    h = head.height
+    x0, x1 = max(0, int(head.x - 1.6 * h)), max(0, int(head.x - 0.1 * h))
+    if h <= 0 or x1 - x0 < 0.5 * h:
+        return None
+    m = int(0.6 * h)  # room around the cell, for the background
+    top, left = max(0, head.y - m), max(0, x0 - m)
+    around = image[top : head.y + h + m, left:x1]
+    if min(around.shape[:2]) < 3:
+        return None
+    k = max(3, min(int(1.2 * h), min(around.shape[:2]) - 1) | 1)
+    background = cv2.merge([cv2.medianBlur(np.ascontiguousarray(c), k) for c in cv2.split(around)])
+    stands_out = cv2.absdiff(around, background).max(axis=2) > CONTRAST
+    mask = (stands_out & (around.max(axis=2) > 150)).astype(np.uint8)
+    cell = mask[head.y - top : head.y - top + h, x0 - left :]
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(np.ascontiguousarray(cell))
+    size, text_x = max(4, (h / 10) ** 2), head.x - x0
+    found = [i for i in range(1, count)
+             if stats[i][4] >= size and _in_icon_spot(stats[i], h, text_x)]  # fmt: skip
+    if not found:
+        return None
+    # The icon is one colour: bits of the map in other colours next to it aren't part of it.
+    colours = around[head.y - top : head.y - top + h, x0 - left :]
+    mean = {i: colours[labels == i].mean(axis=0) for i in found}
+    biggest = mean[max(found, key=lambda i: stats[i][4])]
+    blobs = [stats[i] for i in found if np.abs(mean[i] - biggest).max() <= ICON_COLOUR]
+    x, y = min(s[0] for s in blobs), min(s[1] for s in blobs)
+    bw, bh = max(s[0] + s[2] for s in blobs) - x, max(s[1] + s[3] for s in blobs) - y
+    middle = cell[y + bh // 3 : y + 2 * bh // 3 + 1, x + bw // 3 : x + 2 * bw // 3 + 1]
+    return IconStats(len(blobs), bw / h, bh / h, sum(int(s[4]) for s in blobs) / max(1, bw * bh),
+                     float(middle.mean()) if middle.size else 1.0)  # fmt: skip
+
+
+def _in_icon_spot(blob: np.ndarray, h: int, text_x: float) -> bool:
+    """A blob centred where the icon sits: measured on 3,500 clear icons of Marv's samples, the
+    middle of the icon is 0.73-1.33 text heights left of the text and half-way down (#403), and
+    the team icon is 0.9 wide. Bits of the map above, below or right next to the text aren't."""
+    x, y = blob[0] + blob[2] / 2, blob[1] + blob[3] / 2
+    return x - text_x <= -0.35 * h and 0.1 * h <= y <= 0.85 * h
+
+
+def classify_on_background(icon: IconStats | None) -> str | None:
+    """Only the sure ones from a bright background: the diamond, and three people with the
+    middle one filled in. A busy background can look like a few blobs (a diamond on camouflage
+    came out as "team"), and a wrong channel is worse than none (#403)."""
+    shape = classify_icon(icon)
+    if shape == "match":
+        return shape
+    if shape == "team" and icon.fill >= BRIGHT_TEAM_FILL and icon.middle >= BRIGHT_TEAM_MIDDLE:
+        return shape
+    return None
+
+
 def has_icon(image: np.ndarray, box: Region) -> bool:
     """A channel icon in the row's own colour left of its text (#329): that row starts a new
     line, it's never a wrapped continuation. Strict, so a bright map behind a wrap isn't one."""
@@ -180,9 +242,21 @@ def learn(lines: list[ChatLine], image: np.ndarray) -> dict[str, float]:
         if line.kind == "message":
             shape = icon_shape(image, line.head or line.box, hue)
             channel = shape if shape in ("match", "team") else None  # group: by colour (#80)
-        if channel and hue is not None:
+        if channel and hue is not None and not bright_behind(image, line.head or line.box):
             samples.setdefault(channel, []).append(hue)
     return {channel: float(np.median(hues)) for channel, hues in samples.items()}
+
+
+BRIGHT_BEHIND = 0.5  # share of bright pixels where the icon sits: the map behind is bright
+
+
+def bright_behind(image: np.ndarray, head: Region) -> bool:
+    """The map behind the line is bright, so its "text colour" is mostly the map's (#403): on a
+    blue sky a match line came out blue and taught that as the team colour."""
+    h = head.height
+    x0, x1 = max(0, int(head.x - 1.6 * h)), max(0, int(head.x - 0.1 * h))
+    cell = image[max(0, head.y) : head.y + h, x0:x1]
+    return cell.size > 0 and float((cell.max(axis=2) > 150).mean()) >= BRIGHT_BEHIND
 
 
 def _group_colour(hue: float | None, learned: dict[str, float]) -> bool:
@@ -207,6 +281,9 @@ def assign(
     for line in lines:
         hue = text_hue(image, line.box) if line.kind == "message" else None
         shape = icon_shape(image, line.head or line.box, hue) if line.kind == "message" else None
+        if line.kind == "message" and shape in (None, "people"):  # a bright background? (#403)
+            sure = classify_on_background(icon_on_background(image, line.head or line.box))
+            shape = sure or shape
         if shape == "group" and not _group_colour(hue, learned):
             shape = "people"  # colour only confirms: on HDR every channel is the same yellow
         if shape == "system" and (hue is None or hue_distance(hue, DEFAULT_HUES["system"]) > 20):
@@ -220,15 +297,26 @@ def assign(
             continue
         # A people icon is a team icon blurred by the background, or the group icon: team only
         # in team colours. Group chat needs its own colour first (#80), so it stays unknown here.
+        if hue is not None and bright_behind(image, line.head or line.box):
+            hue = None  # the map's colour, not the text's: the icon alone decides (#403)
         if (shape == "people" and hue is not None and "team" in learned
-                and hue_distance(hue, learned["team"]) <= TEAM_DISTANCE):  # fmt: skip
+                and _clearly(hue, hues, "team", TEAM_DISTANCE)):  # fmt: skip
             result.append(replace(line, channel="team"))
             continue
         if hue is not None:
-            channel, distance = min(((c, hue_distance(hue, h)) for c, h in hues.items()),
-                                    key=lambda item: item[1])  # fmt: skip
+            channel = min(hues, key=lambda c: hue_distance(hue, hues[c]))
             # A typed line can be team or match (or group), never a system line.
-            if distance <= MAX_DISTANCE and channel != "system":
+            if channel != "system" and _clearly(hue, hues, channel, MAX_DISTANCE):
                 line = replace(line, channel=channel)
         result.append(line)
     return result
+
+
+def _clearly(hue: float, hues: dict[str, float], channel: str, within: float) -> bool:
+    """The text has this channel's colour: close to it and clearly closer than to any other.
+    On HDR, match and team come out the same yellow, and picking the nearer one is a coin
+    toss: a wrong channel half the time, worse than none (#403)."""
+    mine = hue_distance(hue, hues[channel])
+    return mine <= within and all(
+        hue_distance(hue, other) - mine >= MAX_DISTANCE for c, other in hues.items() if c != channel
+    )

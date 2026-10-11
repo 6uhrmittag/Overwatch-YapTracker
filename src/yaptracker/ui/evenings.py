@@ -9,15 +9,17 @@ from nicegui import ui
 from yaptracker import runtime
 from yaptracker.evenings import percent
 
-COLUMNS = ("Evening", "Matches", "Map", "Queue", "Result", "Lines", "Unsure", "Fixed", "CPU")
+COLUMNS = ("Evening", "Matches", "Map", "Queue", "Result", "Lines", "Unsure", "Chat", "Fixed",
+           "CPU")  # fmt: skip
 EMPTY = (
     "After your first evening with Overwatch, a row shows up here: matches, maps, results and "
     "how sure the reading was."
 )
 HINT = (
     "One row per evening, to spot a real drop. Map and queue: of the matches I saw start at "
-    "hero select. Unsure: lines I wasn't sure I read right. Fixed: lines you edited, moved or "
-    "deleted. CPU: all of YapTracker, share of one core."
+    "hero select. Unsure: lines I wasn't sure I read right. Chat: lines I couldn't place in "
+    "Team, Match or Group. Fixed: lines you edited, moved or deleted. CPU: all of YapTracker, "
+    "share of one core."
 )
 
 
@@ -43,4 +45,5 @@ def evenings_table() -> None:
 def _cells(e: dict) -> tuple:
     day = time.strftime("%a %b %d", time.strptime(e["date"], "%Y-%m-%d")).replace(" 0", " ")
     return (day, e["matches"], percent(e["map"]), percent(e["queue"]), percent(e["result"]),
-            e["lines"], percent(e["low"]), e["fixed"], percent(e["cpu"]))  # fmt: skip
+            e["lines"], percent(e["low"]), percent(e.get("unknown")), e["fixed"],
+            percent(e["cpu"]))  # fmt: skip

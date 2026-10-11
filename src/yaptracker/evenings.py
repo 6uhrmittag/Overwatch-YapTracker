@@ -56,7 +56,9 @@ def minutes(files: list[Path]) -> list[tuple[str, str, float]]:
 
 def summarize(store: Store, session: SessionRow, logged: list[tuple]) -> dict | None:
     """The evening's numbers; None when it had no match."""
-    played, (count, confidence, low, glyphs, fixed) = store.evening(session.id, LOW_CONFIDENCE)
+    played, (count, confidence, low, glyphs, fixed, unknown) = store.evening(
+        session.id, LOW_CONFIDENCE
+    )
     if not played:
         return None
     hero = [m for m in played if m[0] == "heroselect"]
@@ -85,6 +87,7 @@ def summarize(store: Store, session: SessionRow, logged: list[tuple]) -> dict | 
         "confidence": None if confidence is None else round(confidence, 3),
         "low": _share(low, count),
         "glyphs": _share(glyphs, count),
+        "unknown": _share(unknown, count),  # read without a channel (#403)
         "fixed": fixed,
         "modes": {mode: modes[mode] for mode in READ_MODES} if modes else None,
         "cpu": round(sum(cpu) / len(cpu), 1) if cpu else None,
@@ -100,7 +103,8 @@ def line(e: dict) -> str:
         f"gap {e['gap']}, hand {e['hand']}) · map known {percent(e['map'])} · queue known "
         f"{percent(e['queue'])} · result {percent(e['result'])} · missed ends "
         f"{e['missed_ends']} · lines {e['lines']} (avg confidence {confidence}, low-confidence "
-        f"{percent(e['low'])}, ◇ {percent(e['glyphs'])}) · fixed by hand {e['fixed']} · read "
+        f"{percent(e['low'])}, ◇ {percent(e['glyphs'])}, no channel "
+        f"{percent(e.get('unknown'))}) · fixed by hand {e['fixed']} · read "
         f"modes {modes} · whole app {percent(e['cpu'])} of a core"
     )
 
