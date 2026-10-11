@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · Fewer false ◇ (#402)
+- Plain lines no longer get a ◇ for an icon that isn't there. It came from the game's scenery right after a short line: something bright behind it for a moment. A ◇ now needs the icon in at least half of the readings, and bright scenery doesn't count.
+- System lines (`[Name] left the game.`, `You endorsed …!`) never get one, and a `[Report]` link with a ◇ after it is still taken off and marks the line spicy.
+- Lines you already have are checked once against their picture, in the background between matches: where no icon is there, the ◇ goes. The pictures stay as they are.
+
 ### 2026-10-11 · Your chat colours (#401)
 - Chat lines take Overwatch's own colours: Team `#00c1ff`, Match `#fd8d00`. System lines stay grey, and lines without a channel ("Chat") too.
 - Settings → Chat colours: pick each channel's colour (picker or hex) and see a line in it right away, no restart. Reset to Overwatch defaults puts them back. A colour that's hard to read on the dark background says so, but you can keep it.
