@@ -74,12 +74,13 @@ def root() -> None:
         return
 
     buttons: dict[str, ui.element] = {}
+    client = ui.context.client  # not from the caller: a closed dialog has no context left
 
     current = {"view": None}
 
     def show(key: str, **kwargs) -> None:
         current["view"] = key
-        ui.context.client.yt_back = None  # the view says when it opens a sub-page (#404)
+        client.yt_back = None  # the view says when it opens a sub-page (#404)
         content.classes(remove="yt-calm")
         for view_key, button in buttons.items():
             if view_key == key:
@@ -96,9 +97,9 @@ def root() -> None:
         if key != current["view"]:
             show(key)
             return
-        back = getattr(ui.context.client, "yt_back", None)
+        back = getattr(client, "yt_back", None)
         if back is not None:
-            ui.context.client.yt_back = None
+            client.yt_back = None
             content.classes(add="yt-calm")
             back()
 
