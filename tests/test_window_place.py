@@ -73,7 +73,7 @@ async def test_settings_can_reset_the_window_position(tmp_path):
 
 # Marv's screens (#299): the 4K main screen, a 1080p one left of it, both with a taskbar.
 MAIN_WORK = (0, 0, 3840, 2112)
-SECOND_WORK = (-1920, 1080, 1920, 1032)
+SECOND_WORK = (-1920, 1078, 1920, 1032)  # Marv's log, 2026-10-10
 
 
 def test_a_snapped_half_fits_as_it_is():
@@ -89,8 +89,20 @@ def test_a_window_taller_than_its_screen_is_clamped_with_the_title_bar_inside():
 
     x, y, w, h = clamp((-1393, 1241, 1300, 1397), [MAIN_WORK, SECOND_WORK])  # Marv's "normal"
     sx, sy, sw, sh = SECOND_WORK
-    assert h <= sh + 2 * BORDER and w == 1300
-    assert sy - BORDER <= y and y + h <= sy + sh + BORDER  # the top on screen, never above it
+    assert h <= sh + BORDER and w == 1300
+    assert sy <= y and y + h <= sy + sh + BORDER  # the top on screen, never above it
+
+
+def test_nothing_sticks_out_at_the_top_where_the_title_bar_is():
+    """#414: the place saved after a too-tall start was trimmed with 10 px above the screen,
+    and the title bar's letters were cut off. Windows' invisible border is left, right and
+    below only."""
+    from yaptracker.window_place import clamp
+
+    second = (-1920, 1088, 1920, 1032)  # Marv's 100 % screen's work area on 2026-10-11
+    assert clamp((-966, 1078, 970, 1052), [MAIN_WORK, second]) == (-966, 1088, 970, 1042)
+    snapped = (-967, 1088, 974, 1039)  # a snapped right half: border left, right and below
+    assert clamp(snapped, [MAIN_WORK, second]) == snapped
 
 
 def test_off_to_the_side_lands_on_the_nearest_screen():
@@ -111,7 +123,7 @@ def test_the_keeper_never_saves_more_than_fits():
     clock[0] += SETTLE_S
     keeper.check()
     (place,) = saved
-    assert place.rect[3] <= SECOND_WORK[3] + 20 and place.normal[3] <= SECOND_WORK[3] + 20
+    assert place.rect[3] <= SECOND_WORK[3] + 10 and place.normal[3] <= SECOND_WORK[3] + 10
 
 
 # Marv's screens as Windows reports them (#365): the 1080p one at 100 %, the 4K main one at 150 %.

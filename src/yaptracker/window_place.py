@@ -76,15 +76,16 @@ def border(dpi: int) -> int:
 
 def clamp(rect: Rect, works: list[Rect], dpis: list[int] | None = None) -> Rect:
     """The rect fitted into the work area it's mostly on (#299): never wider or taller than it,
-    the title bar always inside. Windows' invisible border may stick out, so a snapped half
-    stays as it is. `works`: every monitor's work area; `dpis`: their scaling (96 if unknown)."""
+    the title bar always inside. Windows' invisible border may stick out left, right and below,
+    so a snapped half stays as it is; there's none at the top, where the title bar is (#414).
+    `works`: every monitor's work area; `dpis`: their scaling (96 if unknown)."""
     if not works:
         return rect
     x, y, w, h = rect
     i = home(rect, works)
     edge = border(dpis[i] if dpis else 96)
     wx, wy, ww, wh = works[i]
-    wx, wy, ww, wh = wx - edge, wy - edge, ww + 2 * edge, wh + 2 * edge
+    wx, ww, wh = wx - edge, ww + 2 * edge, wh + edge
     w, h = min(w, ww), min(h, wh)
     return min(max(x, wx), wx + ww - w), min(max(y, wy), wy + wh - h), w, h
 
