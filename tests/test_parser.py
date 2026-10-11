@@ -162,3 +162,20 @@ def test_a_line_that_said_nothing_yet_is_no_line():
     assert [p.kind for p in alone] == ["cut", "cut"]
     (joined,) = parse([_line("Bo (Doctrine) to Pip (Mei):", 10), _line("Good work!", 38)])
     assert (joined.kind, joined.text) == ("comms", "Good work!")
+
+
+@pytest.mark.parametrize("reading", ["[Match]: PRESS TAB TO CYCLE CHANNELS",
+                                     "[Team] PRESS TAB TO CYCLE CHANNELS",
+                                     " [Team] PRESS TAB TO CYCLE CHANNELS",
+                                     "[Match] RRESS TAB TO CYCLE CHANNELS",
+                                     "PRESS TAB TO CYCLE CHANNELS"])  # fmt: skip
+def test_the_chat_fields_hint_is_input_whatever_comes_before_it(reading):
+    """#422: "[Match]: PRESS TAB TO CYCLE CHANNELS" (a misread colon) was stored as a line from
+    a player "Match". The hint is the empty chat field, never a line."""
+    (line,) = parse([_line(reading, 10)])
+    assert line.kind == "input"
+
+
+def test_a_line_about_tabs_is_still_chat():
+    (line,) = parse([_line("[Pip]: *opening a million tabs to check all sites*", 10)])
+    assert line.kind == "message"

@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-11 · The chat field's hint is no line (#422)
+- "PRESS TAB TO CYCLE CHANNELS", the hint in Overwatch's empty chat field, is never stored as a line from "Match" anymore. The one already stored goes at the next start, with the player "Match" it made (a backup is made first).
+
 ### 2026-10-11 · Missed lines are stored after all (#423)
 - A line that one read missed and a later read found between two stored lines is stored now, in its place, in the match it belongs to. "[VoidCrowned]: Tracks" and "You endorsed Trashy!" after Oct 11's match were lost this way.
 
