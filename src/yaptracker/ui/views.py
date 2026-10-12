@@ -1,14 +1,13 @@
 """The five views behind the icon rail. Placeholders until their milestones land."""
 
 import html
-import string
 import time
 
 import numpy as np
 from nicegui import run, ui
 from PIL import Image
 
-from yaptracker import __version__, config, days, logs, paths, runtime, system_info
+from yaptracker import __version__, config, days, game_lists, logs, paths, runtime, system_info
 from yaptracker import reading_mode as modes
 from yaptracker.capture.black import SAY as BLACK_SAY
 from yaptracker.capture.black import SCREEN_SAY
@@ -89,8 +88,8 @@ MATCH_HINT = "Usually not needed: matches start at hero select and end at the re
 
 
 def _name(text: str) -> str:
-    """ "KING'S ROW" -> "King's Row" (str.title would make it "King'S Row")."""
-    return string.capwords(text.lower())
+    """ "KING'S ROW" -> "King's Row"; "Throne of Anubis" stays."""
+    return game_lists.display(text)
 
 
 def _minutes(seconds: float) -> str:

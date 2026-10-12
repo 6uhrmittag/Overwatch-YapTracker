@@ -42,6 +42,8 @@
       "properties": {
         "id": {"type": "integer"},
         "number": {"type": "integer", "minimum": 1, "description": "1 for the first match of its session"},
+        "day": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "the day it was played, as in the Sessions tab: a day runs until 05:00 local time (newer exports)"},
+        "day_number": {"type": ["integer", "null"], "minimum": 1, "description": "1 for the first match of its day, as in the Sessions tab and days/<date>.md"},
         "started_at": {"$ref": "#/$defs/time"},
         "ended_at": {"$ref": "#/$defs/time_or_null"},
         "outcome": {"enum": ["victory", "defeat", "draw", null]},

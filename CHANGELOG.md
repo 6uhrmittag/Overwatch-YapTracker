@@ -5,7 +5,8 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ## v0.5: on the way to v1.0
 
 ### 2026-10-12 · The export's Markdown by day (#443)
-- With Markdown on, the export has one file per day you played (`days/2026-10-11.md`), like the Sessions tab: a late night stays in the day it began, matches are numbered in their day, and breaks show between play blocks. The JSON is unchanged.
+- With Markdown on, the export has one file per day you played (`days/2026-10-11.md`), like the Sessions tab: a late night stays in the day it began, matches are numbered in their day, and breaks show between play blocks. The JSON keeps its sessions and also tells each match's day and number in it.
+- Map names keep their own spelling ("Throne of Anubis", not "Throne Of Anubis"), in Sessions and in the export.
 
 ### 2026-10-12 · Sessions by day (#440)
 - Sessions lists the days you played: one row per day with the time you really played, how many matches and yaps. A late night counts to the day it began, until 5 in the morning.

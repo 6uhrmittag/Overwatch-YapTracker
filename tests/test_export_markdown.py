@@ -97,6 +97,48 @@ def test_one_markdown_file_per_day_like_sessions(store, tmp_path):
     assert "- 1 day, 3 matches" in (tmp_path / "README.md").read_text(encoding="utf-8")
 
 
+def test_days_come_out_right_whatever_order_sessions_were_stored_in(store, tmp_path):
+    """#443 review: a clock corrected mid-week stores a session out of time order. Day files
+    are grouped like the Sessions tab, never overwritten; README and JSON say the same."""
+
+    def played(start, map_name):
+        session = store.start_session(start)
+        match = store.start_match(session, start + 60, "heroselect", "UNRANKED", map_name)
+        store.add_message(ts=start + 90, channel="match", text="gg", match_id=match)
+        store.end_match(match, start + 600, "victory")
+        store.end_session(session, start + 700)
+
+    played(EVENING, "Ilios")  # Thursday 20:00
+    played(EVENING + 2 * 86400, "Throne of Anubis")  # Saturday
+    played(EVENING + 2 * 3600, "Hanaoka")  # Thursday 22:00, stored last
+    path = export_all(store, tmp_path, EVENING + 3 * 86400, markdown=True)
+    files = sorted(p.name for p in (tmp_path / "days").iterdir())
+    assert files == ["2026-10-01.md", "2026-10-03.md"]
+    thursday = (tmp_path / "days" / "2026-10-01.md").read_text(encoding="utf-8")
+    assert "## Match 1 on Ilios" in thursday and "## Match 2 on Hanaoka" in thursday
+    assert "## Match 1 on Throne of Anubis" in (tmp_path / "days" / "2026-10-03.md").read_text(
+        encoding="utf-8"
+    )  # as stored, not "Throne Of Anubis"
+    readme = (tmp_path / "README.md").read_text(encoding="utf-8")
+    assert "- 2 days, 3 matches" in readme and "- From 2026-10-01 to 2026-10-03" in readme
+    data = json.loads(path.read_text(encoding="utf-8"))
+    jsonschema.validate(data, SCHEMA)
+    days = [(m["map"], m["day"], m["day_number"]) for s in data["sessions"] for m in s["matches"]]
+    assert days == [("Ilios", "2026-10-01", 1), ("Throne of Anubis", "2026-10-03", 1),
+                    ("Hanaoka", "2026-10-01", 2)]  # fmt: skip
+
+
+def test_a_new_export_into_the_same_folder_leaves_nothing_stale(store, tmp_path):
+    evening(store)
+    (tmp_path / "sessions").mkdir()
+    (tmp_path / "sessions" / "2026-10-01-session-1.md").write_text("old", encoding="utf-8")
+    (tmp_path / "days").mkdir()
+    (tmp_path / "days" / "2026-09-30.md").write_text("a day since merged away", encoding="utf-8")
+    export_all(store, tmp_path, EVENING + 600, markdown=True)
+    assert not (tmp_path / "sessions").exists()
+    assert [p.name for p in (tmp_path / "days").iterdir()] == ["2026-10-01.md"]
+
+
 def test_anonymized_everywhere_consistent_notes_out_flags_kept(store, tmp_path):
     evening(store)
     path = export_all(store, tmp_path, EVENING + 600, markdown=True, anonymize=True)

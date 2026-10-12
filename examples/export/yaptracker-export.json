@@ -13,6 +13,8 @@
         {
           "id": 1,
           "number": 1,
+          "day": "2026-10-01",
+          "day_number": 1,
           "started_at": "2026-10-01T20:05:00+02:00",
           "ended_at": "2026-10-01T20:16:00+02:00",
           "outcome": "victory",
@@ -105,6 +107,8 @@
         {
           "id": 2,
           "number": 2,
+          "day": "2026-10-01",
+          "day_number": 2,
           "started_at": "2026-10-01T20:20:00+02:00",
           "ended_at": "2026-10-01T20:31:00+02:00",
           "outcome": "defeat",

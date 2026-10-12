@@ -4,6 +4,7 @@ nothing is none rather than garbage ("INRONKED ALU9CK"). Never online at runtime
 
 import json
 import re
+import string
 from functools import cache
 from pathlib import Path
 
@@ -11,6 +12,12 @@ from rapidfuzz import fuzz, process
 
 LISTS = Path(__file__).parent / "data" / "game_lists.json"
 MATCH = 80  # on the letters only: OCR drops spaces ("LIJIANGTOWER") and swaps a letter or two
+
+
+def display(text: str) -> str:
+    """A map or queue name to show: as stored when it's written like a name ("Throne of Anubis"),
+    else in words ("KING'S ROW" -> "King's Row"; str.title makes "King'S Row")."""
+    return text if text not in (text.upper(), text.lower()) else string.capwords(text.lower())
 
 
 @cache

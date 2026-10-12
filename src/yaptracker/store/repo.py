@@ -807,11 +807,10 @@ class Store:
         return self._read("SELECT id, started_at, ended_at FROM sessions ORDER BY id")
 
     def all_matches(self) -> list[tuple]:
-        """(id, session_id, started, ended, outcome, map, mode, source, loved_at, day), play
-        order; day as in Sessions (#440)."""
+        """(id, session_id, started, ended, outcome, map, mode, source, loved_at), play order."""
         return self._read(
-            "SELECT id, session_id, started_at, ended_at, outcome, map, mode, source, loved_at, "
-            f"{_day('m')} FROM matches m WHERE {_played('m')} ORDER BY session_id, started_at, id"
+            "SELECT id, session_id, started_at, ended_at, outcome, map, mode, source, loved_at "
+            f"FROM matches m WHERE {_played('m')} ORDER BY session_id, started_at, id"
         )
 
     def messages_outside_matches(self) -> list[Message]:
