@@ -8,7 +8,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 - Behind the scenes: `tools/evidence.py <data folder>` answers the waiting issues from the logs, a copy of the database and the debug samples (CPU per evening, FPS running vs paused per reading mode, Competitive matches and rounds, ranked end samples, notes and familiar faces), as plain text with ids only.
 
 ### 2026-10-12 · The evening line counts more (#437)
-- Behind the scenes: the evening line in the log also counts Competitive matches (with their merged rounds), familiar faces shown and players with notes, and each familiar-face card is one log line (player ids only), so the Definition-of-done checks come from the log.
+- Behind the scenes: the evening line in the log also counts Competitive matches (with their merged rounds), familiar faces shown (live and after the match) and players with notes, and each familiar-face card is one log line (player ids only), so the Definition-of-done checks come from the log.
+
+### 2026-10-12 · Light reading checked against a real match (#432)
+- Behind the scenes: a replay of a real Quick Play match read live and light (54 chat frames, names made up) proves that after the tidy-up it has exactly the lines the best reader stores on its own: no repeats, no pieces, nothing missing.
 
 ### 2026-10-11 · Map names written right (#435)
 - Sessions writes map names like "King's Row" instead of "King'S Row".

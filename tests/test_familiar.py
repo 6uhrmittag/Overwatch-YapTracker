@@ -139,3 +139,24 @@ def test_each_card_is_one_log_line_with_the_player_id_only(store, caplog):
     met_on = time.strftime("%Y-%m-%d", time.localtime(11.0))
     assert caplog.messages == [f"familiar face: player #{pid} (last met {met_on})"]
     assert "NoodleBonk" not in caplog.text
+
+
+def test_a_card_from_after_the_match_says_so_in_the_log(store, caplog):
+    """#437: the evening tells live cards from ones read after the match."""
+    import logging
+
+    pid, now = met(store, "NoodleBonk", 2)
+    with caplog.at_level(logging.INFO, logger="yaptracker.familiar"):
+        FamiliarFaces(store, clock=Clock()).heard(pid, now, after=True)
+    assert caplog.messages[0].endswith(", after the match")
+
+
+def test_the_tidy_up_of_an_older_match_doesnt_card_a_player_twice(store):
+    """#437: the tidy-up reads match 1 while match 2 runs; each match carded once per player."""
+    pid, now = met(store, "NoodleBonk", 2)
+    older = store.start_match(store.start_session(20.0), 20.0, "heroselect", None, None)
+    faces = FamiliarFaces(store, clock=Clock())
+    assert faces.heard(pid, now) is not None
+    faces.heard(pid, older, after=True)  # the tidy-up, in between
+    assert faces.heard(pid, now) is None
+    assert faces.heard(pid, older, after=True) is None
