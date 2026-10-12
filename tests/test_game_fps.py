@@ -78,7 +78,8 @@ def meter(clock, values, state):
         calls.append(box.shape)
         return f"FPS:{next(reads)}"
 
-    return FpsMeter(read_line, lambda: state["now"], clock), calls
+    mode = lambda now, since: state.get("mode")  # noqa: E731
+    return FpsMeter(read_line, lambda: state["now"], clock, mode=mode), calls
 
 
 def test_one_log_line_a_minute_with_median_p10_and_the_state(caplog):
@@ -121,3 +122,24 @@ def test_overlay_off_reads_nothing_and_logs_nothing(caplog):
             clock.now += 1
     assert calls == [] and caplog.records == []
     assert READ_EVERY_S == 5.0
+
+
+def test_the_line_names_the_reader_seen_most_in_the_minute(caplog):
+    """#444: which reader the game shared the minute with; switching readers doesn't cut the
+    minute into pieces, and a paused minute names none."""
+    clock, state = Clock(), {"now": "running, in match", "mode": "after"}
+    fps, _ = meter(clock, [150] * 12 + [140] * 6, state)
+    signals = {"fps": strip(top_right(1440, 150), 1440)}
+    with caplog.at_level(logging.INFO, logger="yaptracker.game_fps"):
+        for t in range(80):
+            state["mode"] = (
+                "after" if t < 10 else "light"
+            )  # queue learned: 2 reads after, then light
+            if t >= 60:
+                state["now"], state["mode"] = "paused, in match", None
+            fps.update(signals, 1440)
+            clock.now += 1
+        clock.now += 60
+        fps.update(signals, 1440)
+    lines = [r.getMessage().split(" — ")[1].split(";")[0] for r in caplog.records]
+    assert lines == ["running, in match, light", "paused, in match"]

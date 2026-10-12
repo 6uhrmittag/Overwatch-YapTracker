@@ -45,7 +45,9 @@ def data_folder(tmp_path: Path, paused: bool) -> Path:
         f"{stamp(T0 + 120)} INFO yaptracker.cpu_parts: cpu threads (in match): native 11.5 %, "
         "capture watcher 8.0 %, chat reader 2.5 %",
         f"{stamp(T0 + 121)} INFO yaptracker.game_fps: game fps (Overwatch overlay): median 120, "
-        "p10 110, n=11 — running, in match; 30 ms CPU per read",
+        "p10 110, n=11 — running, in match; 30 ms CPU per read",  # older: the mode before it
+        f"{stamp(T0 + 181)} INFO yaptracker.game_fps: game fps (Overwatch overlay): median 131, "
+        "p10 120, n=11 — running, in match, light; 30 ms CPU per read",  # the line says (#444)
         f"{stamp(T0 + 400)} INFO yaptracker.matches: match 1: round 2 (same map, no result yet)",
         f"{stamp(T0 + 410)} INFO yaptracker.reader: chat reading: 2 line(s) seen twice but never "
         "stored: Pip: hi; Bo: yo",
@@ -84,6 +86,8 @@ def test_the_report_answers_every_waiting_issue_with_ids_only(tmp_path, monkeypa
         "pywebview-js 0.8 %" in text  # fmt: skip
     assert "seen but not stored 2" in text and "capture 4 fps in a match" in text
     assert "2026-10-12 v0.5.470 after running: 120 fps (n=1)" in text
+    assert "2026-10-12 v0.5.470 light running: 131 fps (n=1)" in text
+    assert "2026-10-12 v0.5.470 - paused: 124 fps (n=1)" in text  # paused: no mode
     assert "verdict v0.5.470 after: running 120 fps vs paused 124 fps: costs 3.2 % (within the " \
         "5 % bar)" in text  # fmt: skip
     assert "Competitive matches: 2 (#1 2026-10-12, #2 2026-10-12)" in text  # German one too
