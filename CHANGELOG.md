@@ -7,6 +7,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-12 · Every PR gets a code review
 - Behind the scenes: every change now gets an automatic code review before it is merged; clear findings are fixed in the same change, bigger ones become bug issues.
 
+### 2026-10-12 · The evening line counts more (#437)
+- Behind the scenes: the evening line in the log also counts Competitive matches (with their merged rounds), familiar faces shown (live and after the match) and players with notes, and each familiar-face card is one log line (player ids only), so the Definition-of-done checks come from the log.
+
 ### 2026-10-12 · Light reading checked against a real match (#432)
 - Behind the scenes: a replay of a real Quick Play match read live and light (54 chat frames, names made up) proves that after the tidy-up it has exactly the lines the best reader stores on its own: no repeats, no pieces, nothing missing.
 

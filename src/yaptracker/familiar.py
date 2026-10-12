@@ -5,6 +5,7 @@ window was in the background. One card per player per match; it fades after two 
 when you click "Got it". Me and my crew never get a card (#74).
 """
 
+import logging
 import threading
 import time
 from collections.abc import Callable
@@ -13,7 +14,10 @@ from dataclasses import dataclass
 from yaptracker.identity import Identity
 from yaptracker.store.repo import Store
 
+log = logging.getLogger(__name__)
+
 SHOW_S = 120  # docs/ui.md: cards fade after ~2 minutes
+SEEN_MATCHES = 4  # matches remembered for "one card per player and match"
 
 
 @dataclass(frozen=True)
@@ -40,7 +44,7 @@ class FamiliarFaces:
         self._store, self._identity, self._clock = store, identity, clock
         self._lock = threading.Lock()
         self._cards: list[Card] = []
-        self._seen: tuple[int | None, set[int]] = (None, set())  # (match, players carded)
+        self._seen: dict[int | None, set[int]] = {}  # match -> players carded in it
 
     def heard(
         self, player_id: int | None, match_id: int | None, after: bool = False
@@ -50,11 +54,14 @@ class FamiliarFaces:
         if player_id is None:
             return None
         with self._lock:
-            if self._seen[0] != match_id:
-                self._seen = (match_id, set())
-            if player_id in self._seen[1]:
+            carded = self._seen.pop(match_id, set())
+            self._seen[match_id] = carded  # newest last
+            if player_id in carded:
                 return None
-            self._seen[1].add(player_id)
+            carded.add(player_id)
+            # the tidy-up reads an older match while the next one runs: a few matches, not one
+            for old in list(self._seen)[:-SEEN_MATCHES]:
+                del self._seen[old]
         player = self._store.player(player_id)
         if player is None:
             return None
@@ -70,6 +77,9 @@ class FamiliarFaces:
                     matches, yaps, last_met, self._clock(), spicy, after)  # fmt: skip
         with self._lock:
             self._cards = [c for c in self._cards if c.player_id != player_id] + [card]
+        met = time.strftime("%Y-%m-%d", time.localtime(last_met)) if last_met else "?"
+        late = ", after the match" if after else ""
+        log.info("familiar face: player #%d (last met %s)%s", player_id, met, late)  # ids (#437)
         return card
 
     def active(self) -> list[Card]:
