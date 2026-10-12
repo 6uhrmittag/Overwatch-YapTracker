@@ -40,8 +40,7 @@ def _clock(ts: float) -> str:
 
 
 def _length(start: float, end: float) -> str:
-    minutes = max(0, int((end - start) // 60))
-    return f"{minutes // 60} h {minutes % 60:02d} min" if minutes >= 60 else f"{minutes} min"
+    return days.length(end - start)
 
 
 def sessions(match_id: int | None = None) -> None:

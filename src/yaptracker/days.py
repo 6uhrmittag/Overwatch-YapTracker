@@ -33,6 +33,12 @@ def ago(key: str, now: float | None = None) -> tuple[float, float]:
     return datetime.fromisoformat(key).replace(hour=12).timestamp(), now - CUT_H * 3600
 
 
+def length(seconds: float) -> str:
+    """'27 min', '1 h 05 min'."""
+    minutes = max(0, int(seconds // 60))
+    return f"{minutes // 60} h {minutes % 60:02d} min" if minutes >= 60 else f"{minutes} min"
+
+
 def end_of(match) -> float:
     """When a match was over: its end, else its last yap, else its start; never before its
     start (chat from before a match can join it, #307)."""

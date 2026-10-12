@@ -14,7 +14,7 @@ from collections.abc import Callable, Iterable
 from datetime import datetime
 from pathlib import Path
 
-from yaptracker import __version__
+from yaptracker import __version__, days, game_lists
 from yaptracker.lines import LinePictures
 from yaptracker.store.repo import Store
 
@@ -203,44 +203,68 @@ _GAP_WORDS = {
 }
 
 
-def session_markdown(session: dict, gaps: dict[int, list]) -> str:
-    """One evening as Markdown: a section per match, its chat, and where nothing was recorded
-    (`gaps`: match id -> the capture gaps overlapping it)."""
-    day = datetime.fromisoformat(session["started_at"]).strftime("%A, %b %d, %Y").replace(" 0", " ")
-    yaps = sum(len(m["messages"]) for m in session["matches"])
-    span = (
-        f"{_clock(session['started_at'])}\u2013{_clock(session['ended_at'])}"
-        if session["ended_at"]
-        else f"from {_clock(session['started_at'])}"
-    )
-    counted = f"{_count(len(session['matches']), 'match')} \u00b7 {_count(yaps, 'yap')}"
-    out = [f"# {day}\n", f"{span} \u00b7 {counted}\n"]
-    for match in session["matches"]:
-        title = f"Match {match['number']}" + (f" on {match['map'].title()}" if match["map"] else "")
-        extra = [
-            w for w in ((match["mode"] or "").title(), _OUTCOME_WORDS.get(match["outcome"])) if w
-        ] + (["Loved"] if match.get("loved_at") else [])  # hearted (#282)
-        out.append(f"## {' \u00b7 '.join([_md(title), *extra])}\n")
-        rows = [(datetime.fromisoformat(m["time"]).timestamp(), 1, m) for m in match["messages"]]
-        rows += [(gap[0], 0, gap) for gap in gaps.get(match["id"], [])]
-        lines = []
-        for _, kind, item in sorted(rows, key=lambda r: (r[0], r[1])):
-            if kind == 0:
-                a, b, why = item
-                until = _clock(iso(b)) if b else "the end"
-                lines.append(
-                    f"- *Not recorded {_clock(iso(a))}\u2013{until} ({_GAP_WORDS.get(why, why)})*"
-                )
-                continue
-            who = item["speaker"] if item["channel"] != "system" else None
-            who = "you" if who and item["role"] == "me" else who
-            name = f"**{_md(who)}:** " if who else ""
-            channel = _CHANNEL_NAMES.get(item["channel"], "Chat")
-            lines.append(
-                f"- {_clock(item['time'])} \u00b7 {channel} \u00b7 {name}{_md(item['text'])}"
-            )
-        out.append("\n".join(lines or ["Nobody wrote in chat in this match."]) + "\n")
+def day_markdown(day: days.Day, said: dict[int, list[dict]], gaps: list) -> str:
+    """One day as Markdown, like the day in Sessions (#440, #443): its matches numbered 1..N,
+    a break line between play blocks, each match's chat and where nothing was recorded.
+    `said`: match id -> its message records; `gaps`: every capture gap."""
+    span = f"{_clock(iso(day.started_at))}\u2013{_clock(iso(day.ended_at))}"
+    counted = f"{_count(len(day.matches), 'match')} \u00b7 {_count(day.yaps, 'yap')}"
+    out = [f"# {days.title(day.key, '%A, %b %d, %Y')}\n",
+           f"{span} \u00b7 {days.length(day.played_s)} played \u00b7 {counted}\n"]  # fmt: skip
+    number = 0
+    for i, (pause, block) in enumerate(days.blocks(day.matches)):
+        if i:
+            out.append(f"*Break, {days.length(pause)}*\n")
+        for match in block:
+            number += 1
+            overlapping = _overlapping(gaps, match.started_at, days.end_of(match))
+            out.append(_match_markdown(match, number, said[match.id], overlapping))
     return "\n".join(out)
+
+
+def _match_markdown(match, number: int, said: list[dict], gaps: list) -> str:
+    title = f"Match {number}" + (f" on {game_lists.display(match.map)}" if match.map else "")
+    mode = game_lists.display(match.mode) if match.mode else None
+    extra = [w for w in (mode, _OUTCOME_WORDS.get(match.outcome)) if w] + (
+        ["Loved"] if match.loved_at else []
+    )  # hearted (#282)
+    out = [f"## {' \u00b7 '.join([_md(title), *extra])}\n"]
+    rows = [(datetime.fromisoformat(m["time"]).timestamp(), 1, m) for m in said]
+    rows += [(gap[0], 0, gap) for gap in gaps]
+    lines = []
+    for _, kind, item in sorted(rows, key=lambda r: (r[0], r[1])):
+        if kind == 0:
+            a, b, why = item
+            until = _clock(iso(b)) if b else "the end"
+            lines.append(
+                f"- *Not recorded {_clock(iso(a))}\u2013{until} ({_GAP_WORDS.get(why, why)})*"
+            )
+            continue
+        who = item["speaker"] if item["channel"] != "system" else None
+        who = "you" if who and item["role"] == "me" else who
+        name = f"**{_md(who)}:** " if who else ""
+        channel = _CHANNEL_NAMES.get(item["channel"], "Chat")
+        lines.append(f"- {_clock(item['time'])} \u00b7 {channel} \u00b7 {name}{_md(item['text'])}")
+    out.append("\n".join(lines or ["Nobody wrote in chat in this match."]) + "\n")
+    return "\n".join(out)
+
+
+def write_days(snapshot: Store, folder: Path, names, played_days: list, gaps: list) -> None:
+    """days/<date>.md, one per day, from the same grouping as the Sessions tab (#440, #443):
+    same days, numbers and breaks whatever order sessions were stored in. One day's chat in
+    memory at a time. Markdown of an earlier export into this folder goes first, so nothing
+    stale stays next to it (also the old sessions/ files)."""
+    for old in ("days", "sessions"):
+        for path in (folder / old).glob("*.md"):
+            path.unlink()
+        if (folder / old).is_dir() and not any((folder / old).iterdir()):
+            (folder / old).rmdir()
+    for day in played_days:
+        said = {m.id: names.messages(snapshot.messages(m.id)) for m in day.matches}
+        (folder / "days").mkdir(exist_ok=True)
+        (folder / "days" / f"{day.key}.md").write_text(
+            day_markdown(day, said, gaps), encoding="utf-8", newline="\n"
+        )
 
 
 def _readme(
@@ -249,7 +273,7 @@ def _readme(
     files = [
         "- `yaptracker-export.json`: everything, for scripts. The format is described at "
         "https://github.com/6uhrmittag/Overwatch-YapTracker/blob/main/docs/export-format.md",
-        "- `sessions/`: one file per evening, with every match's chat",
+        "- `days/`: one file per day you played (until 5 in the morning), with every match's chat",
         "- `players.md`: your yappers" + (" (without your notes)" if anonymized else ""),
     ]
     if pictures:
@@ -264,7 +288,7 @@ def _readme(
         [
             "# YapTracker export\n",
             f"Exported {datetime.fromtimestamp(now):%Y-%m-%d %H:%M} by YapTracker {__version__}.\n",
-            f"- {_count(counts['sessions'], 'session')}, {_count(counts['matches'], 'match')}, "
+            f"- {_count(counts['days'], 'day')}, {_count(counts['matches'], 'match')}, "
             f"{_count(counts['yaps'], 'yap')}, {_count(counts['players'], 'yapper')}",
             f"- {span}",
             f"- {names}\n",
@@ -285,7 +309,7 @@ def export_all(
     anonymize: bool = False,
     pictures: LinePictures | None = None,
 ) -> Path:
-    """Everything as yaptracker-export.json, optionally with Markdown (README.md, sessions/,
+    """Everything as yaptracker-export.json, optionally with Markdown (README.md, days/,
     players.md), anonymized names and the line pictures (never together with anonymizing: the
     pictures show the names). Reads from its own connection, so capture goes on;
     `progress(done, total)` counts messages."""
@@ -300,7 +324,9 @@ def export_all(
             matches.setdefault(row[1], []).append(row)
         players = player_records(snapshot)
         names = _Names(anonymize, players)
-        counts = {"sessions": 0, "matches": 0, "yaps": 0, "players": len(players)}
+        counts = {"days": 0, "matches": 0, "yaps": 0, "players": len(players)}
+        played_days = days.group(snapshot.played_matches())  # as in Sessions (#440)
+        in_day = {m.id: (d.key, n) for d in played_days for n, m in enumerate(d.matches, 1)}
         span: list[str | None] = [None, None]
 
         def picture(record: dict, ts: float) -> dict:
@@ -319,7 +345,7 @@ def export_all(
                 for number, row in enumerate(matches.get(session_id, []), start=1):
                     mid, _, m_start, m_end, outcome, map_, mode, source, loved_at = row
                     said = snapshot.messages(mid)
-                    end = m_end or (said[-1].ts if said else m_start)
+                    end = max(m_start, m_end or (said[-1].ts if said else m_start))  # days.end_of
                     gaps_of[mid] = _overlapping(gaps, m_start, end)
                     records = [
                         picture(r, m.ts) for r, m in zip(names.messages(said), said, strict=True)
@@ -328,6 +354,8 @@ def export_all(
                         {
                             "id": mid,
                             "number": number,
+                            "day": in_day.get(mid, (None, None))[0],
+                            "day_number": in_day.get(mid, (None, None))[1],
                             "started_at": iso(m_start),
                             "ended_at": iso(m_end),
                             "outcome": outcome,
@@ -348,17 +376,8 @@ def export_all(
                     "ended_at": iso(ended),
                     "matches": played,
                 }
-                counts["sessions"] += 1
                 counts["matches"] += len(played)
                 counts["yaps"] += sum(len(m["messages"]) for m in played)
-                span[0] = span[0] or session["started_at"]
-                span[1] = session["ended_at"] or session["started_at"]
-                if markdown:
-                    (folder / "sessions").mkdir(exist_ok=True)
-                    name = f"{session['started_at'][:10]}-session-{session_id}.md"
-                    (folder / "sessions" / name).write_text(
-                        session_markdown(session, gaps_of), encoding="utf-8", newline="\n"
-                    )
                 yield session
 
         if anonymize:
@@ -393,6 +412,10 @@ def export_all(
             out.write("}\n")
         tmp.replace(path)  # never a half-written export
         if markdown:
+            counts["days"] = len(played_days)
+            if played_days:  # the README's range in days too
+                span[:] = [played_days[-1].key, played_days[0].key]
+            write_days(snapshot, folder, names, played_days, gaps)
             (folder / "players.md").write_text(
                 players_markdown(players, now), encoding="utf-8", newline="\n"
             )

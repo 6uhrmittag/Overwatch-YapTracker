@@ -1,12 +1,13 @@
 """Shared building blocks from the style kit (docs/ui/mockup/Kit.dc.html)."""
 
 import contextlib
-import string
 import time
 from collections.abc import Callable, Sequence
 from typing import Literal
 
 from nicegui import ui
+
+from yaptracker import game_lists
 
 CHECK = (
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
@@ -170,8 +171,8 @@ def sub_page(back: Callable[[], None] | None) -> None:
 
 
 def place_name(text: str) -> str:
-    """ "KING'S ROW" -> "King's Row" for maps and queues (str.title makes it "King'S Row")."""
-    return string.capwords(text.lower())
+    """ "KING'S ROW" -> "King's Row" for maps and queues; "Throne of Anubis" stays."""
+    return game_lists.display(text)
 
 
 def when(ts: float | None, now: float | None = None) -> str:
