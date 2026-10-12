@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-12 · Every PR gets a code review
+- Behind the scenes: every change now gets an automatic code review before it is merged; clear findings are fixed in the same change, bigger ones become bug issues.
+
 ### 2026-10-12 · Light reading checked against a real match (#432)
 - Behind the scenes: a replay of a real Quick Play match read live and light (54 chat frames, names made up) proves that after the tidy-up it has exactly the lines the best reader stores on its own: no repeats, no pieces, nothing missing.
 
