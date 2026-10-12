@@ -75,9 +75,12 @@ made.
 4. Comment "Starting" on the issue, work on a branch `issue-<N>-<slug>`, open a
    PR that `Closes #N`.
 5. **Push and merge yourself, unattended (hard rule).** Push the branch, open the PR,
-   and once CI is green (and the closing checklist below is done) squash-merge it with
-   `gh pr merge <PR> --squash --delete-branch`. Don't hand the merge back to Marv and
-   don't wait for his review: he reviews the pre-release. Never force-push.
+   and run `/code-review` on the PR. Fix every high-confidence finding in the same PR;
+   anything bigger becomes a `bug` issue in the current milestone. Mention the result
+   in the PR under "Decisions I made". Then, once CI is green (and the closing checklist
+   below is done), squash-merge it with `gh pr merge <PR> --squash --delete-branch`.
+   Don't hand the merge back to Marv and don't wait for his review: he reviews the
+   pre-release. Never force-push.
 6. **Don't idle while CI runs.** While a PR waits for CI (~4 min), start the next issue on
    a fresh branch from `main`. Merge strictly in order. Before merging a later PR, merge
    `origin/main` into its branch (never rebase), resolve `CHANGELOG.md` by keeping both
