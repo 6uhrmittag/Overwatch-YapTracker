@@ -48,7 +48,7 @@ async def test_shift_click_picks_a_whole_stretch(user: User, store):
     session, match, ids = evening(store)
     await user.open("/")
     user.find(marker="nav-sessions").click()
-    user.find(marker=f"session-{session}").click()
+    user.find(marker="day").click()
     user.find(marker=f"match-{match}").click()
     user.find(marker="snap-start").click()
     user.find(marker=f"line-{ids[0]}").click()

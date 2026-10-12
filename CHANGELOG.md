@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-12 · Sessions by day (#440)
+- Sessions lists the days you played: one row per day with the time you really played, how many matches and yaps. A late night counts to the day it began, until 5 in the morning.
+- A day shows all its matches numbered 1, 2, 3... with a quiet "Break, 1 h 20 min" between play blocks.
+- Search results, profiles and Live number matches per day too, and a search result opens its match inside its day.
+
 ### 2026-10-12 · Evidence script (#437)
 - Behind the scenes: `tools/evidence.py <data folder>` answers the waiting issues from the logs, a copy of the database and the debug samples (CPU per evening, FPS running vs paused per reading mode, Competitive matches and rounds, ranked end samples, notes and familiar faces), as plain text with ids only.
 

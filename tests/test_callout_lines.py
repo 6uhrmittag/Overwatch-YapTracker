@@ -45,7 +45,7 @@ async def test_transcript_counts_repeated_callouts(user: User, store):
     spam(store, match, now - 500)
     await user.open("/")
     user.find(marker="nav-sessions").click()
-    user.find(marker=f"session-{session}").click()
+    user.find(marker="day").click()
     user.find(marker=f"match-{match}").click()
     await user.should_see("· as Kiriko")
     await user.should_see("×4")

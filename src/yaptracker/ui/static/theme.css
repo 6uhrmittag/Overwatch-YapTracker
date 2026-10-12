@@ -272,6 +272,8 @@ html, body { background: var(--yt-night); }
   .yt-line-when { width: 128px; }
   .yt-result-where { flex-shrink: 0; margin-left: auto; padding-left: 12px; }
   mark.yt-hit { padding: 0 3px; border-radius: 4px; background: rgba(255,155,45,.28); color: var(--yt-text); }
+  .yt-break-line { display: flex; align-items: center; gap: 12px; margin: 4px 10px; color: var(--yt-muted); font-size: 13px; font-weight: 700; }  /* between play blocks (#440) */
+  .yt-break-line::before, .yt-break-line::after { content: ""; flex: 1; border-top: 1px solid var(--yt-line); }
   .yt-gap-line { margin: 6px 10px; padding: 6px 12px; border-radius: 10px; border: 1px dashed #5c4216; color: #ffd08a; font-size: 13px; font-weight: 700; }
   .yt-spicy { display: inline-flex; vertical-align: -2px; }
   .yt-heads-up { padding: 8px 12px; border-radius: 12px; background: #2e2210; border: 1px solid #5c4216; color: #ffd08a; font-size: 14px; font-weight: 700; }

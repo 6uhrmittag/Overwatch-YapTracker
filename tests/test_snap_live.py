@@ -68,5 +68,5 @@ async def test_lines_selected_with_the_mouse_offer_snap_these(user: User, live):
 async def test_sessions_says_how_to_get_to_snaps(user: User, live):
     await user.open("/")
     user.find(marker="nav-sessions").click()
-    user.find(marker=f"session-{runtime.matches.session_id}").click()
+    user.find(marker="day").click()
     await user.should_see("Open a match to read it back or make a yap snap.")

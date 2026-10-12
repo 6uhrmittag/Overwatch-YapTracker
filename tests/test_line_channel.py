@@ -76,7 +76,7 @@ async def test_a_transcript_line_follows_its_fix(user: User, store):
     session, first, second = evening(store)
     await user.open("/")
     user.find(marker="nav-sessions").click()
-    user.find(marker=f"session-{session}").click()
+    user.find(marker="day").click()
     user.find(marker=f"match-{second}").click()
     await user.should_see("hi again")
     (hi,) = [m for m in store.messages(second) if m.text == "hi again"]

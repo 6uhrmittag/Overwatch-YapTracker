@@ -64,9 +64,8 @@ async def test_from_a_sub_page_back_to_the_main_view_without_the_pop_in(user: Us
     assert calm(user)
     user.find(marker="nav-sessions").click()  # another tab: as always, with the pop-in
     assert not calm(user)
-    session = store.sessions()[0].id
-    user.find(marker=f"session-{session}").click()
-    user.find(marker=f"match-{store.session_matches(session)[0].id}").click()
+    user.find(marker="day").click()
+    user.find(marker=f"match-{store.played_matches()[0].id}").click()
     await user.should_see(marker="transcript")
     user.find(marker="nav-sessions").click()
     await user.should_see(marker="sessions")

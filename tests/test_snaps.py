@@ -88,7 +88,7 @@ async def test_pick_lines_preview_and_save(user: User, tmp_path, monkeypatch):
         monkeypatch.setattr(snap_dialog, "snap_lines", spy)
         await user.open("/")
         user.find(marker="nav-sessions").click()
-        user.find(marker=f"session-{session}").click()
+        user.find(marker="day").click()
         user.find(marker=f"match-{match}").click()
         user.find(marker="snap-start").click()
         await user.should_see("0 of 20 picked")
