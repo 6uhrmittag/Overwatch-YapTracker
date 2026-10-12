@@ -88,6 +88,6 @@
 
 ## The other files
 
-With **Markdown too** (on by default), the folder also has `README.md` (what's inside, counts, date range), `sessions/<date>-session-<id>.md` (one file per evening: every match with its chat, and where nothing was recorded) and `players.md` (your yappers). With **Line pictures**, `line-images/<message id>.webp` holds each line as it looked; they're never included in an anonymized export, because they show the names.
+With **Markdown too** (on by default), the folder also has `README.md` (what's inside, counts, date range), `days/<date>.md` (one file per day you played, like the Sessions tab: a day runs until 05:00; every match numbered in its day with its chat, breaks between play blocks, and where nothing was recorded) and `players.md` (your yappers). With **Line pictures**, `line-images/<message id>.webp` holds each line as it looked; they're never included in an anonymized export, because they show the names.
 
 `players.json` from **Export yappers** holds the same `players` records with `format: "yaptracker-players"`.

@@ -37,7 +37,7 @@ def test_a_heart_is_stored_shown_with_the_match_and_exported(store, tmp_path):
     data = json.loads(path.read_text(encoding="utf-8"))
     loved = [m["loved_at"] for s in data["sessions"] for m in s["matches"]]
     assert loved[0].startswith("2027-") and loved[1] is None
-    (md,) = (tmp_path / "out" / "sessions").glob("*.md")
+    (md,) = (tmp_path / "out" / "days").glob("*.md")
     assert "· Loved" in md.read_text(encoding="utf-8").split("## Match 2")[0]
     store.set_loved(first, None)
     assert not store.loved(first)

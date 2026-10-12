@@ -56,16 +56,45 @@ def test_markdown_files_read_like_the_transcript(store, tmp_path):
     evening(store)
     export_all(store, tmp_path, EVENING + 600, markdown=True)
     readme = (tmp_path / "README.md").read_text(encoding="utf-8")
-    assert "- 1 session, 1 match, 5 yaps, 1 yapper" in readme
+    assert "- 1 day, 1 match, 5 yaps, 1 yapper" in readme
     assert "- From 2026-10-01 to 2026-10-01" in readme
-    (day,) = (tmp_path / "sessions").iterdir()
+    (day,) = (tmp_path / "days").iterdir()
+    assert day.name == "2026-10-01.md"
     text = day.read_text(encoding="utf-8")
-    assert text.startswith("# Thursday, Oct 1, 2026\n")
+    assert text.startswith("# Thursday, Oct 1, 2026\n\n20:01–20:06 · 5 min played · 1 match")
     assert "## Match 1 on Esperanca · Unranked · lost" in text
     assert "- 20:01 · Match · **NoodleBonk:** gl hf \\*wahoo\\* \\<3" in text
     assert "**you:** gremlin.exe pls swap" in text  # own line
     assert text.index("Not recorded 20:03–20:04") > text.index("**you:**")  # at its place
     assert "Hype Lucio" in (tmp_path / "players.md").read_text(encoding="utf-8")
+
+
+def test_one_markdown_file_per_day_like_sessions(store, tmp_path):
+    """#443: two sessions and a late match past midnight are one day: one file, matches
+    numbered 1..N, a break line between play blocks. The JSON keeps its sessions."""
+
+    def played(session, start, map_name):
+        match = store.start_match(session, start, "heroselect", "UNRANKED", map_name)
+        store.add_message(ts=start + 60, channel="match", text="gg", match_id=match)
+        store.end_match(match, start + 600, "victory")
+
+    afternoon = store.start_session(EVENING - 4 * 3600)  # 16:00
+    played(afternoon, EVENING - 4 * 3600 + 60, "KING'S ROW")
+    store.end_session(afternoon, EVENING - 4 * 3600 + 700)
+    late = store.start_session(EVENING + 3 * 3600)  # 23:00, until after midnight
+    played(late, EVENING + 3 * 3600 + 60, "NEPAL")
+    played(late, EVENING + 4 * 3600 + 60, "BUSAN")  # 00:01, still Thursday
+    store.end_session(late, EVENING + 4 * 3600 + 700)
+    path = export_all(store, tmp_path, EVENING + 5 * 3600, markdown=True)
+    (day,) = (tmp_path / "days").iterdir()
+    text = day.read_text(encoding="utf-8")
+    titles = [line for line in text.splitlines() if line.startswith(("## ", "*Break"))]
+    assert titles == ["## Match 1 on King's Row · Unranked · won", "*Break, 6 h 50 min*",
+                      "## Match 2 on Nepal · Unranked · won", "*Break, 50 min*",
+                      "## Match 3 on Busan · Unranked · won"]  # fmt: skip
+    assert "16:01–00:11 · 30 min played · 3 matches · 3 yaps" in text
+    assert len(json.loads(path.read_text(encoding="utf-8"))["sessions"]) == 2
+    assert "- 1 day, 3 matches" in (tmp_path / "README.md").read_text(encoding="utf-8")
 
 
 def test_anonymized_everywhere_consistent_notes_out_flags_kept(store, tmp_path):
