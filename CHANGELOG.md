@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-12 · Every PR gets a code review
+- Behind the scenes: every change now gets an automatic code review before it is merged; clear findings are fixed in the same change, bigger ones become bug issues.
+
 ### 2026-10-12 · The evening line counts more (#437)
 - Behind the scenes: the evening line in the log also counts Competitive matches (with their merged rounds), familiar faces shown (live and after the match) and players with notes, and each familiar-face card is one log line (player ids only), so the Definition-of-done checks come from the log.
 
