@@ -11,7 +11,8 @@ game is idle, so the chat is always read with the best quality then.
 
 import logging
 import threading
-from collections import Counter
+import time
+from collections import Counter, deque
 from collections.abc import Callable
 
 import numpy as np
@@ -49,12 +50,14 @@ class ReadingMode:
         best_engine: Callable[[], str],
         get: Callable[[str], object] = ocr.get,
         available: Callable[[], list[str]] = ocr.available,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._matches, self._competitive, self._other = matches, for_competitive, for_other
         self._best, self._get, self._available = best_engine, get, available
         self._lock = threading.Lock()
         self._counts: Counter[str] = Counter()
-        self._ran: Counter[str] = Counter()  # engines that read, for lately()
+        self._clock = clock
+        self._reads: deque[tuple[float, str]] = deque(maxlen=256)  # (when, engine): read_in()
         self.light_problem: str | None = None  # why light reading can't run here, for Settings
         self._said: tuple | None = None  # the mode the log said last
 
@@ -62,6 +65,14 @@ class ReadingMode:
         """The mode for a read right now: by the running match's queue, best between matches.
         Queue unknown (washed out, or no hero select seen, e.g. YapTracker started mid-match):
         the lighter of the two choices (Marv, #345), so a ranked match never costs more."""
+        mode, why = self._policy()
+        with self._lock:
+            said, self._said = self._said, (mode, why)
+        if said != (mode, why):
+            log.info("reading: %s (%s)", mode, why)  # which mode ran, for Void's FPS check
+        return mode
+
+    def _policy(self) -> tuple[str, str]:
         tracker = self._matches()
         if tracker is None or not tracker.running:
             mode, why = BEST, "between matches"
@@ -72,19 +83,21 @@ class ReadingMode:
             mode, why = self._competitive(), f"Competitive, match {tracker.match_id}"
         else:
             mode, why = self._other(), f"{tracker.match_mode}, match {tracker.match_id}"
-        with self._lock:
-            said, self._said = self._said, (mode, why)
-        if said != (mode, why):
-            log.info("reading: %s (%s)", mode, why)  # which mode ran, for Void's FPS check
-        return mode
+        return mode, why
 
-    def lately(self) -> str:
-        """Which reader read chat since the last call, for the FPS line (#444): the engine that
-        really ran most (best for frames kept from a match, and where light can't run), else the
-        mode for right now ("after": nothing reads live, or quiet chat)."""
+    def read_in(self, since: float) -> str:
+        """Which reader read chat since `since` (the clock's time), for the FPS line (#444); it
+        changes nothing. The engine that read most (best for frames kept from a match, and where
+        light can't run); quiet chat: the one that would read now ("after": nothing live)."""
         with self._lock:
-            ran, self._ran = self._ran, Counter()
-        return ran.most_common(1)[0][0] if ran else self.now()
+            ran = Counter(engine for when, engine in self._reads if when >= since)
+        if ran:
+            return ran.most_common(1)[0][0]
+        mode = self._policy()[0]
+        return BEST if mode == LIGHT and not self._light_runs() else mode
+
+    def _light_runs(self) -> bool:
+        return self.light_problem is None and LIGHT_ENGINE in self._available()
 
     def engine(self, mode: str):
         """(mode that really runs, engine). Light falls back to best where Windows OCR can't;
@@ -105,7 +118,7 @@ class ReadingMode:
         ran, engine = self.engine(asked)
         with self._lock:
             self._counts[AFTER if asked == AFTER else ran] += 1  # "after 40": read after a match
-            self._ran[ran] += 1
+            self._reads.append((self._clock(), ran))
         return engine.read(image, scale=scale)
 
     def take_counts(self) -> str:

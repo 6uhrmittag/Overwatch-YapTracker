@@ -128,11 +128,10 @@ def test_light_falls_back_to_best_where_windows_ocr_cannot_run(store, engines, c
     tracker.capture_alive(1000.0)
     tracker.new_match(1010.0, source="heroselect", mode="COMPETITIVE", map_name="Busan")
     reading = reading_for(tracker, engines, available=["rapidocr"])
-    assert reading.lately() == "light"  # nothing read yet: the mode for now
+    assert reading.read_in(0) == "best"  # quiet chat, light can't run: best (#444)
     with caplog.at_level(logging.WARNING, logger="yaptracker.reading_mode"):
         reading.read(IMAGE, 2.0)
     assert engines["rapidocr"].calls == 1 and reading.take_counts() == "best 1"
-    assert reading.lately() == "best"  # what really read, for the FPS line (#444)
     assert reading.light_problem == "Windows OCR only runs on Windows"
     assert "reading with the best quality" in caplog.text
 
@@ -189,14 +188,66 @@ def test_windows_ocr_picked_by_hand_carries_over_to_every_match():
     assert config.reading("other") == "best"  # carried over once, not every time
 
 
-def test_frames_kept_from_a_match_read_now_count_as_best_for_the_fps_line(store, engines):
-    """#444: a light match while kept frames from before are read with best: best ran most."""
+def test_the_fps_line_names_what_really_read_in_the_match(store, engines, caplog):
+    """#444, the real reader and meter together: best reads between matches (a tidy-up) don't
+    leak into the match; frames kept from before, read now with best, outvote a light read;
+    quiet chat names the mode for now."""
+    from tests.test_game_fps import strip, top_right
+    from yaptracker.game_fps import FpsMeter
+
+    clock, values = Clock(), iter(range(100, 200))
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(1000.0)
+    reading = reading_for(tracker, engines, other="light")
+    reading._clock = clock
+    for _ in range(50):
+        reading.read(IMAGE, 2.0, "after")  # between matches: best
+        clock.now += 0.1
+    state = {"now": "running, between matches"}
+    meter = FpsMeter(lambda box: f"FPS:{next(values)}", lambda: state["now"], clock,
+                     mode=lambda now, since: reading.read_in(since) if now.endswith("in match")
+                     else None)  # fmt: skip
+    signals = {"fps": strip(top_right(1440, 150), 1440)}
+    with caplog.at_level(logging.INFO, logger="yaptracker.game_fps"):
+        for t in range(130):
+            if t == 10:
+                tracker.new_match(1010.0, source="heroselect", mode="UNRANKED", map_name="Busan")
+                state["now"] = "running, in match"
+            if t == 70:
+                kept_at = clock.now
+                for _ in range(3):  # kept frames from before, read now: the best engine
+                    reading.read(IMAGE, 2.0, "after")
+            if t in (71, 72):
+                reading.read(IMAGE, 2.0)  # live, light
+            meter.update(signals, 1440)
+            clock.now += 1
+        clock.now += 60
+        meter.update(signals, 1440)  # closes the last minute
+    lines = [r.getMessage().split(" — ")[1].split(";")[0] for r in caplog.records
+             if r.name == "yaptracker.game_fps"]  # fmt: skip
+    assert lines[1:] == ["running, in match, light", "running, in match, light"]
+    assert reading.read_in(kept_at) == "best"  # 3 best vs 2 light: one sample, outvoted
+
+
+def test_read_in_counts_only_the_window_and_changes_nothing(store, engines):
     tracker = MatchTracker(store, Pause())
     tracker.capture_alive(1000.0)
     tracker.new_match(1010.0, source="heroselect", mode="UNRANKED", map_name="Busan")
+    clock = Clock()
     reading = reading_for(tracker, engines, other="light")
+    reading._clock = clock
     for _ in range(3):
         reading.read(IMAGE, 2.0, "after")  # kept frames: the best engine
+    clock.now += 10
     reading.read(IMAGE, 2.0)  # a live light read
-    assert reading.lately() == "best"
-    assert reading.lately() == "light"  # nothing since: the mode for now
+    assert reading.read_in(0) == "best" and reading.read_in(0) == "best"  # asked twice: same
+    assert reading.read_in(clock.now - 1) == "light"
+    assert reading.read_in(clock.now + 1) == "light"  # quiet: the mode for now
+
+
+class Clock:
+    def __init__(self):
+        self.now = 5000.0
+
+    def __call__(self):
+        return self.now

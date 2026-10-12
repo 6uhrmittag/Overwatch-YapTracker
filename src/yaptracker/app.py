@@ -184,14 +184,18 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         paused = "paused" if runtime.pause.paused else "running"
         return f"{paused}, {'in match' if playing else 'between matches'}"
 
-    def fps_mode() -> str | None:  # which reader the game shared the minute with (#444)
-        playing = runtime.matches is not None and runtime.matches.running
-        if not playing or runtime.pause.paused or runtime.reading is None:
+    fps_mode_failed = threading.Event()
+
+    def fps_mode(state: str, since: float) -> str | None:  # who read chat in that minute (#444)
+        reading = runtime.reading
+        if state != "running, in match" or reading is None:  # the minute's own state
             return None
         try:
-            return runtime.reading.lately()
+            return reading.read_in(since)
         except Exception:  # a label never stops the capture
-            log.exception("which reader read lately: unknown")
+            if not fps_mode_failed.is_set():
+                fps_mode_failed.set()
+                log.exception("game fps: which reader read is unknown (said once)")
             return None
 
     def cpu_state() -> str:  # the same words in the cpu parts line (#351)

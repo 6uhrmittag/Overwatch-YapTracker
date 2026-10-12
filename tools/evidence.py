@@ -115,7 +115,7 @@ def scan(lines: list[str]) -> dict:
             continue
         day = evening_of(m[1], m[2])
         if m := VERSION.match(line):
-            version = m[3]
+            version, mode = m[3], "?"  # a new run: its own reading lines follow
             found["versions"][day].add(version)
         elif m := MODE.match(line):
             mode = m[3]

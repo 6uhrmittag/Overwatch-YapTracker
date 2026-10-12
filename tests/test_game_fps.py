@@ -78,7 +78,8 @@ def meter(clock, values, state):
         calls.append(box.shape)
         return f"FPS:{next(reads)}"
 
-    return FpsMeter(read_line, lambda: state["now"], clock, mode=lambda: state.get("mode")), calls
+    mode = lambda now, since: state.get("mode")  # noqa: E731
+    return FpsMeter(read_line, lambda: state["now"], clock, mode=mode), calls
 
 
 def test_one_log_line_a_minute_with_median_p10_and_the_state(caplog):
