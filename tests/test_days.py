@@ -59,7 +59,14 @@ def test_days_newest_first_with_play_blocks_and_time_played(store):
     assert (monday.played_s, monday.yaps) == (600, 1)
     assert sunday_.key == "2026-10-11" and [m.id for m in sunday_.matches] == ids[:6]
     blocks = days.blocks(sunday_.matches)
-    assert [[m.id for m in b] for b in blocks] == [ids[:2], [ids[2]], [ids[3]], [ids[4]], [ids[5]]]
+    assert [[m.id for m in b] for _, b in blocks] == [
+        ids[:2],
+        [ids[2]],
+        [ids[3]],
+        [ids[4]],
+        [ids[5]],
+    ]
+    assert [round(pause / 60) for pause, _ in blocks] == [0, 188, 277, 50, 235]
     # 15:05-15:30 + 18:38-18:53 + 23:30-23:50 + 00:40-00:55 + 04:50-04:59, not 15:05 to 04:59
     assert sunday_.played_s == (25 + 15 + 20 + 15 + 9) * 60
     assert (sunday_.started_at, sunday_.ended_at) == (at(11, 15, 5), at(12, 4, 59))
@@ -69,9 +76,36 @@ def test_matches_are_numbered_in_their_day_across_sessions(store):
     ids = sunday(store)
     assert [store.match_number(i) for i in ids] == [1, 2, 3, 4, 5, 6, 1]
     assert [m.id for m in store.played_matches("2026-10-11")] == ids[:6]
+    assert store.played_matches("") == [] and store.match_day(ids[5]) == "2026-10-11"
     (hit,) = store.find("rein")
-    assert hit.match_number == 1  # Monday's first, not the 7th of a session
+    assert (hit.day, hit.match_number) == ("2026-10-12", 1)  # Monday's first, not a 7th
     assert [h.match_number for h in store.find("gg")] == [6, 5, 4, 3, 2, 1]
+    assert store.day_numbers({ids[4]})[ids[1]] == ("2026-10-11", 2)  # the whole day
+
+
+def test_a_day_is_worked_out_once_so_no_match_falls_between_two(store):
+    """Python and SQLite round a moment just before 05:00 differently: the list, the day view
+    and the numbers all use the store's day."""
+    session = store.start_session(at(11, 22))
+    edge = played(store, session, at(12, 5) - 0.0003, 10)
+    (day,) = days.group(store.played_matches())
+    assert [m.id for m in store.played_matches(day.key)] == [edge]
+    assert store.match_day(edge) == day.key
+
+
+def test_chat_from_before_a_match_never_ends_it_before_it_began(store):
+    session = store.start_session(at(11, 19))
+    match = store.start_match(session, at(11, 19, 30), "heroselect")
+    store.add_message(ts=at(11, 19, 27), channel="match", text="gl", match_id=match)  # #307
+    (day,) = days.group(store.played_matches())
+    assert (day.ended_at, day.played_s) == (at(11, 19, 30), 0)
+
+
+def test_the_evening_still_going_after_midnight_is_today():
+    from yaptracker.ui.components import when
+
+    assert when(*days.ago("2026-10-11", now=at(12, 0, 30))) == "today"
+    assert when(*days.ago("2026-10-11", now=at(12, 6))) == "yesterday"
 
 
 @pytest.fixture

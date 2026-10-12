@@ -61,9 +61,9 @@ def test_sessions_newest_first_with_matches_and_yaps(store):
     assert (rows[1].started_at, rows[1].ended_at) == (at(0), at(30))
 
 
-def test_session_matches_in_play_order(store):
+def test_played_matches_in_play_order(store):
     session, first, second = evening(store)
-    rows = store.session_matches(session)
+    rows = store.played_matches()
     assert [(m.id, m.outcome, m.map, m.yaps, m.last_yap) for m in rows] == [
         (first, "victory", "esperanca", 3, at(12)),
         (second, "defeat", None, 2, at(27)),
@@ -108,7 +108,7 @@ async def test_session_to_match_to_transcript(user: User, store, monkeypatch):
     user.find(marker="nav-sessions").click()
     await user.should_see("Thursday, Oct 1")
     await user.should_see("20:06\u201320:33 \u00b7 27 min played \u00b7 2 matches \u00b7 5 yaps")
-    user.find(marker=f"session-{session}").click()
+    user.find(marker="day").click()
     await user.should_see("Match 1 on Esperanca")
     await user.should_see("Push \u00b7 20:06 \u00b7 13 min \u00b7 3 yaps")
     await user.should_see("Match 2")
@@ -136,7 +136,7 @@ async def test_the_incomplete_badge(user: User, store, monkeypatch):
     monkeypatch.setattr(runtime, "store", store)
     await user.open("/")
     user.find(marker="nav-sessions").click()
-    user.find(marker=f"session-{session}").click()
+    user.find(marker="day").click()
     await user.should_see(marker="incomplete")
     (badge,) = user.find(marker="incomplete").elements  # match 1 was complete
     assert f"match-{second}" in badge.parent_slot.parent._markers
@@ -153,5 +153,5 @@ async def test_map_names_keep_their_apostrophe_case(user: User, store, monkeypat
     monkeypatch.setattr(runtime, "store", store)
     await user.open("/")
     user.find(marker="nav-sessions").click()
-    user.find(marker=f"session-{session}").click()
+    user.find(marker="day").click()
     await user.should_see("Match 1 on King's Row")

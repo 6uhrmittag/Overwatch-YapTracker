@@ -68,6 +68,7 @@ class MatchRow:
     last_yap: float | None
     loved_at: float | None = None  # hearted in Live or Sessions (#282)
     session_id: int | None = None
+    day: str | None = None  # the day it was played (#440), from SQL like every day key
 
 
 @dataclass(frozen=True)
@@ -77,8 +78,8 @@ class Hit:
 
     message: Message
     marked: str
-    session_id: int | None
-    match_number: int | None
+    day: str | None  # the day of its match (#440), '2026-10-11'
+    match_number: int | None  # in that day
     map: str | None
 
 
@@ -365,19 +366,22 @@ class Store:
         )[0]
         return played, lines
 
-    def session_matches(self, session_id: int) -> list[MatchRow]:
-        """The matches of a session in play order, with how much was said (#29)."""
-        return self._match_rows("WHERE m.session_id = ? ", (session_id,))
-
     def played_matches(self, day: str | None = None) -> list[MatchRow]:
-        """Every played match in play order, or those of one day ('2026-10-11', #440)."""
-        return self._match_rows(f"WHERE {_day('m')} = ? ", (day,)) if day else \
-            self._match_rows("", ())  # fmt: skip
+        """Every played match in play order with how much was said (#29), or those of one day
+        ('2026-10-11', #440)."""
+        if day is None:
+            return self._match_rows("", ())
+        return self._match_rows(f"WHERE {_day('m')} = ? ", (day,))
+
+    def match_day(self, match_id: int) -> str | None:
+        """The day a match was played (#440), '2026-10-11'; None if there's no such match."""
+        rows = self._read(f"SELECT {_day('m')} FROM matches m WHERE m.id = ?", (match_id,))
+        return rows[0][0] if rows else None
 
     def _match_rows(self, where: str, params: tuple) -> list[MatchRow]:
         rows = self._read(
             "SELECT m.id, m.started_at, m.ended_at, m.outcome, m.map, m.mode, COUNT(c.id), "
-            "MAX(c.ts), m.loved_at, m.session_id FROM matches m "
+            f"MAX(c.ts), m.loved_at, m.session_id, {_day('m')} FROM matches m "
             f"LEFT JOIN live_messages c ON c.match_id = m.id {where}GROUP BY m.id "
             "HAVING COUNT(c.id) > 0 OR m.outcome IS NOT NULL ORDER BY m.started_at, m.id",
             params,
@@ -756,7 +760,7 @@ class Store:
             where.append("m.ts >= ?")
             params.append(since)
         columns = ", ".join(f"m.{c.strip()}" for c in _MESSAGE_COLUMNS.split(","))
-        place = "mt.session_id, mt.id, mt.map"  # mt.id becomes its number below (#270)
+        place = "mt.id, mt.map"  # mt.id becomes its day and number below (#270, #440)
         if text.strip():
             source = "chat_fts JOIN live_messages m ON m.id = chat_fts.rowid"
             marked = "highlight(chat_fts, 0, char(1), char(2))"
@@ -775,13 +779,13 @@ class Store:
             (*params, limit),
         )
         n = len(_MESSAGE_COLUMNS.split(","))
-        numbers = self._match_numbers({row[n + 2] for row in rows} - {None})
-        return [Hit(Message(*row[:n]), row[n], row[n + 1], numbers.get(row[n + 2]), row[n + 3])
+        numbers = self.day_numbers({row[n + 1] for row in rows} - {None})
+        return [Hit(Message(*row[:n]), row[n], *numbers.get(row[n + 1], (None, None)), row[n + 2])
                 for row in rows]  # fmt: skip
 
-    def _match_numbers(self, match_ids: set[int]) -> dict[int, int]:
-        """{match id: its number in its day (#440)} for the days of those matches, empty matches
-        not counted (#270). Once per search instead of a count per hit."""
+    def day_numbers(self, match_ids: set[int]) -> dict[int, tuple[str, int]]:
+        """{match id: (its day, its number in that day)} (#440) for every played match of those
+        matches' days, empty matches not counted (#270). One query for a whole search or profile."""
         if not match_ids:
             return {}
         rows = self._read(
@@ -790,11 +794,11 @@ class Store:
             f"AND {_played('m')} ORDER BY 2, m.started_at, m.id",
             tuple(match_ids),
         )
-        numbers: dict[int, int] = {}
+        numbers: dict[int, tuple[str, int]] = {}
         counts: dict[str, int] = {}
         for match_id, day in rows:
             counts[day] = counts.get(day, 0) + 1
-            numbers[match_id] = counts[day]
+            numbers[match_id] = (day, counts[day])
         return numbers
 
     # Export (#69) -------------------------------------------------------------------------------

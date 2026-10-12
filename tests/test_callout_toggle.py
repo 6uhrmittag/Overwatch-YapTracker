@@ -57,11 +57,11 @@ async def test_live_hides_callouts_until_switched_on_and_remembers(user: User, s
 async def test_transcripts_follow_the_same_choice(user: User, store):
     config.save_setup_state("done")
     session, first, second = evening(store)
-    store.add_message(ts=store.session_matches(session)[0].started_at + 5, channel="team",
+    store.add_message(ts=store.played_matches()[0].started_at + 5, channel="team",
                       text="Thanks! ◇", speaker_raw="Bo", hero="Ana", match_id=first)  # fmt: skip
     await user.open("/")
     user.find(marker="nav-sessions").click()
-    user.find(marker=f"session-{session}").click()
+    user.find(marker="day").click()
     user.find(marker=f"match-{first}").click()
     await user.should_see("+1 callout")
     assert hidden(user, "transcript")

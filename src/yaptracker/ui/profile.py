@@ -215,10 +215,11 @@ def _yaps(player_id: int, callouts: bool = False) -> None:
     by_match: dict[int | None, list] = {}
     for message in messages:
         by_match.setdefault(message.match_id, []).append(message)
+    numbers = store.day_numbers(set(by_match) - {None})  # day and number, as in Sessions (#440)
     for match_id, said in by_match.items():
-        started = store.match_started(match_id) if match_id else None
-        day = days.title(days.day_of(started or said[0].ts), "%a, %b %d")  # as in Sessions (#440)
-        title = f"{day} \u00b7 Match {store.match_number(match_id)}" if match_id else day
+        key, number = numbers.get(match_id, (days.day_of(said[0].ts), None))
+        day = days.title(key, "%a, %b %d")
+        title = f"{day} \u00b7 Match {number}" if number else day
         ui.label(title).classes("yt-match-title")
         for message in reversed(said):  # in the order they said it
             channel = message.channel if message.channel in _CHANNELS else "chat"

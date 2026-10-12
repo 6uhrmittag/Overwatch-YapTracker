@@ -67,8 +67,7 @@ def sessions(match_id: int | None = None) -> None:
             _transcript(match, number, lambda: show_day(key))
 
     store = runtime.store
-    started = store.match_started(match_id) if store and match_id is not None else None
-    key = days.day_of(started) if started is not None else None
+    key = store.match_day(match_id) if store and match_id is not None else None
     matches = store.played_matches(key) if key else []
     number = next((n for n, m in enumerate(matches, start=1) if m.id == match_id), None)
     if number is not None:
@@ -92,13 +91,11 @@ def _day_list(open_day) -> None:
                 ui.label("Every day you play lands here, match by match.").classes("yt-hint")
                 return
             for day in rows:
-                # its sessions too: the record behind the day, what the tests click
-                behind = " ".join(f"session-{s}" for s in {m.session_id for m in day.matches})
-                row = ui.element("div").classes("yt-yapper").mark(f"day day-{day.key} {behind}")
+                row = ui.element("div").classes("yt-yapper").mark(f"day day-{day.key}")
                 row.on("click", lambda k=day.key: open_day(k))
                 with row:
                     ui.label(days.title(day.key)).classes("yt-yapper-name")
-                    ui.label(when(days.noon(day.key))).classes("yt-meta")
+                    ui.label(when(*days.ago(day.key))).classes("yt-meta")
                     ui.element("div").classes("yt-grow")
                     span = f"{_clock(day.started_at)}\u2013{_clock(day.ended_at)}"
                     ui.label(
@@ -120,11 +117,12 @@ def _match_list(key: str, back, open_match) -> None:
     with ui.element("section").classes("yt-card yt-card--list"):
         with ui.element("div").classes("yt-card-body").mark("matches"):
             if not blocks:
-                ui.label("No match left on this day.").classes("yt-hint")
+                ui.label(
+                    "No match left on this day: a match shows here once it has a yap or a result."
+                ).classes("yt-hint")
             number = 0
-            for i, block in enumerate(blocks):
+            for i, (pause, block) in enumerate(blocks):
                 if i:  # a quiet divider between play blocks (#440)
-                    pause = block[0].started_at - max(_match_end(m) for m in blocks[i - 1])
                     ui.label(f"Break, {_length(0, pause)}").classes("yt-break-line").mark(
                         "break-line"
                     )
@@ -217,7 +215,7 @@ def _transcript(match, number: int, back) -> None:
     store = runtime.store
 
     def open_snap(chosen: list) -> None:
-        day = time.strftime("%a %b %d, %Y", time.localtime(match.started_at)).replace(" 0", " ")
+        day = days.title(match.day or days.day_of(match.started_at), "%a %b %d, %Y")  # (#440)
         mode = f" \u00b7 {match.mode.title()}" if match.mode else ""
         snap_dialog(chosen, f"{_title(match, number)}{mode} \u00b7 {day}", match.started_at)
 

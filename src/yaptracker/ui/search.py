@@ -9,9 +9,9 @@ import time
 
 from nicegui import ui
 
-from yaptracker import runtime
+from yaptracker import days, runtime
 from yaptracker.glyphs import GLYPH
-from yaptracker.ui.components import count, switch
+from yaptracker.ui.components import count, place_name, switch
 from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark
 from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.snap_dialog import snap_dialog
@@ -164,7 +164,9 @@ def _result(hit, picker: LinePicker) -> ui.element:
         text = ui.html(marked_html(hit.marked), sanitize=False).classes("yt-line-text")
         edited = edited_mark(message)
         if hit.match_number:
-            where = f"Match {hit.match_number}" + (f" on {hit.map.title()}" if hit.map else "")
+            where = f"Match {hit.match_number}" + (f" on {place_name(hit.map)}" if hit.map else "")
+            if hit.day and hit.day != time.strftime("%Y-%m-%d", time.localtime(message.ts)):
+                where += f", {days.title(hit.day, '%a %b %d')}"  # after midnight: its day (#440)
             ui.label(where).classes("yt-meta yt-result-where")
     edit_button(row, message.id, text, edited)  # quick fixes (#227)
     delete_button(row, lambda: [message.id])
