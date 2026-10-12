@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from nicegui import ui
 
-from yaptracker import runtime
+from yaptracker import days, runtime
 from yaptracker.ui.components import (
     VERDICTS,
     button,
@@ -217,7 +217,7 @@ def _yaps(player_id: int, callouts: bool = False) -> None:
         by_match.setdefault(message.match_id, []).append(message)
     for match_id, said in by_match.items():
         started = store.match_started(match_id) if match_id else None
-        day = time.strftime("%a, %b %d", time.localtime(started or said[0].ts)).replace(" 0", " ")
+        day = days.title(days.day_of(started or said[0].ts), "%a, %b %d")  # as in Sessions (#440)
         title = f"{day} \u00b7 Match {store.match_number(match_id)}" if match_id else day
         ui.label(title).classes("yt-match-title")
         for message in reversed(said):  # in the order they said it

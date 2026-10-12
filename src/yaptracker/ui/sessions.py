@@ -1,5 +1,6 @@
-"""Sessions (#29): look back at last night. Evenings -> their matches -> the whole transcript.
+"""Sessions (#29): look back at last night. Days -> their matches -> the whole transcript.
 
+The list groups by day (#440), a day runs until 05:00; the sessions table stays behind the scenes.
 Matches with a capture gap are marked incomplete, and the gap shows at its place in the
 transcript ("Not recorded 21:04-21:10"), never as a silent hole (#75).
 """
@@ -8,7 +9,8 @@ import time
 
 from nicegui import ui
 
-from yaptracker import config, runtime
+from yaptracker import config, days, runtime
+from yaptracker.days import end_of as _match_end
 from yaptracker.ui import icons
 from yaptracker.ui.components import button, callout_toggle, count, place_name, sub_page, when
 from yaptracker.ui.heart import Heart
@@ -42,107 +44,118 @@ def _length(start: float, end: float) -> str:
     return f"{minutes // 60} h {minutes % 60:02d} min" if minutes >= 60 else f"{minutes} min"
 
 
-def _match_end(match) -> float:
-    return match.ended_at or match.last_yap or match.started_at
-
-
-def sessions(session_id: int | None = None, match_id: int | None = None) -> None:
-    """The list; with a session and match (a search result, #30) that transcript right away."""
+def sessions(match_id: int | None = None) -> None:
+    """The days list; with a match (a search result, #30) its transcript in its day right away."""
     view = ui.element("div").classes("yt-view")
 
-    def show_sessions() -> None:
+    def show_days() -> None:
         sub_page(None)
         view.clear()
         with view:
-            _session_list(show_session)
+            _day_list(show_day)
 
-    def show_session(session) -> None:
-        sub_page(show_sessions)  # the Sessions icon goes back to the list (#404)
+    def show_day(key: str) -> None:
+        sub_page(show_days)  # the Sessions icon goes back to the list (#404)
         view.clear()
         with view:
-            _match_list(session, show_sessions, lambda m, n: show_match(session, m, n))
+            _match_list(key, show_days, lambda m, n: show_match(key, m, n))
 
-    def show_match(session, match, number: int) -> None:
-        sub_page(show_sessions)
+    def show_match(key: str, match, number: int) -> None:
+        sub_page(show_days)
         view.clear()
         with view:
-            _transcript(match, number, lambda: show_session(session))
+            _transcript(match, number, lambda: show_day(key))
 
     store = runtime.store
-    session = next((r for r in store.sessions() if r.id == session_id), None) if store else None
-    matches = store.session_matches(session_id) if session else []
+    started = store.match_started(match_id) if store and match_id is not None else None
+    key = days.day_of(started) if started is not None else None
+    matches = store.played_matches(key) if key else []
     number = next((n for n, m in enumerate(matches, start=1) if m.id == match_id), None)
     if number is not None:
-        show_match(session, matches[number - 1], number)
+        show_match(key, matches[number - 1], number)
     else:
-        show_sessions()
+        show_days()
 
 
-def _session_list(open_session) -> None:
+def _day_list(open_day) -> None:
     with ui.element("header").classes("yt-header"):
         ui.label("Sessions").classes("yt-h1")
+    ui.label(
+        "One row per day you played. Past midnight still counts to the day before, until 5 am."
+    ).classes("yt-hint").mark("days-hint")
     store = runtime.store
-    rows = store.sessions() if store else []
+    rows = days.group(store.played_matches()) if store else []
     with ui.element("section").classes("yt-card yt-card--list"):
         with ui.element("div").classes("yt-card-body").mark("sessions"):
             if not rows:
                 ui.label("No sessions yet").classes("yt-h2")
-                ui.label("Every evening of play lands here, match by match.").classes("yt-hint")
+                ui.label("Every day you play lands here, match by match.").classes("yt-hint")
                 return
-            for session in rows:
-                row = ui.element("div").classes("yt-yapper").mark(f"session session-{session.id}")
-                row.on("click", lambda s=session: open_session(s))
+            for day in rows:
+                # its sessions too: the record behind the day, what the tests click
+                behind = " ".join(f"session-{s}" for s in {m.session_id for m in day.matches})
+                row = ui.element("div").classes("yt-yapper").mark(f"day day-{day.key} {behind}")
+                row.on("click", lambda k=day.key: open_day(k))
                 with row:
-                    day = time.strftime("%A, %b %d", time.localtime(session.started_at))
-                    ui.label(day.replace(" 0", " ")).classes("yt-yapper-name")
-                    ui.label(f"{when(session.started_at)}").classes("yt-meta")
+                    ui.label(days.title(day.key)).classes("yt-yapper-name")
+                    ui.label(when(days.noon(day.key))).classes("yt-meta")
                     ui.element("div").classes("yt-grow")
-                    span = f"{_clock(session.started_at)}\u2013{_clock(session.ended_at)}"
+                    span = f"{_clock(day.started_at)}\u2013{_clock(day.ended_at)}"
                     ui.label(
-                        f"{span} \u00b7 {_length(session.started_at, session.ended_at)} \u00b7 "
-                        f"{count(session.matches, 'match', 'matches')} \u00b7 "
-                        f"{count(session.yaps, 'yap', 'yaps')}"
+                        f"{span} \u00b7 {_length(0, day.played_s)} played \u00b7 "
+                        f"{count(len(day.matches), 'match', 'matches')} \u00b7 "
+                        f"{count(day.yaps, 'yap', 'yaps')}"
                     ).classes("yt-meta")
 
 
-def _match_list(session, back, open_match) -> None:
+def _match_list(key: str, back, open_match) -> None:
     store = runtime.store
     with ui.element("header").classes("yt-header"):
-        button("\u2190 All sessions", back, "quiet").mark("back-to-sessions")
-        day = time.strftime("%A, %b %d", time.localtime(session.started_at)).replace(" 0", " ")
-        ui.label(day).classes("yt-h1")
+        button("\u2190 All days", back, "quiet").mark("back-to-sessions")
+        ui.label(days.title(key)).classes("yt-h1")
     ui.label("Open a match to read it back or make a yap snap.").classes("yt-hint").mark(
         "matches-hint"
     )  # snaps are in the match, in Search and in Live (#325)
-    matches = store.session_matches(session.id)
+    blocks = days.blocks(store.played_matches(key))
     with ui.element("section").classes("yt-card yt-card--list"):
         with ui.element("div").classes("yt-card-body").mark("matches"):
-            if not matches:
-                ui.label("No match in this session: YapTracker ran, nobody wrote in chat.").classes(
-                    "yt-hint"
-                )
-            for number, match in enumerate(matches, start=1):
-                row = ui.element("div").classes("yt-yapper").mark(f"match match-{match.id}")
-                row.on("click", lambda m=match, n=number: open_match(m, n))
-                with row:
-                    ui.label(_title(match, number)).classes("yt-yapper-name")
-                    if match.loved_at:  # hearted (#282)
-                        ui.html(icons.HEART, sanitize=False).classes("yt-heart-mark").props(
-                            'title="Loved"'
-                        ).mark("loved")
-                    if match.outcome:
-                        ui.label(_OUTCOMES.get(match.outcome, match.outcome)).classes(
-                            f"yt-outcome yt-outcome--{match.outcome}"
-                        )
-                    if store.gaps_between(match.started_at, _match_end(match)):
-                        ui.label("incomplete").classes("yt-incomplete").mark("incomplete")
-                    ui.element("div").classes("yt-grow")
-                    mode = f"{place_name(match.mode)} \u00b7 " if match.mode else ""
-                    ui.label(
-                        f"{mode}{_clock(match.started_at)} \u00b7 "
-                        f"{_length(match.started_at, _match_end(match))} \u00b7 "
-                        f"{count(match.yaps, 'yap', 'yaps')}"
-                    ).classes("yt-meta")
+            if not blocks:
+                ui.label("No match left on this day.").classes("yt-hint")
+            number = 0
+            for i, block in enumerate(blocks):
+                if i:  # a quiet divider between play blocks (#440)
+                    pause = block[0].started_at - max(_match_end(m) for m in blocks[i - 1])
+                    ui.label(f"Break, {_length(0, pause)}").classes("yt-break-line").mark(
+                        "break-line"
+                    )
+                for match in block:
+                    number += 1
+                    _match_row(match, number, open_match)
+
+
+def _match_row(match, number: int, open_match) -> None:
+    store = runtime.store
+    row = ui.element("div").classes("yt-yapper").mark(f"match match-{match.id}")
+    row.on("click", lambda m=match, n=number: open_match(m, n))
+    with row:
+        ui.label(_title(match, number)).classes("yt-yapper-name")
+        if match.loved_at:  # hearted (#282)
+            ui.html(icons.HEART, sanitize=False).classes("yt-heart-mark").props(
+                'title="Loved"'
+            ).mark("loved")
+        if match.outcome:
+            ui.label(_OUTCOMES.get(match.outcome, match.outcome)).classes(
+                f"yt-outcome yt-outcome--{match.outcome}"
+            )
+        if store.gaps_between(match.started_at, _match_end(match)):
+            ui.label("incomplete").classes("yt-incomplete").mark("incomplete")
+        ui.element("div").classes("yt-grow")
+        mode = f"{place_name(match.mode)} \u00b7 " if match.mode else ""
+        ui.label(
+            f"{mode}{_clock(match.started_at)} \u00b7 "
+            f"{_length(match.started_at, _match_end(match))} \u00b7 "
+            f"{count(match.yaps, 'yap', 'yaps')}"
+        ).classes("yt-meta")
 
 
 def _title(match, number: int) -> str:

@@ -5,7 +5,7 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path
 
-from yaptracker import paths
+from yaptracker import days, paths
 from yaptracker.store.db import connect
 
 
@@ -56,7 +56,7 @@ class SessionRow:
 
 @dataclass(frozen=True)
 class MatchRow:
-    """A match in a session (#29)."""
+    """A match in a session (#29) or a day (#440)."""
 
     id: int
     started_at: float
@@ -67,6 +67,7 @@ class MatchRow:
     yaps: int
     last_yap: float | None
     loved_at: float | None = None  # hearted in Live or Sessions (#282)
+    session_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -110,6 +111,11 @@ def _played(m: str) -> str:
     (a press of New match before #269, a lobby that never chatted) is hidden everywhere."""
     return (f"(EXISTS (SELECT 1 FROM live_messages pl WHERE pl.match_id = {m}.id) "
             f"OR {m}.outcome IS NOT NULL)")  # fmt: skip
+
+
+def _day(m: str) -> str:
+    """SQL: the day match `m` was played (#440), '2026-10-11'; before 05:00 the day before."""
+    return f"date({m}.started_at, 'unixepoch', 'localtime', '-{days.CUT_H} hours')"
 
 
 class Store:
@@ -317,11 +323,12 @@ class Store:
         return self._read("SELECT COUNT(*) FROM sessions WHERE id <= ?", (session_id,))[0][0]
 
     def match_number(self, match_id: int) -> int:
-        """1 for the first match of its session, 2 for the next... Empty ones don't count."""
+        """1 for the first match of its day (#440), 2 for the next... Empty ones don't count."""
         return self._read(
-            "SELECT COUNT(*) FROM matches m WHERE m.id <= ? AND m.session_id = "
-            f"(SELECT session_id FROM matches WHERE id = ?) AND (m.id = ? OR {_played('m')})",
-            (match_id, match_id, match_id),
+            f"SELECT COUNT(*) FROM matches m JOIN matches t ON t.id = ? WHERE {_day('m')} = "
+            f"{_day('t')} AND (m.started_at, m.id) <= (t.started_at, t.id) "
+            f"AND (m.id = t.id OR {_played('m')})",
+            (match_id,),
         )[0][0]
 
     def sessions(self) -> list[SessionRow]:
@@ -360,12 +367,20 @@ class Store:
 
     def session_matches(self, session_id: int) -> list[MatchRow]:
         """The matches of a session in play order, with how much was said (#29)."""
+        return self._match_rows("WHERE m.session_id = ? ", (session_id,))
+
+    def played_matches(self, day: str | None = None) -> list[MatchRow]:
+        """Every played match in play order, or those of one day ('2026-10-11', #440)."""
+        return self._match_rows(f"WHERE {_day('m')} = ? ", (day,)) if day else \
+            self._match_rows("", ())  # fmt: skip
+
+    def _match_rows(self, where: str, params: tuple) -> list[MatchRow]:
         rows = self._read(
             "SELECT m.id, m.started_at, m.ended_at, m.outcome, m.map, m.mode, COUNT(c.id), "
-            "MAX(c.ts), m.loved_at FROM matches m LEFT JOIN live_messages c ON c.match_id = m.id "
-            "WHERE m.session_id = ? GROUP BY m.id "
+            "MAX(c.ts), m.loved_at, m.session_id FROM matches m "
+            f"LEFT JOIN live_messages c ON c.match_id = m.id {where}GROUP BY m.id "
             "HAVING COUNT(c.id) > 0 OR m.outcome IS NOT NULL ORDER BY m.started_at, m.id",
-            (session_id,),
+            params,
         )
         return [MatchRow(*row) for row in rows]
 
@@ -760,25 +775,26 @@ class Store:
             (*params, limit),
         )
         n = len(_MESSAGE_COLUMNS.split(","))
-        numbers = self._match_numbers({row[n + 1] for row in rows} - {None})
+        numbers = self._match_numbers({row[n + 2] for row in rows} - {None})
         return [Hit(Message(*row[:n]), row[n], row[n + 1], numbers.get(row[n + 2]), row[n + 3])
                 for row in rows]  # fmt: skip
 
-    def _match_numbers(self, sessions: set[int]) -> dict[int, int]:
-        """{match id: its number in its session} for those sessions, empty matches not counted
-        (#270). Once per search instead of a count per hit."""
-        if not sessions:
+    def _match_numbers(self, match_ids: set[int]) -> dict[int, int]:
+        """{match id: its number in its day (#440)} for the days of those matches, empty matches
+        not counted (#270). Once per search instead of a count per hit."""
+        if not match_ids:
             return {}
         rows = self._read(
-            f"SELECT m.id, m.session_id FROM matches m WHERE m.session_id IN "
-            f"({', '.join('?' * len(sessions))}) AND {_played('m')} ORDER BY m.session_id, m.id",
-            tuple(sessions),
+            f"SELECT m.id, {_day('m')} FROM matches m WHERE {_day('m')} IN (SELECT {_day('t')} "
+            f"FROM matches t WHERE t.id IN ({', '.join('?' * len(match_ids))})) "
+            f"AND {_played('m')} ORDER BY 2, m.started_at, m.id",
+            tuple(match_ids),
         )
         numbers: dict[int, int] = {}
-        counts: dict[int, int] = {}
-        for match_id, session_id in rows:
-            counts[session_id] = counts.get(session_id, 0) + 1
-            numbers[match_id] = counts[session_id]
+        counts: dict[str, int] = {}
+        for match_id, day in rows:
+            counts[day] = counts.get(day, 0) + 1
+            numbers[match_id] = counts[day]
         return numbers
 
     # Export (#69) -------------------------------------------------------------------------------

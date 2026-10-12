@@ -151,8 +151,7 @@ def _result(hit, picker: LinePicker) -> ui.element:
         if picker.clicked(message, bool((e.args or {}).get("shiftKey"))):
             return
         if message.match_id is not None:
-            ui.context.client.yt_show("sessions", session_id=hit.session_id,
-                                      match_id=message.match_id)  # fmt: skip
+            ui.context.client.yt_show("sessions", match_id=message.match_id)  # its day (#440)
 
     row.on("click", clicked, ["shiftKey"])
     with row:

@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-12 · Sessions by day (#440)
+- Sessions lists the days you played: one row per day with the time you really played, how many matches and yaps. A late night counts to the day it began, until 5 in the morning.
+- A day shows all its matches numbered 1, 2, 3... with a quiet "Break, 1 h 20 min" between play blocks.
+- Search results, profiles and Live number matches per day too, and a search result opens its match inside its day.
+
 ### 2026-10-12 · The evening line counts more (#437)
 - Behind the scenes: the evening line in the log also counts Competitive matches (with their merged rounds), familiar faces shown (live and after the match) and players with notes, and each familiar-face card is one log line (player ids only), so the Definition-of-done checks come from the log.
 

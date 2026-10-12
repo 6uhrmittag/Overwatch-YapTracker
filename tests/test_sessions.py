@@ -107,7 +107,7 @@ async def test_session_to_match_to_transcript(user: User, store, monkeypatch):
     await user.open("/")
     user.find(marker="nav-sessions").click()
     await user.should_see("Thursday, Oct 1")
-    await user.should_see("20:05\u201320:35 \u00b7 30 min \u00b7 2 matches \u00b7 5 yaps")
+    await user.should_see("20:06\u201320:33 \u00b7 27 min played \u00b7 2 matches \u00b7 5 yaps")
     user.find(marker=f"session-{session}").click()
     await user.should_see("Match 1 on Esperanca")
     await user.should_see("Push \u00b7 20:06 \u00b7 13 min \u00b7 3 yaps")
