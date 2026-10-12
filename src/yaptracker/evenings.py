@@ -32,11 +32,15 @@ _MINUTE = re.compile(
     r"\d+ ms CPU each(?: \(([^)]*)\))?; whole app: ([\d.]+) %",
     re.MULTILINE,
 )
-_UNSTORED = re.compile(
-    r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d),\d+ INFO yaptracker\.reader: chat reading: (\d+) "
-    r"line\(s\) seen twice but never stored",
-    re.MULTILINE,
-)
+# Events counted per evening (#425, #437): (kind, pattern with the time and how many)
+_EVENTS = {
+    "unstored": re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d),\d+ INFO yaptracker\.reader: chat "
+                           r"reading: (\d+) line\(s\) seen twice but never stored", re.MULTILINE),
+    "round": re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d),\d+ INFO yaptracker\.matches: match "
+                        r"\d+: round (\d+)", re.MULTILINE),
+    "familiar": re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d),\d+ INFO yaptracker\.familiar: "
+                           r"familiar face: player #(\d+)", re.MULTILINE),
+}  # fmt: skip
 _CLOCK = "%Y-%m-%d %H:%M:%S"
 
 
@@ -56,12 +60,26 @@ def minutes(files: list[Path]) -> list[tuple[str, str, float]]:
         except OSError:
             continue
         found += [(m[1], m[2] or "", float(m[3])) for m in _MINUTE.finditer(text)]
-        # seen-but-not-stored lines (#425) ride along as a minute without CPU: mode "unstored"
-        found += [(m[1], f"unstored {m[2]}", -1.0) for m in _UNSTORED.finditer(text)]
     return found
 
 
-def summarize(store: Store, session: SessionRow, logged: list[tuple]) -> dict | None:
+def events(files: list[Path]) -> list[tuple[str, str, int]]:
+    """(local time, kind, number) of the counted log events: lines seen but never stored
+    (number: how many), rounds of a match, familiar-face cards (number: 1 each)."""
+    found = []
+    for path in files:
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for kind, pattern in _EVENTS.items():
+            found += [(m[1], kind, int(m[2]) if kind == "unstored" else 1)
+                      for m in pattern.finditer(text)]  # fmt: skip
+    return found
+
+
+def summarize(store: Store, session: SessionRow, logged: list[tuple],
+              happened: list[tuple] = ()) -> dict | None:  # fmt: skip
     """The evening's numbers; None when it had no match."""
     played, (count, confidence, low, glyphs, fixed, unknown) = store.evening(
         session.id, LOW_CONFIDENCE
@@ -72,11 +90,13 @@ def summarize(store: Store, session: SessionRow, logged: list[tuple]) -> dict | 
     sources = Counter(m[0] for m in played)
     start, end = (time.strftime(_CLOCK, time.localtime(t)) for t in (session.started_at,
                                                                     session.ended_at))  # fmt: skip
-    cpu, modes, unstored = [], Counter(), 0
+    cpu, modes = [], Counter()
+    counted = Counter()
+    for clock, kind, n in happened:
+        if start <= clock <= end:
+            counted[kind] += n
     for clock, read, whole in logged:
-        if start <= clock <= end and whole < 0:  # lines seen but never stored (#425)
-            unstored += int(read.rpartition(" ")[2])
-        elif start <= clock <= end:
+        if start <= clock <= end:
             cpu.append(whole)
             for part in filter(None, read.split(", ")):
                 mode, _, n = part.rpartition(" ")
@@ -100,7 +120,11 @@ def summarize(store: Store, session: SessionRow, logged: list[tuple]) -> dict | 
         "fixed": fixed,
         "modes": {mode: modes[mode] for mode in READ_MODES} if modes else None,
         "cpu": round(sum(cpu) / len(cpu), 1) if cpu else None,
-        "unstored": unstored,
+        "unstored": counted["unstored"],
+        "competitive": sum(game_lists.queue(m[2]) == "COMPETITIVE" for m in played),
+        "rounds": counted["round"],  # later rounds kept in their match (#364)
+        "familiar": counted["familiar"],
+        "notes": store.players_with_notes(),
     }
 
 
@@ -116,7 +140,9 @@ def line(e: dict) -> str:
         f"{percent(e['low'])}, ◇ {percent(e['glyphs'])}, no channel "
         f"{percent(e.get('unknown'))}) · fixed by hand {e['fixed']} · read "
         f"modes {modes} · whole app {percent(e['cpu'])} of a core · seen but not stored "
-        f"{e.get('unstored', '-')}"
+        f"{e.get('unstored', '-')} · competitive {e.get('competitive', '-')} (rounds merged "
+        f"{e.get('rounds', '-')}) · familiar faces {e.get('familiar', '-')} · players with "
+        f"notes {e.get('notes', '-')}"
     )
 
 
@@ -146,7 +172,8 @@ class Evenings:
             session = next((s for s in self._store.sessions() if s.id == session_id), None)
             if session is None:
                 return
-            evening = summarize(self._store, session, minutes(self._files(session.started_at)))
+            files = self._files(session.started_at)
+            evening = summarize(self._store, session, minutes(files), events(files))
             with self._lock:
                 if evening is not None and evening not in self._load():
                     log.info("%s", line(evening))
@@ -166,9 +193,11 @@ class Evenings:
                 self._fill_in_chat()
                 return
             start = time.mktime(time.strptime(since, "%Y-%m-%d"))
-            logged = minutes(self._files(start))
+            files = self._files(start)
+            logged, happened = minutes(files), events(files)
             sessions = [s for s in self._store.sessions() if s.started_at >= start]
-            done = [e for s in reversed(sessions) if (e := summarize(self._store, s, logged))]
+            done = [e for s in reversed(sessions)
+                    if (e := summarize(self._store, s, logged, happened))]  # fmt: skip
             for evening in done:
                 log.info("%s (filled in)", line(evening))
             self._save(done)  # an empty file too: filled in once

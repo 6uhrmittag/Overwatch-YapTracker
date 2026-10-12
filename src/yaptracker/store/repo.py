@@ -673,6 +673,11 @@ class Store:
         )
         return [Message(*row) for row in rows]
 
+    def players_with_notes(self) -> int:
+        """How many players have notes (#437, the Definition of done counts three)."""
+        rows = self._read("SELECT COUNT(*) FROM players WHERE trim(COALESCE(notes, '')) != ''")
+        return rows[0][0]
+
     def match_places(self) -> list[tuple[int, str | None, str | None]]:
         """(id, map, mode) of every match, as stored."""
         return self._read("SELECT id, map, mode FROM matches ORDER BY id")

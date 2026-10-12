@@ -73,8 +73,16 @@ def test_the_end_of_an_evening_writes_its_line(store, log_file, tmp_path, caplog
     with log_file.open("a", encoding="utf-8") as log:  # (#425)
         log.write(f"{clock(T0 + 200)} INFO yaptracker.reader: chat reading: 2 line(s) seen twice "
                   "but never stored: Pip: hi; Bo: yo\n")  # fmt: skip
+    with log_file.open("a", encoding="utf-8") as log:  # (#437)
+        log.write(f"{clock(T0 + 210)} INFO yaptracker.matches: match 1: round 2 (same map, no "
+                  f"result yet)\n{clock(T0 + 220)} INFO yaptracker.familiar: familiar face: "
+                  "player #7 (last met 2026-10-09)\n")  # fmt: skip
+    pip = store.add_player("Pip", T0)
+    store.set_notes(pip, "nice Ana")
     tracker.stop()  # YapTracker quits
     assert "· whole app 25 % of a core · seen but not stored 2" in caplog.text
+    assert ("· competitive 0 (rounds merged 1) · familiar faces 1 · players with notes 1"
+            in caplog.text)  # (#437)  # fmt: skip
     assert (
         "evening 2026-10-10: 2 matches (hero select 1, gap 1, hand 0) · map known 100 % · queue "
         "known 100 % · result 50 % · missed ends 1 · lines 5 (avg confidence 0.89, "

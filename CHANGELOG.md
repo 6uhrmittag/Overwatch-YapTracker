@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-12 · The evening line counts more (#437)
+- Behind the scenes: the evening line in the log also counts Competitive matches (with their merged rounds), familiar faces shown and players with notes, and each familiar-face card is one log line (player ids only), so the Definition-of-done checks come from the log.
+
 ### 2026-10-11 · Map names written right (#435)
 - Sessions writes map names like "King's Row" instead of "King'S Row".
 - Matches from the first days get their map and mode from the game lists once ("3 Colo Seo" becomes Colosseo); what was only misread text is cleared. A backup is made first.

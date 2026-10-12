@@ -5,6 +5,7 @@ window was in the background. One card per player per match; it fades after two 
 when you click "Got it". Me and my crew never get a card (#74).
 """
 
+import logging
 import threading
 import time
 from collections.abc import Callable
@@ -12,6 +13,8 @@ from dataclasses import dataclass
 
 from yaptracker.identity import Identity
 from yaptracker.store.repo import Store
+
+log = logging.getLogger(__name__)
 
 SHOW_S = 120  # docs/ui.md: cards fade after ~2 minutes
 
@@ -70,6 +73,8 @@ class FamiliarFaces:
                     matches, yaps, last_met, self._clock(), spicy, after)  # fmt: skip
         with self._lock:
             self._cards = [c for c in self._cards if c.player_id != player_id] + [card]
+        met = time.strftime("%Y-%m-%d", time.localtime(last_met)) if last_met else "?"
+        log.info("familiar face: player #%d (last met %s)", player_id, met)  # ids only (#437)
         return card
 
     def active(self) -> list[Card]:

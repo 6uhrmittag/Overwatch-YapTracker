@@ -126,3 +126,16 @@ def test_never_a_card_for_me_or_crew_under_any_spelling_also_added_later(store):
     faces = FamiliarFaces(store, lambda: Identity(crew=names["crew"]), clock=Clock())
     names["crew"] = ("Void",)  # added in Settings now; FamiliarFaces reads it at every line
     assert faces.heard(void, now) is None
+
+
+def test_each_card_is_one_log_line_with_the_player_id_only(store, caplog):
+    """#437: the evening counts familiar faces from the log; never a name in it."""
+    import logging
+    import time
+
+    pid, now = met(store, "NoodleBonk", 2)
+    with caplog.at_level(logging.INFO, logger="yaptracker.familiar"):
+        FamiliarFaces(store, clock=Clock()).heard(pid, now)
+    met_on = time.strftime("%Y-%m-%d", time.localtime(11.0))
+    assert caplog.messages == [f"familiar face: player #{pid} (last met {met_on})"]
+    assert "NoodleBonk" not in caplog.text
