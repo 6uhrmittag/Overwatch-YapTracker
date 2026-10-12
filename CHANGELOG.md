@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-12 · Evidence script (#437)
+- Behind the scenes: `tools/evidence.py <data folder>` answers the waiting issues from the logs, a copy of the database and the debug samples (CPU per evening, FPS running vs paused per reading mode, Competitive matches and rounds, ranked end samples, notes and familiar faces), as plain text with ids only.
+
 ### 2026-10-12 · Every PR gets a code review
 - Behind the scenes: every change now gets an automatic code review before it is merged; clear findings are fixed in the same change, bigger ones become bug issues.
 
