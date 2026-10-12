@@ -32,7 +32,7 @@ def test_a_heart_is_stored_shown_with_the_match_and_exported(store, tmp_path):
     session, first, second = evening(store)
     store.set_loved(first, 1_800_000_000.0)
     assert store.loved(first) and not store.loved(second)
-    assert [m.loved_at for m in store.session_matches(session)] == [1_800_000_000.0, None]
+    assert [m.loved_at for m in store.played_matches()] == [1_800_000_000.0, None]
     path = export_all(store, tmp_path / "out", 1_800_000_100.0, markdown=True)
     data = json.loads(path.read_text(encoding="utf-8"))
     loved = [m["loved_at"] for s in data["sessions"] for m in s["matches"]]
@@ -81,7 +81,7 @@ async def test_sessions_show_the_heart_and_the_transcript_can_love_a_match(
     monkeypatch.setattr(runtime, "store", store)
     await user.open("/")
     user.find(marker="nav-sessions").click()
-    user.find(marker=f"session-{session}").click()
+    user.find(marker="day").click()
     await user.should_see("Match 1 on Esperanca")
     assert len(user.find(marker="loved").elements) == 1  # only the loved match has one
     user.find(marker=f"match-{second}").click()

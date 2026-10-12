@@ -48,7 +48,7 @@ def test_a_deleted_line_is_gone_everywhere_and_comes_back_with_undo(store):
     assert store.player(pid).yaps == 1
     assert store.met_before(pid, None)[1] == 1  # the familiar-face card counts it once
     assert [m.id for m in store.search("wahoo")] == [keep]
-    assert store.sessions()[0].yaps == 1 and store.session_matches(session)[0].yaps == 1
+    assert store.sessions()[0].yaps == 1 and store.played_matches()[0].yaps == 1
     store.restore_message(doubled)
     assert [m.id for m in store.messages(match)] == [keep, doubled]
     assert store.player(pid).yaps == 2

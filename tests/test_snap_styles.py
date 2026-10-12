@@ -64,7 +64,7 @@ async def open_snap(user, store, tmp_path):
                              match_id=match)  # fmt: skip
     await user.open("/")
     user.find(marker="nav-sessions").click()
-    user.find(marker=f"session-{session}").click()
+    user.find(marker="day").click()
     user.find(marker=f"match-{match}").click()
     user.find(marker="snap-start").click()
     user.find(marker=f"line-{line}").click()

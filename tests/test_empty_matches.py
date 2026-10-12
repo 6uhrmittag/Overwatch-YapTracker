@@ -24,7 +24,7 @@ def test_matches_without_lines_and_result_are_hidden(store):
     store.end_match(pressed, T0 + 610)
     quiet_win = store.start_match(session, T0 + 700, "heroselect", map_name="NEPAL")
     store.end_match(quiet_win, T0 + 1300, "victory")  # nobody typed, but it was played
-    assert [m.id for m in store.session_matches(session)] == [talked, quiet_win]
+    assert [m.id for m in store.played_matches()] == [talked, quiet_win]
     assert [m[0] for m in store.all_matches()] == [talked, quiet_win]  # the export
     assert store.sessions()[0].matches == 2
     assert store.stats().matches == 2
@@ -54,5 +54,5 @@ def test_post_match_chat_does_not_stretch_the_match(store):
     for t in (560, 590, 620):  # "gg", "gg wp", "ty" after the banner
         tracker.chat_changed(T0 + t)
         store.add_message(ts=T0 + t, channel="match", text="gg", match_id=tracker.match_id)
-    (row,) = store.session_matches(tracker.session_id)
+    (row,) = store.played_matches()
     assert (row.started_at, row.ended_at) == (T0, T0 + 552)

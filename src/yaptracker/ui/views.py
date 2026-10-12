@@ -8,7 +8,7 @@ import numpy as np
 from nicegui import run, ui
 from PIL import Image
 
-from yaptracker import __version__, config, logs, paths, runtime, system_info
+from yaptracker import __version__, config, days, logs, paths, runtime, system_info
 from yaptracker import reading_mode as modes
 from yaptracker.capture.black import SAY as BLACK_SAY
 from yaptracker.capture.black import SCREEN_SAY
@@ -454,8 +454,8 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             title += f" on {_name(where.map_name)}"
         if where and where.mode:
             title += f" \u00b7 {where.mode.title()}"
-        day = time.strftime("%a %b %d, %Y").replace(" 0", " ")
         started = runtime.matches.match_started_at if runtime.matches else None
+        day = days.title(days.day_of(started or time.time()), "%a %b %d, %Y")  # its day (#440)
         snap_dialog(chosen, f"{title} \u00b7 {day}", started)
 
     def selected(e) -> None:
