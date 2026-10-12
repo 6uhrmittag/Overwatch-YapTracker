@@ -190,3 +190,48 @@ def test_the_tidy_up_says_when_it_starts_pauses_and_resumes(store, caplog):
         f"tidied match {m}: 0 fixed, 1 found, 0 removed (light readings the best reader didn't "
         "confirm: repeats, pieces)",
     ]
+
+
+LIGHT_139 = Path(__file__).parent / "fixtures" / "dedup" / "light-match-139.json"
+
+
+def test_match_139_read_light_then_tidied_up_is_the_best_transcript(store):
+    """#432's replay: Marv's Quick Play match read live with Windows OCR (repeats, pieces,
+    garbled callouts), then tidied up with the best reader, ends with exactly the lines the best
+    reader alone stores (the three lines of the first frame share one moment, so only the
+    order among them may differ)."""
+    from collections import Counter
+
+    frames = json.loads(LIGHT_139.read_text(encoding="utf-8"))["frames"]
+
+    def read(items):
+        return [OcrLine(o["text"], o["confidence"], Region(*o["box"])) for o in items]
+
+    images = [np.zeros((8, 8, 3), np.uint8) for _ in frames]  # the fixture has OCR text only
+    light_read = {id(im): read(f["light"]) for im, f in zip(images, frames, strict=True)}
+    best_read = {id(im): read(f["best"]) for im, f in zip(images, frames, strict=True)}
+
+    best_tracker = match(store, mode="QUICK PLAY")
+    best_reader = ChatReader(lambda im: best_read[id(im)], store, best_tracker)
+    for im, f in zip(images, frames, strict=True):
+        best_reader.read_frame(T0 + f["t"], im)
+    best_only = Counter((m.speaker_raw, m.text) for m in store.messages(best_tracker.match_id))
+    best_tracker.end_match(T0 + frames[-1]["t"] + 1, "defeat")
+
+    later = T0 + 10_000  # the same match again, read light
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(later)
+    tracker.new_match(later, source="heroselect", mode="QUICK PLAY")
+    clock = [later]
+    reader = ChatReader(lambda im: light_read[id(im)], store, tracker, clock=lambda: clock[0],
+                        min_gap_s=0.0, read_kept=lambda im, mode: best_read[id(im)])  # fmt: skip
+    for im, f in zip(images, frames, strict=True):
+        clock[0] = later + f["t"]
+        reader.read_frame(later + f["t"], im)
+        reader.keep_for_tidy(im)
+    live = Counter((m.speaker_raw, m.text) for m in store.messages(tracker.match_id))
+    assert live != best_only  # light alone: repeats, pieces, garbled callouts
+    while (kept := reader.tidy_frames.pop()) is not None:
+        reader.tidy_frame(kept)
+    tidied = Counter((m.speaker_raw, m.text) for m in store.messages(tracker.match_id))
+    assert tidied == best_only
