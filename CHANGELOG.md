@@ -5,7 +5,7 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ## v0.5: on the way to v1.0
 
 ### 2026-10-12 · The FPS line says how chat was read (#444)
-- Behind the scenes: each minute of the game's FPS in the log now says which reading mode ran in that match (best, light or after), and a mode change starts a new minute, so the FPS check per reading mode is exact.
+- Behind the scenes: each minute of the game's FPS in the log now says which reader really read chat in it (best, light, or after when nothing read live), so the FPS check per reading mode is exact.
 
 ### 2026-10-12 · Evidence script (#437)
 - Behind the scenes: `tools/evidence.py <data folder>` answers the waiting issues from the logs, a copy of the database and the debug samples (CPU per evening, FPS running vs paused per reading mode, Competitive matches and rounds, ranked end samples, notes and familiar faces), as plain text with ids only.

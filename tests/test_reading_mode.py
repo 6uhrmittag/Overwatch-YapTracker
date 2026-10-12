@@ -128,11 +128,11 @@ def test_light_falls_back_to_best_where_windows_ocr_cannot_run(store, engines, c
     tracker.capture_alive(1000.0)
     tracker.new_match(1010.0, source="heroselect", mode="COMPETITIVE", map_name="Busan")
     reading = reading_for(tracker, engines, available=["rapidocr"])
-    assert reading.running() == "light"  # not tried yet
+    assert reading.lately() == "light"  # nothing read yet: the mode for now
     with caplog.at_level(logging.WARNING, logger="yaptracker.reading_mode"):
         reading.read(IMAGE, 2.0)
     assert engines["rapidocr"].calls == 1 and reading.take_counts() == "best 1"
-    assert reading.running() == "best"  # what the FPS line says from now on (#444)
+    assert reading.lately() == "best"  # what really read, for the FPS line (#444)
     assert reading.light_problem == "Windows OCR only runs on Windows"
     assert "reading with the best quality" in caplog.text
 
@@ -187,3 +187,16 @@ def test_windows_ocr_picked_by_hand_carries_over_to_every_match():
     assert config.ocr_engine() == "rapidocr"  # best quality is RapidOCR again
     config.save_reading("other", "best")
     assert config.reading("other") == "best"  # carried over once, not every time
+
+
+def test_frames_kept_from_a_match_read_now_count_as_best_for_the_fps_line(store, engines):
+    """#444: a light match while kept frames from before are read with best: best ran most."""
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(1000.0)
+    tracker.new_match(1010.0, source="heroselect", mode="UNRANKED", map_name="Busan")
+    reading = reading_for(tracker, engines, other="light")
+    for _ in range(3):
+        reading.read(IMAGE, 2.0, "after")  # kept frames: the best engine
+    reading.read(IMAGE, 2.0)  # a live light read
+    assert reading.lately() == "best"
+    assert reading.lately() == "light"  # nothing since: the mode for now

@@ -54,6 +54,7 @@ class ReadingMode:
         self._best, self._get, self._available = best_engine, get, available
         self._lock = threading.Lock()
         self._counts: Counter[str] = Counter()
+        self._ran: Counter[str] = Counter()  # engines that read, for lately()
         self.light_problem: str | None = None  # why light reading can't run here, for Settings
         self._said: tuple | None = None  # the mode the log said last
 
@@ -77,10 +78,13 @@ class ReadingMode:
             log.info("reading: %s (%s)", mode, why)  # which mode ran, for Void's FPS check
         return mode
 
-    def running(self) -> str:
-        """The mode that really reads right now: light falls back to best where it can't run."""
-        mode = self.now()
-        return BEST if mode == LIGHT and self.light_problem is not None else mode
+    def lately(self) -> str:
+        """Which reader read chat since the last call, for the FPS line (#444): the engine that
+        really ran most (best for frames kept from a match, and where light can't run), else the
+        mode for right now ("after": nothing reads live, or quiet chat)."""
+        with self._lock:
+            ran, self._ran = self._ran, Counter()
+        return ran.most_common(1)[0][0] if ran else self.now()
 
     def engine(self, mode: str):
         """(mode that really runs, engine). Light falls back to best where Windows OCR can't;
@@ -101,6 +105,7 @@ class ReadingMode:
         ran, engine = self.engine(asked)
         with self._lock:
             self._counts[AFTER if asked == AFTER else ran] += 1  # "after 40": read after a match
+            self._ran[ran] += 1
         return engine.read(image, scale=scale)
 
     def take_counts(self) -> str:

@@ -28,7 +28,7 @@ MINUTE = re.compile(_TIME + r"chat reading: \d+ frames, .*whole app: ([\d.]+) %"
 THREADS = re.compile(_TIME + r"cpu threads \(([^)]*)\): (.*)")
 CAPTURE = re.compile(_TIME + r"capture: asking Windows for ([\d.]+) frames a second \(([^)]*)\)")
 FPS = re.compile(_TIME + r"game fps \(Overwatch overlay\): median (\d+), .* — (running|paused), "
-                 r"(in match|between matches)(?:, (best|light|after))?;")  # fmt: skip
+                 r"(in match|between matches)(?:, (\w+))?;")  # fmt: skip
 MODE = re.compile(_TIME + r"reading: (best|light|after) \(")
 EVENING = re.compile(_TIME + r"(evening \d{4}-\d\d-\d\d: .*)")
 ROUND = re.compile(_TIME + r"match (\d+): round (\d+)")

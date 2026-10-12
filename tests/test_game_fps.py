@@ -6,14 +6,7 @@ import numpy as np
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
-from yaptracker.game_fps import (
-    READ_EVERY_S,
-    FpsMeter,
-    fps_box,
-    overlay_regions,
-    parse_fps,
-    state_words,
-)
+from yaptracker.game_fps import READ_EVERY_S, FpsMeter, fps_box, overlay_regions, parse_fps
 from yaptracker.ocr import engine as ocr
 
 SDR = {"box": (31, 34, 56), "ink": (170, 173, 192)}  # RGB, measured at 1440p
@@ -85,7 +78,7 @@ def meter(clock, values, state):
         calls.append(box.shape)
         return f"FPS:{next(reads)}"
 
-    return FpsMeter(read_line, lambda: state["now"], clock), calls
+    return FpsMeter(read_line, lambda: state["now"], clock, mode=lambda: state.get("mode")), calls
 
 
 def test_one_log_line_a_minute_with_median_p10_and_the_state(caplog):
@@ -130,9 +123,22 @@ def test_overlay_off_reads_nothing_and_logs_nothing(caplog):
     assert READ_EVERY_S == 5.0
 
 
-def test_the_state_names_the_reading_mode_in_a_match_only():
-    """#444: every minute line says which reading mode ran; a new mode is a new minute."""
-    assert state_words(False, True, "light") == "running, in match, light"
-    assert state_words(True, True, "light") == "paused, in match"  # paused reads nothing
-    assert state_words(False, False, "best") == "running, between matches"
-    assert state_words(False, True, None) == "running, in match"  # no reader yet
+def test_the_line_names_the_reader_seen_most_in_the_minute(caplog):
+    """#444: which reader the game shared the minute with; switching readers doesn't cut the
+    minute into pieces, and a paused minute names none."""
+    clock, state = Clock(), {"now": "running, in match", "mode": "after"}
+    fps, _ = meter(clock, [150] * 12 + [140] * 6, state)
+    signals = {"fps": strip(top_right(1440, 150), 1440)}
+    with caplog.at_level(logging.INFO, logger="yaptracker.game_fps"):
+        for t in range(80):
+            state["mode"] = (
+                "after" if t < 10 else "light"
+            )  # queue learned: 2 reads after, then light
+            if t >= 60:
+                state["now"], state["mode"] = "paused, in match", None
+            fps.update(signals, 1440)
+            clock.now += 1
+        clock.now += 60
+        fps.update(signals, 1440)
+    lines = [r.getMessage().split(" — ")[1].split(";")[0] for r in caplog.records]
+    assert lines == ["running, in match, light", "paused, in match"]

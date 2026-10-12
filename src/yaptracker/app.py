@@ -125,7 +125,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         if runtime.matches is not None:
             runtime.matches.toggle()
 
-    from yaptracker.game_fps import FpsMeter, overlay_regions, state_words
+    from yaptracker.game_fps import FpsMeter, overlay_regions
     from yaptracker.ocr import engine as ocr
     from yaptracker.signals import EndScreen, HeroSelect, signal_regions
 
@@ -181,8 +181,18 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
 
     def fps_state() -> str:  # one row each of the FPS test (#187), and where in the evening
         playing = runtime.matches is not None and runtime.matches.running  # menus: 60 fps (#302)
-        mode = runtime.reading.running() if playing and runtime.reading is not None else None
-        return state_words(runtime.pause.paused, playing, mode)  # the mode in it (#444)
+        paused = "paused" if runtime.pause.paused else "running"
+        return f"{paused}, {'in match' if playing else 'between matches'}"
+
+    def fps_mode() -> str | None:  # which reader the game shared the minute with (#444)
+        playing = runtime.matches is not None and runtime.matches.running
+        if not playing or runtime.pause.paused or runtime.reading is None:
+            return None
+        try:
+            return runtime.reading.lately()
+        except Exception:  # a label never stops the capture
+            log.exception("which reader read lately: unknown")
+            return None
 
     def cpu_state() -> str:  # the same words in the cpu parts line (#351)
         if runtime.watcher is None or runtime.watcher.state != "capturing":
@@ -202,7 +212,9 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
     app.on_startup(lambda: threading.Thread(target=tick_cpu, name="cpu line", daemon=True).start())
     app.on_shutdown(ticking.set)
 
-    fps_meter = FpsMeter(read_line, fps_state)  # Overwatch's own FPS counter, into the log (#212)
+    fps_meter = FpsMeter(
+        read_line, fps_state, mode=fps_mode
+    )  # Overwatch's FPS, into the log (#212)
 
     def overwatch_in_front() -> bool:
         window = runtime.watcher.window if runtime.watcher is not None else None

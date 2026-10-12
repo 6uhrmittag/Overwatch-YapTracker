@@ -13,6 +13,7 @@ import logging
 import re
 import statistics
 import time
+from collections import Counter
 from collections.abc import Callable
 
 import numpy as np
@@ -62,14 +63,6 @@ def fps_box(strip: np.ndarray, height: int) -> np.ndarray | None:
     return box if box.shape[1] >= BOX_W * s * 0.8 else None
 
 
-def state_words(paused: bool, playing: bool, mode: str | None = None) -> str:
-    """The minute's state in the log: "running, in match, light" / "paused, in match" /
-    "running, between matches". In a match the reading mode that ran (#444), so every line is
-    one mode; paused reads nothing, so it has none."""
-    words = f"{'paused' if paused else 'running'}, {'in match' if playing else 'between matches'}"
-    return f"{words}, {mode}" if playing and not paused and mode else words
-
-
 def parse_fps(text: str) -> int | None:
     found = _FPS.search(text)
     return int(found.group(1)) if found else None
@@ -78,18 +71,23 @@ def parse_fps(text: str) -> int | None:
 class FpsMeter:
     """Reads the overlay every few seconds and logs each minute: median, p10, n and the state.
 
-    `state()` says what YapTracker is doing ("running", "paused"); a new state starts
-    a new minute, so every log line is one row of the A/B/C test."""
+    `state()` says what YapTracker is doing ("running, in match", "paused, between matches");
+    a new state starts a new minute, so every log line is one row of the A/B/C test.
+    `mode()`, asked with every FPS read, says which reader read chat lately (None: none, e.g.
+    paused); the line names the one seen most in the minute (#444): "running, in match, light"."""
 
     def __init__(
         self,
         read_line: Callable[[np.ndarray], str],
         state: Callable[[], str],
         clock: Callable[[], float] = time.monotonic,
+        *,
+        mode: Callable[[], str | None] = lambda: None,
     ) -> None:
-        self._read_line, self._state, self._clock = read_line, state, clock
+        self._read_line, self._state, self._clock, self._mode = read_line, state, clock, mode
         self._read_at = -READ_EVERY_S
         self._values: list[int] = []
+        self._modes: Counter[str] = Counter()
         self._spent = 0.0
         self._since, self._minute_state = 0.0, ""
 
@@ -109,13 +107,16 @@ class FpsMeter:
         if not self._values:
             self._since, self._minute_state = now, state
         self._values.append(value)
+        if mode := self._mode():
+            self._modes[mode] += 1
         self._spent += time.process_time() - started
 
     def _log(self) -> None:
-        values, spent = self._values, self._spent
-        self._values, self._spent = [], 0.0
+        values, spent, modes = self._values, self._spent, self._modes
+        self._values, self._spent, self._modes = [], 0.0, Counter()
+        state = self._minute_state + "".join(f", {m}" for m, _ in modes.most_common(1))
         log.info(
             "game fps (Overwatch overlay): median %.0f, p10 %.0f, n=%d — %s; %.0f ms CPU per read",
-            statistics.median(values), np.percentile(values, 10), len(values), self._minute_state,
+            statistics.median(values), np.percentile(values, 10), len(values), state,
             1000 * spent / len(values),
         )  # fmt: skip
