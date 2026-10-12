@@ -184,6 +184,20 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         paused = "paused" if runtime.pause.paused else "running"
         return f"{paused}, {'in match' if playing else 'between matches'}"
 
+    fps_mode_failed = threading.Event()
+
+    def fps_mode(state: str, since: float) -> str | None:  # who read chat in that minute (#444)
+        reading = runtime.reading
+        if state != "running, in match" or reading is None:  # the minute's own state
+            return None
+        try:
+            return reading.read_in(since)
+        except Exception:  # a label never stops the capture
+            if not fps_mode_failed.is_set():
+                fps_mode_failed.set()
+                log.exception("game fps: which reader read is unknown (said once)")
+            return None
+
     def cpu_state() -> str:  # the same words in the cpu parts line (#351)
         if runtime.watcher is None or runtime.watcher.state != "capturing":
             return "no game"
@@ -202,7 +216,9 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
     app.on_startup(lambda: threading.Thread(target=tick_cpu, name="cpu line", daemon=True).start())
     app.on_shutdown(ticking.set)
 
-    fps_meter = FpsMeter(read_line, fps_state)  # Overwatch's own FPS counter, into the log (#212)
+    fps_meter = FpsMeter(
+        read_line, fps_state, mode=fps_mode
+    )  # Overwatch's FPS, into the log (#212)
 
     def overwatch_in_front() -> bool:
         window = runtime.watcher.window if runtime.watcher is not None else None

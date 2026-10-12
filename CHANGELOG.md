@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-12 · The FPS line says how chat was read (#444)
+- Behind the scenes: each in-match minute of the game's FPS in the log now names the reader that read chat in it (best or light); when chat was quiet, the reading set for that match (after: read after the match). So the FPS check per reading mode compares like with like.
+
 ### 2026-10-12 · Sessions by day (#440)
 - Sessions lists the days you played: one row per day with the time you really played, how many matches and yaps. A late night counts to the day it began, until 5 in the morning.
 - A day shows all its matches numbered 1, 2, 3... with a quiet "Break, 1 h 20 min" between play blocks.

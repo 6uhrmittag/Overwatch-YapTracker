@@ -13,6 +13,7 @@ import logging
 import re
 import statistics
 import time
+from collections import Counter
 from collections.abc import Callable
 
 import numpy as np
@@ -70,18 +71,24 @@ def parse_fps(text: str) -> int | None:
 class FpsMeter:
     """Reads the overlay every few seconds and logs each minute: median, p10, n and the state.
 
-    `state()` says what YapTracker is doing ("running", "paused"); a new state starts
-    a new minute, so every log line is one row of the A/B/C test."""
+    `state()` says what YapTracker is doing ("running, in match", "paused, between matches");
+    a new state starts a new minute, so every log line is one row of the A/B/C test.
+    `mode(state, since)`, asked with every FPS read, says which reader read chat since the
+    read before (None: not asked for, e.g. paused); the line names the one seen most in the
+    minute, the latest on a tie (#444): "running, in match, light"."""
 
     def __init__(
         self,
         read_line: Callable[[np.ndarray], str],
         state: Callable[[], str],
         clock: Callable[[], float] = time.monotonic,
+        *,
+        mode: Callable[[str, float], str | None] = lambda state, since: None,
     ) -> None:
-        self._read_line, self._state, self._clock = read_line, state, clock
+        self._read_line, self._state, self._clock, self._mode = read_line, state, clock, mode
         self._read_at = -READ_EVERY_S
         self._values: list[int] = []
+        self._modes: list[str] = []
         self._spent = 0.0
         self._since, self._minute_state = 0.0, ""
 
@@ -92,7 +99,7 @@ class FpsMeter:
             self._log()
         if strip is None or now - self._read_at < READ_EVERY_S:
             return
-        self._read_at = now
+        since, self._read_at = self._read_at, now
         started = time.process_time()
         box = fps_box(strip, height)
         value = parse_fps(self._read_line(box)) if box is not None else None
@@ -101,13 +108,18 @@ class FpsMeter:
         if not self._values:
             self._since, self._minute_state = now, state
         self._values.append(value)
-        self._spent += time.process_time() - started
+        self._spent += time.process_time() - started  # the overlay read only
+        if mode := self._mode(state, since):
+            self._modes.append(mode)
 
     def _log(self) -> None:
-        values, spent = self._values, self._spent
-        self._values, self._spent = [], 0.0
+        values, spent, modes = self._values, self._spent, self._modes
+        self._values, self._spent, self._modes = [], 0.0, []
+        state = self._minute_state
+        if modes:  # newest first, so a tie goes to the latest
+            state += f", {Counter(reversed(modes)).most_common(1)[0][0]}"
         log.info(
             "game fps (Overwatch overlay): median %.0f, p10 %.0f, n=%d — %s; %.0f ms CPU per read",
-            statistics.median(values), np.percentile(values, 10), len(values), self._minute_state,
+            statistics.median(values), np.percentile(values, 10), len(values), state,
             1000 * spent / len(values),
         )  # fmt: skip
