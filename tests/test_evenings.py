@@ -73,8 +73,18 @@ def test_the_end_of_an_evening_writes_its_line(store, log_file, tmp_path, caplog
     with log_file.open("a", encoding="utf-8") as log:  # (#425)
         log.write(f"{clock(T0 + 200)} INFO yaptracker.reader: chat reading: 2 line(s) seen twice "
                   "but never stored: Pip: hi; Bo: yo\n")  # fmt: skip
+    with log_file.open("a", encoding="utf-8") as log:  # (#437)
+        log.write(f"{clock(T0 + 210)} INFO yaptracker.matches: match 1: round 2 (same map, no "
+                  f"result yet)\n{clock(T0 + 220)} INFO yaptracker.familiar: familiar face: "
+                  "player #7 (last met 2026-10-09)\n"
+                  f"{clock(T0 + 230)} INFO yaptracker.familiar: familiar face: player #8 (last "
+                  "met 2026-10-08), after the match\n")  # fmt: skip
+    pip = store.add_player("Pip", T0)
+    store.set_notes(pip, "nice Ana")
     tracker.stop()  # YapTracker quits
     assert "· whole app 25 % of a core · seen but not stored 2" in caplog.text
+    assert ("· competitive 0 (rounds merged 1) · familiar faces 2 (after the match 1) · players "
+            "with notes 1" in caplog.text)  # (#437)  # fmt: skip
     assert (
         "evening 2026-10-10: 2 matches (hero select 1, gap 1, hand 0) · map known 100 % · queue "
         "known 100 % · result 50 % · missed ends 1 · lines 5 (avg confidence 0.89, "
@@ -86,6 +96,23 @@ def test_the_end_of_an_evening_writes_its_line(store, log_file, tmp_path, caplog
     caplog.clear()
     evenings.record(tracker.session_id)  # Overwatch closed, then the app quit: said once
     assert "evening" not in caplog.text
+    store.set_notes(store.add_player("Bo", T0), "tank main")  # a note in between: kept, not said
+    evenings.record(tracker.session_id)
+    assert "evening" not in caplog.text
+    assert evenings.last()[0]["notes"] == 2
+
+
+def test_german_competitive_counts_too(store, tmp_path, caplog):
+    """#437: "GEWERTET" is Competitive on a German client."""
+    caplog.set_level(logging.INFO, "yaptracker.evenings")
+    evenings = Evenings(tmp_path / "evenings.json", store, lambda since: [])
+    tracker = MatchTracker(store, Pause(), on_session_end=evenings.record)
+    tracker.capture_alive(T0)
+    tracker.new_match(T0, source="heroselect", mode="GEWERTET", map_name="Eichenwalde")
+    store.add_message(ts=T0 + 10, channel="match", text="gl", match_id=tracker.match_id)
+    tracker.end_match(T0 + 100, "victory")
+    tracker.stop()
+    assert "· competitive 1 (rounds merged 0)" in caplog.text
 
 
 def test_the_next_evening_ends_the_one_before(store, log_file, tmp_path, caplog):
@@ -109,6 +136,8 @@ def test_evenings_since_october_are_filled_in_once(store, log_file, tmp_path, ca
     evenings.backfill()
     assert [e["date"] for e in evenings.last()] == ["2026-10-10"]
     assert "(filled in)" in caplog.text
+    assert evenings.last()[0]["notes"] is None  # today's count says nothing about back then
+    assert "players with notes -" in caplog.text
     (tmp_path / "evenings.json").write_text("[]", encoding="utf-8")
     evenings.backfill()  # the file is there: never again
     assert evenings.last() == []
