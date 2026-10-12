@@ -77,6 +77,11 @@ class ReadingMode:
             log.info("reading: %s (%s)", mode, why)  # which mode ran, for Void's FPS check
         return mode
 
+    def running(self) -> str:
+        """The mode that really reads right now: light falls back to best where it can't run."""
+        mode = self.now()
+        return BEST if mode == LIGHT and self.light_problem is not None else mode
+
     def engine(self, mode: str):
         """(mode that really runs, engine). Light falls back to best where Windows OCR can't;
         frames kept for after the match are read with the best quality."""

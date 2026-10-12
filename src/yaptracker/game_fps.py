@@ -62,6 +62,14 @@ def fps_box(strip: np.ndarray, height: int) -> np.ndarray | None:
     return box if box.shape[1] >= BOX_W * s * 0.8 else None
 
 
+def state_words(paused: bool, playing: bool, mode: str | None = None) -> str:
+    """The minute's state in the log: "running, in match, light" / "paused, in match" /
+    "running, between matches". In a match the reading mode that ran (#444), so every line is
+    one mode; paused reads nothing, so it has none."""
+    words = f"{'paused' if paused else 'running'}, {'in match' if playing else 'between matches'}"
+    return f"{words}, {mode}" if playing and not paused and mode else words
+
+
 def parse_fps(text: str) -> int | None:
     found = _FPS.search(text)
     return int(found.group(1)) if found else None

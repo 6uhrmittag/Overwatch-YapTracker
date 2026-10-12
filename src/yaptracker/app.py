@@ -125,7 +125,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         if runtime.matches is not None:
             runtime.matches.toggle()
 
-    from yaptracker.game_fps import FpsMeter, overlay_regions
+    from yaptracker.game_fps import FpsMeter, overlay_regions, state_words
     from yaptracker.ocr import engine as ocr
     from yaptracker.signals import EndScreen, HeroSelect, signal_regions
 
@@ -181,8 +181,8 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
 
     def fps_state() -> str:  # one row each of the FPS test (#187), and where in the evening
         playing = runtime.matches is not None and runtime.matches.running  # menus: 60 fps (#302)
-        paused = "paused" if runtime.pause.paused else "running"
-        return f"{paused}, {'in match' if playing else 'between matches'}"
+        mode = runtime.reading.running() if playing and runtime.reading is not None else None
+        return state_words(runtime.pause.paused, playing, mode)  # the mode in it (#444)
 
     def cpu_state() -> str:  # the same words in the cpu parts line (#351)
         if runtime.watcher is None or runtime.watcher.state != "capturing":

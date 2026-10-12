@@ -128,9 +128,11 @@ def test_light_falls_back_to_best_where_windows_ocr_cannot_run(store, engines, c
     tracker.capture_alive(1000.0)
     tracker.new_match(1010.0, source="heroselect", mode="COMPETITIVE", map_name="Busan")
     reading = reading_for(tracker, engines, available=["rapidocr"])
+    assert reading.running() == "light"  # not tried yet
     with caplog.at_level(logging.WARNING, logger="yaptracker.reading_mode"):
         reading.read(IMAGE, 2.0)
     assert engines["rapidocr"].calls == 1 and reading.take_counts() == "best 1"
+    assert reading.running() == "best"  # what the FPS line says from now on (#444)
     assert reading.light_problem == "Windows OCR only runs on Windows"
     assert "reading with the best quality" in caplog.text
 

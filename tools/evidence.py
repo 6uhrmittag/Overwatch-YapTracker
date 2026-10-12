@@ -28,7 +28,7 @@ MINUTE = re.compile(_TIME + r"chat reading: \d+ frames, .*whole app: ([\d.]+) %"
 THREADS = re.compile(_TIME + r"cpu threads \(([^)]*)\): (.*)")
 CAPTURE = re.compile(_TIME + r"capture: asking Windows for ([\d.]+) frames a second \(([^)]*)\)")
 FPS = re.compile(_TIME + r"game fps \(Overwatch overlay\): median (\d+), .* — (running|paused), "
-                 r"(in match|between matches)")  # fmt: skip
+                 r"(in match|between matches)(?:, (best|light|after))?;")  # fmt: skip
 MODE = re.compile(_TIME + r"reading: (best|light|after) \(")
 EVENING = re.compile(_TIME + r"(evening \d{4}-\d\d-\d\d: .*)")
 ROUND = re.compile(_TIME + r"match (\d+): round (\d+)")
@@ -103,7 +103,8 @@ def _version_key(version: str) -> tuple:
 
 def scan(lines: list[str]) -> dict:
     """Everything the log says, per evening: versions, CPU, in-match threads, FPS by version,
-    reading mode and state. The version and mode of a line are the last ones logged before it."""
+    reading mode and state. The version of a line is the last one logged before it; the mode
+    is in the FPS line itself (#444), in older logs the last `reading:` line before it."""
     found: dict = {"versions": defaultdict(set), "cpu": defaultdict(list),
                    "capture": defaultdict(set), "threads": defaultdict(Counter),
                    "thread_minutes": Counter(), "fps": defaultdict(list), "evenings": [],
@@ -130,7 +131,8 @@ def scan(lines: list[str]) -> dict:
             found["capture"][day].add(f"{m[3]} fps {m[4]}")
         elif m := FPS.match(line):
             if m[5] == "in match":
-                found["fps"][(day, version, mode, m[4])].append(float(m[3]))
+                said = m[6] or ("-" if m[4] == "paused" else mode)  # in the line since #444
+                found["fps"][(day, version, said, m[4])].append(float(m[3]))
         elif m := EVENING.match(line):
             found["evenings"].append((day, "filled in later" if "(filled in)" in line
                                       else f"v{version}", m[3]))  # fmt: skip

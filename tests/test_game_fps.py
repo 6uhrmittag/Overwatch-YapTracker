@@ -6,7 +6,14 @@ import numpy as np
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
-from yaptracker.game_fps import READ_EVERY_S, FpsMeter, fps_box, overlay_regions, parse_fps
+from yaptracker.game_fps import (
+    READ_EVERY_S,
+    FpsMeter,
+    fps_box,
+    overlay_regions,
+    parse_fps,
+    state_words,
+)
 from yaptracker.ocr import engine as ocr
 
 SDR = {"box": (31, 34, 56), "ink": (170, 173, 192)}  # RGB, measured at 1440p
@@ -121,3 +128,11 @@ def test_overlay_off_reads_nothing_and_logs_nothing(caplog):
             clock.now += 1
     assert calls == [] and caplog.records == []
     assert READ_EVERY_S == 5.0
+
+
+def test_the_state_names_the_reading_mode_in_a_match_only():
+    """#444: every minute line says which reading mode ran; a new mode is a new minute."""
+    assert state_words(False, True, "light") == "running, in match, light"
+    assert state_words(True, True, "light") == "paused, in match"  # paused reads nothing
+    assert state_words(False, False, "best") == "running, between matches"
+    assert state_words(False, True, None) == "running, in match"  # no reader yet
