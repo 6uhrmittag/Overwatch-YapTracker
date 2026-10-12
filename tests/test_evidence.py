@@ -47,6 +47,8 @@ def data_folder(tmp_path: Path, paused: bool) -> Path:
         "stored: Pip: hi; Bo: yo",
         f"{stamp(T0 + 420)} INFO yaptracker.familiar: familiar face: player #7 (last met "
         "2026-10-09)",
+        f"{stamp(T0 + 960)} INFO yaptracker.familiar: familiar face: player #9 (last met "
+        "2026-10-02), after the match",
         f"{stamp(T0 + 950)} INFO yaptracker.reader: tidied match 1: 2 fixed, 1 found, 3 removed "
         "(light readings the best reader didn't confirm: repeats, pieces)",
         f"{stamp(T0 + 2000)} INFO yaptracker.evenings: evening 2026-10-12: 2 matches (hero select "
@@ -70,7 +72,7 @@ def test_the_report_answers_every_waiting_issue_with_ids_only(tmp_path):
     assert "Competitive matches: 1 (#1 2026-10-12)" in text
     assert "Circuit Royal ×2" in text and "#1 round 2" in text
     assert "of a Competitive match: 2026-10-12/" in text  # the ranked end sample, found
-    assert "players with notes: 1" in text and "familiar faces shown: 1" in text
+    assert "players with notes: 1" in text and "familiar faces shown: 2 (after the match 1)" in text
     assert "tidied match 1: 2 fixed, 1 found, 3 removed" in text
     assert "evening 2026-10-12: 2 matches" in text
     for name in ("NoodleBonk", "Pip", "Bo:"):  # ids only, never a name

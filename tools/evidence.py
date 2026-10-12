@@ -26,7 +26,9 @@ FPS = re.compile(_TIME + r"game fps \(Overwatch overlay\): median (\d+), .* — 
 MODE = re.compile(_TIME + r"reading: (best|light|after) \(")
 EVENING = re.compile(_TIME + r"(evening \d{4}-\d\d-\d\d: .*)")
 ROUND = re.compile(_TIME + r"match (\d+): round (\d+)")
-FAMILIAR = re.compile(_TIME + r"familiar face: player #(\d+)")
+FAMILIAR = re.compile(
+    _TIME + r"familiar face: player #(\d+) \(last met [^)]*\)(, after the match)?"
+)
 TIDIED = re.compile(_TIME + r"(tidied match \d+: .*?removed)")
 FPS_BAR = 5.0  # % of in-match FPS YapTracker may cost (Definition of done)
 
@@ -61,7 +63,7 @@ def scan(lines: list[str]) -> dict:
     found: dict = {"versions": defaultdict(set), "cpu": defaultdict(list), "unstored": Counter(),
                    "threads": defaultdict(lambda: defaultdict(list)), "capture": defaultdict(set),
                    "fps": defaultdict(list), "evenings": [], "rounds": [], "familiar": Counter(),
-                   "tidied": []}  # fmt: skip
+                   "tidied": [], "familiar_after": Counter()}  # fmt: skip
     version, mode = "?", "?"  # the version and reading mode a line was written under
     for line in lines:
         if m := VERSION.match(line):
@@ -87,6 +89,7 @@ def scan(lines: list[str]) -> dict:
             found["rounds"].append((m[1], int(m[3]), int(m[4])))
         elif m := FAMILIAR.match(line):
             found["familiar"][m[1]] += 1
+            found["familiar_after"][m[1]] += bool(m[4])
         elif m := TIDIED.match(line):
             found["tidied"].append((m[1], m[3]))
     return found
@@ -173,7 +176,8 @@ def report(data: Path) -> str:
                            ).fetchone()[0]  # fmt: skip
         out.append(f"- players with notes: {notes} (the bar: 3)")
     shown = sum(found["familiar"].values())
-    out.append(f"- familiar faces shown: {shown}"
+    after = sum(found["familiar_after"].values())
+    out.append(f"- familiar faces shown: {shown} (after the match {after})"
                + (f" ({', '.join(f'{d} {n}' for d, n in sorted(found['familiar'].items()))})"
                   if shown else ""))  # fmt: skip
     out.append(f"- FPS: {fps_verdict(found['fps'])}")
