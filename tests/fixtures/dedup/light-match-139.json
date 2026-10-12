@@ -1,0 +1,5782 @@
+{
+ "about": "Match 139 (2026-10-11, Quick Play read live with Windows OCR, #432): the OCR of 54 debug frames, as the light reader read them (light) and as RapidOCR reads them (best). Names replaced by made-up ones.",
+ "frames": [
+  {
+   "t": 0.0,
+   "light": [
+    {
+     "text": "a",
+     "confidence": 1.0,
+     "box": [
+      308,
+      994,
+      52,
+      47
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      368,
+      1161,
+      272,
+      25
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+ 225",
+     "confidence": 0.984,
+     "box": [
+      343,
+      988,
+      204,
+      75
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.985,
+     "box": [
+      396,
+      1146,
+      284,
+      62
+     ]
+    }
+   ]
+  },
+  {
+   "t": 2.376,
+   "light": [
+    {
+     "text": "a ◇ 225",
+     "confidence": 1.0,
+     "box": [
+      302,
+      989,
+      202,
+      48
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      358,
+      1156,
+      272,
+      29
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "225 225",
+     "confidence": 0.998,
+     "box": [
+      427,
+      993,
+      225,
+      64
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.991,
+     "box": [
+      397,
+      1148,
+      280,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 9.039,
+   "light": [
+    {
+     "text": "225",
+     "confidence": 1.0,
+     "box": [
+      416,
+      998,
+      98,
+      43
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      370,
+      1161,
+      272,
+      26
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "225 225",
+     "confidence": 0.998,
+     "box": [
+      426,
+      993,
+      227,
+      64
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.988,
+     "box": [
+      397,
+      1148,
+      281,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 10.585,
+   "light": [
+    {
+     "text": "Endorsement Received! ◇",
+     "confidence": 1.0,
+     "box": [
+      190,
+      147,
+      380,
+      27
+     ]
+    },
+    {
+     "text": "You endorsed Bapricot!",
+     "confidence": 1.0,
+     "box": [
+      175,
+      208,
+      478,
+      28
+     ]
+    },
+    {
+     "text": "Endorsement Received! ◇",
+     "confidence": 1.0,
+     "box": [
+      190,
+      271,
+      380,
+      28
+     ]
+    },
+    {
+     "text": "have big funnn",
+     "confidence": 1.0,
+     "box": [
+      429,
+      332,
+      232,
+      35
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Kim77 (Emre):",
+     "confidence": 1.0,
+     "box": [
+      176,
+      392,
+      694,
+      36
+     ]
+    },
+    {
+     "text": "Hello!",
+     "confidence": 1.0,
+     "box": [
+      177,
+      436,
+      88,
+      28
+     ]
+    },
+    {
+     "text": "• [MoonPebble]: glhf <3",
+     "confidence": 1.0,
+     "box": [
+      125,
+      496,
+      413,
+      35
+     ]
+    },
+    {
+     "text": "a",
+     "confidence": 1.0,
+     "box": [
+      334,
+      1010,
+      49,
+      51
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1148,
+      270,
+      52
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "Endorsement Received!",
+     "confidence": 0.987,
+     "box": [
+      186,
+      143,
+      387,
+      37
+     ]
+    },
+    {
+     "text": "You endorsed Bapricot!",
+     "confidence": 0.974,
+     "box": [
+      179,
+      208,
+      477,
+      33
+     ]
+    },
+    {
+     "text": "Endorsement Received!",
+     "confidence": 0.99,
+     "box": [
+      186,
+      268,
+      389,
+      37
+     ]
+    },
+    {
+     "text": "[Pebbleton]: have big funnn",
+     "confidence": 0.992,
+     "box": [
+      174,
+      328,
+      491,
+      40
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Kim77 (Emre):",
+     "confidence": 0.993,
+     "box": [
+      170,
+      385,
+      705,
+      46
+     ]
+    },
+    {
+     "text": "Hello!",
+     "confidence": 0.99,
+     "box": [
+      173,
+      431,
+      100,
+      40
+     ]
+    },
+    {
+     "text": "[MoonPebble]: glhf <3",
+     "confidence": 0.986,
+     "box": [
+      174,
+      494,
+      367,
+      39
+     ]
+    },
+    {
+     "text": "225 225",
+     "confidence": 0.999,
+     "box": [
+      429,
+      992,
+      225,
+      64
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.978,
+     "box": [
+      397,
+      1148,
+      280,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 12.075,
+   "light": [
+    {
+     "text": "Yöu=e orsed Bapricot!",
+     "confidence": 1.0,
+     "box": [
+      176,
+      163,
+      478,
+      28
+     ]
+    },
+    {
+     "text": "ment Received!",
+     "confidence": 1.0,
+     "box": [
+      322,
+      225,
+      247,
+      27
+     ]
+    },
+    {
+     "text": "[Pebble ton]: have biqfunnn",
+     "confidence": 1.0,
+     "box": [
+      177,
+      286,
+      483,
+      40
+     ]
+    },
+    {
+     "text": "r ned (Doctrine) to Kim77 (Emre):",
+     "confidence": 1.0,
+     "box": [
+      275,
+      346,
+      594,
+      35
+     ]
+    },
+    {
+     "text": "glhf",
+     "confidence": 1.0,
+     "box": [
+      432,
+      450,
+      57,
+      35
+     ]
+    },
+    {
+     "text": "[Ni—rl: im goin",
+     "confidence": 1.0,
+     "box": [
+      177,
+      495,
+      314,
+      55
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "You endorsed Bapricot!",
+     "confidence": 0.998,
+     "box": [
+      174,
+      157,
+      480,
+      39
+     ]
+    },
+    {
+     "text": "Endorsement Received!",
+     "confidence": 0.999,
+     "box": [
+      187,
+      222,
+      386,
+      36
+     ]
+    },
+    {
+     "text": "[Pebbleton]: have big funnn",
+     "confidence": 0.989,
+     "box": [
+      174,
+      283,
+      491,
+      37
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Kim77 (Emre):",
+     "confidence": 0.987,
+     "box": [
+      166,
+      340,
+      710,
+      44
+     ]
+    },
+    {
+     "text": "Hello!",
+     "confidence": 0.996,
+     "box": [
+      171,
+      385,
+      102,
+      36
+     ]
+    },
+    {
+     "text": "[MoonPebble]: glhf <3",
+     "confidence": 0.982,
+     "box": [
+      171,
+      444,
+      374,
+      45
+     ]
+    },
+    {
+     "text": "[Nibbler]: im going to kill u",
+     "confidence": 0.992,
+     "box": [
+      173,
+      505,
+      463,
+      40
+     ]
+    },
+    {
+     "text": "+ 225",
+     "confidence": 0.985,
+     "box": [
+      345,
+      990,
+      202,
+      69
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.983,
+     "box": [
+      395,
+      1149,
+      283,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 94.541,
+   "light": [
+    {
+     "text": "ATTACK",
+     "confidence": 1.0,
+     "box": [
+      952,
+      158,
+      124,
+      28
+     ]
+    },
+    {
+     "text": "+ •",
+     "confidence": 1.0,
+     "box": [
+      343,
+      1019,
+      69,
+      32
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      44
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "ATTACK",
+     "confidence": 0.942,
+     "box": [
+      951,
+      152,
+      130,
+      40
+     ]
+    },
+    {
+     "text": "+-25/225",
+     "confidence": 0.826,
+     "box": [
+      331,
+      990,
+      287,
+      73
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.985,
+     "box": [
+      396,
+      1149,
+      279,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 95.945,
+   "light": [
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      362,
+      1159,
+      272,
+      27
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "川",
+     "confidence": 0.619,
+     "box": [
+      1136,
+      76,
+      37,
+      23
+     ]
+    },
+    {
+     "text": "NIBBLER",
+     "confidence": 0.951,
+     "box": [
+      1029,
+      101,
+      136,
+      33
+     ]
+    },
+    {
+     "text": "3 +25225",
+     "confidence": 0.83,
+     "box": [
+      196,
+      990,
+      422,
+      72
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.99,
+     "box": [
+      396,
+      1148,
+      280,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 99.284,
+   "light": [],
+   "best": [
+    {
+     "text": "+-224/225",
+     "confidence": 0.865,
+     "box": [
+      331,
+      989,
+      322,
+      73
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.991,
+     "box": [
+      395,
+      1146,
+      283,
+      64
+     ]
+    }
+   ]
+  },
+  {
+   "t": 103.514,
+   "light": [
+    {
+     "text": "00000001",
+     "confidence": 1.0,
+     "box": [
+      304,
+      1064,
+      395,
+      61
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      368,
+      1161,
+      272,
+      25
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "174",
+     "confidence": 1.0,
+     "box": [
+      425,
+      990,
+      125,
+      70
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.988,
+     "box": [
+      399,
+      1148,
+      279,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 106.694,
+   "light": [
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      292,
+      1124,
+      272,
+      64
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "134 225",
+     "confidence": 0.901,
+     "box": [
+      431,
+      995,
+      221,
+      53
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.992,
+     "box": [
+      395,
+      1149,
+      284,
+      64
+     ]
+    }
+   ]
+  },
+  {
+   "t": 109.662,
+   "light": [
+    {
+     "text": "941225",
+     "confidence": 1.0,
+     "box": [
+      436,
+      1003,
+      174,
+      46
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      44
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+94|225",
+     "confidence": 0.888,
+     "box": [
+      333,
+      992,
+      287,
+      71
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.989,
+     "box": [
+      395,
+      1146,
+      284,
+      64
+     ]
+    }
+   ]
+  },
+  {
+   "t": 111.007,
+   "light": [
+    {
+     "text": "g, 1 1225",
+     "confidence": 1.0,
+     "box": [
+      366,
+      997,
+      186,
+      45
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      368,
+      1161,
+      272,
+      25
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+ 225",
+     "confidence": 0.9,
+     "box": [
+      348,
+      997,
+      236,
+      55
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.989,
+     "box": [
+      399,
+      1149,
+      278,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 113.623,
+   "light": [
+    {
+     "text": "LI IVVI 1 IL 1 V Vu:",
+     "confidence": 1.0,
+     "box": [
+      189,
+      28,
+      380,
+      12
+     ]
+    },
+    {
+     "text": "[Pebbleton]: have big funnn",
+     "confidence": 1.0,
+     "box": [
+      176,
+      74,
+      485,
+      36
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Kim77 (Emre):",
+     "confidence": 1.0,
+     "box": [
+      176,
+      134,
+      694,
+      36
+     ]
+    },
+    {
+     "text": "HellO!",
+     "confidence": 1.0,
+     "box": [
+      177,
+      178,
+      88,
+      28
+     ]
+    },
+    {
+     "text": "[MoonPebble]: glhf <3",
+     "confidence": 1.0,
+     "box": [
+      176,
+      238,
+      363,
+      36
+     ]
+    },
+    {
+     "text": "[Nibblerl: im going to kill u",
+     "confidence": 1.0,
+     "box": [
+      176,
+      298,
+      457,
+      36
+     ]
+    },
+    {
+     "text": "[Pebbletonl: hmm",
+     "confidence": 1.0,
+     "box": [
+      176,
+      358,
+      328,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: please not",
+     "confidence": 1.0,
+     "box": [
+      176,
+      418,
+      416,
+      36
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 1.0,
+     "box": [
+      166,
+      506,
+      640,
+      45
+     ]
+    },
+    {
+     "text": "01225",
+     "confidence": 1.0,
+     "box": [
+      436,
+      1005,
+      140,
+      45
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      44
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "[Pebbleton]: have big funnn",
+     "confidence": 0.997,
+     "box": [
+      174,
+      70,
+      491,
+      40
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Kim77 (Emre):",
+     "confidence": 0.996,
+     "box": [
+      170,
+      128,
+      705,
+      44
+     ]
+    },
+    {
+     "text": "Hello!",
+     "confidence": 1.0,
+     "box": [
+      173,
+      175,
+      101,
+      36
+     ]
+    },
+    {
+     "text": "[MoonPebble]: glhf <3",
+     "confidence": 0.997,
+     "box": [
+      173,
+      234,
+      372,
+      43
+     ]
+    },
+    {
+     "text": "[Nibbler]: im going to kill u",
+     "confidence": 0.999,
+     "box": [
+      174,
+      297,
+      463,
+      37
+     ]
+    },
+    {
+     "text": "[Pebbleton]: hmm",
+     "confidence": 0.996,
+     "box": [
+      176,
+      356,
+      335,
+      38
+     ]
+    },
+    {
+     "text": "[Pebbleton]: please not",
+     "confidence": 0.999,
+     "box": [
+      174,
+      414,
+      423,
+      40
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 0.997,
+     "box": [
+      163,
+      510,
+      648,
+      40
+     ]
+    },
+    {
+     "text": "+-0|225",
+     "confidence": 0.859,
+     "box": [
+      330,
+      993,
+      257,
+      71
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.986,
+     "box": [
+      396,
+      1149,
+      280,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 170.283,
+   "light": [
+    {
+     "text": "a ◇ 225 225 ◇",
+     "confidence": 1.0,
+     "box": [
+      308,
+      994,
+      313,
+      49
+     ]
+    },
+    {
+     "text": "ooooooooo",
+     "confidence": 1.0,
+     "box": [
+      304,
+      1063,
+      496,
+      62
+     ]
+    },
+    {
+     "text": "PEBBLETON ◇",
+     "confidence": 1.0,
+     "box": [
+      368,
+      1160,
+      272,
+      26
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "225/225",
+     "confidence": 0.931,
+     "box": [
+      427,
+      989,
+      227,
+      67
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.992,
+     "box": [
+      399,
+      1149,
+      278,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 174.823,
+   "light": [
+    {
+     "text": "+<213225-",
+     "confidence": 1.0,
+     "box": [
+      320,
+      997,
+      314,
+      42
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      368,
+      1154,
+      304,
+      32
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "213225",
+     "confidence": 0.989,
+     "box": [
+      417,
+      990,
+      238,
+      66
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.991,
+     "box": [
+      398,
+      1149,
+      279,
+      56
+     ]
+    }
+   ]
+  },
+  {
+   "t": 178.009,
+   "light": [
+    {
+     "text": "OWyLjRAøkWW-",
+     "confidence": 1.0,
+     "box": [
+      365,
+      1149,
+      286,
+      54
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "213 225",
+     "confidence": 0.92,
+     "box": [
+      425,
+      984,
+      231,
+      77
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.986,
+     "box": [
+      395,
+      1145,
+      285,
+      64
+     ]
+    }
+   ]
+  },
+  {
+   "t": 181.008,
+   "light": [
+    {
+     "text": "a 2251225",
+     "confidence": 1.0,
+     "box": [
+      306,
+      992,
+      311,
+      48
+     ]
+    },
+    {
+     "text": "noooooooo;",
+     "confidence": 1.0,
+     "box": [
+      302,
+      1053,
+      511,
+      83
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      363,
+      1156,
+      272,
+      30
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+ 225 225",
+     "confidence": 0.84,
+     "box": [
+      342,
+      986,
+      314,
+      73
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.992,
+     "box": [
+      398,
+      1149,
+      279,
+      56
+     ]
+    }
+   ]
+  },
+  {
+   "t": 183.419,
+   "light": [
+    {
+     "text": "225",
+     "confidence": 1.0,
+     "box": [
+      535,
+      1003,
+      82,
+      38
+     ]
+    },
+    {
+     "text": "U' ULTRARARWW",
+     "confidence": 1.0,
+     "box": [
+      359,
+      1156,
+      272,
+      29
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "gnicO",
+     "confidence": 0.663,
+     "box": [
+      781,
+      40,
+      120,
+      40
+     ]
+    },
+    {
+     "text": "沌恋Y",
+     "confidence": 0.822,
+     "box": [
+      776,
+      106,
+      142,
+      54
+     ]
+    },
+    {
+     "text": "+ 225 1225",
+     "confidence": 0.976,
+     "box": [
+      343,
+      992,
+      309,
+      67
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.987,
+     "box": [
+      393,
+      1149,
+      283,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 186.65,
+   "light": [
+    {
+     "text": ",ooooooooo",
+     "confidence": 1.0,
+     "box": [
+      315,
+      1048,
+      512,
+      94
+     ]
+    },
+    {
+     "text": "ULTRARARWW",
+     "confidence": 1.0,
+     "box": [
+      455,
+      1156,
+      217,
+      40
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+ 225225",
+     "confidence": 0.854,
+     "box": [
+      345,
+      988,
+      310,
+      71
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.984,
+     "box": [
+      392,
+      1146,
+      287,
+      60
+     ]
+    }
+   ]
+  },
+  {
+   "t": 189.496,
+   "light": [
+    {
+     "text": "• [N bble r]: i oin to kill -k",
+     "confidence": 1.0,
+     "box": [
+      125,
+      124,
+      514,
+      36
+     ]
+    },
+    {
+     "text": "• [Pebbl eton]: hmm",
+     "confidence": 1.0,
+     "box": [
+      125,
+      184,
+      379,
+      34
+     ]
+    },
+    {
+     "text": "• [Pebbl eton : please not",
+     "confidence": 1.0,
+     "box": [
+      125,
+      244,
+      466,
+      34
+     ]
+    },
+    {
+     "text": "were in the same te",
+     "confidence": 1.0,
+     "box": [
+      427,
+      304,
+      313,
+      28
+     ]
+    },
+    {
+     "text": "ebble (Doctrine) to Nibb",
+     "confidence": 1.0,
+     "box": [
+      274,
+      424,
+      412,
+      35
+     ]
+    },
+    {
+     "text": "timate (Deliverance) ◇ is ready! Let's",
+     "confidence": 1.0,
+     "box": [
+      261,
+      468,
+      605,
+      34
+     ]
+    },
+    {
+     "text": "J0000600001",
+     "confidence": 1.0,
+     "box": [
+      321,
+      1040,
+      522,
+      109
+     ]
+    },
+    {
+     "text": "ULTRARARWw",
+     "confidence": 1.0,
+     "box": [
+      456,
+      1159,
+      214,
+      37
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "[Nibbler]: im going to kill u",
+     "confidence": 0.982,
+     "box": [
+      176,
+      122,
+      459,
+      37
+     ]
+    },
+    {
+     "text": "[Pebbleton]: hmm",
+     "confidence": 0.97,
+     "box": [
+      174,
+      184,
+      338,
+      33
+     ]
+    },
+    {
+     "text": "[Pebbleton]: please not",
+     "confidence": 0.998,
+     "box": [
+      178,
+      245,
+      419,
+      33
+     ]
+    },
+    {
+     "text": "[Pebbleton]: were in the same team btw",
+     "confidence": 0.987,
+     "box": [
+      173,
+      302,
+      690,
+      37
+     ]
+    },
+    {
+     "text": "[Pebbleton]: so please no killing",
+     "confidence": 0.999,
+     "box": [
+      173,
+      361,
+      561,
+      40
+     ]
+    },
+    {
+     "text": "Pebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 0.992,
+     "box": [
+      244,
+      418,
+      660,
+      42
+     ]
+    },
+    {
+     "text": "M消 Itimate (Deliverance) is ready! Let's do",
+     "confidence": 0.924,
+     "box": [
+      187,
+      450,
+      729,
+      55
+     ]
+    },
+    {
+     "text": "hit!",
+     "confidence": 0.79,
+     "box": [
+      186,
+      501,
+      64,
+      44
+     ]
+    },
+    {
+     "text": "+ 225/225",
+     "confidence": 0.88,
+     "box": [
+      346,
+      988,
+      310,
+      71
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.987,
+     "box": [
+      396,
+      1150,
+      281,
+      55
+     ]
+    }
+   ]
+  },
+  {
+   "t": 263.429,
+   "light": [
+    {
+     "text": "MRO ÉRWATCH",
+     "confidence": 1.0,
+     "box": [
+      694,
+      157,
+      202,
+      30
+     ]
+    },
+    {
+     "text": "a 225 225",
+     "confidence": 1.0,
+     "box": [
+      334,
+      1003,
+      310,
+      57
+     ]
+    },
+    {
+     "text": "PEBBLETON ◇",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      44
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "MRWAFFLE",
+     "confidence": 0.921,
+     "box": [
+      688,
+      160,
+      210,
+      33
+     ]
+    },
+    {
+     "text": "老nu",
+     "confidence": 0.571,
+     "box": [
+      572,
+      181,
+      115,
+      73
+     ]
+    },
+    {
+     "text": "225/225",
+     "confidence": 0.905,
+     "box": [
+      429,
+      989,
+      225,
+      67
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.986,
+     "box": [
+      396,
+      1149,
+      279,
+      60
+     ]
+    }
+   ]
+  },
+  {
+   "t": 265.004,
+   "light": [
+    {
+     "text": "LIMESÄXR",
+     "confidence": 1.0,
+     "box": [
+      141,
+      76,
+      142,
+      34
+     ]
+    },
+    {
+     "text": "V IBCRO ◇ ED",
+     "confidence": 1.0,
+     "box": [
+      599,
+      123,
+      182,
+      28
+     ]
+    },
+    {
+     "text": "225 2 5",
+     "confidence": 1.0,
+     "box": [
+      438,
+      1003,
+      206,
+      47
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      44
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "NIBBLER",
+     "confidence": 0.939,
+     "box": [
+      139,
+      80,
+      149,
+      34
+     ]
+    },
+    {
+     "text": "MOONPEBBLE",
+     "confidence": 0.953,
+     "box": [
+      597,
+      125,
+      188,
+      33
+     ]
+    },
+    {
+     "text": "+ 225/225",
+     "confidence": 0.911,
+     "box": [
+      337,
+      994,
+      314,
+      61
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.985,
+     "box": [
+      396,
+      1148,
+      280,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 274.757,
+   "light": [
+    {
+     "text": "a 225 225",
+     "confidence": 1.0,
+     "box": [
+      334,
+      1003,
+      310,
+      58
+     ]
+    },
+    {
+     "text": "OOOOOOOOD",
+     "confidence": 1.0,
+     "box": [
+      335,
+      1048,
+      491,
+      95
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      44
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+ 225225",
+     "confidence": 0.976,
+     "box": [
+      345,
+      990,
+      309,
+      66
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.988,
+     "box": [
+      396,
+      1148,
+      280,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 276.762,
+   "light": [
+    {
+     "text": "a 225]",
+     "confidence": 1.0,
+     "box": [
+      310,
+      994,
+      222,
+      49
+     ]
+    },
+    {
+     "text": "ooooooo o",
+     "confidence": 1.0,
+     "box": [
+      306,
+      1062,
+      496,
+      64
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      369,
+      1160,
+      272,
+      26
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "225225",
+     "confidence": 0.996,
+     "box": [
+      430,
+      990,
+      221,
+      64
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.994,
+     "box": [
+      397,
+      1149,
+      280,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 334.303,
+   "light": [
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      44
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "225|225",
+     "confidence": 0.891,
+     "box": [
+      429,
+      988,
+      225,
+      71
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.975,
+     "box": [
+      396,
+      1146,
+      283,
+      62
+     ]
+    }
+   ]
+  },
+  {
+   "t": 337.99,
+   "light": [
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      399,
+      1156,
+      273,
+      43
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+ 225",
+     "confidence": 0.912,
+     "box": [
+      339,
+      988,
+      207,
+      73
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.988,
+     "box": [
+      396,
+      1148,
+      281,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 339.987,
+   "light": [
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1155,
+      279,
+      47
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "消火栓",
+     "confidence": 0.998,
+     "box": [
+      369,
+      435,
+      41,
+      90
+     ]
+    },
+    {
+     "text": "+225225",
+     "confidence": 0.969,
+     "box": [
+      331,
+      986,
+      327,
+      78
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.988,
+     "box": [
+      393,
+      1148,
+      284,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 345.31,
+   "light": [
+    {
+     "text": "25",
+     "confidence": 1.0,
+     "box": [
+      572,
+      1005,
+      50,
+      34
+     ]
+    },
+    {
+     "text": "UWUUTRARARWW",
+     "confidence": 1.0,
+     "box": [
+      369,
+      1161,
+      272,
+      26
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "225225",
+     "confidence": 0.999,
+     "box": [
+      315,
+      986,
+      339,
+      75
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.994,
+     "box": [
+      395,
+      1146,
+      284,
+      64
+     ]
+    }
+   ]
+  },
+  {
+   "t": 348.85,
+   "light": [
+    {
+     "text": "a ◇ 225 225 ◇",
+     "confidence": 1.0,
+     "box": [
+      308,
+      993,
+      312,
+      48
+     ]
+    },
+    {
+     "text": "ooooooooo",
+     "confidence": 1.0,
+     "box": [
+      303,
+      1062,
+      496,
+      63
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      365,
+      1160,
+      272,
+      26
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "225225",
+     "confidence": 0.996,
+     "box": [
+      427,
+      988,
+      227,
+      71
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.99,
+     "box": [
+      397,
+      1148,
+      280,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 351.618,
+   "light": [
+    {
+     "text": "[Pebbletonl: please not",
+     "confidence": 1.0,
+     "box": [
+      176,
+      48,
+      416,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: were in the same team btw",
+     "confidence": 1.0,
+     "box": [
+      176,
+      108,
+      681,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: so please no killing",
+     "confidence": 1.0,
+     "box": [
+      176,
+      168,
+      554,
+      35
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      230,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 1.0,
+     "box": [
+      176,
+      227,
+      724,
+      36
+     ]
+    },
+    {
+     "text": "KIMMY\"",
+     "confidence": 1.0,
+     "box": [
+      1071,
+      261,
+      109,
+      22
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) ◇ is ready! Let's do",
+     "confidence": 1.0,
+     "box": [
+      177,
+      272,
+      740,
+      35
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      175,
+      314,
+      64,
+      28
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      376,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle",
+     "confidence": 1.0,
+     "box": [
+      176,
+      374,
+      646,
+      35
+     ]
+    },
+    {
+     "text": "(Ashe): Hello!",
+     "confidence": 1.0,
+     "box": [
+      177,
+      418,
+      214,
+      34
+     ]
+    },
+    {
+     "text": "a 225 225",
+     "confidence": 1.0,
+     "box": [
+      334,
+      1003,
+      310,
+      58
+     ]
+    },
+    {
+     "text": "o PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      326,
+      1156,
+      346,
+      73
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "[Pebbleton]: please not",
+     "confidence": 0.999,
+     "box": [
+      176,
+      46,
+      421,
+      37
+     ]
+    },
+    {
+     "text": "[Pebbleton]: were in the same team btw",
+     "confidence": 0.989,
+     "box": [
+      176,
+      106,
+      685,
+      37
+     ]
+    },
+    {
+     "text": "[Pebbleton]: so please no killing",
+     "confidence": 1.0,
+     "box": [
+      174,
+      164,
+      561,
+      43
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 0.997,
+     "box": [
+      173,
+      223,
+      731,
+      40
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) KIMMY77",
+     "confidence": 0.978,
+     "box": [
+      173,
+      255,
+      1006,
+      53
+     ]
+    },
+    {
+     "text": "is ready! Let's do",
+     "confidence": 0.999,
+     "box": [
+      643,
+      271,
+      277,
+      37
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      171,
+      313,
+      75,
+      37
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle",
+     "confidence": 0.996,
+     "box": [
+      173,
+      369,
+      653,
+      40
+     ]
+    },
+    {
+     "text": "(Ashe): Hello!",
+     "confidence": 0.999,
+     "box": [
+      177,
+      412,
+      222,
+      43
+     ]
+    },
+    {
+     "text": "[Match] v rer",
+     "confidence": 0.977,
+     "box": [
+      163,
+      509,
+      225,
+      43
+     ]
+    },
+    {
+     "text": "225|225",
+     "confidence": 0.898,
+     "box": [
+      427,
+      988,
+      227,
+      71
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.98,
+     "box": [
+      397,
+      1149,
+      280,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 399.657,
+   "light": [
+    {
+     "text": "3 225 ◇",
+     "confidence": 1.0,
+     "box": [
+      452,
+      998,
+      138,
+      42
+     ]
+    },
+    {
+     "text": "PEBBLETON ◇",
+     "confidence": 1.0,
+     "box": [
+      373,
+      1160,
+      272,
+      28
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+ 13225",
+     "confidence": 0.918,
+     "box": [
+      343,
+      991,
+      276,
+      65
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.989,
+     "box": [
+      399,
+      1148,
+      279,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 403.411,
+   "light": [
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      44
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+□ 036225",
+     "confidence": 0.801,
+     "box": [
+      334,
+      989,
+      287,
+      71
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.989,
+     "box": [
+      399,
+      1148,
+      279,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 406.459,
+   "light": [
+    {
+     "text": "225",
+     "confidence": 1.0,
+     "box": [
+      542,
+      1005,
+      79,
+      34
+     ]
+    },
+    {
+     "text": "DODOI",
+     "confidence": 1.0,
+     "box": [
+      306,
+      1064,
+      227,
+      62
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      368,
+      1160,
+      272,
+      27
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+101225",
+     "confidence": 0.981,
+     "box": [
+      335,
+      989,
+      320,
+      73
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.989,
+     "box": [
+      396,
+      1148,
+      281,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 408.715,
+   "light": [
+    {
+     "text": "2061225",
+     "confidence": 1.0,
+     "box": [
+      404,
+      992,
+      208,
+      48
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      354,
+      1155,
+      272,
+      32
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+206225",
+     "confidence": 0.977,
+     "box": [
+      333,
+      988,
+      321,
+      75
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.99,
+     "box": [
+      397,
+      1148,
+      280,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 412.632,
+   "light": [
+    {
+     "text": "1225",
+     "confidence": 1.0,
+     "box": [
+      464,
+      999,
+      94,
+      45
+     ]
+    },
+    {
+     "text": "PEBBLETON ◇",
+     "confidence": 1.0,
+     "box": [
+      376,
+      1160,
+      272,
+      30
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+-0|225",
+     "confidence": 0.791,
+     "box": [
+      330,
+      993,
+      258,
+      71
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.986,
+     "box": [
+      396,
+      1148,
+      283,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 416.237,
+   "light": [
+    {
+     "text": "[Pebbletonl: were in the same team btw",
+     "confidence": 1.0,
+     "box": [
+      176,
+      48,
+      681,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: so please no killing",
+     "confidence": 1.0,
+     "box": [
+      176,
+      108,
+      554,
+      35
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      170,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 1.0,
+     "box": [
+      176,
+      167,
+      724,
+      36
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) ◇ is ready! Let's do",
+     "confidence": 1.0,
+     "box": [
+      177,
+      212,
+      740,
+      35
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      175,
+      254,
+      64,
+      28
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      316,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle",
+     "confidence": 1.0,
+     "box": [
+      176,
+      314,
+      646,
+      35
+     ]
+    },
+    {
+     "text": "(Ashe): Hello!",
+     "confidence": 1.0,
+     "box": [
+      177,
+      358,
+      214,
+      34
+     ]
+    },
+    {
+     "text": "[Pebbletonl: vrooomvrooom",
+     "confidence": 1.0,
+     "box": [
+      176,
+      418,
+      489,
+      35
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 1.0,
+     "box": [
+      166,
+      513,
+      640,
+      35
+     ]
+    },
+    {
+     "text": "PERICIA",
+     "confidence": 1.0,
+     "box": [
+      403,
+      1168,
+      111,
+      32
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "[Pebbleton]: were in the same team btw",
+     "confidence": 0.991,
+     "box": [
+      176,
+      46,
+      684,
+      37
+     ]
+    },
+    {
+     "text": "[Pebbleton]: so please no killing",
+     "confidence": 0.992,
+     "box": [
+      174,
+      105,
+      559,
+      42
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 0.997,
+     "box": [
+      173,
+      164,
+      731,
+      40
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance)  is ready! Let's do",
+     "confidence": 0.98,
+     "box": [
+      174,
+      208,
+      745,
+      40
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      171,
+      252,
+      75,
+      35
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle",
+     "confidence": 1.0,
+     "box": [
+      171,
+      309,
+      656,
+      40
+     ]
+    },
+    {
+     "text": "(Ashe): Hello!",
+     "confidence": 0.99,
+     "box": [
+      174,
+      349,
+      226,
+      46
+     ]
+    },
+    {
+     "text": "[Pebbleton]: vrooomvrooom",
+     "confidence": 0.999,
+     "box": [
+      174,
+      414,
+      497,
+      42
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 0.991,
+     "box": [
+      163,
+      509,
+      648,
+      42
+     ]
+    },
+    {
+     "text": "250|250",
+     "confidence": 0.921,
+     "box": [
+      422,
+      988,
+      234,
+      71
+     ]
+    },
+    {
+     "text": "3 PERICIA",
+     "confidence": 0.983,
+     "box": [
+      348,
+      1159,
+      171,
+      47
+     ]
+    }
+   ]
+  },
+  {
+   "t": 419.068,
+   "light": [
+    {
+     "text": "W CKITROS",
+     "confidence": 1.0,
+     "box": [
+      1011,
+      72,
+      169,
+      23
+     ]
+    },
+    {
+     "text": "• [Pebbleton]: wer in the same eam",
+     "confidence": 1.0,
+     "box": [
+      125,
+      140,
+      664,
+      34
+     ]
+    },
+    {
+     "text": "• [Pebbleton]: so please no killing",
+     "confidence": 1.0,
+     "box": [
+      125,
+      200,
+      604,
+      35
+     ]
+    },
+    {
+     "text": "(Doct ine o Nibbler (",
+     "confidence": 1.0,
+     "box": [
+      402,
+      260,
+      390,
+      36
+     ]
+    },
+    {
+     "text": "_y ultimate (Delive ance) ◇ is ready! L",
+     "confidence": 1.0,
+     "box": [
+      182,
+      304,
+      629,
+      34
+     ]
+    },
+    {
+     "text": "this'",
+     "confidence": 1.0,
+     "box": [
+      172,
+      347,
+      68,
+      28
+     ]
+    },
+    {
+     "text": "s",
+     "confidence": 1.0,
+     "box": [
+      870,
+      412,
+      16,
+      22
+     ]
+    },
+    {
+     "text": "•—æ[Pebbleton]: vro omvrooom",
+     "confidence": 1.0,
+     "box": [
+      125,
+      511,
+      540,
+      34
+     ]
+    },
+    {
+     "text": "a K25-ouso",
+     "confidence": 1.0,
+     "box": [
+      334,
+      1000,
+      312,
+      60
+     ]
+    },
+    {
+     "text": "UUULJLJULJLJE.•O",
+     "confidence": 1.0,
+     "box": [
+      336,
+      1083,
+      490,
+      59
+     ]
+    },
+    {
+     "text": "PERICIA",
+     "confidence": 1.0,
+     "box": [
+      403,
+      1168,
+      111,
+      31
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "WRECKITRO",
+     "confidence": 0.977,
+     "box": [
+      1011,
+      67,
+      165,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbleton]: were in the same team b",
+     "confidence": 0.981,
+     "box": [
+      171,
+      137,
+      640,
+      37
+     ]
+    },
+    {
+     "text": "[Pebbleton]: so please no killing",
+     "confidence": 0.981,
+     "box": [
+      171,
+      193,
+      563,
+      44
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 0.993,
+     "box": [
+      173,
+      255,
+      729,
+      42
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) is ready! Let do",
+     "confidence": 0.99,
+     "box": [
+      173,
+      299,
+      750,
+      40
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 0.999,
+     "box": [
+      174,
+      347,
+      71,
+      32
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle (Ashe)x",
+     "confidence": 0.978,
+     "box": [
+      174,
+      401,
+      795,
+      42
+     ]
+    },
+    {
+     "text": "Hello!",
+     "confidence": 0.998,
+     "box": [
+      176,
+      447,
+      92,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbleton]: vrooomvrooom",
+     "confidence": 0.999,
+     "box": [
+      175,
+      509,
+      495,
+      35
+     ]
+    },
+    {
+     "text": "+-250250",
+     "confidence": 0.958,
+     "box": [
+      334,
+      990,
+      321,
+      69
+     ]
+    },
+    {
+     "text": "3 PERICIA",
+     "confidence": 0.985,
+     "box": [
+      349,
+      1159,
+      169,
+      47
+     ]
+    }
+   ]
+  },
+  {
+   "t": 488.935,
+   "light": [
+    {
+     "text": "+ 2071225",
+     "confidence": 1.0,
+     "box": [
+      320,
+      997,
+      302,
+      46
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      370,
+      1160,
+      272,
+      27
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+207|225",
+     "confidence": 0.9,
+     "box": [
+      331,
+      988,
+      324,
+      76
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.986,
+     "box": [
+      399,
+      1149,
+      279,
+      56
+     ]
+    }
+   ]
+  },
+  {
+   "t": 493.7,
+   "light": [
+    {
+     "text": "225 ◇",
+     "confidence": 1.0,
+     "box": [
+      542,
+      1005,
+      79,
+      34
+     ]
+    },
+    {
+     "text": "ooooooooo ◇",
+     "confidence": 1.0,
+     "box": [
+      304,
+      1063,
+      492,
+      62
+     ]
+    },
+    {
+     "text": "PEBBLETON ◇",
+     "confidence": 1.0,
+     "box": [
+      367,
+      1160,
+      272,
+      26
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+223225",
+     "confidence": 0.956,
+     "box": [
+      330,
+      989,
+      325,
+      75
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.986,
+     "box": [
+      397,
+      1149,
+      280,
+      56
+     ]
+    }
+   ]
+  },
+  {
+   "t": 499.484,
+   "light": [
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      361,
+      1158,
+      272,
+      28
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "+0225",
+     "confidence": 0.984,
+     "box": [
+      333,
+      993,
+      251,
+      66
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.99,
+     "box": [
+      397,
+      1148,
+      280,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 501.572,
+   "light": [
+    {
+     "text": "PERICIA",
+     "confidence": 1.0,
+     "box": [
+      1053,
+      310,
+      89,
+      19
+     ]
+    },
+    {
+     "text": "22 ◇",
+     "confidence": 1.0,
+     "box": [
+      499,
+      1010,
+      52,
+      36
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      43
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "PERICIA",
+     "confidence": 0.987,
+     "box": [
+      1048,
+      304,
+      100,
+      35
+     ]
+    },
+    {
+     "text": "7",
+     "confidence": 0.871,
+     "box": [
+      438,
+      430,
+      48,
+      83
+     ]
+    },
+    {
+     "text": "T",
+     "confidence": 0.519,
+     "box": [
+      111,
+      800,
+      117,
+      52
+     ]
+    },
+    {
+     "text": "225",
+     "confidence": 0.999,
+     "box": [
+      486,
+      1001,
+      93,
+      50
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.99,
+     "box": [
+      396,
+      1148,
+      280,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 505.293,
+   "light": [
+    {
+     "text": "[MoonPebble]: glhf <3",
+     "confidence": 1.0,
+     "box": [
+      176,
+      33,
+      363,
+      35
+     ]
+    },
+    {
+     "text": "[Nibbler]: im going to kill u",
+     "confidence": 1.0,
+     "box": [
+      176,
+      93,
+      457,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: hmm",
+     "confidence": 1.0,
+     "box": [
+      176,
+      154,
+      328,
+      34
+     ]
+    },
+    {
+     "text": "[Pebbletonl: please not",
+     "confidence": 1.0,
+     "box": [
+      176,
+      214,
+      416,
+      34
+     ]
+    },
+    {
+     "text": "[Pebbletonl: were in the same team btw LIGH'",
+     "confidence": 1.0,
+     "box": [
+      176,
+      274,
+      1004,
+      41
+     ]
+    },
+    {
+     "text": "[Pebbletonl: so please no killing",
+     "confidence": 1.0,
+     "box": [
+      176,
+      334,
+      554,
+      34
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      394,
+      10,
+      10
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 1.0,
+     "box": [
+      176,
+      393,
+      724,
+      35
+     ]
+    },
+    {
+     "text": "ie raaAul I ◇ An",
+     "confidence": 1.0,
+     "box": [
+      647,
+      436,
+      269,
+      18
+     ]
+    },
+    {
+     "text": "• [Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 1.0,
+     "box": [
+      124,
+      506,
+      682,
+      45
+     ]
+    },
+    {
+     "text": "10 ◇ 250 ◇",
+     "confidence": 1.0,
+     "box": [
+      442,
+      1006,
+      204,
+      46
+     ]
+    },
+    {
+     "text": "PERICIA",
+     "confidence": 1.0,
+     "box": [
+      403,
+      1171,
+      111,
+      32
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "[MoonPebble]: glhf <3",
+     "confidence": 0.983,
+     "box": [
+      176,
+      30,
+      367,
+      39
+     ]
+    },
+    {
+     "text": "[Nibbler]: im going to kill u",
+     "confidence": 0.997,
+     "box": [
+      173,
+      89,
+      466,
+      43
+     ]
+    },
+    {
+     "text": "[Pebbleton]: hmm",
+     "confidence": 0.998,
+     "box": [
+      176,
+      150,
+      333,
+      39
+     ]
+    },
+    {
+     "text": "[Pebbleton]: please not",
+     "confidence": 0.991,
+     "box": [
+      174,
+      209,
+      423,
+      39
+     ]
+    },
+    {
+     "text": "[Pebbleton]: were in the same team btw KIMMY LIGH",
+     "confidence": 0.93,
+     "box": [
+      174,
+      256,
+      1005,
+      74
+     ]
+    },
+    {
+     "text": "[Pebbleton]: so please no killing",
+     "confidence": 0.995,
+     "box": [
+      174,
+      329,
+      561,
+      42
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 0.998,
+     "box": [
+      173,
+      388,
+      728,
+      40
+     ]
+    },
+    {
+     "text": "Mv ultimate /Deliverance)  . ic readvl I at'e d",
+     "confidence": 0.875,
+     "box": [
+      174,
+      431,
+      744,
+      30
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 0.987,
+     "box": [
+      162,
+      510,
+      648,
+      40
+     ]
+    },
+    {
+     "text": "1021 250",
+     "confidence": 0.963,
+     "box": [
+      440,
+      996,
+      215,
+      67
+     ]
+    },
+    {
+     "text": "3 PERICIA",
+     "confidence": 0.984,
+     "box": [
+      348,
+      1164,
+      172,
+      46
+     ]
+    }
+   ]
+  },
+  {
+   "t": 507.897,
+   "light": [
+    {
+     "text": "[Pebbletonl: so please no killing",
+     "confidence": 1.0,
+     "box": [
+      176,
+      48,
+      554,
+      35
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      110,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 1.0,
+     "box": [
+      176,
+      107,
+      724,
+      36
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) ◇ is ready! Let's do",
+     "confidence": 1.0,
+     "box": [
+      177,
+      152,
+      740,
+      35
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      175,
+      194,
+      64,
+      28
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      256,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle",
+     "confidence": 1.0,
+     "box": [
+      176,
+      254,
+      646,
+      35
+     ]
+    },
+    {
+     "text": "Hello! LIGH",
+     "confidence": 1.0,
+     "box": [
+      303,
+      272,
+      877,
+      54
+     ]
+    },
+    {
+     "text": "(Ashe): ◇",
+     "confidence": 1.0,
+     "box": [
+      177,
+      298,
+      112,
+      34
+     ]
+    },
+    {
+     "text": "[Pebbletonl: vrooomvrooom",
+     "confidence": 1.0,
+     "box": [
+      176,
+      358,
+      489,
+      35
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Junkrat (was Ashe).",
+     "confidence": 1.0,
+     "box": [
+      177,
+      418,
+      728,
+      35
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 1.0,
+     "box": [
+      166,
+      513,
+      640,
+      35
+     ]
+    },
+    {
+     "text": "221.25 ◇",
+     "confidence": 1.0,
+     "box": [
+      438,
+      1006,
+      178,
+      47
+     ]
+    },
+    {
+     "text": "OLIULJUuUu",
+     "confidence": 1.0,
+     "box": [
+      336,
+      1083,
+      391,
+      62
+     ]
+    },
+    {
+     "text": "PERICIA",
+     "confidence": 1.0,
+     "box": [
+      403,
+      1172,
+      111,
+      31
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "[Pebbleton]: so please no killing",
+     "confidence": 0.98,
+     "box": [
+      174,
+      44,
+      559,
+      42
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 0.995,
+     "box": [
+      170,
+      102,
+      736,
+      44
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) is ready! Let's do",
+     "confidence": 0.992,
+     "box": [
+      174,
+      149,
+      745,
+      37
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      168,
+      187,
+      81,
+      46
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle",
+     "confidence": 0.999,
+     "box": [
+      173,
+      249,
+      653,
+      40
+     ]
+    },
+    {
+     "text": "(Ashe): Hello! LIGH",
+     "confidence": 0.989,
+     "box": [
+      178,
+      267,
+      1002,
+      67
+     ]
+    },
+    {
+     "text": "[Pebbleton]: vrooomvrooom",
+     "confidence": 0.998,
+     "box": [
+      174,
+      355,
+      496,
+      40
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Junkrat (was Ashe)",
+     "confidence": 0.989,
+     "box": [
+      171,
+      414,
+      728,
+      40
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 0.994,
+     "box": [
+      162,
+      509,
+      649,
+      42
+     ]
+    },
+    {
+     "text": "+221250",
+     "confidence": 0.985,
+     "box": [
+      337,
+      992,
+      324,
+      73
+     ]
+    },
+    {
+     "text": "3 PERICIA",
+     "confidence": 0.983,
+     "box": [
+      348,
+      1162,
+      171,
+      47
+     ]
+    }
+   ]
+  },
+  {
+   "t": 549.965,
+   "light": [
+    {
+     "text": "[Pebbletonl: so please no killing",
+     "confidence": 1.0,
+     "box": [
+      176,
+      48,
+      554,
+      35
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      110,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 1.0,
+     "box": [
+      176,
+      107,
+      724,
+      36
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) ◇ is ready! Let's do",
+     "confidence": 1.0,
+     "box": [
+      177,
+      152,
+      740,
+      35
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      175,
+      194,
+      64,
+      28
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      256,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle",
+     "confidence": 1.0,
+     "box": [
+      176,
+      254,
+      646,
+      35
+     ]
+    },
+    {
+     "text": "(Ashe): Hello!",
+     "confidence": 1.0,
+     "box": [
+      177,
+      298,
+      214,
+      34
+     ]
+    },
+    {
+     "text": "[Pebbletonl: vrooomvrooom",
+     "confidence": 1.0,
+     "box": [
+      176,
+      358,
+      489,
+      35
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Junkrat (was Ashe).",
+     "confidence": 1.0,
+     "box": [
+      177,
+      418,
+      728,
+      35
+     ]
+    },
+    {
+     "text": "UUUUULILjuu«—•",
+     "confidence": 1.0,
+     "box": [
+      460,
+      1083,
+      448,
+      51
+     ]
+    },
+    {
+     "text": "MIGUELITO",
+     "confidence": 1.0,
+     "box": [
+      401,
+      1165,
+      162,
+      35
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "[Pebbleton]: so please no killing",
+     "confidence": 0.963,
+     "box": [
+      173,
+      42,
+      561,
+      46
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 0.998,
+     "box": [
+      170,
+      102,
+      736,
+      44
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) is ready! Let's do",
+     "confidence": 0.999,
+     "box": [
+      174,
+      146,
+      745,
+      42
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      171,
+      192,
+      75,
+      37
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle",
+     "confidence": 1.0,
+     "box": [
+      173,
+      249,
+      653,
+      40
+     ]
+    },
+    {
+     "text": "(Ashe): Hello!",
+     "confidence": 1.0,
+     "box": [
+      178,
+      295,
+      221,
+      39
+     ]
+    },
+    {
+     "text": "[Pebbleton]: vrooomvrooom",
+     "confidence": 0.998,
+     "box": [
+      174,
+      355,
+      496,
+      40
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Junkrat (was Ashe)",
+     "confidence": 1.0,
+     "box": [
+      171,
+      414,
+      729,
+      42
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 0.977,
+     "box": [
+      163,
+      509,
+      648,
+      42
+     ]
+    },
+    {
+     "text": "300|300~",
+     "confidence": 0.907,
+     "box": [
+      430,
+      986,
+      256,
+      71
+     ]
+    },
+    {
+     "text": "3 MIGUELITO",
+     "confidence": 0.98,
+     "box": [
+      349,
+      1157,
+      219,
+      50
+     ]
+    }
+   ]
+  },
+  {
+   "t": 554.419,
+   "light": [
+    {
+     "text": "[Nibblerl: im going to kill u",
+     "confidence": 1.0,
+     "box": [
+      176,
+      36,
+      457,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: hmm",
+     "confidence": 1.0,
+     "box": [
+      176,
+      96,
+      328,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: please not",
+     "confidence": 1.0,
+     "box": [
+      176,
+      156,
+      416,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: were in the same team btw",
+     "confidence": 1.0,
+     "box": [
+      176,
+      216,
+      681,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: so please no killing",
+     "confidence": 1.0,
+     "box": [
+      176,
+      276,
+      554,
+      35
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      338,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 1.0,
+     "box": [
+      176,
+      335,
+      724,
+      36
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) ◇ is ready! Let's do",
+     "confidence": 1.0,
+     "box": [
+      177,
+      380,
+      740,
+      35
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      175,
+      422,
+      64,
+      28
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 1.0,
+     "box": [
+      166,
+      506,
+      640,
+      45
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "[Nibbler]: im going to kill u",
+     "confidence": 0.989,
+     "box": [
+      173,
+      30,
+      466,
+      46
+     ]
+    },
+    {
+     "text": "[Pebbleton]: hmm",
+     "confidence": 0.979,
+     "box": [
+      174,
+      91,
+      337,
+      43
+     ]
+    },
+    {
+     "text": "[Pebbleton]: please not",
+     "confidence": 0.996,
+     "box": [
+      176,
+      155,
+      422,
+      37
+     ]
+    },
+    {
+     "text": "[Pebbleton]: were in the same team btw",
+     "confidence": 0.985,
+     "box": [
+      174,
+      212,
+      687,
+      42
+     ]
+    },
+    {
+     "text": "[Pebbleton]: so please no killing",
+     "confidence": 0.99,
+     "box": [
+      174,
+      272,
+      559,
+      42
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 0.997,
+     "box": [
+      171,
+      329,
+      735,
+      44
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) is ready! Let's do",
+     "confidence": 0.99,
+     "box": [
+      174,
+      377,
+      746,
+      38
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      171,
+      420,
+      75,
+      37
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 0.987,
+     "box": [
+      162,
+      510,
+      649,
+      40
+     ]
+    }
+   ]
+  },
+  {
+   "t": 556.166,
+   "light": [
+    {
+     "text": "[Nibblerl: im going to kill u",
+     "confidence": 1.0,
+     "box": [
+      176,
+      36,
+      457,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: hmm",
+     "confidence": 1.0,
+     "box": [
+      176,
+      96,
+      328,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: please not",
+     "confidence": 1.0,
+     "box": [
+      176,
+      156,
+      416,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: were in the same team btw",
+     "confidence": 1.0,
+     "box": [
+      176,
+      216,
+      681,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: so please no killing",
+     "confidence": 1.0,
+     "box": [
+      176,
+      276,
+      554,
+      35
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      338,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 1.0,
+     "box": [
+      176,
+      335,
+      724,
+      36
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) ◇ is ready! Let's do",
+     "confidence": 1.0,
+     "box": [
+      177,
+      380,
+      740,
+      35
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      175,
+      422,
+      64,
+      28
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 1.0,
+     "box": [
+      166,
+      506,
+      640,
+      45
+     ]
+    },
+    {
+     "text": "oooooooao",
+     "confidence": 1.0,
+     "box": [
+      336,
+      1048,
+      490,
+      94
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      43
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "[Nibbler]: im going to kill u",
+     "confidence": 0.997,
+     "box": [
+      173,
+      30,
+      466,
+      46
+     ]
+    },
+    {
+     "text": "[Pebbleton]: hmm",
+     "confidence": 0.999,
+     "box": [
+      176,
+      93,
+      333,
+      39
+     ]
+    },
+    {
+     "text": "[Pebbleton]: please not",
+     "confidence": 0.999,
+     "box": [
+      176,
+      155,
+      422,
+      37
+     ]
+    },
+    {
+     "text": "[Pebbleton]: were in the same team btw",
+     "confidence": 0.985,
+     "box": [
+      174,
+      212,
+      687,
+      42
+     ]
+    },
+    {
+     "text": "[Pebbleton]: so please no killing",
+     "confidence": 0.979,
+     "box": [
+      174,
+      272,
+      559,
+      42
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 0.999,
+     "box": [
+      171,
+      329,
+      733,
+      44
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) is ready! Let's do",
+     "confidence": 0.99,
+     "box": [
+      174,
+      377,
+      745,
+      38
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      170,
+      417,
+      78,
+      42
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 0.991,
+     "box": [
+      162,
+      510,
+      649,
+      40
+     ]
+    },
+    {
+     "text": "225 1225",
+     "confidence": 0.94,
+     "box": [
+      427,
+      992,
+      224,
+      64
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.992,
+     "box": [
+      396,
+      1149,
+      281,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 558.216,
+   "light": [
+    {
+     "text": "[Nibblerl: im going to kill u",
+     "confidence": 1.0,
+     "box": [
+      176,
+      36,
+      457,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: hmm",
+     "confidence": 1.0,
+     "box": [
+      176,
+      96,
+      328,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: please not",
+     "confidence": 1.0,
+     "box": [
+      176,
+      156,
+      416,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: were in the same team btw",
+     "confidence": 1.0,
+     "box": [
+      176,
+      216,
+      681,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbletonl: so please no killing",
+     "confidence": 1.0,
+     "box": [
+      176,
+      276,
+      554,
+      35
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      338,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 1.0,
+     "box": [
+      176,
+      335,
+      724,
+      36
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) ◇ is ready! Let's do",
+     "confidence": 1.0,
+     "box": [
+      177,
+      380,
+      740,
+      35
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      175,
+      422,
+      64,
+      28
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 1.0,
+     "box": [
+      166,
+      513,
+      640,
+      35
+     ]
+    },
+    {
+     "text": "oooooooao",
+     "confidence": 1.0,
+     "box": [
+      336,
+      1048,
+      490,
+      94
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      43
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "[Nibbler]: im going to kill u",
+     "confidence": 0.997,
+     "box": [
+      173,
+      30,
+      466,
+      46
+     ]
+    },
+    {
+     "text": "[Pebbleton]: hmm",
+     "confidence": 0.999,
+     "box": [
+      176,
+      93,
+      333,
+      39
+     ]
+    },
+    {
+     "text": "[Pebbleton]: please not",
+     "confidence": 0.999,
+     "box": [
+      176,
+      155,
+      422,
+      37
+     ]
+    },
+    {
+     "text": "[Pebbleton]: were in the same team btw",
+     "confidence": 0.985,
+     "box": [
+      174,
+      212,
+      687,
+      42
+     ]
+    },
+    {
+     "text": "[Pebbleton]: so please no killing",
+     "confidence": 0.979,
+     "box": [
+      174,
+      272,
+      559,
+      42
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 0.999,
+     "box": [
+      171,
+      329,
+      733,
+      44
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) is ready! Let's do",
+     "confidence": 0.99,
+     "box": [
+      174,
+      377,
+      745,
+      38
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      170,
+      417,
+      78,
+      42
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 0.995,
+     "box": [
+      162,
+      510,
+      649,
+      40
+     ]
+    },
+    {
+     "text": "225 1225",
+     "confidence": 0.946,
+     "box": [
+      427,
+      992,
+      224,
+      64
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.992,
+     "box": [
+      396,
+      1149,
+      281,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 561.489,
+   "light": [
+    {
+     "text": "My ultimate (Deliverance) ◇ is ready! Let's do",
+     "confidence": 1.0,
+     "box": [
+      177,
+      47,
+      740,
+      35
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      175,
+      91,
+      64,
+      28
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      152,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle",
+     "confidence": 1.0,
+     "box": [
+      176,
+      149,
+      646,
+      36
+     ]
+    },
+    {
+     "text": "(Ashe): Hello!",
+     "confidence": 1.0,
+     "box": [
+      177,
+      194,
+      214,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbleton]: vrooomvrooom",
+     "confidence": 1.0,
+     "box": [
+      176,
+      254,
+      489,
+      34
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      316,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Junkrat (was Ashe).",
+     "confidence": 1.0,
+     "box": [
+      177,
+      314,
+      728,
+      35
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      376,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Bastion (was",
+     "confidence": 1.0,
+     "box": [
+      177,
+      374,
+      617,
+      35
+     ]
+    },
+    {
+     "text": "Junkrat).",
+     "confidence": 1.0,
+     "box": [
+      175,
+      418,
+      138,
+      34
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 1.0,
+     "box": [
+      166,
+      506,
+      640,
+      45
+     ]
+    },
+    {
+     "text": "oooooooao",
+     "confidence": 1.0,
+     "box": [
+      336,
+      1048,
+      490,
+      94
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      43
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "My ultimate (Deliverance) is ready! Let's do",
+     "confidence": 0.99,
+     "box": [
+      174,
+      43,
+      744,
+      40
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      169,
+      85,
+      81,
+      42
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle",
+     "confidence": 0.992,
+     "box": [
+      170,
+      145,
+      656,
+      40
+     ]
+    },
+    {
+     "text": "(Ashe): Hello!",
+     "confidence": 1.0,
+     "box": [
+      176,
+      191,
+      223,
+      39
+     ]
+    },
+    {
+     "text": "[Pebbleton]: vrooomvrooom",
+     "confidence": 0.996,
+     "box": [
+      176,
+      252,
+      494,
+      37
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Junkrat (was Ashe).",
+     "confidence": 0.986,
+     "box": [
+      174,
+      309,
+      728,
+      40
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Bastion (was",
+     "confidence": 0.997,
+     "box": [
+      171,
+      369,
+      626,
+      40
+     ]
+    },
+    {
+     "text": "Junkrat).",
+     "confidence": 1.0,
+     "box": [
+      170,
+      410,
+      148,
+      48
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 0.988,
+     "box": [
+      162,
+      507,
+      649,
+      44
+     ]
+    },
+    {
+     "text": "225 |225",
+     "confidence": 0.913,
+     "box": [
+      427,
+      992,
+      224,
+      64
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.986,
+     "box": [
+      396,
+      1149,
+      281,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 564.995,
+   "light": [
+    {
+     "text": "My ultimate (Deliverance) ◇ is ready! Let's do",
+     "confidence": 1.0,
+     "box": [
+      177,
+      47,
+      740,
+      35
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      175,
+      91,
+      64,
+      28
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      152,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle",
+     "confidence": 1.0,
+     "box": [
+      176,
+      149,
+      646,
+      36
+     ]
+    },
+    {
+     "text": "(Ashe): Hello!",
+     "confidence": 1.0,
+     "box": [
+      177,
+      194,
+      214,
+      35
+     ]
+    },
+    {
+     "text": "[Pebbleton]: vrooomvrooom",
+     "confidence": 1.0,
+     "box": [
+      176,
+      254,
+      489,
+      34
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Junkrat (was Ashe).",
+     "confidence": 1.0,
+     "box": [
+      177,
+      314,
+      728,
+      35
+     ]
+    },
+    {
+     "text": "• ◇",
+     "confidence": 1.0,
+     "box": [
+      128,
+      376,
+      10,
+      9
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Bastion (was",
+     "confidence": 1.0,
+     "box": [
+      177,
+      374,
+      617,
+      35
+     ]
+    },
+    {
+     "text": "Junkrat).",
+     "confidence": 1.0,
+     "box": [
+      175,
+      418,
+      138,
+      34
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 1.0,
+     "box": [
+      166,
+      513,
+      640,
+      35
+     ]
+    },
+    {
+     "text": "oooooooao",
+     "confidence": 1.0,
+     "box": [
+      335,
+      1048,
+      490,
+      94
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1155,
+      273,
+      44
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "My ultimate (Deliverance) is ready! Let's do",
+     "confidence": 0.993,
+     "box": [
+      176,
+      44,
+      742,
+      39
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 1.0,
+     "box": [
+      169,
+      85,
+      81,
+      42
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle",
+     "confidence": 0.998,
+     "box": [
+      170,
+      145,
+      656,
+      40
+     ]
+    },
+    {
+     "text": "(Ashe): Hello!",
+     "confidence": 1.0,
+     "box": [
+      176,
+      191,
+      224,
+      39
+     ]
+    },
+    {
+     "text": "[Pebbleton]: vrooomvrooom",
+     "confidence": 0.996,
+     "box": [
+      176,
+      252,
+      494,
+      37
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Junkrat (was Ashe).",
+     "confidence": 0.991,
+     "box": [
+      170,
+      308,
+      735,
+      44
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Bastion (was",
+     "confidence": 0.991,
+     "box": [
+      171,
+      369,
+      627,
+      40
+     ]
+    },
+    {
+     "text": "Junkrat).",
+     "confidence": 1.0,
+     "box": [
+      170,
+      410,
+      148,
+      48
+     ]
+    },
+    {
+     "text": "[Match] PRESS TAB TO CYCLE CHANNELS",
+     "confidence": 0.988,
+     "box": [
+      162,
+      507,
+      649,
+      44
+     ]
+    },
+    {
+     "text": "225 1225",
+     "confidence": 0.93,
+     "box": [
+      427,
+      992,
+      224,
+      64
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.986,
+     "box": [
+      396,
+      1149,
+      281,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 569.31,
+   "light": [
+    {
+     "text": "12:15 3",
+     "confidence": 1.0,
+     "box": [
+      208,
+      48,
+      344,
+      70
+     ]
+    },
+    {
+     "text": "•",
+     "confidence": 1.0,
+     "box": [
+      895,
+      148,
+      4,
+      4
+     ]
+    },
+    {
+     "text": "• risa",
+     "confidence": 1.0,
+     "box": [
+      599,
+      140,
+      280,
+      28
+     ]
+    },
+    {
+     "text": "M ultima e 'DB iverance is±ead ! Le s o",
+     "confidence": 1.0,
+     "box": [
+      177,
+      180,
+      739,
+      31
+     ]
+    },
+    {
+     "text": "s Ashe).",
+     "confidence": 1.0,
+     "box": [
+      776,
+      450,
+      128,
+      34
+     ]
+    },
+    {
+     "text": "225 2Y",
+     "confidence": 1.0,
+     "box": [
+      438,
+      987,
+      227,
+      62
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      44
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "通 逞延",
+     "confidence": 0.717,
+     "box": [
+      0,
+      35,
+      1081,
+      40
+     ]
+    },
+    {
+     "text": "12:15 3  iti",
+     "confidence": 0.837,
+     "box": [
+      204,
+      44,
+      831,
+      94
+     ]
+    },
+    {
+     "text": " MoonPebble (Doctrine) to Nibbler (Orisa):",
+     "confidence": 0.982,
+     "box": [
+      113,
+      133,
+      789,
+      46
+     ]
+    },
+    {
+     "text": "My ultimate (Deliverance) isready! et's do",
+     "confidence": 0.977,
+     "box": [
+      178,
+      180,
+      740,
+      37
+     ]
+    },
+    {
+     "text": "this!",
+     "confidence": 0.999,
+     "box": [
+      171,
+      223,
+      72,
+      36
+     ]
+    },
+    {
+     "text": "MoonPebble (Doctrine) to MrWaffle (Ashe):",
+     "confidence": 0.992,
+     "box": [
+      139,
+      275,
+      811,
+      49
+     ]
+    },
+    {
+     "text": "Hello!",
+     "confidence": 0.999,
+     "box": [
+      170,
+      325,
+      101,
+      40
+     ]
+    },
+    {
+     "text": "[Pebbleton]: vrooomvrooom",
+     "confidence": 0.99,
+     "box": [
+      173,
+      391,
+      498,
+      33
+     ]
+    },
+    {
+     "text": "MrWaffle switched to Junkrat (was Ashe).",
+     "confidence": 0.994,
+     "box": [
+      113,
+      442,
+      790,
+      46
+     ]
+    },
+    {
+     "text": " MrWaffle switched to Bastion (was Junkrat).",
+     "confidence": 0.974,
+     "box": [
+      115,
+      506,
+      828,
+      38
+     ]
+    },
+    {
+     "text": "+ 225 225",
+     "confidence": 0.795,
+     "box": [
+      346,
+      987,
+      307,
+      71
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.983,
+     "box": [
+      399,
+      1153,
+      275,
+      51
+     ]
+    }
+   ]
+  },
+  {
+   "t": 614.015,
+   "light": [
+    {
+     "text": "10:00",
+     "confidence": 1.0,
+     "box": [
+      884,
+      149,
+      64,
+      22
+     ]
+    },
+    {
+     "text": "11:30",
+     "confidence": 1.0,
+     "box": [
+      878,
+      224,
+      64,
+      22
+     ]
+    },
+    {
+     "text": "12:15 3",
+     "confidence": 1.0,
+     "box": [
+      872,
+      298,
+      128,
+      30
+     ]
+    },
+    {
+     "text": "ra 225 225",
+     "confidence": 1.0,
+     "box": [
+      292,
+      994,
+      328,
+      47
+     ]
+    },
+    {
+     "text": "iOOOOOOOOOt",
+     "confidence": 1.0,
+     "box": [
+      291,
+      1060,
+      522,
+      70
+     ]
+    },
+    {
+     "text": "PEBBLETON ◇",
+     "confidence": 1.0,
+     "box": [
+      368,
+      1161,
+      272,
+      25
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "AYIOI",
+     "confidence": 0.679,
+     "box": [
+      1089,
+      37,
+      47,
+      14
+     ]
+    },
+    {
+     "text": "10:00 定刻通",
+     "confidence": 0.968,
+     "box": [
+      841,
+      114,
+      338,
+      40
+     ]
+    },
+    {
+     "text": "理证 参",
+     "confidence": 0.555,
+     "box": [
+      743,
+      192,
+      436,
+      21
+     ]
+    },
+    {
+     "text": "11:30",
+     "confidence": 0.987,
+     "box": [
+      840,
+      196,
+      79,
+      36
+     ]
+    },
+    {
+     "text": "定刻遇 退延",
+     "confidence": 0.79,
+     "box": [
+      735,
+      266,
+      444,
+      20
+     ]
+    },
+    {
+     "text": "12:15 3",
+     "confidence": 0.986,
+     "box": [
+      841,
+      272,
+      137,
+      31
+     ]
+    },
+    {
+     "text": "225225",
+     "confidence": 0.997,
+     "box": [
+      425,
+      986,
+      233,
+      71
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.99,
+     "box": [
+      396,
+      1149,
+      280,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 615.031,
+   "light": [
+    {
+     "text": "10:00",
+     "confidence": 1.0,
+     "box": [
+      884,
+      149,
+      64,
+      22
+     ]
+    },
+    {
+     "text": "11:30 2",
+     "confidence": 1.0,
+     "box": [
+      878,
+      224,
+      129,
+      31
+     ]
+    },
+    {
+     "text": "12:15 3",
+     "confidence": 1.0,
+     "box": [
+      872,
+      298,
+      128,
+      30
+     ]
+    },
+    {
+     "text": "225 225",
+     "confidence": 1.0,
+     "box": [
+      414,
+      997,
+      206,
+      42
+     ]
+    },
+    {
+     "text": "iOOOOOOOOO-",
+     "confidence": 1.0,
+     "box": [
+      291,
+      1060,
+      522,
+      70
+     ]
+    },
+    {
+     "text": "PEBBLETON ◇",
+     "confidence": 1.0,
+     "box": [
+      368,
+      1161,
+      272,
+      25
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "AYIOI",
+     "confidence": 0.682,
+     "box": [
+      1089,
+      37,
+      47,
+      14
+     ]
+    },
+    {
+     "text": "定射逼 定刻通",
+     "confidence": 0.724,
+     "box": [
+      731,
+      114,
+      449,
+      26
+     ]
+    },
+    {
+     "text": "10:00 H",
+     "confidence": 0.76,
+     "box": [
+      841,
+      123,
+      323,
+      40
+     ]
+    },
+    {
+     "text": "理证 参",
+     "confidence": 0.56,
+     "box": [
+      743,
+      192,
+      436,
+      21
+     ]
+    },
+    {
+     "text": "11:30",
+     "confidence": 0.986,
+     "box": [
+      840,
+      196,
+      79,
+      36
+     ]
+    },
+    {
+     "text": "定刻遇 退延",
+     "confidence": 0.73,
+     "box": [
+      735,
+      266,
+      444,
+      20
+     ]
+    },
+    {
+     "text": "12:15 3",
+     "confidence": 0.985,
+     "box": [
+      841,
+      272,
+      137,
+      31
+     ]
+    },
+    {
+     "text": "225225",
+     "confidence": 0.942,
+     "box": [
+      425,
+      984,
+      233,
+      76
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.99,
+     "box": [
+      396,
+      1149,
+      280,
+      58
+     ]
+    }
+   ]
+  },
+  {
+   "t": 619.604,
+   "light": [
+    {
+     "text": "a 225+225",
+     "confidence": 1.0,
+     "box": [
+      334,
+      993,
+      323,
+      67
+     ]
+    },
+    {
+     "text": "ooooooooo",
+     "confidence": 1.0,
+     "box": [
+      335,
+      1048,
+      491,
+      95
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      402,
+      1156,
+      270,
+      44
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": " MrWaffle switched to Ashe (was Echo).",
+     "confidence": 0.979,
+     "box": [
+      115,
+      504,
+      752,
+      42
+     ]
+    },
+    {
+     "text": "+ 225225",
+     "confidence": 0.953,
+     "box": [
+      339,
+      989,
+      318,
+      69
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.985,
+     "box": [
+      397,
+      1148,
+      280,
+      59
+     ]
+    }
+   ]
+  },
+  {
+   "t": 620.529,
+   "light": [
+    {
+     "text": "MrWaffle switched to Ashe (was Echo).",
+     "confidence": 1.0,
+     "box": [
+      177,
+      510,
+      692,
+      34
+     ]
+    },
+    {
+     "text": "a:) 225 1 225",
+     "confidence": 1.0,
+     "box": [
+      334,
+      999,
+      310,
+      66
+     ]
+    },
+    {
+     "text": "ooooooooo",
+     "confidence": 1.0,
+     "box": [
+      336,
+      1048,
+      490,
+      95
+     ]
+    },
+    {
+     "text": "o PEBBLETON",
+     "confidence": 1.0,
+     "box": [
+      326,
+      1156,
+      346,
+      72
+     ]
+    }
+   ],
+   "best": [
+    {
+     "text": "MrWaffle switched to Ashe (was Echo).",
+     "confidence": 0.978,
+     "box": [
+      115,
+      506,
+      753,
+      41
+     ]
+    },
+    {
+     "text": "225225",
+     "confidence": 0.998,
+     "box": [
+      426,
+      988,
+      229,
+      71
+     ]
+    },
+    {
+     "text": "PEBBLETON",
+     "confidence": 0.983,
+     "box": [
+      397,
+      1149,
+      280,
+      58
+     ]
+    }
+   ]
+  }
+ ]
+}
