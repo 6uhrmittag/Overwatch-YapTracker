@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-13 · Live card header on one line (#449)
+- In Live, "Make a yap snap", the channel colours and the Callouts switch now sit on one line.
+
 ### 2026-10-12 · The export's Markdown by day (#443)
 - With Markdown on, the export has one file per day you played (`days/2026-10-11.md`), like the Sessions tab: a late night stays in the day it began, matches are numbered in their day, and breaks show between play blocks. The JSON keeps its sessions and also tells each match's day and number in it.
 - Map names keep their own spelling ("Throne of Anubis", not "Throne Of Anubis"), in Sessions and in the export.

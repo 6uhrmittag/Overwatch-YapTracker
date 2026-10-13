@@ -144,7 +144,7 @@ html, body { background: var(--yt-night); }
   .yt-keycap { padding: 2px 7px; border-radius: 6px; background: #262d3a; border-bottom: 2px solid #0b0d12; font-size: 12px; font-weight: 800; color: var(--yt-muted); }
 
   /* Chat channel legend */
-  .yt-legend { display: flex; gap: 12px; font-size: 13px; font-weight: 700; }
+  .yt-legend { display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 700; }
   .yt-ch-team { color: var(--yt-team); }
   .yt-ch-match { color: var(--yt-match); }
   .yt-ch-group { color: var(--yt-group); }
