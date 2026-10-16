@@ -553,6 +553,7 @@ def _check_for_updates(smoke_test: bool) -> None:
         config.update_check,
         busy=lambda: runtime.matches is not None and runtime.matches.running,
         cache=paths.data_dir() / "releases.json",
+        test_versions=config.test_versions,
     )
     if not smoke_test:
         app.on_startup(runtime.updates.start)

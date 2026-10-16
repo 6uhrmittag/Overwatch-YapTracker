@@ -4,12 +4,13 @@ import re
 import time
 from collections.abc import Callable
 
-from nicegui import app, run, ui
+from nicegui import app, background_tasks, run, ui
 
 from yaptracker import config, paths, runtime, updates
 from yaptracker.ui.components import button, switch
 
 HINT = "Asks GitHub which version is newest. Nothing else is sent."
+TEST_HINT = "For testing: get every new build, not only stable releases."
 HOW = "Update now closes YapTracker, updates it and starts it again. Your data stays."
 
 
@@ -119,7 +120,7 @@ def update_now_button() -> Callable[[], None]:
             updates.save_notes(paths.data_dir() / "whats_new.json", check.installed, newest,
                                check.found.notes)  # fmt: skip
         try:
-            updates.start_update(newest)
+            updates.start_update(newest, config.test_versions())
         except Exception as error:  # nothing started: YapTracker keeps running
             said.set_text(f"Couldn't start the update: {error}")
             return
@@ -177,10 +178,14 @@ def update_section() -> None:
             button(f"What changed in v{this['to']}", lambda: after_update_dialog(this),
                    "quiet").mark("update-this-version")  # fmt: skip
     newer.set_visibility(bool(runtime.updates and runtime.updates.newest))
-    switch("Check for updates once a day", config.update_check(), config.save_update_check).mark(
-        "update-switch"
-    )
-    ui.label(HINT).classes("yt-hint")
+    switch("Check for updates once a day", config.update_check(), config.save_update_check,
+           hint=HINT).mark("update-switch")  # fmt: skip
+    switch("Get test versions (pre-releases)", config.test_versions(), lambda on: test(on),
+           hint=TEST_HINT).mark("test-versions-switch")  # (#454)  # fmt: skip
+
+    def test(on: bool) -> None:
+        config.save_test_versions(on)
+        background_tasks.create(ask())  # what's newest changes with it
 
     async def ask() -> None:
         if runtime.updates is None:

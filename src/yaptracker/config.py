@@ -475,6 +475,18 @@ def save_update_check(on: bool, path: Path | None = None) -> None:
     _save(path, data)
 
 
+def test_versions(path: Path | None = None) -> bool:
+    """Get every new build, not only stable releases (#454): off unless switched on."""
+    return _load(path or paths.config_file()).get("test_versions", False)
+
+
+def save_test_versions(on: bool, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["test_versions"] = on
+    _save(path, data)
+
+
 def picture_cap_mb(path: Path | None = None) -> int:
     """How much space line pictures may take (#389): 2 GB unless set in Settings."""
     return int(_load(path or paths.config_file()).get("picture_cap_mb", 2000))

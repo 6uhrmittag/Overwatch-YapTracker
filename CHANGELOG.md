@@ -7,6 +7,13 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-16 · Lighter on your PC in matches (#115)
 - In a match YapTracker now looks at the game 2 times a second instead of 4, like between matches. A chat line stays on screen for about 9 seconds, so it is still seen many times; the copying of the game picture costs about half as much.
 
+### 2026-10-16 · Stable releases are promoted test versions (#454, part 2)
+- Behind the scenes: a stable release is a tested build published again as it is (workflow "Promote pre-release to stable", only when Marv says so); its notes gather everything since the last stable release. After v1.0.0, test versions are named like v1.1.0-pre.512. README explains stable vs test versions.
+
+### 2026-10-16 · Stable releases, test versions if you want them (#454)
+- Settings → About has a new switch, "Get test versions (pre-releases)": off means you get stable releases only. Until the first stable release (v1.0.0) is out, every new build still reaches you.
+- `update.ps1` installs the newest stable release; `update.ps1 -PreRelease` installs the newest test version.
+
 ### 2026-10-16 · FPS check compares the same map (#448)
 - Behind the scenes: `tools/evidence.py` compares YapTracker running vs paused on the same map only, and leaves out hero-select and partial minutes, so the FPS verdict no longer blames YapTracker for a heavier map.
 
