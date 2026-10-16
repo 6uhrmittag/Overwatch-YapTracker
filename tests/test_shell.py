@@ -501,8 +501,7 @@ async def test_a_nearly_full_disk_is_said_in_live(user: User, monkeypatch, tmp_p
     (banner,) = user.find(marker="disk-low").elements
     assert "yt-hidden" in banner.classes
     debug = DebugSamples(tmp_path / "debug", lambda: True, free=lambda _: 0)
-    debug.on_signals({})  # the first check finds less than 1 GB free (#452)
-    monkeypatch.setattr(runtime, "debug", debug)
+    monkeypatch.setattr(runtime, "debug", debug)  # less than 1 GB free (#452)
     for _ in range(30):  # Live looks again every second
         if "yt-hidden" not in banner.classes:
             break

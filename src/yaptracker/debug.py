@@ -4,7 +4,8 @@ data\\debug\\<date>\\<time>-<what>\\ holds JPEG overview frames (every 4th pixel
 window) and the PNG signal crops the detectors read, or (`-chat`) the chat frames of the last
 20 s with what OCR and the parser made of them (sample.json). Real names are in there: like
 fixtures/private/, never committed and never uploaded (YapTracker is local-only anyway).
-At most 1 GB and 14 days, the oldest samples go first. Nothing is kept while paused.
+At most 1 GB and 14 days, the oldest samples go first. Nothing is kept while paused, nor while
+the disk has less than 1 GB free (#452); hand corrections are still kept then.
 """
 
 import json
@@ -34,8 +35,8 @@ CHAT_CONTEXT_S = 20.0  # chat frames kept for a chat sample: enough to see a lin
 CHAT_SAMPLE_EVERY_S = 60.0  # automatic chat samples at most once a minute
 LOW_CONFIDENCE = 0.85
 LOW_DISK_BYTES = 1_000_000_000  # less free space than this: samples pause (#452)
-DISK_LOW_SAY = ("Disk almost full: debug samples paused. Chat is still saved; the samples start "
-                "again by themselves once there's more than 1 GB free.")  # fmt: skip
+DISK_LOW_SAY = ("Disk almost full: debug samples paused. Chat is still saved. Free up some space "
+                "and they start again by themselves.")  # fmt: skip
 DISK_CHECK_S = 60.0
 
 
@@ -93,7 +94,7 @@ class DebugSamples:
         free: Callable[[Path], int] = free_bytes,
     ) -> None:
         self._folder, self._enabled, self._clock, self._free = folder, enabled, clock, free
-        self.disk_low = False  # paused for a nearly full disk (#452); Live says so
+        self._low = False  # paused for a nearly full disk (#452); Live says so
         self._disk_checked = -math.inf
         self._buffer_s, self._cap_bytes, self._keep_days = buffer_s, cap_bytes, keep_days
         self._lock = threading.Lock()
@@ -105,24 +106,25 @@ class DebugSamples:
         self.sizes = FolderSizes()  # counted once, then kept up to date (#387)
 
     def _active(self) -> bool:
-        return self._enabled() and not self._disk_low()
+        return self._enabled() and not self.disk_low()
 
-    def _disk_low(self) -> bool:
-        """Checked once a minute; says in the log when samples pause and start again."""
+    def disk_low(self) -> bool:
+        """Less than 1 GB free: samples pause (#452). The disk is looked at once a minute, also
+        when asked by Live; the log says when samples pause and start again."""
         now = self._clock()
         if now - self._disk_checked < DISK_CHECK_S:
-            return self.disk_low
+            return self._low
         self._disk_checked = now
         try:
             low = self._free(self._folder) < LOW_DISK_BYTES
         except OSError:
-            return self.disk_low
-        if low != self.disk_low:
+            return self._low
+        if low != self._low:
             if low:
                 log.warning("Disk almost full: debug samples paused (less than 1 GB free)")
             else:
                 log.info("Disk has space again: debug samples back on")
-        self.disk_low = low
+        self._low = low
         return low
 
     def on_signals(self, signals: dict[str, np.ndarray], paused: bool = False) -> None:
@@ -239,8 +241,15 @@ class DebugSamples:
         """A line fixed by hand (#227): what OCR read, what it really says, and its picture.
         Plain files in debug/corrections/, so the day/size clean-up leaves them alone: they're
         hand-checked ground truth for the next OCR change."""
-        if not self._active():
+        if not self._enabled():  # tiny and rare: kept also on a nearly full disk
             return None
+        try:
+            return self._save_correction(message, text, picture)
+        except Exception as error:  # the fixed line is saved all the same (#452)
+            side_work.failed("saving a correction sample", error)
+            return None
+
+    def _save_correction(self, message, text: str, picture: Path | None) -> Path:
         folder = self._folder / "corrections"
         folder.mkdir(parents=True, exist_ok=True)
         stem = f"{time.strftime('%Y-%m-%d-%H%M%S', time.localtime(message.ts))}-{message.id}"
@@ -258,8 +267,15 @@ class DebugSamples:
     def channel_correction(self, message, channel: str, picture: Path | None) -> Path | None:
         """A line's channel fixed by hand (#283): ground truth for the icon/colour check
         (#173, #228), next to the text corrections."""
-        if not self._active():
+        if not self._enabled():
             return None
+        try:
+            return self._save_channel_correction(message, channel, picture)
+        except Exception as error:
+            side_work.failed("saving a correction sample", error)
+            return None
+
+    def _save_channel_correction(self, message, channel: str, picture: Path | None) -> Path:
         folder = self._folder / "corrections"
         folder.mkdir(parents=True, exist_ok=True)
         stem = f"{time.strftime('%Y-%m-%d-%H%M%S', time.localtime(message.ts))}-{message.id}-ch"

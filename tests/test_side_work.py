@@ -101,6 +101,21 @@ def test_windows_ocr_aborted_is_tried_once_more_then_read_with_best(store, abort
                                 available=lambda: ["rapidocr", "windows"])  # fmt: skip
     assert reading.read(FRAME, 2.0) == LINE  # no lost frame
     assert (engines["windows"].calls, engines["rapidocr"].calls) == (windows, best)
+    assert reading.take_counts() == ("best 1" if best else "light 1")  # who really read it
+    assert reading.read_in(0) == ("best" if best else "light")
+
+
+def test_windows_ocr_as_the_best_reader_too_has_no_one_to_hand_over_to(store):
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(1000.0)
+    tracker.new_match(1010.0, source="heroselect", mode="QUICK PLAY", map_name="Busan")
+    windows = Engine(aborts=3)
+    reading = modes.ReadingMode(lambda: tracker, lambda: "best", lambda: "light",
+                                lambda: "windows", get=lambda _: windows,
+                                available=lambda: ["rapidocr", "windows"])  # fmt: skip
+    with pytest.raises(OSError):  # the reader logs it, as before
+        reading.read(FRAME, 2.0)
+    assert windows.calls == 2
 
 
 def test_a_full_disk_pauses_debug_samples_says_so_and_resumes(tmp_path, caplog):
@@ -109,14 +124,14 @@ def test_a_full_disk_pauses_debug_samples_says_so_and_resumes(tmp_path, caplog):
     signals = {"end_banner": np.full((25, 82, 3), 200, np.uint8)}
     with caplog.at_level(logging.INFO, logger="yaptracker.debug"):
         samples.on_signals(signals)
-        assert samples.disk_low and samples.match_event("end") is None
+        assert samples.disk_low() and samples.match_event("end") is None
         clock.now += 30
         free[0] = 2 * LOW_DISK_BYTES
         samples.on_signals(signals)
-        assert samples.disk_low  # checked once a minute
+        assert samples.disk_low()  # checked once a minute
         clock.now += 30
         samples.on_signals(signals)
-        assert not samples.disk_low and samples.match_event("end") is not None
+        assert not samples.disk_low() and samples.match_event("end") is not None
     assert "Disk almost full: debug samples paused" in caplog.text
     assert "debug samples back on" in caplog.text
 
@@ -126,3 +141,28 @@ def test_a_sample_that_cant_be_written_doesnt_stop_the_capture(tmp_path):
     samples = DebugSamples(tmp_path / "debug", lambda: True, free=lambda _: 2 * LOW_DISK_BYTES)
     samples.on_signals({"end_banner": np.full((25, 82, 3), 200, np.uint8)})
     assert samples.match_event("end") is None  # no exception into the capture thread
+
+
+def test_hand_corrections_are_kept_on_a_nearly_full_disk_and_never_raise(tmp_path):
+    from types import SimpleNamespace
+
+    message = SimpleNamespace(id=7, ts=1000.0, channel="team", speaker_raw="Pickle",
+                              original_text="wahoo tean", text="wahoo tean")  # fmt: skip
+    samples = DebugSamples(tmp_path / "debug", lambda: True, free=lambda _: 0)
+    assert samples.correction(message, "wahoo team", None) is not None  # tiny, hand-checked
+    (tmp_path / "debug" / "corrections").rename(tmp_path / "moved")
+    (tmp_path / "debug" / "corrections").write_text("a file where the folder should be")
+    assert samples.channel_correction(message, "match", None) is None  # no exception into the UI
+
+
+def test_a_picture_that_cant_be_written_keeps_the_older_one(tmp_path, monkeypatch):
+    from yaptracker import lines
+
+    pictures = lines.LinePictures(tmp_path / "lines")
+    box = Region(0, 10, 100, 20)
+    path = pictures.save(7, 1000.0, FRAME, box)
+    before = path.read_bytes()
+    monkeypatch.setattr(lines.cv2, "imwrite", lambda *args: False)  # what a full disk does
+    with pytest.raises(OSError):
+        pictures.save(7, 1000.0, np.full_like(FRAME, 255), box)
+    assert path.read_bytes() == before and not list(path.parent.glob("*.part.webp"))

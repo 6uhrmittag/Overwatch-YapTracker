@@ -642,7 +642,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         black_hint.classes(**{"remove" if black else "add": "yt-hidden"})
         screen = runtime.screen is not None and runtime.screen.screen and not black
         screen_hint.classes(**{"remove" if screen and capturing else "add": "yt-hidden"})
-        disk_low = runtime.debug is not None and runtime.debug.disk_low and config.debug_samples()
+        disk_low = runtime.debug is not None and config.debug_samples() and runtime.debug.disk_low()
         disk_hint.classes(**{"remove" if disk_low else "add": "yt-hidden"})
         # no own name: your own lines would greet you with "Look who's back!" (#168)
         name_hint.classes(**{"add" if config.identity().me else "remove": "yt-hidden"})

@@ -56,7 +56,12 @@ class LinePictures:
             return None
         target = self.path(message_id, ts)
         target.parent.mkdir(parents=True, exist_ok=True)
-        cv2.imwrite(str(target), crop, [cv2.IMWRITE_WEBP_QUALITY, 101])  # > 100 = lossless
+        # Next to it first: a full disk leaves no broken picture, nor kills an older good one (#452)
+        part = target.with_name(f"{target.stem}.part.webp")
+        if not cv2.imwrite(str(part), crop, [cv2.IMWRITE_WEBP_QUALITY, 101]):  # > 100: lossless
+            part.unlink(missing_ok=True)
+            raise OSError(f"couldn't write {target.name}")
+        part.replace(target)
         self.sizes.set(target, target.stat().st_size)  # over an older one: only the difference
         total = self.sizes.total()
         if total is not None and total > self._cap_bytes:
