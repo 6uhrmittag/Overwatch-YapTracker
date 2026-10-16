@@ -31,14 +31,18 @@ Everything else the app explains where you need it. This README is the only writ
 
 Requirements: Windows 10/11, Overwatch in borderless windowed mode, text chat on.
 
-One command installs the newest (pre-)release and later updates it. In PowerShell:
+One command installs the newest release and later updates it. In PowerShell:
 
 ```
 irm https://raw.githubusercontent.com/6uhrmittag/Overwatch-YapTracker/main/tools/update.ps1 -OutFile update.ps1
 powershell -ExecutionPolicy Bypass -File update.ps1
 ```
 
-The app goes to `%LOCALAPPDATA%\YapTracker\app` and is replaced on every update. Your data in `%LOCALAPPDATA%\YapTracker\data` is never touched. Run `update.ps1` again whenever you want the newest build; it closes YapTracker first and starts it again afterwards. `-Force` reinstalls, `-NoStart` skips the start. The saved `update.ps1` keeps itself current: if the newest release has a newer one, it saves that over itself and runs it. Afterwards it lists what's new since the version you had. YapTracker opens where you left it (screen, place, size, maximised), also after an update; **Settings → About → Reset window position** brings it back if it's ever out of reach.
+The app goes to `%LOCALAPPDATA%\YapTracker\app` and is replaced on every update. Your data in `%LOCALAPPDATA%\YapTracker\data` is never touched. Run `update.ps1` again whenever you want the newest build; it closes YapTracker first and starts it again afterwards. `-Force` reinstalls, `-NoStart` skips the start, `-PreRelease` gets the newest test version. The saved `update.ps1` keeps itself current: if the newest release has a newer one, it saves that over itself and runs it. Afterwards it lists what's new since the version you had. YapTracker opens where you left it (screen, place, size, maximised), also after an update; **Settings → About → Reset window position** brings it back if it's ever out of reach.
+
+### Updates: stable or test versions
+
+Stable releases (v1.0.0, v1.1.0, ...) are builds that already ran through a real evening. Every change in between is a test version (a pre-release, e.g. v1.1.0-pre.512). By default YapTracker and `update.ps1` stick to stable releases; to get every new build, switch on **Settings → About → Get test versions** (or run `update.ps1 -PreRelease`). Until the first stable release is out, every build counts.
 
 ### "Windows protected your PC" / Defender warnings
 

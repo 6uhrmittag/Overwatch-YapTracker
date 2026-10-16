@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Stable releases are promoted test versions (#454, part 2)
+- Behind the scenes: a stable release is a tested build published again as it is (workflow "Promote pre-release to stable", only when Marv says so); its notes gather everything since the last stable release. After v1.0.0, test versions are named like v1.1.0-pre.512. README explains stable vs test versions.
+
 ### 2026-10-16 · FPS check compares the same map (#448)
 - Behind the scenes: `tools/evidence.py` compares YapTracker running vs paused on the same map only, and leaves out hero-select and partial minutes, so the FPS verdict no longer blames YapTracker for a heavier map.
 
