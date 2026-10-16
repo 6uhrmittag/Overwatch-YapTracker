@@ -261,7 +261,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         if runtime.watcher is not None:
             runtime.watcher.reopen()
 
-    rate = CaptureRate(match_running, reopen)  # 2 frames a second between matches (#350)
+    rate = CaptureRate(match_running, reopen)  # 2 frames a second, in and between (#350, #115)
 
     def open_source(hwnd: int):
         from yaptracker.capture.wgc import WgcFrameSource, has_rate_setting, windows_build
@@ -554,6 +554,7 @@ def _check_for_updates(smoke_test: bool) -> None:
         config.update_check,
         busy=lambda: runtime.matches is not None and runtime.matches.running,
         cache=paths.data_dir() / "releases.json",
+        test_versions=config.test_versions,
     )
     if not smoke_test:
         app.on_startup(runtime.updates.start)

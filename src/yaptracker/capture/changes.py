@@ -56,7 +56,7 @@ def text_mask(image: np.ndarray, scale: float | None = None) -> np.ndarray:
 class ChangeDetector:
     """Compares each frame's text mask with the last frame that went to OCR.
 
-    New text must still be there one frame later (0.25 s at 4 fps) before it counts: chat lines
+    New text must still be there one frame later (0.5 s at 2 fps) before it counts: chat lines
     stand still for seconds, animated scenery and camera moves don't.
     """
 
