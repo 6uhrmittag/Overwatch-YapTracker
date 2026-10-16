@@ -508,3 +508,15 @@ async def test_a_nearly_full_disk_is_said_in_live(user: User, monkeypatch, tmp_p
         await asyncio.sleep(0.1)
     assert "yt-hidden" not in banner.classes
     await user.should_see("Disk almost full: debug samples paused")
+
+
+async def test_live_says_when_it_reads_chat_from_the_last_session(user: User, monkeypatch):
+    from types import SimpleNamespace
+
+    from yaptracker import runtime
+
+    later = SimpleNamespace(restored=lambda: 3)  # kept at the last quit, read now (#474)
+    reader = SimpleNamespace(later=later, tidy_frames=[], tidied=None, wants_reread=lambda: False)
+    monkeypatch.setattr(runtime, "reader", reader)
+    await user.open("/")
+    await user.should_see("Reading 3 chat pictures from your last session.")

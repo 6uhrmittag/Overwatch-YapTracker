@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Chat kept at quit is read, however long you were away (#474)
+- When YapTracker was closed before it finished reading a match "after the match", it reads that chat at the next start, also days later, into the match it came from. Live says "Reading N chat pictures from your last session" while it does.
+
 ### 2026-10-16 · Lighter on your PC in matches (#115)
 - In a match YapTracker now looks at the game 2 times a second instead of 4, like between matches. A chat line stays on screen for about 9 seconds, so it is still seen many times; the copying of the game picture costs about half as much.
 
