@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Spicy marks stay put (#460)
+- A line you marked spicy keeps its mark when YapTracker reads it again or tidies up after the match, so the heads-up when that player is back really comes. Overwatch's own report mark stays too.
+
 ### 2026-10-16 · The evening's CPU number is the real average (#476)
 - Settings → About: an evening's "whole app … of a core" is now the average over the whole evening, not only of the minutes while chat was being read, so it's lower and fairer (one of Void's evenings: 18 % instead of 37 %). Evenings already listed keep their old number.
 - README → Known limits: what to do on Windows 10 or an older CPU, and what YapTracker costs between matches.
