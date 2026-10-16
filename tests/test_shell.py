@@ -24,9 +24,10 @@ def _set_up_already():
 
 
 def first_start():
-    from yaptracker import paths
+    from yaptracker import config, paths
 
     paths.config_file().unlink()
+    config.forget()
 
 
 async def test_opens_on_live(user: User):
