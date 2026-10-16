@@ -21,7 +21,8 @@ GLYPH = "\u25c7"  # ◇
 
 BRIGHT_MAP = 170  # brightness (0-255) of what's around the blob: above it, the map is bright
 # A coloured emoji sits inside the line like a letter; scenery behind the line's end (a red
-# hand, a green wall, a pink stroke on Void's 2026-10-16 evening) fills the row top to bottom.
+# hand, a green wall, a pink stroke on Void's 2026-10-16 evening) fills the row and runs out of
+# it at the top or bottom. Only after the last word: between words, text covers the map.
 SCENERY_HEIGHT = 0.9
 
 
@@ -41,8 +42,9 @@ def _blob(
     if count < 2:
         return False
     i = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
-    x, _, w, h, area = stats[i]
-    tall = h >= SCENERY_HEIGHT * region.shape[0]  # as tall as the whole row: scenery (#475)
+    x, y, w, h, area = stats[i]
+    rows = region.shape[0]  # scenery behind the line's end: fills the row and runs out of it
+    tall = after and h >= SCENERY_HEIGHT * rows and (y == 0 or y + h >= rows)  # (#475)
     if not (0.5 * height <= w <= 2.0 * height and h >= 0.5 * height and x <= 0.8 * height):
         return False
     if area < 0.2 * height * height:
