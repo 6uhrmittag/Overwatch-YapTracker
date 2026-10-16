@@ -5,8 +5,8 @@ one GET of the repo's release list, nothing sent but the request. On by default,
 Settings -> About. Never during a match: it waits until the match is over. Offline or rate
 limited: one log line, the next try a day later. Stable releases only, unless "Get test
 versions" is on (#454), or no stable release exists yet (before v1.0.0 every build was a
-pre-release). A stable release is a promoted pre-release, the same build: its notes say "Same
-build as v1.1.0-pre.512", and that build counts as up to date with it.
+pre-release). A stable release is a promoted pre-release, the same build: the promote workflow
+writes "Same build as v1.1.0-pre.512" in its notes, and that build counts as up to date with it.
 
 Update now runs the update.ps1 bundled with the app (the same script as by hand): from %TEMP%,
 since the app folder is replaced, in its own console with the download bar. YapTracker quits;
@@ -279,13 +279,14 @@ def _quoted(path: Path) -> str:
     return "'" + str(path).replace("'", "''") + "'"
 
 
-def update_command(script: Path, root: Path) -> list[str]:
+def update_command(script: Path, root: Path, test_versions: bool = False) -> list[str]:
     """PowerShell running update.ps1, and afterwards making sure YapTracker runs again: also when
     the script stops early (already the newest) or fails (offline: the old app stays, the console
-    stays open so the reason can be read)."""
+    stays open so the reason can be read). test_versions: the same choice as the check (#454)."""
     exe = _quoted(root / "app" / "YapTracker.exe")
+    pre = " -PreRelease" if test_versions else ""
     code = (
-        f"try {{ & {_quoted(script)} -InstallRoot {_quoted(root)} }} catch {{ "
+        f"try {{ & {_quoted(script)} -InstallRoot {_quoted(root)}{pre} }} catch {{ "
         "Write-Host $_ -ForegroundColor Red; "
         "Read-Host 'The update failed, YapTracker stays as it was. Press Enter to start it' }; "
         "if (-not (Get-Process YapTracker -ErrorAction SilentlyContinue)) "
@@ -304,7 +305,7 @@ def cannot_update_now() -> str | None:
     return None
 
 
-def start_update(newest: str | None) -> None:
+def start_update(newest: str | None, test_versions: bool = False) -> None:
     """Start update.ps1 in its own console; the caller quits YapTracker next. Raises when it
     can't start (then YapTracker just keeps running)."""
     script, root = bundled_script(), install_root()
@@ -312,6 +313,6 @@ def start_update(newest: str | None) -> None:
         raise RuntimeError(cannot_update_now())
     copy = Path(tempfile.gettempdir()) / "YapTracker-update.ps1"
     shutil.copyfile(script, copy)
-    subprocess.Popen(update_command(copy, root), cwd=tempfile.gettempdir(),
+    subprocess.Popen(update_command(copy, root, test_versions), cwd=tempfile.gettempdir(),
                      creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0))  # fmt: skip
     log.info("update: Update now to %s, update.ps1 started for %s, quitting", newest, root)

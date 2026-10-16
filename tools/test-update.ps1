@@ -88,6 +88,7 @@ Expect (Tags (Select-Releases -Releases $afterV1 -PreRelease)) `
 if (-not (Test-SameBuild $afterV1[0] 'v1.0.0-pre.519')) { throw 'v1.0.0 is the same build as v1.0.0-pre.519' }
 if (Test-SameBuild $afterV1[0] 'v1.0.0-pre.518') { throw 'v1.0.0-pre.518 is an older build' }
 if (Test-SameBuild $afterV1[0] '') { throw 'nothing installed is never the same build' }
+if ((Get-VersionKey 'v1.1.0-pre.521') -le (Get-VersionKey 'v1.0.0')) { throw 'a test version of 1.1.0 is newer than 1.0.0' }
 
 Write-Host "Bar lines and release choice OK on PowerShell $($PSVersionTable.PSVersion)"
 

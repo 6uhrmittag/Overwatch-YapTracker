@@ -120,7 +120,7 @@ def update_now_button() -> Callable[[], None]:
             updates.save_notes(paths.data_dir() / "whats_new.json", check.installed, newest,
                                check.found.notes)  # fmt: skip
         try:
-            updates.start_update(newest)
+            updates.start_update(newest, config.test_versions())
         except Exception as error:  # nothing started: YapTracker keeps running
             said.set_text(f"Couldn't start the update: {error}")
             return

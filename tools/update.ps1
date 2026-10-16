@@ -218,8 +218,8 @@ function Test-SameBuild {
     # "Same build as v1.1.0-pre.512". Installed that one: nothing new to get.
     param([object]$Release, [string]$Installed)
     if (-not $Installed) { return $false }
-    if ("$($Release.body)" -notmatch 'Same build as (v\d+\.\d+\.\d+(-pre\.\d+)?)') { return $false }
-    return $Matches[1] -eq $Installed
+    if ("$($Release.body)" -notmatch 'Same build as v?(\d+\.\d+\.\d+(-pre\.\d+)?)') { return $false }
+    return $Matches[1] -eq ($Installed -replace '^v', '')
 }
 
 function Stop-YapTracker {
@@ -275,6 +275,12 @@ if ($replaced) {  # outside the try: if the new one fails, this one must not run
 $installed = if (Test-Path $ReleaseFile) { (Get-Content $ReleaseFile -Raw).Trim() } else { '' }
 if (($installed -eq $release.tag_name -or (Test-SameBuild $release $installed)) -and -not $Force) {
     Write-Host "YapTracker $installed is already the newest version."
+    exit 0
+}
+$installedKey = Get-VersionKey $installed
+if ($null -ne $installedKey -and $installedKey -gt (Get-VersionKey $release.tag_name) -and -not $Force) {
+    # A test version newer than the newest stable release: never step back by itself (#454).
+    Write-Host "YapTracker $installed is newer than the newest stable release ($($release.tag_name)). Test versions: update.ps1 -PreRelease"
     exit 0
 }
 

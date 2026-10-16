@@ -187,7 +187,9 @@ def test_update_now_copies_the_script_to_temp_and_starts_it(monkeypatch, tmp_pat
     assert copy.read_text(encoding="ascii") == "param($InstallRoot)"
     (cmd,) = started
     assert cmd[:2] == ["powershell.exe", "-NoProfile"]
-    assert f"& '{copy}' -InstallRoot '/x/O''Brien/YapTracker'" in cmd[-1]  # quoted for PowerShell
+    assert f"& '{copy}' -InstallRoot '/x/O''Brien/YapTracker' }}" in cmd[-1]  # quoted, stable
+    updates.start_update("v1.1.0-pre.520", test_versions=True)  # the switch goes along (#454)
+    assert "-InstallRoot '/x/O''Brien/YapTracker' -PreRelease }" in started[-1][-1]
     assert "Start-Process '/x/O''Brien/YapTracker/app/YapTracker.exe'" in cmd[-1]
 
 
@@ -207,7 +209,7 @@ async def test_update_now_works_any_time_and_says_why_it_cant(user: User, monkey
     assert "Only in the installed YapTracker" in button.props["title"]  # this is a source run
     calls = []
     monkeypatch.setattr(updates, "cannot_update_now", lambda: None)
-    monkeypatch.setattr(updates, "start_update", lambda newest: calls.append(newest))
+    monkeypatch.setattr(updates, "start_update", lambda newest, test: calls.append(newest))
     monkeypatch.setattr(ui_updates, "quit_app", lambda: calls.append("quit"))
     monkeypatch.setattr(runtime, "matches", SimpleNamespace(running=True))  # a match runs
     await asyncio.sleep(1.2)  # the button looks again every second
