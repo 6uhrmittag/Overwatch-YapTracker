@@ -75,7 +75,7 @@ def test_a_setting_refused_anyway_means_none_at_all(fake_wgc, monkeypatch):
     assert len(wgc.CAPTURE.cannot) == 3
 
 
-def test_frames_faster_than_4_fps_are_let_go_untouched(fake_wgc, monkeypatch):
+def test_frames_faster_than_2_fps_are_let_go_untouched(fake_wgc, monkeypatch):
     monkeypatch.setattr(wgc, "windows_build", lambda: 19045)
     used = []
     source = wgc.WgcFrameSource(1, lambda w, h: used.append(1) or Region(0, 0, 8, 8))
@@ -85,9 +85,9 @@ def test_frames_faster_than_4_fps_are_let_go_untouched(fake_wgc, monkeypatch):
     for _ in range(200):  # 2 s of a game at 100 fps
         arrived(Frame(), None)
         clock["now"] += 0.01
-    # every 230 ms (the gate is 0.9 x 250 ms, so Windows' own 4 fps pass); the other 191 never
-    # had their buffer read
-    assert len(used) == 9 and wgc.CAPTURE._minute_skipped == 191
+    # every 450 ms (the gate is 0.9 x 500 ms, so Windows' own 2 fps pass, #115); the other 195
+    # never had their buffer read
+    assert len(used) == 5 and wgc.CAPTURE._minute_skipped == 195
     source.close()
 
 
@@ -122,7 +122,7 @@ def test_skipped_frames_count_in_the_rate_not_in_the_cost(caplog):
             else:
                 capture.frame(0.002)
     (line,) = [r.getMessage() for r in caplog.records]
-    assert line == ("capture: 100.0 frames/s from Windows (asked for 4), 2.0 ms per frame here, "
+    assert line == ("capture: 100.0 frames/s from Windows (asked for 2), 2.0 ms per frame here, "
                     "96.0/s of them skipped")  # fmt: skip
 
 
@@ -145,5 +145,5 @@ def test_the_log_line_names_gdi(caplog):
             capture.frame(0.001)
     (line,) = [r.getMessage() for r in caplog.records]
     assert (
-        line == "capture: 4.0 frames/s by GDI, chat box only (asked for 4), 1.0 ms per frame here"
+        line == "capture: 4.0 frames/s by GDI, chat box only (asked for 2), 1.0 ms per frame here"
     )
