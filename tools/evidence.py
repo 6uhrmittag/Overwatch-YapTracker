@@ -33,10 +33,9 @@ MODE = re.compile(_TIME + r"reading: (best|light|after) \(")
 EVENING = re.compile(_TIME + r"(evening \d{4}-\d\d-\d\d: .*)")
 ROUND = re.compile(_TIME + r"match (\d+): round (\d+)")
 TIDIED = re.compile(_TIME + r"(tidied match \d+: .*?removed)")
-ERRORS = {  # what a line says -> its name in the report; tracebacks count on their last line
-    "config busy (#451)": re.compile(
-        r"PermissionError.*config\.(json|tmp)|settings: couldn't save"
-    ),
+ERRORS = {  # what a line says -> its name in the report; a traceback counts by its error line
+    "config busy (#451)": re.compile(r"PermissionError.*config\.(json|tmp)"),
+    "settings not saved (#451)": re.compile(r"settings: couldn't save"),  # once per failing run
     "reading the chat failed (#452)": re.compile(r"reading the chat failed"),
 }
 SHARE = re.compile(r"(.+?) ([\d.]+) %(?:, |$)")  # "capture watcher 9.8 %, pywebview-js 1.0 %"
@@ -109,8 +108,8 @@ def _version_key(version: str) -> tuple:
 
 def scan(lines: list[str]) -> dict:
     """Everything the log says, per evening: versions, CPU, in-match threads, FPS by version,
-    reading mode and state. The version of a line is the last one logged before it; the mode
-    is in the FPS line itself (#444), in older logs the last `reading:` line before it."""
+    reading mode and state, errors. The version of a line is the last one logged before it; the
+    mode is in the FPS line itself (#444), in older logs the last `reading:` line before it."""
     found: dict = {"versions": defaultdict(set), "cpu": defaultdict(list),
                    "capture": defaultdict(set), "threads": defaultdict(Counter),
                    "thread_minutes": Counter(), "fps": defaultdict(list), "evenings": [],

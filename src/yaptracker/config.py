@@ -52,8 +52,10 @@ def _load(path: Path) -> dict:
 
 def forget() -> None:
     """Read the files from disk again next time, e.g. after a test wrote one by hand."""
+    global _save_failing
     with _lock:
         _cache.clear()
+        _save_failing = False
 
 
 on_save: list[Callable[[], None]] = []  # after every save, e.g. the settings line in the log (#214)
@@ -61,6 +63,8 @@ on_save: list[Callable[[], None]] = []  # after every save, e.g. the settings li
 
 def _write(path: Path) -> None:
     with _lock:
+        if path not in _cache:  # forgotten meanwhile (tests)
+            return
         data = copy.deepcopy(_cache[path])  # the newest state, also when saves overlap
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
