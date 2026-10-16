@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · A broken settings file no longer stops YapTracker (#456)
+- If the settings file got broken (a power cut or a full disk while it was saved), YapTracker starts with the default settings, keeps the old file in the data folder and says so once in Live.
+- Settings are now fully on disk before they replace the old file, so a power cut leaves the old or the new settings, never a broken file.
+
 ### 2026-10-16 · Lighter on your PC in matches (#115)
 - In a match YapTracker now looks at the game 2 times a second instead of 4, like between matches. A chat line stays on screen for about 9 seconds, so it is still seen many times; the copying of the game picture costs about half as much.
 
