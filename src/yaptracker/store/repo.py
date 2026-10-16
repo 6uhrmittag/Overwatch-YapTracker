@@ -836,6 +836,20 @@ class Store:
     def close_gap(self, gap_id: int, ts: float) -> None:
         self._write("UPDATE capture_gaps SET ended_at = ? WHERE id = ?", (ts, gap_id))
 
+    def close_open_gaps(self) -> int:
+        """At start, before capture (#463): a gap still open is from a run that was killed (a pause
+        or broken capture at shutdown, a power cut). It ends at the last thing recorded after it
+        began, else where it began: open, it overlapped every later match. Returns how many."""
+        last = (
+            "MAX(started_at, COALESCE((SELECT MAX(ts) FROM chat_messages), 0), "
+            "COALESCE((SELECT MAX(COALESCE(ended_at, started_at)) FROM matches), 0), "
+            "COALESCE((SELECT MAX(COALESCE(ended_at, started_at)) FROM sessions), 0))"
+        )
+        rows = self._read("SELECT COUNT(*) FROM capture_gaps WHERE ended_at IS NULL")
+        if rows[0][0]:
+            self._write(f"UPDATE capture_gaps SET ended_at = {last} WHERE ended_at IS NULL")
+        return rows[0][0]
+
     def gaps_between(self, start: float, end: float) -> list[tuple[float, float | None, str]]:
         """(started, ended, reason) of every gap overlapping (start, end); None = still open.
         Touching doesn't count: a pause that ends as the next match starts left no hole in it."""
