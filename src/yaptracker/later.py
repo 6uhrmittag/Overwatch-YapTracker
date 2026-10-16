@@ -9,7 +9,8 @@ match, and a match's first and last frame always stay (#356): with back-to-back 
 together under the one cap, both stay readable.
 
 Quitting normally with frames unread writes them to data/unread/ as they are (raw, nothing to
-encode), and the next start reads them first (#349). Nothing is written to disk during a match
+encode), and the next start reads them first (#349), however long ago that was (#474): they
+carry their time and match. Nothing is written to disk during a match
 but a tiny note: a crash loses the frames, and the note's time span becomes a gap record
 ('deferred_lost', #75) at the next start: never a silent hole.
 """
@@ -30,7 +31,6 @@ log = logging.getLogger(__name__)
 
 CAP_BYTES = 150 * 1024 * 1024  # ~200 chat boxes at 1440p, ~90 at 4K
 NOTE_EVERY_S = 10.0  # how often the waiting span is written down (a crash loses at most this)
-KEEP_S = 2 * 24 * 3600  # frames saved at quit older than this aren't read any more (#349)
 INDEX = "index.json"  # written last: a folder without it was cut off mid-write
 
 
@@ -51,6 +51,7 @@ class Kept:
     image: np.ndarray
     match_id: int | None
     mode: str  # how it's read: 'after' frames with the best quality, others as they were seen
+    restored: bool = False  # kept at the last quit, read at this start (#474)
 
 
 class LaterFrames:
@@ -140,15 +141,16 @@ class LaterFrames:
         return None
 
     def restore(self, now: float | None = None) -> tuple[float, float] | None:
-        """At start: frames kept by the last quit wait to be read again, first of all. Older
-        than KEEP_S: dropped, and their span returned for a gap record. The folder goes."""
+        """At start: frames kept by the last quit wait to be read again, first of all, however
+        old (#474). Only the memory cap drops any: the oldest first, and their span is returned
+        for a gap record. The folder goes."""
         if self._unread is None or not self._unread.exists():
             return None
         now = time.time() if now is None else now
         try:
             index = json.loads((self._unread / INDEX).read_text(encoding="utf-8"))
             frames = [Kept(e["since"], e["ts"], np.load(self._unread / e["file"]), e["match"],
-                           e["mode"]) for e in index]  # fmt: skip
+                           e["mode"], restored=True) for e in index]  # fmt: skip
         except (OSError, ValueError, KeyError, TypeError) as error:
             log.warning("the chat frames kept at the last quit can't be read: %s", error)
             frames = []
@@ -156,18 +158,32 @@ class LaterFrames:
             shutil.rmtree(self._unread, ignore_errors=True)
         if not frames:
             return None
+        lost, size = None, sum(k.image.nbytes for k in frames)
+        while frames and size > self._cap:  # oldest first: what's left reads as a whole
+            size -= frames[0].image.nbytes
+            gone = frames.pop(0)
+            lost = (lost[0] if lost else gone.ts, gone.ts)
+        if lost:
+            log.warning(
+                "chat frames kept at the last quit over the memory cap: %s to %s dropped",
+                *(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t)) for t in lost),
+            )
+        if not frames:
+            return lost
         span = (frames[0].ts, frames[-1].ts)
-        if now - span[1] > KEEP_S:
-            log.warning("chat frames kept at the last quit are too old to read: %d dropped",
-                        len(frames))  # fmt: skip
-            return span
         with self._lock:
             self._frames = frames + self._frames
             self._bytes += sum(k.image.nbytes for k in frames)
             self._noted_at = now
         self._write_note(*span)  # a crash while reading them: still a gap, not a hole
-        log.info("%d chat frames kept at the last quit wait to be read", len(frames))
-        return None
+        log.info("%d chat frames kept at the last quit wait to be read (from %s)", len(frames),
+                 time.strftime("%Y-%m-%d %H:%M", time.localtime(span[0])))  # fmt: skip
+        return lost
+
+    def restored(self) -> int:
+        """Frames from the last session still to read, for Live (#474)."""
+        with self._lock:
+            return sum(1 for kept in self._frames if kept.restored)
 
     def take_counts(self) -> tuple[int, Counter]:
         """(frames kept, {match: frames dropped for the cap}) since the last call."""
