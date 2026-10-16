@@ -101,9 +101,17 @@ def test_a_stable_release_gathers_its_test_versions_and_names_its_build():
 
 def test_the_first_stable_release_takes_every_v0_build_before_it(tmp_path):
     releases = [rel("v0.5.513", "Later."), rel("v0.5.512", "Ready."), rel("v0.5.400", "Early.")]
-    (tmp_path / "releases.json").write_text(json.dumps(releases), encoding="utf-8")
+    pages = [releases[:2], releases[2:]]  # gh api --paginate --slurp
+    (tmp_path / "releases.json").write_text(json.dumps(pages), encoding="utf-8")
     out = subprocess.run([sys.executable, str(SCRIPT), "--stable", "1.0.0", "--from", "v0.5.512",
                           "--releases", str(tmp_path / "releases.json"), "--repo", "o/r"],
                          capture_output=True, text=True, check=True).stdout  # fmt: skip
     assert "- Ready.\n- Early.\n" in out and "Later." not in out
     assert out.rstrip().endswith("Same build as v0.5.512")
+
+
+def test_a_long_stretch_of_test_versions_is_capped():
+    releases = [rel(f"v0.5.{n}", f"Change {n}.") for n in range(40, 0, -1)]
+    text = release_notes.stable_notes(releases, "v0.5.40", "1.0.0", "o/r")
+    assert "- Change 40.\n" in text and "- Change 25.\n" not in text
+    assert "- ... and 25 more ([all notes](https://github.com/o/r/blob/main/CHANGELOG.md))" in text

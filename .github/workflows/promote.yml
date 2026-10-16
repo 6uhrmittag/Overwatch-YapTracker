@@ -48,7 +48,8 @@ jobs:
           if [ "$(gh release view "$PRE" -R "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)" != "true" ]; then
             echo "::error::$PRE is not a pre-release"; exit 1
           fi
-          if gh release view "v$VERSION" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+          if gh release view "v$VERSION" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1 \
+             || gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" > /dev/null 2>&1; then
             if [ "$DRY_RUN" = "true" ]; then echo "::warning::v$VERSION exists already"; else echo "::error::v$VERSION exists already"; exit 1; fi
           fi
           echo "Promoting $PRE to v$VERSION (dry run: $DRY_RUN)"
@@ -60,7 +61,7 @@ jobs:
           sha256sum "$zip" "YapTracker-$VERSION-win64.zip"  # the same bytes
       - name: Notes (every test version since the last stable release)
         run: |
-          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > releases.json
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > releases.json
           python3 tools/release_notes.py --stable "$VERSION" --from "$PRE" --releases releases.json \
             --repo "$GITHUB_REPOSITORY" > notes.md
           cat notes.md

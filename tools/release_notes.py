@@ -23,6 +23,7 @@ from pathlib import Path
 _SECTION = re.compile(r"^##\s+What you can see now\s*$(.*?)(?=^##\s|\Z)", re.M | re.S)
 _COMMENT = re.compile(r"<!--.*?-->", re.S)
 UPDATE = "Update: run `tools/update.ps1`, your data stays where it is."
+STABLE_CAP = 15  # bullets in a stable release's notes, like What's new in the app
 
 
 def whats_new(body: str | None) -> str:
@@ -81,6 +82,11 @@ def stable_notes(releases: list[dict], build: str, stable: str, repo: str) -> st
                 behind += 1
             elif line not in bullets:
                 bullets.append(line)
+    more = len(bullets) - STABLE_CAP
+    bullets = bullets[:STABLE_CAP]
+    if more > 0:
+        bullets.append(f"- ... and {more} more ([all notes](https://github.com/{repo}/blob/main/"
+                       "CHANGELOG.md))")  # fmt: skip
     if behind:
         bullets.append(f"- (+ {behind} behind-the-scenes change{'s' if behind != 1 else ''})")
     lines = ["### What's new", *(bullets or ["- Behind the scenes: small fixes."]), "", UPDATE, ""]
@@ -105,6 +111,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.stable:
         releases = json.loads(Path(args.releases).read_text(encoding="utf-8"))
+        if releases and isinstance(releases[0], list):  # gh api --paginate --slurp: one per page
+            releases = [release for page in releases for release in page]
         print(stable_notes(releases, args.build, args.stable, args.repo), end="")
         return
     # A commit without a PR: gh prints an empty line for `.[0] // null` (#398).
