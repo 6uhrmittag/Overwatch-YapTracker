@@ -260,7 +260,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         if runtime.watcher is not None:
             runtime.watcher.reopen()
 
-    rate = CaptureRate(match_running, reopen)  # 2 frames a second between matches (#350)
+    rate = CaptureRate(match_running, reopen)  # 2 frames a second, in and between (#350, #115)
 
     def open_source(hwnd: int):
         from yaptracker.capture.wgc import WgcFrameSource, has_rate_setting, windows_build
@@ -378,6 +378,7 @@ def _open_store() -> Callable[[], None]:
     from yaptracker import later
     from yaptracker.capture.health import CaptureHealth
     from yaptracker.cleanups import (
+        close_open_gaps,
         normalise_places_once,
         remove_empty_lines_once,
         remove_input_hints_once,
@@ -416,6 +417,7 @@ def _open_store() -> Callable[[], None]:
             log.error("%s", error)
             runtime.data_too_new = str(error)
             return
+        close_open_gaps(runtime.store)  # killed while paused: it overlapped every match (#463)
         try:  # one match per real match, also for matches split before (#371, #377)
             merge_split_matches(
                 runtime.store,
