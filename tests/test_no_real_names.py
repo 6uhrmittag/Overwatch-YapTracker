@@ -27,7 +27,9 @@ def game_words() -> set[str]:
     a player who calls themselves "Green" can't be told apart from "Workshop Green Screen", so
     those names aren't checked. The file's other text (source, URL) doesn't count."""
     lists = json.loads(GAME_LISTS.read_text(encoding="utf-8"))
-    entries = [*lists["heroes"], *lists["maps"], *lists["queues"], *lists["map_types"].values()]
+    types = [t for value in lists["map_types"].values() for t in (value if isinstance(value, list)
+                                                                  else [value])]  # fmt: skip
+    entries = [*lists["heroes"], *lists["maps"], *lists["queues"], *types]
     return {w.casefold() for entry in entries for w in re.findall(r"[^\W\d_]+", entry)}
 
 
