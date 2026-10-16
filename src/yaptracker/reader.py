@@ -127,6 +127,7 @@ class ChatReader:
         self.busy = False  # the last minute was above the CPU goal: read less often (#249)
         self._no_chat = 0  # reads in a row without a chat line (#115)
         self.failing = 0  # reads in a row that failed (#457); Live says so from FAIL_LIMIT on
+        self._failing_since = 0.0
         self._failing_gap: int | None = None
 
     def offer(self, image: np.ndarray, mode: str | None = None) -> None:
@@ -210,25 +211,36 @@ class ChatReader:
                     log.exception("tidying up the chat failed")
                 continue
             self._last_read = time.monotonic()
+            live = kept is None  # kept frames carry old times: only live reads count (#457)
+            paused = live and self._paused()  # read_frame skips it: not a good read either
             try:
                 self.read_frame(ts, image, kept)
             except Exception as error:  # logged with traceback; the next frame is tried as usual
                 side_work.failed("reading the chat", error, then="the next frame is read")
-                self._failed_read(ts)
+                self._failed_read(ts, live)
             else:
-                self._read_ok(ts)
+                if live and not paused:
+                    self._read_ok(ts)
             if kept is not None:
                 self._kept_read(kept)
 
-    def _failed_read(self, ts: float) -> None:
-        """Reads failing in a row (#457): after FAIL_LIMIT a crash gap opens and Live says so."""
-        self.failing += 1
+    def _failed_read(self, ts: float, live: bool = True) -> None:
+        """Live reads failing in a row (#457): from FAIL_LIMIT on a crash gap is open (from the
+        first of them) and Live says so."""
         try:
             self._matches.chat_changed(ts)  # new text was there: the match still counts it
-            if self.failing == FAIL_LIMIT and self._failing_gap is None:
-                self._failing_gap = self._store.open_gap(ts, "crash")
         except Exception as error:  # the store itself may be what fails
             side_work.failed("recording a failed read", error, then="it goes on")
+        if not live:
+            return
+        self.failing += 1
+        if self.failing == 1:
+            self._failing_since = ts
+        if self.failing >= FAIL_LIMIT and self._failing_gap is None:
+            try:  # tried again with every failure until the store takes it
+                self._failing_gap = self._store.open_gap(self._failing_since, "crash")
+            except Exception as error:
+                side_work.failed("opening the gap of failed reads", error, then="it goes on")
 
     def _read_ok(self, ts: float) -> None:
         if self._failing_gap is not None:

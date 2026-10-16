@@ -74,8 +74,28 @@ def test_reads_failing_in_a_row_open_a_gap_and_a_good_read_closes_it(store):
             reader.read_frame(1000.0 + n, FRAME)
         except RuntimeError:
             reader._failed_read(1000.0 + n)  # what the thread does
-    assert reader.failing == FAIL_LIMIT and store.all_gaps() == [(1004.0, None, "crash")]
+    assert reader.failing == FAIL_LIMIT and store.all_gaps() == [(1000.0, None, "crash")]
     ok["now"] = True
     reader.read_frame(1010.0, FRAME)
     reader._read_ok(1010.0)
-    assert reader.failing == 0 and store.all_gaps() == [(1004.0, 1010.0, "crash")]
+    assert reader.failing == 0 and store.all_gaps() == [(1000.0, 1010.0, "crash")]
+
+
+def test_the_gap_still_opens_when_the_store_failed_at_the_limit(store, monkeypatch):
+    tracker = MatchTracker(store, Pause())
+    reader = ChatReader(lambda image: LINE, store, tracker)
+    real_open = store.open_gap
+    calls = []
+
+    def flaky(ts, reason):
+        calls.append(ts)
+        if len(calls) == 1:
+            raise sqlite3.OperationalError("database is locked")
+        return real_open(ts, reason)
+
+    monkeypatch.setattr(store, "open_gap", flaky)
+    for n in range(FAIL_LIMIT + 1):
+        reader._failed_read(2000.0 + n)
+    assert store.all_gaps() == [(2000.0, None, "crash")]  # the 6th failure opened it
+    reader._failed_read(1.0, live=False)  # an old kept frame doesn't count
+    assert reader.failing == FAIL_LIMIT + 1
