@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Spicy marks stay put (#460)
+- A line you marked spicy keeps its mark when YapTracker reads it again or tidies up after the match, so the heads-up when that player is back really comes. Overwatch's own report mark stays too.
+
 ### 2026-10-16 · Stable releases, test versions if you want them (#454)
 - Settings → About has a new switch, "Get test versions (pre-releases)": off means you get stable releases only. Until the first stable release (v1.0.0) is out, every new build still reaches you.
 - `update.ps1` installs the newest stable release; `update.ps1 -PreRelease` installs the newest test version.
