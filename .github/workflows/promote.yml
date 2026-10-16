@@ -1,0 +1,78 @@
+name: Promote pre-release to stable
+# A stable release is a tested pre-release published again as it is (#454): the same zip, the
+# same build, no rebuild, no release branch. Promoting is Marv's call (CLAUDE.md -> Release
+# policy). Dry run by default: it shows the zip, the notes and the command, and publishes nothing.
+# A PR that changes this file or the notes script runs it as a dry run on the newest pre-release.
+on:
+  workflow_dispatch:
+    inputs:
+      pre_release:
+        description: "The tested pre-release, e.g. v0.5.512 or v1.1.0-pre.512"
+        required: true
+      version:
+        description: "The stable version it becomes, e.g. 1.0.0"
+        required: true
+      dry_run:
+        description: "Only show what would be published"
+        type: boolean
+        default: true
+  pull_request:
+    paths: [.github/workflows/promote.yml, tools/release_notes.py]
+
+concurrency:
+  group: promote
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    name: Promote ${{ inputs.pre_release || 'the newest pre-release' }} to v${{ inputs.version || '1.0.0' }}${{ (github.event_name == 'pull_request' || inputs.dry_run) && ' (dry run)' || '' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRE: ${{ inputs.pre_release }}
+      VERSION: ${{ inputs.version || '1.0.0' }}
+      DRY_RUN: ${{ github.event_name == 'pull_request' || inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check what to promote
+        run: |
+          if [ -z "$PRE" ]; then  # a PR's dry run: the newest pre-release
+            PRE=$(gh release list -R "$GITHUB_REPOSITORY" --limit 20 --json tagName,isPrerelease \
+              --jq '[.[] | select(.isPrerelease)][0].tagName')
+            echo "PRE=$PRE" >> "$GITHUB_ENV"
+          fi
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version must look like 1.0.0, got '$VERSION'"; exit 1; }
+          if [ "$(gh release view "$PRE" -R "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)" != "true" ]; then
+            echo "::error::$PRE is not a pre-release"; exit 1
+          fi
+          if gh release view "v$VERSION" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1 \
+             || gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" > /dev/null 2>&1; then
+            if [ "$DRY_RUN" = "true" ]; then echo "::warning::v$VERSION exists already"; else echo "::error::v$VERSION exists already"; exit 1; fi
+          fi
+          echo "Promoting $PRE to v$VERSION (dry run: $DRY_RUN)"
+      - name: The same zip, under the stable name
+        run: |
+          gh release download "$PRE" -R "$GITHUB_REPOSITORY" -p 'YapTracker-*-win64.zip' -D pre
+          zip=$(ls pre/YapTracker-*-win64.zip)
+          cp "$zip" "YapTracker-$VERSION-win64.zip"
+          sha256sum "$zip" "YapTracker-$VERSION-win64.zip"  # the same bytes
+      - name: Notes (every test version since the last stable release)
+        run: |
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > releases.json
+          python3 tools/release_notes.py --stable "$VERSION" --from "$PRE" --releases releases.json \
+            --repo "$GITHUB_REPOSITORY" > notes.md
+          cat notes.md
+      - name: Publish
+        run: |
+          commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/$PRE" --jq .sha)
+          cmd=(gh release create "v$VERSION" "YapTracker-$VERSION-win64.zip" -R "$GITHUB_REPOSITORY"
+               --target "$commit" --title "YapTracker $VERSION" --notes-file notes.md --latest)
+          echo "${cmd[*]}"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run: nothing published."
+          else
+            "${cmd[@]}"
+          fi

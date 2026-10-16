@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 
 class CaptureStats:
-    def __init__(self, asked_fps: float = 4.0, clock: Callable[[], float] = time.monotonic,
+    def __init__(self, asked_fps: float = 2.0, clock: Callable[[], float] = time.monotonic,
                  log_every_s: float = 60.0) -> None:  # fmt: skip
         self.asked_fps, self._clock, self._log_every_s = asked_fps, clock, log_every_s
         self._lock = threading.Lock()
