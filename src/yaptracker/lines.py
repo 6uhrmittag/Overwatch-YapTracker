@@ -15,6 +15,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from yaptracker import images
 from yaptracker.capture.source import Region
 from yaptracker.sizes import FolderSizes
 
@@ -58,9 +59,11 @@ class LinePictures:
         target.parent.mkdir(parents=True, exist_ok=True)
         # Next to it first: a full disk leaves no broken picture, nor kills an older good one (#452)
         part = target.with_name(f"{target.stem}.part.webp")
-        if not cv2.imwrite(str(part), crop, [cv2.IMWRITE_WEBP_QUALITY, 101]):  # > 100: lossless
+        try:
+            images.write(part, crop, [cv2.IMWRITE_WEBP_QUALITY, 101])  # > 100: lossless
+        except OSError:
             part.unlink(missing_ok=True)
-            raise OSError(f"couldn't write {target.name}")
+            raise
         part.replace(target)
         self.sizes.set(target, target.stat().st_size)  # over an older one: only the difference
         total = self.sizes.total()

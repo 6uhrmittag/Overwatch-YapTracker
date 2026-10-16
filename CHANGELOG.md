@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Line pictures for every Windows user name (#459)
+- Line pictures, Read again and debug samples now also work when your Windows user name has letters like ü, ö or ß in it.
+
 ### 2026-10-16 · Stable releases are promoted test versions (#454, part 2)
 - Behind the scenes: a stable release is a tested build published again as it is (workflow "Promote pre-release to stable", only when Marv says so); its notes gather everything since the last stable release. After v1.0.0, test versions are named like v1.1.0-pre.512. README explains stable vs test versions.
 
