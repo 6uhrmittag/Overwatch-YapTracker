@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · The planning chat edits issues too
+- Behind the scenes: CLAUDE.md says the planning chat also files, comments and ticks issues directly, so issue bodies are re-read right before an edit and its comments are marked _(planning chat)_.
+
 ### 2026-10-16 · A broken settings file no longer stops YapTracker (#456)
 - If the settings file got broken (a power cut or a full disk while it was saved), YapTracker starts with the default settings, keeps the old file in the data folder and says so once in Live.
 - Settings are now fully on disk before they replace the old file, so a power cut leaves the old or the new settings, never a broken file.
