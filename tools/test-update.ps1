@@ -67,5 +67,28 @@ Expect ((Get-WhatsNew -Releases $rel -Installed 'v0.4.9' -Cap 2) -join '|') `
 Expect (ConvertTo-Ascii ("Gr" + [char]0x00FC + [char]0x00DF + "e " + [char]0x201C + "hi" + [char]0x201D + " " + [char]0x2014 + " ok " + [char]0x4E2D)) `
     'Gruesse "hi" - ok ?'
 
-Write-Host "Bar lines OK on PowerShell $($PSVersionTable.PSVersion)"
+# Stable by default, test versions with -PreRelease (#454), against a fake release list.
+function Tags($list) { return (@($list) | ForEach-Object { $_.tag_name }) -join ',' }
+$beforeV1 = @(
+    [pscustomobject]@{ tag_name = 'v0.5.513'; draft = $true; prerelease = $true; body = '' },
+    [pscustomobject]@{ tag_name = 'v0.5.512'; draft = $false; prerelease = $true; body = '' },
+    [pscustomobject]@{ tag_name = 'v0.5.511'; draft = $false; prerelease = $true; body = '' }
+)
+Expect (Tags (Select-Releases -Releases $beforeV1)) 'v0.5.512,v0.5.511'  # no stable yet: test versions
+$afterV1 = @(  # GitHub lists by date: the promoted v1.0.0 came after its test versions
+    [pscustomobject]@{ tag_name = 'v1.0.0'; draft = $false; prerelease = $false; body = "- Hi`n`nSame build as v1.0.0-pre.519." },
+    [pscustomobject]@{ tag_name = 'v1.1.0-pre.521'; draft = $false; prerelease = $true; body = '' },
+    [pscustomobject]@{ tag_name = 'v1.1.0-pre.9'; draft = $false; prerelease = $true; body = '' },
+    [pscustomobject]@{ tag_name = 'v1.0.0-pre.519'; draft = $false; prerelease = $true; body = '' },
+    [pscustomobject]@{ tag_name = 'nightly'; draft = $false; prerelease = $true; body = '' }
+) + $beforeV1
+Expect (Tags (Select-Releases -Releases $afterV1)) 'v1.0.0'  # from any v0: the newest stable
+Expect (Tags (Select-Releases -Releases $afterV1 -PreRelease)) `
+    'v1.1.0-pre.521,v1.1.0-pre.9,v1.0.0,v1.0.0-pre.519,v0.5.512,v0.5.511'
+if (-not (Test-SameBuild $afterV1[0] 'v1.0.0-pre.519')) { throw 'v1.0.0 is the same build as v1.0.0-pre.519' }
+if (Test-SameBuild $afterV1[0] 'v1.0.0-pre.518') { throw 'v1.0.0-pre.518 is an older build' }
+if (Test-SameBuild $afterV1[0] '') { throw 'nothing installed is never the same build' }
+if ((Get-VersionKey 'v1.1.0-pre.521') -le (Get-VersionKey 'v1.0.0')) { throw 'a test version of 1.1.0 is newer than 1.0.0' }
+
+Write-Host "Bar lines and release choice OK on PowerShell $($PSVersionTable.PSVersion)"
 
