@@ -117,3 +117,19 @@ def test_a_save_is_on_disk_before_it_replaces_the_file(tmp_path, monkeypatch):
     monkeypatch.setattr(config.os, "fsync", lambda fd: synced.append(fd))
     config.save_show_callouts(True, tmp_path / "config.json")
     assert len(synced) == 1
+
+
+def test_a_broken_file_that_cant_be_moved_still_starts_and_never_overwrites_an_older_one(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "config.json"
+    path.write_text("{", encoding="utf-8")
+    monkeypatch.setattr(config.time, "strftime", lambda fmt: "20261016-220000")
+    (tmp_path / "config.broken-20261016-220000.json").write_text("older", encoding="utf-8")
+    assert config.update_check(path) is True  # moved aside next to the older one
+    assert (tmp_path / "config.broken-20261016-220000.json").read_text() == "older"
+    assert (tmp_path / "config.broken-20261016-220000-1.json").read_text() == "{"
+    config.forget()
+    path.write_text("{", encoding="utf-8")
+    monkeypatch.setattr(config.Path, "replace", lambda self, target: busy())  # open elsewhere
+    assert config.update_check(path) is True and config.broken == path  # starts anyway

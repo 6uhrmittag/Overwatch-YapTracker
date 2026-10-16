@@ -53,8 +53,18 @@ def _read(path: Path) -> dict:
             return data
         raise ValueError(f"not settings: {type(data).__name__}")
     except ValueError as error:
-        kept = path.with_name(f"{path.stem}.broken-{time.strftime('%Y%m%d-%H%M%S')}.json")
-        path.replace(kept)
+        stamp, n = time.strftime("%Y%m%d-%H%M%S"), 0
+        kept = path.with_name(f"{path.stem}.broken-{stamp}.json")
+        while kept.exists():  # never over an earlier one
+            n += 1
+            kept = path.with_name(f"{path.stem}.broken-{stamp}-{n}.json")
+        try:
+            path.replace(kept)
+        except OSError as busy:  # open in an editor: the next save writes over it, so be it
+            log.warning("settings: %s was broken (%s) and can't be moved aside (%s); starting "
+                        "with the defaults", path.name, error, busy)  # fmt: skip
+            broken = path
+            return {}
         log.warning("settings: %s was broken (%s), kept as %s; starting with the defaults",
                     path.name, error, kept.name)  # fmt: skip
         broken = kept
