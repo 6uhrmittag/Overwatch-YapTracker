@@ -7,6 +7,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-16 · The planning chat edits issues too
 - Behind the scenes: CLAUDE.md says the planning chat also files, comments and ticks issues directly, so issue bodies are re-read right before an edit and its comments are marked _(planning chat)_.
 
+### 2026-10-16 · A pause at shutdown no longer marks every later match incomplete (#463)
+- If YapTracker was shut down while paused or while recording was broken (Windows shutting down, a power cut), the open "not recording" span is now closed at the next start, at the last thing it recorded. Later matches no longer show it, and the export no longer calls them incomplete.
+
 ### 2026-10-16 · Spicy marks stay put (#460)
 - A line you marked spicy keeps its mark when YapTracker reads it again or tidies up after the match, so the heads-up when that player is back really comes. Overwatch's own report mark stays too.
 

@@ -63,3 +63,12 @@ def remove_input_hints_once(store, backups: Path, done: Callable[[], bool],
                  len(ids), players)  # fmt: skip
     save()
     return len(ids)
+
+
+def close_open_gaps(store) -> None:
+    """Gaps a killed run left open (#463), closed at start; never stops the start."""
+    try:
+        if closed := store.close_open_gaps():
+            log.warning("closed %d gap(s) left open by a run that was killed", closed)
+    except Exception:
+        log.exception("closing old gaps failed")
