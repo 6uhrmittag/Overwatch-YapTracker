@@ -1,6 +1,7 @@
 """The window: icon rail and view switching, via NiceGUI's simulated user (no browser)."""
 
 import asyncio
+import time
 
 import pytest
 from nicegui.testing import User, user_simulation
@@ -24,9 +25,10 @@ def _set_up_already():
 
 
 def first_start():
-    from yaptracker import paths
+    from yaptracker import config, paths
 
     paths.config_file().unlink()
+    config.forget()
 
 
 async def test_opens_on_live(user: User):
@@ -262,8 +264,9 @@ async def test_settings_shows_debug_samples_and_their_size(user: User, monkeypat
     from yaptracker import config, runtime
     from yaptracker.debug import DebugSamples
 
-    (tmp_path / "debug" / "2026-10-01" / "12-00-00-end").mkdir(parents=True)
-    (tmp_path / "debug" / "2026-10-01" / "12-00-00-end" / "a.jpg").write_bytes(b"x" * 2_500_000)
+    sample = tmp_path / "debug" / time.strftime("%Y-%m-%d") / "12-00-00-end"  # older: cleaned up
+    sample.mkdir(parents=True)
+    (sample / "a.jpg").write_bytes(b"x" * 2_500_000)
     debug = DebugSamples(tmp_path / "debug", config.debug_samples)
     monkeypatch.setattr(runtime, "debug", debug)
     await user.open("/")

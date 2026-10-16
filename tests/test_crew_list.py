@@ -30,7 +30,8 @@ async def test_three_crew_names_three_ways_and_none_gets_a_card(user: User, tmp_
     (field,) = user.find(marker="add-crew").elements
     assert field.props["placeholder"] == "Add another…"
 
-    crew = config.identity().crew  # read fresh from config.json, as after a restart
+    config.forget()  # read fresh from config.json, as after a restart
+    crew = config.identity().crew
     assert crew == ("Void", "Mossyfox", "Bapricot")
     store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
     try:

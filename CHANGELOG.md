@@ -9,6 +9,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 - With less than 1 GB free, debug samples pause and Live says so: "Disk almost full: debug samples paused". They start again by themselves once there's space.
 - When Windows OCR gives up on a frame ("Operation aborted"), it tries once more, and then the best reader reads that frame. No frame is lost.
 
+### 2026-10-16 · Settings kept in memory (#451)
+- The app window keeps its place again, also when it moves at the same moment as a match signal.
+- No more short "crash" gaps in recording when settings are saved: the capture never reads the settings file anymore, and a save that finds the file busy simply tries again.
+
 ### 2026-10-13 · Live card header on one line (#449)
 - In Live, "Make a yap snap", the channel colours and the Callouts switch now sit on one line.
 

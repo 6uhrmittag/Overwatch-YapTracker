@@ -6,3 +6,6 @@ def _isolated_data_dir(monkeypatch, tmp_path):
     """No test may read or write the real data folder (config, logs, database)."""
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "localappdata"))
+    from yaptracker import config
+
+    config.forget()  # config.json is kept in memory (#451); each test starts from its own file

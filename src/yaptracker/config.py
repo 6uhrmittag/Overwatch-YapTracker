@@ -1,6 +1,10 @@
 """User settings in data/config.json. Only what the user changed is stored; the rest is defaults."""
 
+import copy
 import json
+import logging
+import threading
+import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from math import gcd
@@ -13,19 +17,77 @@ from yaptracker.capture.source import Region, RelativeRegion, default_chat_regio
 from yaptracker.identity import Identity
 from yaptracker.ocr import engine as ocr
 
+log = logging.getLogger(__name__)
+
+# Each config file is read from disk once and then kept in memory (#451). On Windows a file
+# can't be read while another thread replaces it, nor replaced while it's open, and the capture
+# thread asks for settings several times a second. Only saves touch the disk after the first read.
+_lock = threading.RLock()  # guards _cache; held on the disk only for the first read
+_write_lock = threading.Lock()  # one save on disk at a time
+_cache: dict[Path, dict] = {}
+RETRY_WAITS_S = (0.05, 0.1, 0.2, 0.4)  # between tries when the file is busy (PermissionError)
+_save_failing = False  # logged once per run of failed saves
+
+
+def _retry(action: Callable):
+    for wait in (*RETRY_WAITS_S, None):
+        try:
+            return action()
+        except PermissionError:
+            if wait is None:
+                raise
+            time.sleep(wait)
+
+
+def _read(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
 
 def _load(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    with _lock:
+        if path not in _cache:
+            _cache[path] = _retry(lambda: _read(path))
+        return copy.deepcopy(_cache[path])
+
+
+def forget() -> None:
+    """Read the files from disk again next time, e.g. after a test wrote one by hand."""
+    global _save_failing
+    with _lock:
+        _cache.clear()
+        _save_failing = False
 
 
 on_save: list[Callable[[], None]] = []  # after every save, e.g. the settings line in the log (#214)
 
 
-def _save(path: Path, data: dict) -> None:
+def _write(path: Path) -> None:
+    with _lock:
+        if path not in _cache:  # forgotten meanwhile (tests)
+            return
+        data = copy.deepcopy(_cache[path])  # the newest state, also when saves overlap
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     tmp.replace(path)
+
+
+def _save(path: Path, data: dict) -> None:
+    """Into memory at once, then to disk; a busy file is tried again and never fails the caller."""
+    global _save_failing
+    with _lock:
+        _cache[path] = copy.deepcopy(data)
+    with _write_lock:
+        try:
+            _retry(lambda: _write(path))
+        except OSError as error:
+            if not _save_failing:
+                log.warning("settings: couldn't save %s, kept in memory: %s", path.name, error)
+            _save_failing = True
+        else:
+            if _save_failing:
+                log.info("settings: saved again")
+            _save_failing = False
     for listener in on_save:
         listener()
 
