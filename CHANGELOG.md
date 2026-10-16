@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · A full disk or a hiccup in Windows OCR no longer loses chat (#452)
+- When a line's picture or a debug sample can't be saved (for example on a full disk), the chat line is still saved. Read again then says the line has no picture.
+- With less than 1 GB free, debug samples pause and Live says so: "Disk almost full: debug samples paused". They start again by themselves once there's space.
+- When Windows OCR gives up on a frame ("Operation aborted"), it tries once more, and then the best reader reads that frame. No frame is lost.
+
 ### 2026-10-13 · Live card header on one line (#449)
 - In Live, "Make a yap snap", the channel colours and the Callouts switch now sit on one line.
 
