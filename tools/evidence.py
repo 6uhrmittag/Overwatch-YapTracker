@@ -116,8 +116,9 @@ def _version_key(version: str) -> tuple:
 def scan(lines: list[str]) -> dict:
     """Everything the log says, per evening: versions, CPU, in-match threads, errors, and each
     in-match FPS minute with its version, reading mode, state, match and whether it's a full
-    minute; the map of each match (from its start, a hero-select take-over or the end screen). The version of a line is the last one logged before it; the
-    mode is in the FPS line itself (#444), in older logs the last `reading:` line before it."""
+    minute; the map of each match (from its start, a hero-select take-over or the end screen).
+    The version of a line is the last one logged before it; the mode is in the FPS line itself
+    (#444), in older logs the last `reading:` line before it."""
     found: dict = {"versions": defaultdict(set), "cpu": defaultdict(list),
                    "capture": defaultdict(set), "threads": defaultdict(Counter),
                    "thread_minutes": Counter(), "evenings": [],
