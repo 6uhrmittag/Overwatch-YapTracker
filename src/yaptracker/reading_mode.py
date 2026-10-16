@@ -17,6 +17,7 @@ from collections.abc import Callable
 
 import numpy as np
 
+from yaptracker import side_work
 from yaptracker.ocr import engine as ocr
 from yaptracker.ocr.engine import OcrLine, OcrUnavailable
 
@@ -118,8 +119,24 @@ class ReadingMode:
         ran, engine = self.engine(asked)
         with self._lock:
             self._counts[AFTER if asked == AFTER else ran] += 1  # "after 40": read after a match
-            self._reads.append((self._clock(), ran))
-        return engine.read(image, scale=scale)
+            self._reads.append(entry := (self._clock(), ran))
+        if ran != LIGHT:
+            return engine.read(image, scale=scale)
+        for _ in range(2):  # Windows OCR says "Operation aborted" now and then (#452)
+            try:
+                return engine.read(image, scale=scale)
+            except OSError as error:
+                aborted = error
+        if self._best() == LIGHT_ENGINE:  # chosen as the best reader too: nothing else to ask
+            raise aborted
+        side_work.failed("Windows OCR twice (read with the best quality)", aborted)
+        with self._lock:  # that frame was read by best, in the counts too
+            self._counts[LIGHT] -= 1
+            self._counts += Counter({BEST: 1})  # += also drops a light count of 0
+            if entry in self._reads:
+                self._reads.remove(entry)
+            self._reads.append((entry[0], BEST))
+        return self._get(self._best()).read(image, scale=scale)
 
     def take_counts(self) -> str:
         """Which mode read how many frames since the last call: "light 31, best 9"."""

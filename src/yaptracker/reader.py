@@ -18,7 +18,7 @@ from dataclasses import replace
 
 import numpy as np
 
-from yaptracker import channels, glyphs, priority
+from yaptracker import channels, glyphs, priority, side_work
 from yaptracker.cpu_parts import CPU
 from yaptracker.dedup import FADE_S, YAP_KINDS, Dedup, Yap, hero_speaker, match_key
 from yaptracker.identity import Identity
@@ -283,7 +283,10 @@ class ChatReader:
             said = "; ".join(f"{line.speaker or ''}: {line.text}"[:50] for line in unstored)
             log.info("chat reading: %d line(s) seen twice but never stored: %s", len(unstored),
                      said)  # fmt: skip
-        self._on_read(ts, image, ocr, lines, new, unstored)
+        try:
+            self._on_read(ts, image, ocr, lines, new, unstored)
+        except Exception as error:  # debug samples never fail a read (#452)
+            side_work.failed("saving a debug sample", error)
         return new
 
     def _lines(self, image: np.ndarray, ocr_lines: list[OcrLine]) -> tuple[list, list]:
@@ -331,8 +334,7 @@ class ChatReader:
                 tidy.links[yap.id] = message_id = self._store.add_message(
                     ts=yap.first_seen, match_id=kept.match_id, player_id=player,
                     **_fields(yap.best))  # fmt: skip
-                if self._pictures is not None:
-                    self._pictures.save(message_id, yap.first_seen, kept.image, yap.last.box)
+                self._save_picture(message_id, yap.first_seen, kept.image, yap.last.box)
                 tidy.found += 1
                 if yap.best.channel != "system":
                     self._on_player(player, kept.match_id, True)
@@ -352,8 +354,8 @@ class ChatReader:
         if message is None or self._tidy.links.get(yap.id) is None or not differs(message, fields):
             return
         self._store.update_message(message.id, player_id=self._link(yap), **fields)
-        if self._pictures is not None and yap.best is yap.last:  # its picture from this frame
-            self._pictures.save(message.id, message.ts, kept.image, yap.last.box)
+        if yap.best is yap.last:  # its picture from this frame
+            self._save_picture(message.id, message.ts, kept.image, yap.last.box)
         self._tidy.changed(message.id, fields)
 
     def _link(self, yap: Yap) -> int | None:
@@ -422,8 +424,16 @@ class ChatReader:
         return pid
 
     def _keep_picture(self, yap: Yap, image: np.ndarray) -> None:
-        if self._pictures is not None:
-            self._pictures.save(self._stored[yap.id], yap.first_seen, image, yap.last.box)
+        self._save_picture(self._stored[yap.id], yap.first_seen, image, yap.last.box)
+
+    def _save_picture(self, message_id: int, ts: float, image: np.ndarray, box) -> None:
+        """A line without its picture is still a line (#452); Read again says it has none."""
+        if self._pictures is None:
+            return
+        try:
+            self._pictures.save(message_id, ts, image, box)
+        except Exception as error:
+            side_work.failed("saving a line picture", error)
 
     def _count(self, spent: float) -> None:
         CPU.add("reading", spent)  # the per-part line (#302)

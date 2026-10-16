@@ -13,6 +13,7 @@ from yaptracker.capture.black import SAY as BLACK_SAY
 from yaptracker.capture.black import SCREEN_SAY
 from yaptracker.capture.stats import CAPTURE
 from yaptracker.capture.watcher import fps
+from yaptracker.debug import DISK_LOW_SAY
 from yaptracker.glyphs import GLYPH
 from yaptracker.matches import AFTER_END_GAP_S
 from yaptracker.snaps import MAX_LINES
@@ -377,6 +378,8 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         ui.label(BLACK_SAY).classes("yt-grow")  # (#217)
     with ui.element("div").classes("yt-banner yt-hidden").mark("screen-capture") as screen_hint:
         ui.label(SCREEN_SAY).classes("yt-grow")  # (#236)
+    with ui.element("div").classes("yt-banner yt-hidden").mark("disk-low") as disk_hint:
+        ui.label(DISK_LOW_SAY).classes("yt-grow")  # (#452)
     with ui.element("div").classes("yt-banner yt-hidden").mark("no-name") as name_hint:
         ui.label("I don't know your name yet, so I might greet you as a stranger.").classes(
             "yt-grow"
@@ -639,6 +642,8 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         black_hint.classes(**{"remove" if black else "add": "yt-hidden"})
         screen = runtime.screen is not None and runtime.screen.screen and not black
         screen_hint.classes(**{"remove" if screen and capturing else "add": "yt-hidden"})
+        disk_low = runtime.debug is not None and config.debug_samples() and runtime.debug.disk_low()
+        disk_hint.classes(**{"remove" if disk_low else "add": "yt-hidden"})
         # no own name: your own lines would greet you with "Look who's back!" (#168)
         name_hint.classes(**{"add" if config.identity().me else "remove": "yt-hidden"})
         size = runtime.window_size
