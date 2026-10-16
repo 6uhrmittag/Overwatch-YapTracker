@@ -52,3 +52,33 @@ def test_an_icon_between_words_lands_between_them():
 
 def test_plain_text_gets_no_diamond():
     assert read(chat("[mossyfox]: gl hf, have fun")) == ["[mossyfox]: gl hf, have fun"]
+
+
+CROPS = Path(__file__).parent / "fixtures" / "glyphs"
+
+
+def after_the_text(name: str) -> bool:
+    """The space right after a line's last word, cut from Void's 2026-10-16 frames (no text)."""
+    (path,) = CROPS.glob(f"{name}-h*.png")
+    crop = np.ascontiguousarray(np.asarray(Image.open(path).convert("RGB"))[:, :, ::-1])
+    height = int(path.stem.rsplit("-h", 1)[1])
+    return glyphs._blob(crop, 0, crop.shape[1], 0, crop.shape[0], height, after=True)
+
+
+def test_scenery_behind_a_line_end_is_no_icon_but_a_comms_icon_is():
+    """#475: 26 % of Void's lines got a ◇ from coloured scenery filling the row (pink chat)."""
+    assert not after_the_text("red-hand-after-system-line")
+    assert not after_the_text("pink-stroke-after-comms-line")
+    assert not after_the_text("green-wall-after-comms-line")
+    assert after_the_text("fall-back-arrow-icon")  # "Fall back!" really ends with an icon
+
+
+def test_a_heart_as_tall_as_the_line_still_counts():
+    """#475's scenery rule must not eat a big emoji: it stays inside the row."""
+    heart = Image.new("RGB", (75, 30), (40, 44, 52))
+    draw = ImageDraw.Draw(heart)
+    draw.ellipse((2, 1, 15, 14), fill=(220, 30, 40))
+    draw.ellipse((13, 1, 26, 14), fill=(220, 30, 40))
+    draw.polygon([(3, 10), (25, 10), (14, 28)], fill=(220, 30, 40))  # 27 of 30 rows tall
+    row = np.ascontiguousarray(np.asarray(heart)[:, :, ::-1])
+    assert glyphs._blob(row, 0, row.shape[1], 0, row.shape[0], 29, after=True)

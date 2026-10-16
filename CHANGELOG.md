@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · No false ◇ from colourful maps behind the chat (#475)
+- A ◇ at the end of a line now only marks a real icon or emoji. Colourful scenery right behind the end of a line (a red wall, a green floor) no longer counts as one, which showed up a lot with pink chat colours.
+
 ### 2026-10-16 · Recording never stops silently (#457)
 - If reading the chat keeps failing, Live says so in words and the time counts as "not recording"; it goes away by itself once reading works again.
 - A database hiccup can no longer stop the chat reader or the capture for the rest of the evening: they note it in the log and go on.
