@@ -3,6 +3,7 @@
 import copy
 import json
 import logging
+import os
 import threading
 import time
 from collections.abc import Callable
@@ -27,6 +28,7 @@ _write_lock = threading.Lock()  # one save on disk at a time
 _cache: dict[Path, dict] = {}
 RETRY_WAITS_S = (0.05, 0.1, 0.2, 0.4)  # between tries when the file is busy (PermissionError)
 _save_failing = False  # logged once per run of failed saves
+broken: Path | None = None  # a config.json that wasn't JSON, kept under this name (#456)
 
 
 def _retry(action: Callable):
@@ -40,7 +42,33 @@ def _retry(action: Callable):
 
 
 def _read(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    """The saved settings. A file that isn't JSON (half-written at a power cut or on a full
+    disk, #456) is kept as config.broken-<time>.json and YapTracker starts with the defaults."""
+    global broken
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return data
+        raise ValueError(f"not settings: {type(data).__name__}")
+    except ValueError as error:
+        stamp, n = time.strftime("%Y%m%d-%H%M%S"), 0
+        kept = path.with_name(f"{path.stem}.broken-{stamp}.json")
+        while kept.exists():  # never over an earlier one
+            n += 1
+            kept = path.with_name(f"{path.stem}.broken-{stamp}-{n}.json")
+        try:
+            path.replace(kept)
+        except OSError as busy:  # open in an editor: the next save writes over it, so be it
+            log.warning("settings: %s was broken (%s) and can't be moved aside (%s); starting "
+                        "with the defaults", path.name, error, busy)  # fmt: skip
+            broken = path
+            return {}
+        log.warning("settings: %s was broken (%s), kept as %s; starting with the defaults",
+                    path.name, error, kept.name)  # fmt: skip
+        broken = kept
+        return {}
 
 
 def _load(path: Path) -> dict:
@@ -52,10 +80,10 @@ def _load(path: Path) -> dict:
 
 def forget() -> None:
     """Read the files from disk again next time, e.g. after a test wrote one by hand."""
-    global _save_failing
+    global _save_failing, broken
     with _lock:
         _cache.clear()
-        _save_failing = False
+        _save_failing, broken = False, None
 
 
 on_save: list[Callable[[], None]] = []  # after every save, e.g. the settings line in the log (#214)
@@ -68,7 +96,10 @@ def _write(path: Path) -> None:
         data = copy.deepcopy(_cache[path])  # the newest state, also when saves overlap
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    with tmp.open("w", encoding="utf-8") as file:
+        file.write(json.dumps(data, indent=2) + "\n")
+        file.flush()
+        os.fsync(file.fileno())  # on disk before the swap: a power cut leaves old or new (#456)
     tmp.replace(path)
 
 
