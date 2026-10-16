@@ -491,3 +491,20 @@ async def test_settings_explain_themselves(user: User):
     await user.should_see("When the limit is reached, the oldest months go first.")  # (#389)
     user.find(marker="calibrate").click()
     await user.should_see("only for when RapidOCR won't start")  # the OCR engine switch
+
+
+async def test_a_nearly_full_disk_is_said_in_live(user: User, monkeypatch, tmp_path):
+    from yaptracker import runtime
+    from yaptracker.debug import DebugSamples
+
+    await user.open("/")
+    (banner,) = user.find(marker="disk-low").elements
+    assert "yt-hidden" in banner.classes
+    debug = DebugSamples(tmp_path / "debug", lambda: True, free=lambda _: 0)
+    monkeypatch.setattr(runtime, "debug", debug)  # less than 1 GB free (#452)
+    for _ in range(30):  # Live looks again every second
+        if "yt-hidden" not in banner.classes:
+            break
+        await asyncio.sleep(0.1)
+    assert "yt-hidden" not in banner.classes
+    await user.should_see("Disk almost full: debug samples paused")

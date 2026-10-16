@@ -4,10 +4,12 @@ data\\debug\\<date>\\<time>-<what>\\ holds JPEG overview frames (every 4th pixel
 window) and the PNG signal crops the detectors read, or (`-chat`) the chat frames of the last
 20 s with what OCR and the parser made of them (sample.json). Real names are in there: like
 fixtures/private/, never committed and never uploaded (YapTracker is local-only anyway).
-At most 1 GB and 14 days, the oldest samples go first. Nothing is kept while paused.
+At most 1 GB and 14 days, the oldest samples go first. Nothing is kept while paused, nor while
+the disk has less than 1 GB free (#452); hand corrections are still kept then.
 """
 
 import json
+import logging
 import math
 import shutil
 import threading
@@ -19,7 +21,10 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from yaptracker import side_work
 from yaptracker.sizes import FolderSizes
+
+log = logging.getLogger(__name__)
 
 # A missed end screen only shows when the next match starts (hero select, or chat after the
 # 5-minute gap), so the overview frames of the last few minutes are kept to look back at it.
@@ -29,6 +34,10 @@ KEEP_DAYS = 14
 CHAT_CONTEXT_S = 20.0  # chat frames kept for a chat sample: enough to see a line arrive and fade
 CHAT_SAMPLE_EVERY_S = 60.0  # automatic chat samples at most once a minute
 LOW_CONFIDENCE = 0.85
+LOW_DISK_BYTES = 1_000_000_000  # less free space than this: samples pause (#452)
+DISK_LOW_SAY = ("Disk almost full: debug samples paused. Chat is still saved. Free up some space "
+                "and they start again by themselves.")  # fmt: skip
+DISK_CHECK_S = 60.0
 
 
 def why_hard(lines, new, unstored=()) -> list[str]:
@@ -49,6 +58,13 @@ def folder_size(folder: Path) -> int:
     if not folder.exists():
         return 0
     return sum(f.stat().st_size for f in folder.rglob("*") if f.is_file())
+
+
+def free_bytes(folder: Path) -> int:
+    """Free space on the drive of the folder (or of its nearest existing parent)."""
+    while not folder.exists() and folder.parent != folder:
+        folder = folder.parent
+    return shutil.disk_usage(folder).free
 
 
 def samples_in(folder: Path) -> list[tuple[Path, int]]:
@@ -75,8 +91,11 @@ class DebugSamples:
         buffer_s: float = BUFFER_S,
         cap_bytes: int = CAP_BYTES,
         keep_days: int = KEEP_DAYS,
+        free: Callable[[Path], int] = free_bytes,
     ) -> None:
-        self._folder, self._enabled, self._clock = folder, enabled, clock
+        self._folder, self._enabled, self._clock, self._free = folder, enabled, clock, free
+        self._low = False  # paused for a nearly full disk (#452); Live says so
+        self._disk_checked = -math.inf
         self._buffer_s, self._cap_bytes, self._keep_days = buffer_s, cap_bytes, keep_days
         self._lock = threading.Lock()
         self._overviews: deque[tuple[float, bytes]] = deque()
@@ -86,9 +105,31 @@ class DebugSamples:
         self._cleaning = threading.Lock()
         self.sizes = FolderSizes()  # counted once, then kept up to date (#387)
 
+    def _active(self) -> bool:
+        return self._enabled() and not self.disk_low()
+
+    def disk_low(self) -> bool:
+        """Less than 1 GB free: samples pause (#452). The disk is looked at once a minute, also
+        when asked by Live; the log says when samples pause and start again."""
+        now = self._clock()
+        if now - self._disk_checked < DISK_CHECK_S:
+            return self._low
+        self._disk_checked = now
+        try:
+            low = self._free(self._folder) < LOW_DISK_BYTES
+        except OSError:
+            return self._low
+        if low != self._low:
+            if low:
+                log.warning("Disk almost full: debug samples paused (less than 1 GB free)")
+            else:
+                log.info("Disk has space again: debug samples back on")
+        self._low = low
+        return low
+
     def on_signals(self, signals: dict[str, np.ndarray], paused: bool = False) -> None:
         """About once a second from the capture thread: signal crops, every few s an overview."""
-        if paused or not self._enabled():
+        if paused or not self._active():
             with self._lock:
                 self._overviews.clear()
                 self._signals = {}
@@ -111,7 +152,7 @@ class DebugSamples:
         """'start' / 'end' / 'end-map' (#383): the newest overview and crops. 'missed-end' and
         'missed-start-…' (#170): every buffered overview, to look back at what the detection
         didn't see."""
-        if not self._enabled():
+        if not self._active():
             return None
         with self._lock:
             overviews = list(self._overviews)
@@ -120,6 +161,13 @@ class DebugSamples:
             overviews = overviews[-1:]
         if not overviews and not signals:
             return None
+        try:  # from the capture thread: a full disk must not stop the capture (#452)
+            return self._save_event(what, overviews, signals)
+        except Exception as error:
+            side_work.failed("saving a debug sample", error)
+            return None
+
+    def _save_event(self, what: str, overviews: list, signals: dict) -> Path:
         now = time.localtime(self._clock())
         sample = self._folder / time.strftime("%Y-%m-%d", now)
         sample /= f"{time.strftime('%H-%M-%S', now)}-{what}"
@@ -136,7 +184,7 @@ class DebugSamples:
         self, ts: float, image: np.ndarray, ocr: list, lines: list, new: list, unstored=()
     ) -> Path | None:
         """Every chat frame the reader read (#108): kept 20 s; hard ones become a sample."""
-        if not self._enabled():
+        if not self._active():
             return None
         with self._lock:
             self._chat.append((ts, image, ocr, lines))
@@ -150,12 +198,19 @@ class DebugSamples:
 
     def save_chat(self, why: str = "hotkey") -> Path | None:
         """The last 20 s of read chat frames, with their OCR and parse results (Ctrl+Alt+S)."""
-        if not self._enabled():
+        if not self._active():
             return None
         with self._lock:
             frames = list(self._chat)
         if not frames:
             return None
+        try:
+            return self._save_chat(why, frames)
+        except Exception as error:  # a full disk: the chat line is stored all the same (#452)
+            side_work.failed("saving a debug sample", error)
+            return None
+
+    def _save_chat(self, why: str, frames: list) -> Path:
         now = time.localtime(self._clock())
         sample = self._folder / time.strftime("%Y-%m-%d", now)
         sample /= f"{time.strftime('%H-%M-%S', now)}-chat"
@@ -186,8 +241,15 @@ class DebugSamples:
         """A line fixed by hand (#227): what OCR read, what it really says, and its picture.
         Plain files in debug/corrections/, so the day/size clean-up leaves them alone: they're
         hand-checked ground truth for the next OCR change."""
-        if not self._enabled():
+        if not self._enabled():  # tiny and rare: kept also on a nearly full disk
             return None
+        try:
+            return self._save_correction(message, text, picture)
+        except Exception as error:  # the fixed line is saved all the same (#452)
+            side_work.failed("saving a correction sample", error)
+            return None
+
+    def _save_correction(self, message, text: str, picture: Path | None) -> Path:
         folder = self._folder / "corrections"
         folder.mkdir(parents=True, exist_ok=True)
         stem = f"{time.strftime('%Y-%m-%d-%H%M%S', time.localtime(message.ts))}-{message.id}"
@@ -207,6 +269,13 @@ class DebugSamples:
         (#173, #228), next to the text corrections."""
         if not self._enabled():
             return None
+        try:
+            return self._save_channel_correction(message, channel, picture)
+        except Exception as error:
+            side_work.failed("saving a correction sample", error)
+            return None
+
+    def _save_channel_correction(self, message, channel: str, picture: Path | None) -> Path:
         folder = self._folder / "corrections"
         folder.mkdir(parents=True, exist_ok=True)
         stem = f"{time.strftime('%Y-%m-%d-%H%M%S', time.localtime(message.ts))}-{message.id}-ch"
