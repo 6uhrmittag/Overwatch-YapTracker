@@ -8,6 +8,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 - Settings → About has a new switch, "Get test versions (pre-releases)": off means you get stable releases only. Until the first stable release (v1.0.0) is out, every new build still reaches you.
 - `update.ps1` installs the newest stable release; `update.ps1 -PreRelease` installs the newest test version.
 
+### 2026-10-16 · FPS check compares the same map (#448)
+- Behind the scenes: `tools/evidence.py` compares YapTracker running vs paused on the same map only, and leaves out hero-select and partial minutes, so the FPS verdict no longer blames YapTracker for a heavier map.
+
 ### 2026-10-16 · A full disk or a hiccup in Windows OCR no longer loses chat (#452)
 - When a line's picture or a debug sample can't be saved (for example on a full disk), the chat line is still saved. Read again then says the line has no picture.
 - With less than 1 GB free, debug samples pause and Live says so: "Disk almost full: debug samples paused". They start again by themselves once there's space.
