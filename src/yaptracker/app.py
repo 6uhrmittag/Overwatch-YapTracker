@@ -311,18 +311,19 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
     if not dev and sys.platform != "win32":
         return  # native mode only exists on Windows; Linux uses --dev
 
+    def note_a_late_start() -> None:
+        from yaptracker.capture import process
+        from yaptracker.capture.window import find_overwatch
+
+        if find_overwatch() is not None:
+            last = runtime.store.latest_session() if runtime.store else None
+            runtime.health.started_late(process.started_at(), last[1] if last else None)
+
     def start_capture() -> None:  # after the store is open: gaps and matches need it
         if runtime.store is None:
             return  # no database (a newer one, #352): nothing to record into
-        if not dev and runtime.health is not None:
-            from yaptracker.capture import process
-            from yaptracker.capture.window import find_overwatch
-
-            if find_overwatch() is not None:  # the game was there before us (#99)
-                last = runtime.store.latest_session() if runtime.store else None
-                runtime.health.started_late(process.started_at(), last[1] if last else None)
-        runtime.watcher = make_watcher()
-        runtime.watcher.start()
+        late = note_a_late_start if not dev and runtime.health is not None else (lambda: None)
+        runtime.watcher = start_watcher(late, make_watcher)
 
     def stop_capture() -> None:
         if runtime.watcher is not None:
@@ -362,6 +363,18 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         runtime.bind_hotkeys = bind_hotkeys
         app.on_startup(bind_hotkeys)
         app.on_shutdown(lambda: bind_hotkeys(False))
+
+
+def start_watcher(note_a_late_start: Callable[[], None], make_watcher: Callable):
+    """The capture watcher always starts (#457): checking whether the game was there before us
+    (#99) writes a gap, and that may fail."""
+    try:
+        note_a_late_start()
+    except Exception:
+        log.exception("couldn't check whether Overwatch started before YapTracker")
+    watcher = make_watcher()
+    watcher.start()
+    return watcher
 
 
 def debug_part(chat_read: Callable, *read) -> None:
@@ -502,6 +515,7 @@ def _open_store() -> Callable[[], None]:
                                 config.save_empty_removed)  # fmt: skip
         normalise_places_once(runtime.store, paths.backup_dir(), config.places_normalised,
                               config.save_places_normalised)  # fmt: skip
+        runtime.players.reload()  # players the clean-ups removed are gone for the matcher (#458)
 
     def close_store() -> None:
         if runtime.backups is not None:

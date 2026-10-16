@@ -5,6 +5,7 @@ import threading
 import time
 from collections.abc import Callable
 
+from yaptracker import side_work
 from yaptracker.capture.health import CaptureHealth
 from yaptracker.capture.source import CaptureStalled, Frame, FrameSource
 
@@ -70,7 +71,17 @@ class CaptureWatcher:
             self._thread.join(timeout=5)  # nothing may write to the store after it closes
 
     def _run(self) -> None:
-        """Supervises the capture: restarts it when it breaks, with growing waits (#75)."""
+        """Supervises the capture: restarts it when it breaks, with growing waits (#75). It never
+        ends but on stop (#457): a failing gap write or window lookup is logged and retried."""
+        while not self._stop.is_set():
+            try:
+                return self._supervise()
+            except Exception as error:
+                side_work.failed("the capture supervisor", error, then="it goes on")
+                self.state, self.window = "waiting", None
+                self._stop.wait(self._poll_s)
+
+    def _supervise(self) -> None:
         while not self._stop.is_set():
             window = self._find_window()
             if window is None:
@@ -102,11 +113,18 @@ class CaptureWatcher:
 
     def _game_closed(self) -> None:
         self._health_call("game_closed")
-        self._on_closed()
+        try:
+            self._on_closed()
+        except Exception as error:
+            side_work.failed("ending the match when the game closed", error, then="it goes on")
 
     def _health_call(self, method: str, *args) -> None:
+        """Gap records (#75); one that can't be written never stops the capture (#457)."""
         if self._health is not None:
-            getattr(self._health, method)(*args)
+            try:
+                getattr(self._health, method)(*args)
+            except Exception as error:
+                side_work.failed(f"recording '{method}'", error, then="the capture goes on")
 
     def _capture(self, window: int) -> None:
         self._source = source = self._open_source(window)

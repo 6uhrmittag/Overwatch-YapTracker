@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from yaptracker import days, paths
-from yaptracker.store.db import connect
+from yaptracker.store.db import connect, copy_to
 
 
 @dataclass(frozen=True)
@@ -143,10 +143,10 @@ class Store:
             self._conn.close()
 
     def backup_to(self, target: Path) -> None:
-        """A consistent copy of the whole database, safe while the app runs (#125)."""
-        with self._lock, sqlite3.connect(target) as copy:
-            self._conn.backup(copy)
-        copy.close()
+        """A consistent copy of the whole database, safe while the app runs (#125); a failed
+        one leaves no file under the target's name (#461)."""
+        with self._lock:
+            copy_to(self._conn, target)
 
     def _write(self, sql: str, params: tuple = ()) -> int:
         with self._lock:
@@ -405,11 +405,16 @@ class Store:
     def rename_player(self, player_id: int, display_name: str) -> None:
         self._write("UPDATE players SET display_name = ? WHERE id = ?", (display_name, player_id))
 
-    def player_seen(self, player_id: int, ts: float) -> None:
-        self._write(
-            "UPDATE players SET last_seen = MAX(COALESCE(last_seen, ?), ?) WHERE id = ?",
-            (ts, ts, player_id),
-        )
+    def player_seen(self, player_id: int, ts: float) -> bool:
+        """False when that player isn't there anymore (removed by a tidy-up or merged, #458)."""
+        with self._lock:
+            return (
+                self._conn.execute(
+                    "UPDATE players SET last_seen = MAX(COALESCE(last_seen, ?), ?) WHERE id = ?",
+                    (ts, ts, player_id),
+                ).rowcount
+                > 0
+            )
 
     def players(self) -> list[PlayerRow]:
         """Every player with how often you met them and how much they said."""

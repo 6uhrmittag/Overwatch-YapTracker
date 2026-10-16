@@ -14,10 +14,9 @@ import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-import cv2
 import numpy as np
 
-from yaptracker import glyphs, priority
+from yaptracker import glyphs, images, priority
 from yaptracker.dedup import YAP_KINDS
 from yaptracker.identity import Identity
 from yaptracker.ocr.engine import OcrLine
@@ -172,7 +171,7 @@ class ReadAgain:
         if message is None or message.edited_at is not None or not _MARKED.search(message.text):
             return False
         if message.channel != "system":  # system lines never end with an icon
-            image = cv2.imread(str(self._pictures.path(message.id, message.ts)))
+            image = images.read(self._pictures.path(message.id, message.ts))
             if image is None:
                 return False
             lines = [line for line in parse(glyphs.mark(image, self._read(image)))
@@ -187,7 +186,7 @@ class ReadAgain:
         message = self._store.message(message_id)
         if message is None or message.edited_at is not None:  # fixed by hand in the meantime
             return False
-        image = cv2.imread(str(self._pictures.path(message.id, message.ts)))
+        image = images.read(self._pictures.path(message.id, message.ts))
         if image is None:
             return False
         lines = parse(glyphs.mark(image, self._read(image)))

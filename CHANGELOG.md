@@ -7,6 +7,28 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-16 · No false ◇ from colourful maps behind the chat (#475)
 - A ◇ at the end of a line now only marks a real icon or emoji. Colourful scenery right behind the end of a line (a red wall, a green floor) no longer counts as one, which showed up a lot with pink chat colours.
 
+### 2026-10-16 · Recording never stops silently (#457)
+- If reading the chat keeps failing, Live says so in words and the time counts as "not recording"; it goes away by itself once reading works again.
+- A database hiccup can no longer stop the chat reader or the capture for the rest of the evening: they note it in the log and go on.
+
+### 2026-10-16 · Chat kept at quit is read, however long you were away (#474)
+- When YapTracker was closed before it finished reading a match "after the match", it reads that chat at the next start, also days later, into the match it came from. Live says "Reading N chat pictures from your last session" while it does.
+
+### 2026-10-16 · No lost lines after a tidy-up or a merge (#458)
+- When the tidy-up after a match removed a misread name, the next line from someone read the same way could get lost. Now that name simply becomes a player again, and after a merge a line still on screen goes to the player it was merged into.
+
+### 2026-10-16 · Line pictures for every Windows user name (#459)
+- Line pictures, Read again and debug samples now also work when your Windows user name has letters like ü, ö or ß in it.
+
+### 2026-10-16 · A failed backup never replaces a good one (#461)
+- Backups are written to a temporary file first and only then get their name. A backup that fails halfway (a full disk, a crash) leaves today's good backup as it was, and its leftover is cleared at the next backup.
+
+### 2026-10-16 · Void's evening CPU, recounted (#476)
+- Behind the scenes: CLAUDE.md and the decisions log say ~19 % (not ~18 %) for Void's evening and name the reason: mostly the after-match reading while the game sits in the menu, then the match signals between matches. In match it stays at 10.5 %.
+
+### 2026-10-16 · The planning chat edits issues too
+- Behind the scenes: CLAUDE.md says the planning chat also files, comments and ticks issues directly, so issue bodies are re-read right before an edit and its comments are marked _(planning chat)_.
+
 ### 2026-10-16 · A pause at shutdown no longer marks every later match incomplete (#463)
 - If YapTracker was shut down while paused or while recording was broken (Windows shutting down, a power cut), the open "not recording" span is now closed at the next start, at the last thing it recorded. Later matches no longer show it, and the export no longer calls them incomplete.
 

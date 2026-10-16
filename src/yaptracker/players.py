@@ -41,14 +41,28 @@ class PlayerMatcher:
         self._names: dict[str, int] = {name: pid for pid, name in store.player_names()}
         self._reads: dict[int, Counter] = {}  # player -> how often each spelling was read
         self._shown: dict[int, str] = {}
+        self.generation = 0  # goes up with every reload: ids handed out before may be gone
 
     def reload(self) -> None:
-        """After a merge (#28): the names of the merged player now point to the other one."""
+        """After a merge (#28) or lines removed with their players (#422, #458): the names now
+        point to the players that are still there."""
         with self._lock:
-            self._names = {name: pid for pid, name in self._store.player_names()}
-            known = set(self._names.values())
-            self._reads = {pid: reads for pid, reads in self._reads.items() if pid in known}
-            self._shown = {pid: name for pid, name in self._shown.items() if pid in known}
+            self._reload()
+
+    def _reload(self) -> None:
+        self._names = {name: pid for pid, name in self._store.player_names()}
+        known = set(self._names.values())
+        self._reads = {pid: reads for pid, reads in self._reads.items() if pid in known}
+        self._shown = {pid: name for pid, name in self._shown.items() if pid in known}
+        self.generation += 1
+
+    def _best(self, name: str) -> tuple[int | None, float]:
+        best_id, best = None, 0.0
+        for known, pid in self._names.items():
+            score = similarity(name, known)
+            if score > best:
+                best_id, best = pid, score
+        return best_id, best
 
     def link(self, speaker: str | None, ts: float, confidence: float = 1.0) -> int | None:
         """The player who said this line; None for system lines and for my own lines."""
@@ -58,17 +72,17 @@ class PlayerMatcher:
             return None
         name = clean(speaker)
         with self._lock:
-            best_id, best = None, 0.0
-            for known, pid in self._names.items():
-                score = similarity(name, known)
-                if score > best:
-                    best_id, best = pid, score
+            best_id, best = self._best(name)
+            if best >= MATCH and not self._store.player_seen(best_id, ts):
+                self._reload()  # gone since: a tidy-up removed it, or it was merged (#458)
+                best_id, best = self._best(name)
+                if best >= MATCH:
+                    self._store.player_seen(best_id, ts)
             if best >= MATCH:
                 pid = best_id
                 if name not in self._names:
                     self._names[name] = pid
                     self._store.add_alias(pid, name)
-                self._store.player_seen(pid, ts)
             else:
                 pid = self._store.add_player(name, ts)
                 self._names[name] = pid

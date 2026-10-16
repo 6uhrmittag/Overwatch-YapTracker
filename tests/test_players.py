@@ -75,3 +75,47 @@ def test_a_shaky_new_name_is_kept_as_a_debug_sample(store):
 def test_players_are_found_again_after_a_restart(store):
     first = PlayerMatcher(store).link("mossyfox", 1.0)
     assert PlayerMatcher(store).link("mossyfoxl", 2.0) == first
+
+
+def test_a_player_removed_by_a_clean_up_is_made_again_not_reused(store):
+    """#458: link() handed out the removed id, add_message failed with FOREIGN KEY."""
+    players = PlayerMatcher(store)
+    pid = players.link("Garbleguy", 1.0)
+    line = store.add_message(ts=1.0, channel="match", text="hi", player_id=pid)
+    assert store.remove_lines([line]) == 1  # a light misread: the tidy-up takes it and its player
+    again = players.link("Garbleguy", 2.0)  # the matcher wasn't told
+    store.add_message(ts=2.0, channel="match", text="hi again", player_id=again)  # stored
+    assert [p.display_name for p in store.players()] == ["Garbleguy"]  # made again
+
+
+def test_after_a_merge_the_name_links_to_the_player_it_went_to(store):
+    players = PlayerMatcher(store)
+    kept, merged = players.link("NoodleBonk", 1.0), players.link("Pickle", 1.0)
+    before = players.generation
+    store.merge_players(merged, kept)  # without reload(): another thread was faster
+    assert players.link("Pickle", 2.0) == kept and players.generation > before
+
+
+def test_a_better_reading_after_a_merge_gets_the_player_it_went_to(store):
+    import numpy as np
+
+    from yaptracker.capture.source import Region
+    from yaptracker.matches import MatchTracker
+    from yaptracker.ocr.engine import OcrLine
+    from yaptracker.pause import Pause
+    from yaptracker.reader import ChatReader
+
+    players = PlayerMatcher(store)
+    kept = players.link("NoodleBonk", 1.0)
+    reads = iter([[OcrLine("[Pickle]: wahoo tean", 0.80, Region(64, 300, 300, 24))],
+                  [OcrLine("[Pickle]: wahoo team", 0.99, Region(64, 300, 300, 24))]])  # fmt: skip
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(1000.0)
+    reader = ChatReader(lambda _: next(reads), store, tracker, players=players)
+    reader.read_frame(1000.0, np.zeros((395, 615, 3), np.uint8))
+    (line,) = store.messages(tracker.match_id)
+    store.merge_players(line.player_id, kept)  # "Pickle" is NoodleBonk's other name
+    players.reload()
+    reader.read_frame(1001.5, np.zeros((395, 615, 3), np.uint8))  # read better, still on screen
+    (line,) = store.messages(tracker.match_id)
+    assert line.text == "wahoo team" and line.player_id == kept
