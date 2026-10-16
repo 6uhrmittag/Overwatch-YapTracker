@@ -178,10 +178,8 @@ def update_section() -> None:
             button(f"What changed in v{this['to']}", lambda: after_update_dialog(this),
                    "quiet").mark("update-this-version")  # fmt: skip
     newer.set_visibility(bool(runtime.updates and runtime.updates.newest))
-    switch("Check for updates once a day", config.update_check(), config.save_update_check).mark(
-        "update-switch"
-    )
-    ui.label(HINT).classes("yt-hint")
+    switch("Check for updates once a day", config.update_check(), config.save_update_check,
+           hint=HINT).mark("update-switch")  # fmt: skip
     switch("Get test versions (pre-releases)", config.test_versions(), lambda on: test(on),
            hint=TEST_HINT).mark("test-versions-switch")  # (#454)  # fmt: skip
 
