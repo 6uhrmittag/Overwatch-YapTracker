@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · FPS check compares the same map (#448)
+- Behind the scenes: `tools/evidence.py` compares YapTracker running vs paused on the same map only, and leaves out hero-select and partial minutes, so the FPS verdict no longer blames YapTracker for a heavier map.
+
 ### 2026-10-16 · Settings kept in memory (#451)
 - The app window keeps its place again, also when it moves at the same moment as a match signal.
 - No more short "crash" gaps in recording when settings are saved: the capture never reads the settings file anymore, and a save that finds the file busy simply tries again.
