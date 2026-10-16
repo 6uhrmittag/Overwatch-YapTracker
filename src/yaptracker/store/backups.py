@@ -67,6 +67,8 @@ class DailyBackup:
         """Back up now (#152): today's backup, made again if there is one already."""
         self._folder.mkdir(parents=True, exist_ok=True)
         target = self._folder / f"yaptracker-{self._today().isoformat()}.db"
+        for leftover in self._folder.glob("*.part"):  # an earlier backup that failed (#461)
+            leftover.unlink(missing_ok=True)
         started = time.perf_counter()
         self._backup(target)
         prune(self._folder)

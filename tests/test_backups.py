@@ -57,3 +57,31 @@ def test_settings_says_when_the_last_backup_was(tmp_path):
     (tmp_path / "yaptracker-2026-10-01.db").write_bytes(b"x")
     (tmp_path / "yaptracker-2026-09-30.db").write_bytes(b"x")
     assert last_backup(tmp_path)[1] == 2
+
+
+class HalfWay:
+    """A database whose copy fails halfway, like on a full disk (#461)."""
+
+    def backup(self, copy):
+        copy.execute("CREATE TABLE half (x)")
+        copy.commit()
+        raise sqlite3.OperationalError("database or disk is full")
+
+
+def test_a_backup_that_fails_halfway_leaves_the_good_one_and_no_half_file(store, tmp_path):
+    from yaptracker.store import db
+
+    store.add_message(ts=1.0, channel="match", text="gg")
+    folder = tmp_path / "backups"
+    backups = DailyBackup(store.backup_to, folder, busy=lambda: False, today=lambda: TODAY)
+    good = backups.now()
+    before = good.read_bytes()
+    with pytest.raises(sqlite3.OperationalError):  # Back up now again, on a full disk
+        db.copy_to(HalfWay(), good)
+    assert good.read_bytes() == before and sorted(p.name for p in folder.iterdir()) == [good.name]
+    with pytest.raises(sqlite3.OperationalError):  # the pre-migration copy: no file at all
+        db.backup(HalfWay(), tmp_path / "migration", 7)
+    assert list((tmp_path / "migration").iterdir()) == []
+    (folder / "yaptracker-2026-10-01.db.part").write_bytes(b"left by a crash")
+    backups.now()  # the next backup clears what a crash left
+    assert not list(folder.glob("*.part")) and [d for d, _ in daily_backups(folder)] == [TODAY]
