@@ -65,6 +65,10 @@ issues, `parked` ideas, and a pinned **🗺️ Roadmap** issue. Use the `gh` CLI
 Don't recreate any of it; `tools/github-setup/` is only the record of how it was
 made.
 
+The planning chat also edits issues directly (as 6uhrmittag): filing, comments, ticks, Roadmap.
+Re-read an issue right before you edit its body, so neither side overwrites the other's ticks.
+Comments from the planning chat end with _(planning chat)_.
+
 **Picking the next thing to do:**
 1. Open milestone = the lowest-numbered one that still has open issues. Never
    work ahead into a later milestone while the current one has open issues

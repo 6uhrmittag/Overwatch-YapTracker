@@ -7,6 +7,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-16 · A failed backup never replaces a good one (#461)
 - Backups are written to a temporary file first and only then get their name. A backup that fails halfway (a full disk, a crash) leaves today's good backup as it was, and its leftover is cleared at the next backup.
 
+### 2026-10-16 · The planning chat edits issues too
+- Behind the scenes: CLAUDE.md says the planning chat also files, comments and ticks issues directly, so issue bodies are re-read right before an edit and its comments are marked _(planning chat)_.
+
 ### 2026-10-16 · A pause at shutdown no longer marks every later match incomplete (#463)
 - If YapTracker was shut down while paused or while recording was broken (Windows shutting down, a power cut), the open "not recording" span is now closed at the next start, at the last thing it recorded. Later matches no longer show it, and the export no longer calls them incomplete.
 
