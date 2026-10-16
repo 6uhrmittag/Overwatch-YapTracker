@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Chat kept at quit is read, however long you were away (#474)
+- When YapTracker was closed before it finished reading a match "after the match", it reads that chat at the next start, also days later, into the match it came from. Live says "Reading N chat pictures from your last session" while it does.
+
 ### 2026-10-16 · No lost lines after a tidy-up or a merge (#458)
 - When the tidy-up after a match removed a misread name, the next line from someone read the same way could get lost. Now that name simply becomes a player again, and after a merge a line still on screen goes to the player it was merged into.
 

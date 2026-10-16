@@ -41,9 +41,14 @@ async def user():
         yield user
 
 
+class NothingKept(tuple):
+    def restored(self) -> int:  # none from the last session either (#474)
+        return 0
+
+
 class FakeReader:
     min_gap_s = 1.5
-    later = tidy_frames = ()  # no chat frames waiting to be read after the match (#335, #336)
+    later = tidy_frames = NothingKept()  # no chat frames waiting to be read (#335, #336)
     tidied = None
 
 

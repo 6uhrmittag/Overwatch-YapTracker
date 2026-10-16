@@ -523,3 +523,15 @@ async def test_a_broken_settings_file_is_said_once_in_live(user: User, tmp_path)
     await user.should_see("Your settings file was broken: defaults are back")
     user.find(marker="config-broken-ok").click()
     assert "yt-hidden" in banner.classes and config.broken is None
+
+
+async def test_live_says_when_it_reads_chat_from_the_last_session(user: User, monkeypatch):
+    from types import SimpleNamespace
+
+    from yaptracker import runtime
+
+    later = SimpleNamespace(restored=lambda: 3)  # kept at the last quit, read now (#474)
+    reader = SimpleNamespace(later=later, tidy_frames=[], tidied=None, wants_reread=lambda: False)
+    monkeypatch.setattr(runtime, "reader", reader)
+    await user.open("/")
+    await user.should_see("Reading 3 chat pictures from your last session.")

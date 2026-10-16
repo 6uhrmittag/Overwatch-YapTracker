@@ -618,8 +618,13 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             pill.props(f'title="{meta.text}"')
         else:
             pill.props(remove="title")
+        from_last = runtime.reader.later.restored() if runtime.reader is not None else 0
+        if runtime.reading is not None and runtime.reading.now() == modes.AFTER:
+            from_last = 0  # a match read afterwards is on: they wait for it, nothing reads now
         hint.set_text(
-            {
+            f"Reading {count(from_last, 'chat picture', 'chat pictures')} from your last session."
+            if from_last and state in ("listening", "waiting")  # (#474)
+            else {
                 "paused": "Ears covered. Nothing is being saved.",
                 "trouble": "Overwatch is running, but I can't see it right now. Trying again.",
                 "listening": _listening(),
