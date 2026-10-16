@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Lighter on your PC in matches (#115)
+- In a match YapTracker now looks at the game 2 times a second instead of 4, like between matches. A chat line stays on screen for about 9 seconds, so it is still seen many times; the copying of the game picture costs about half as much.
+
 ### 2026-10-16 · Stable releases are promoted test versions (#454, part 2)
 - Behind the scenes: a stable release is a tested build published again as it is (workflow "Promote pre-release to stable", only when Marv says so); its notes gather everything since the last stable release. After v1.0.0, test versions are named like v1.1.0-pre.512. README explains stable vs test versions.
 

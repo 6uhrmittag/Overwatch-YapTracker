@@ -328,7 +328,7 @@ development without the game running.
 ## Pipeline
 
 ```
-FrameSource (WGC, ~4 fps, chat ROI only)
+FrameSource (WGC, ~2 fps, chat ROI only)
   → change detector (skip identical frames; cheap diff/hash)
   → OCR (lines with boxes + confidence)
   → parser (channel, speaker, text; system lines → channel=system)
@@ -352,7 +352,8 @@ FrameSource (WGC, ~4 fps, chat ROI only)
 - Colours are user settings → sample at calibration, never hardcode.
 - Long messages wrap onto an indented line without icon → join them.
 - Default chat region at 2560×1440: x 55–670, y 510–905 (see #10).
-- There is **no** chat duration/opacity setting; chat fades → 4 fps sampling.
+- There is **no** chat duration/opacity setting; chat fades → 2 fps sampling (a line stays ~9 s and is
+  read every 1.5–3 s anyway, so 2 frames a second still see it 15+ times; Marv, 2026-10-11, #115).
 - Strip trailing `[Report]` links; drop the half-cut top line of a scrolled chat.
 - **Never silently drop emoji or game icons** (e.g. a ❤️ in match chat): mark them as `◇` in
   the text and keep the picture of every line (#120). Real emoji recognition comes later (#121).
