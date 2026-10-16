@@ -81,7 +81,7 @@ class LaterFrames:
             same = last is not None and (last.match_id, last.mode) == (match_id, mode)
             if same and ts - last.since < self._gap():
                 self._bytes += image.nbytes - last.image.nbytes
-                last.ts, last.image = ts, image
+                last.ts, last.image, last.restored = ts, image, False  # a frame of this session
             else:
                 self._frames.append(Kept(ts, ts, image, match_id, mode))
                 self._bytes += image.nbytes
