@@ -19,6 +19,7 @@ log = logging.getLogger(__name__)
 KEEP_DAILY = 7
 KEEP_WEEKLY = 4
 CHECK_EVERY_S = 10 * 60
+STALE_PART_S = 10 * 60  # a .part this old is a backup that failed, not one still running
 _DAILY = re.compile(r"^yaptracker-(\d{4})-(\d{2})-(\d{2})\.db$")
 
 
@@ -68,7 +69,11 @@ class DailyBackup:
         self._folder.mkdir(parents=True, exist_ok=True)
         target = self._folder / f"yaptracker-{self._today().isoformat()}.db"
         for leftover in self._folder.glob("*.part"):  # an earlier backup that failed (#461)
-            leftover.unlink(missing_ok=True)
+            try:  # not one being written right now (a merge's backup): only stale ones
+                if time.time() - leftover.stat().st_mtime > STALE_PART_S:
+                    leftover.unlink()
+            except OSError:
+                pass  # in use, or gone already: the next backup looks again
         started = time.perf_counter()
         self._backup(target)
         prune(self._folder)

@@ -1,6 +1,8 @@
 """Daily backups (#125): once a day, never while capturing, 7 daily + 4 weekly kept."""
 
+import os
 import sqlite3
+import time
 from datetime import date, timedelta
 
 import pytest
@@ -82,6 +84,11 @@ def test_a_backup_that_fails_halfway_leaves_the_good_one_and_no_half_file(store,
     with pytest.raises(sqlite3.OperationalError):  # the pre-migration copy: no file at all
         db.backup(HalfWay(), tmp_path / "migration", 7)
     assert list((tmp_path / "migration").iterdir()) == []
-    (folder / "yaptracker-2026-10-01.db.part").write_bytes(b"left by a crash")
-    backups.now()  # the next backup clears what a crash left
-    assert not list(folder.glob("*.part")) and [d for d, _ in daily_backups(folder)] == [TODAY]
+    stale, busy = folder / "yaptracker-before-merge-1.db.part", folder / "yaptracker-x.db.part"
+    stale.write_bytes(b"left by a crash")
+    os.utime(stale, (time.time() - 3600, time.time() - 3600))
+    busy.write_bytes(b"a merge's backup, being written right now")
+    backups.now()  # the next backup clears what a crash left, never what's being written
+    assert list(folder.glob("*.part")) == [busy] and [d for d, _ in daily_backups(folder)] == [
+        TODAY
+    ]
