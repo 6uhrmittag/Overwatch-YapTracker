@@ -7,6 +7,13 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-16 · The planning chat edits issues too
 - Behind the scenes: CLAUDE.md says the planning chat also files, comments and ticks issues directly, so issue bodies are re-read right before an edit and its comments are marked _(planning chat)_.
 
+### 2026-10-16 · Spicy marks stay put (#460)
+- A line you marked spicy keeps its mark when YapTracker reads it again or tidies up after the match, so the heads-up when that player is back really comes. Overwatch's own report mark stays too.
+
+### 2026-10-16 · The evening's CPU number is the real average (#476)
+- Settings → About: an evening's "whole app … of a core" is now the average over the whole evening, not only of the minutes while chat was being read, so it's lower and fairer (one of Void's evenings: 18 % instead of 37 %). Evenings already listed keep their old number.
+- README → Known limits: what to do on Windows 10 or an older CPU, and what YapTracker costs between matches.
+
 ### 2026-10-16 · A broken settings file no longer stops YapTracker (#456)
 - If the settings file got broken (a power cut or a full disk while it was saved), YapTracker starts with the default settings, keeps the old file in the data folder and says so once in Live.
 - Settings are now fully on disk before they replace the old file, so a power cut leaves the old or the new settings, never a broken file.

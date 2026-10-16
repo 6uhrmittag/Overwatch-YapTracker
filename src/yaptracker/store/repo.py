@@ -668,13 +668,17 @@ class Store:
         player_id: int | None = None,
     ) -> None:
         """A better reading of a stored line (#18); the full-text index follows by trigger.
-        A line fixed by hand keeps its text (#227) and its channel (#283)."""
+        A line fixed by hand keeps its text (#227) and its channel (#283); a line marked spicy
+        by hand keeps its mark, and Overwatch's [Report] mark stays when a reading missed the
+        link (#460)."""
         self._write(
             "UPDATE chat_messages SET "
             "channel = CASE WHEN channel_ocr IS NULL THEN ? ELSE channel END, "  # by hand (#283)
             "speaker_raw = ?, hero = ?, "
             "text = CASE WHEN edited_at IS NULL THEN ? ELSE text END, "
-            "ocr_confidence = ?, flagged = ?, role = ?, has_glyphs = ?, player_id = ? "
+            "ocr_confidence = ?, "
+            "flagged = CASE WHEN flagged = 'manual' THEN flagged ELSE COALESCE(?, flagged) END, "
+            "role = ?, has_glyphs = ?, player_id = ? "
             "WHERE id = ?",
             (channel, speaker_raw, hero, text, ocr_confidence, flagged, role, int(has_glyphs),
              player_id, message_id),
