@@ -45,11 +45,11 @@ MATCH_FPS, MENU_FPS = 2.0, 2.0
 
 
 class CaptureRate:
-    """The rate for in and between matches (#350; both 2 since #115). Windows copies every frame it
-    delivers from the GPU, the whole 4K window, before we see it: between matches (menus,
-    where it really sends all 4) that was most of YapTracker's CPU. Menu chat stays for seconds,
-    so 2 a second miss nothing. The rate is fixed per capture session: a change reopens it
-    (no gap, #236's path)."""
+    """The rate in and between matches (#350; both 2 since #115). Windows copies every frame
+    it delivers from the GPU, the whole 4K window, before we see it: between matches (menus,
+    where it really sent all 4 we asked for) that was most of YapTracker's CPU. Chat stays for
+    seconds, so 2 a second miss nothing. The rate is fixed per capture session: a change
+    reopens it (no gap, #236's path)."""
 
     def __init__(self, running: Callable[[], bool], reopen: Callable[[], None]) -> None:
         self._running, self._reopen = running, reopen
