@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · A pause at shutdown no longer marks every later match incomplete (#463)
+- If YapTracker was shut down while paused or while recording was broken (Windows shutting down, a power cut), the open "not recording" span is now closed at the next start, at the last thing it recorded. Later matches no longer show it, and the export no longer calls them incomplete.
+
 ### 2026-10-16 · Stable releases, test versions if you want them (#454)
 - Settings → About has a new switch, "Get test versions (pre-releases)": off means you get stable releases only. Until the first stable release (v1.0.0) is out, every new build still reaches you.
 - `update.ps1` installs the newest stable release; `update.ps1 -PreRelease` installs the newest test version.
