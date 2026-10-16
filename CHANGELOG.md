@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Line pictures for every Windows user name (#459)
+- Line pictures, Read again and debug samples now also work when your Windows user name has letters like ü, ö or ß in it.
+
 ### 2026-10-16 · A failed backup never replaces a good one (#461)
 - Backups are written to a temporary file first and only then get their name. A backup that fails halfway (a full disk, a crash) leaves today's good backup as it was, and its leftover is cleared at the next backup.
 

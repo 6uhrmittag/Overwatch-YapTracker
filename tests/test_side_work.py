@@ -162,7 +162,12 @@ def test_a_picture_that_cant_be_written_keeps_the_older_one(tmp_path, monkeypatc
     box = Region(0, 10, 100, 20)
     path = pictures.save(7, 1000.0, FRAME, box)
     before = path.read_bytes()
-    monkeypatch.setattr(lines.cv2, "imwrite", lambda *args: False)  # what a full disk does
+
+    def full(self, data):
+        self.write_text("")  # a piece of it got there
+        raise FULL
+
+    monkeypatch.setattr(lines.Path, "write_bytes", full)
     with pytest.raises(OSError):
         pictures.save(7, 1000.0, np.full_like(FRAME, 255), box)
     assert path.read_bytes() == before and not list(path.parent.glob("*.part.webp"))
