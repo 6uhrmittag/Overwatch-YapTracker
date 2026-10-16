@@ -7,6 +7,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-16 · A failed backup never replaces a good one (#461)
 - Backups are written to a temporary file first and only then get their name. A backup that fails halfway (a full disk, a crash) leaves today's good backup as it was, and its leftover is cleared at the next backup.
 
+### 2026-10-16 · Void's evening CPU, recounted (#476)
+- Behind the scenes: CLAUDE.md and the decisions log say ~19 % (not ~18 %) for Void's evening and name the reason: mostly the after-match reading while the game sits in the menu, then the match signals between matches. In match it stays at 10.5 %.
+
 ### 2026-10-16 · The planning chat edits issues too
 - Behind the scenes: CLAUDE.md says the planning chat also files, comments and ticks issues directly, so issue bodies are re-read right before an edit and its comments are marked _(planning chat)_.
 
