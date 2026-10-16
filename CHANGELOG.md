@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · A broken settings file no longer stops YapTracker (#456)
+- If the settings file got broken (a power cut or a full disk while it was saved), YapTracker starts with the default settings, keeps the old file in the data folder and says so once in Live.
+- Settings are now fully on disk before they replace the old file, so a power cut leaves the old or the new settings, never a broken file.
+
 ### 2026-10-16 · Stable releases, test versions if you want them (#454)
 - Settings → About has a new switch, "Get test versions (pre-releases)": off means you get stable releases only. Until the first stable release (v1.0.0) is out, every new build still reaches you.
 - `update.ps1` installs the newest stable release; `update.ps1 -PreRelease` installs the newest test version.
