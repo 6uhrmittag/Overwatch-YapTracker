@@ -20,6 +20,9 @@ GLYPH = "\u25c7"  # ◇
 
 
 BRIGHT_MAP = 170  # brightness (0-255) of what's around the blob: above it, the map is bright
+# A coloured emoji sits inside the line like a letter; scenery behind the line's end (a red
+# hand, a green wall, a pink stroke on Void's 2026-10-16 evening) fills the row top to bottom.
+SCENERY_HEIGHT = 0.9
 
 
 def _blob(
@@ -39,6 +42,7 @@ def _blob(
         return False
     i = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
     x, _, w, h, area = stats[i]
+    tall = h >= SCENERY_HEIGHT * region.shape[0]  # as tall as the whole row: scenery (#475)
     if not (0.5 * height <= w <= 2.0 * height and h >= 0.5 * height and x <= 0.8 * height):
         return False
     if area < 0.2 * height * height:
@@ -50,7 +54,7 @@ def _blob(
         return False  # runs on to the edge, or a bright map: scenery, not an icon (#402)
     brighter = v[blob].mean() - np.median(v[~blob])
     icon = brighter > 40 and s[blob].mean() < 90  # Overwatch's white/grey chat icons
-    coloured = s[blob].mean() > 150 and area / (w * h) > 0.45  # a solid emoji, e.g. a heart
+    coloured = s[blob].mean() > 150 and area / (w * h) > 0.45 and not tall  # a solid emoji
     return bool(icon or coloured)
 
 
