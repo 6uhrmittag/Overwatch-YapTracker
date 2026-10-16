@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Recording never stops silently (#457)
+- If reading the chat keeps failing, Live says so in words and the time counts as "not recording"; it goes away by itself once reading works again.
+- A database hiccup can no longer stop the chat reader or the capture for the rest of the evening: they note it in the log and go on.
+
 ### 2026-10-16 · Chat kept at quit is read, however long you were away (#474)
 - When YapTracker was closed before it finished reading a match "after the match", it reads that chat at the next start, also days later, into the match it came from. Live says "Reading N chat pictures from your last session" while it does.
 

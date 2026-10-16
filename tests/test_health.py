@@ -1,5 +1,6 @@
 """Capture health (#75): supervisor restarts and gap records, with fake frame sources."""
 
+import sqlite3
 import time
 
 import numpy as np
@@ -151,3 +152,47 @@ def test_a_gap_left_open_by_a_killed_run_is_closed_at_the_next_start(store):
 
     assert _overlapping(store.all_gaps(), 5000.0, 6000.0) == []  # export: not "incomplete"
     assert store.close_open_gaps() == 0
+
+
+class FailsOnce:
+    """CaptureHealth whose first gap write fails, like a locked database (#457)."""
+
+    def __init__(self, health):
+        self.health, self.failed = health, False
+
+    def __getattr__(self, name):
+        def call(*args):
+            if name == "lost" and not self.failed:
+                self.failed = True
+                raise sqlite3.OperationalError("database is locked")
+            return getattr(self.health, name)(*args)
+
+        return call
+
+
+def test_a_gap_that_cant_be_written_never_ends_the_supervisor(store):
+    health = CaptureHealth(store)
+    sources = iter([Script(2, OSError("device lost")), Script(2, OSError("again")), Script(3)])
+    opened = []
+
+    def open_source(_):
+        opened.append(1)
+        return next(sources)
+
+    windows = iter([1, 1, 1, None])
+    watcher = CaptureWatcher(lambda: next(windows, None), open_source, health=FailsOnce(health),
+                             poll_s=0.01)  # fmt: skip
+    run_until(watcher, lambda: len(opened) == 3 and health.gap is None and gaps(store))
+    assert gaps(store) == [("crash", 1)]  # the second crash got its gap; the capture went on
+
+
+def test_the_watcher_starts_even_when_the_late_start_check_fails():
+    from yaptracker.app import start_watcher
+
+    started = []
+    watcher = type("W", (), {"start": lambda self: started.append(1)})()
+
+    def late():
+        raise sqlite3.OperationalError("database is locked")
+
+    assert start_watcher(late, lambda: watcher) is watcher and started == [1]

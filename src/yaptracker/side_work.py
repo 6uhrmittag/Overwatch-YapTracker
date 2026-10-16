@@ -17,8 +17,9 @@ _last: dict[str, float] = {}
 _skipped: Counter = Counter()
 
 
-def failed(kind: str, error: BaseException, clock=time.monotonic) -> None:
-    """Never raises: the caller goes on with the chat line."""
+def failed(kind: str, error: BaseException, clock=time.monotonic,
+           then: str = "the chat line is kept") -> None:  # fmt: skip
+    """Never raises: the caller goes on (with the chat line, or as `then` says)."""
     now = clock()
     with _lock:
         if now - _last.get(kind, -math.inf) < EVERY_S:
@@ -27,7 +28,7 @@ def failed(kind: str, error: BaseException, clock=time.monotonic) -> None:
         _last[kind] = now
         skipped = _skipped.pop(kind, 0)
     more = f" ({skipped} more since the last note)" if skipped else ""
-    log.warning("%s failed, the chat line is kept: %s%s", kind, error, more, exc_info=error)
+    log.warning("%s failed, %s: %s%s", kind, then, error, more, exc_info=error)
 
 
 def reset() -> None:

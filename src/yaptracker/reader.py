@@ -44,6 +44,7 @@ LATER_POLL_S = 2.0  # frames wait for later: how often to look whether the game 
 # stays ~9 s, so it's still read at least once.
 NO_CHAT_READS = 3
 MENU_GAP_S = 6.0
+FAIL_LIMIT = 5  # reads failing in a row before a crash gap opens and Live says so (#457)
 
 
 def _fields(line: ChatLine) -> dict:
@@ -125,6 +126,9 @@ class ChatReader:
         self._offered = 0  # frames with new text since the last log line (#350)
         self.busy = False  # the last minute was above the CPU goal: read less often (#249)
         self._no_chat = 0  # reads in a row without a chat line (#115)
+        self.failing = 0  # reads in a row that failed (#457); Live says so from FAIL_LIMIT on
+        self._failing_since = 0.0
+        self._failing_gap: int | None = None
 
     def offer(self, image: np.ndarray, mode: str | None = None) -> None:
         """From the capture thread: a chat frame with new text. Never blocks. mode: how it's
@@ -162,7 +166,17 @@ class ChatReader:
             self._store.close_gap(self._store.open_gap(lost[0], "deferred_lost"), lost[1])
 
     def _run(self) -> None:
+        """The reader thread never ends but on stop (#457): whatever trips a turn is logged
+        (once a minute) and the loop goes on, its waiting frames intact."""
         priority.lower_this_thread()  # OCR waits for the game, not the other way round (#187)
+        while True:
+            try:
+                return self._loop()
+            except Exception as error:
+                side_work.failed("the chat reader", error, then="it goes on")
+                time.sleep(1.0)  # never a hot loop
+
+    def _loop(self) -> None:
         while True:
             self._note_tidy_paused()
             with self._wake:
@@ -197,13 +211,45 @@ class ChatReader:
                     log.exception("tidying up the chat failed")
                 continue
             self._last_read = time.monotonic()
+            live = kept is None  # kept frames carry old times: only live reads count (#457)
+            paused = live and self._paused()  # read_frame skips it: not a good read either
             try:
                 self.read_frame(ts, image, kept)
-            except Exception:  # logged with traceback; the next frame is tried as usual
-                log.exception("reading the chat failed")
-                self._matches.chat_changed(ts)  # new text was there: the match still counts it
+            except Exception as error:  # logged with traceback; the next frame is tried as usual
+                side_work.failed("reading the chat", error, then="the next frame is read")
+                self._failed_read(ts, live)
+            else:
+                if live and not paused:
+                    self._read_ok(ts)
             if kept is not None:
                 self._kept_read(kept)
+
+    def _failed_read(self, ts: float, live: bool = True) -> None:
+        """Live reads failing in a row (#457): from FAIL_LIMIT on a crash gap is open (from the
+        first of them) and Live says so."""
+        try:
+            self._matches.chat_changed(ts)  # new text was there: the match still counts it
+        except Exception as error:  # the store itself may be what fails
+            side_work.failed("recording a failed read", error, then="it goes on")
+        if not live:
+            return
+        self.failing += 1
+        if self.failing == 1:
+            self._failing_since = ts
+        if self.failing >= FAIL_LIMIT and self._failing_gap is None:
+            try:  # tried again with every failure until the store takes it
+                self._failing_gap = self._store.open_gap(self._failing_since, "crash")
+            except Exception as error:
+                side_work.failed("opening the gap of failed reads", error, then="it goes on")
+
+    def _read_ok(self, ts: float) -> None:
+        if self._failing_gap is not None:
+            try:
+                self._store.close_gap(self._failing_gap, ts)
+                self._failing_gap = None
+            except Exception as error:
+                side_work.failed("closing the gap of failed reads", error, then="it goes on")
+        self.failing = 0
 
     def _tidy_due(self) -> bool:
         """Frames of a light match wait, and the game is idle (the next match pauses it)."""
