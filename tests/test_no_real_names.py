@@ -23,23 +23,12 @@ GAME_LISTS = ROOT / "src" / "yaptracker" / "data" / "game_lists.json"
 
 
 def game_words() -> set[str]:
-    """Every word of the game lists (heroes, maps, modes), lower case (#483): a player who calls
-    themselves "Green" can't be told apart from a map's word, so those names aren't checked."""
-    words: set[str] = set()
-
-    def walk(value) -> None:
-        if isinstance(value, str):
-            words.update(w.casefold() for w in re.findall(r"[^\W\d_]+", value))
-        elif isinstance(value, dict):
-            for key, item in value.items():
-                walk(key)
-                walk(item)
-        elif isinstance(value, list):
-            for item in value:
-                walk(item)
-
-    walk(json.loads(GAME_LISTS.read_text(encoding="utf-8")))
-    return words
+    """Every word of the game's own names (heroes, maps, map types, queues), lower case (#483):
+    a player who calls themselves "Green" can't be told apart from "Workshop Green Screen", so
+    those names aren't checked. The file's other text (source, URL) doesn't count."""
+    lists = json.loads(GAME_LISTS.read_text(encoding="utf-8"))
+    entries = [*lists["heroes"], *lists["maps"], *lists["queues"], *lists["map_types"].values()]
+    return {w.casefold() for entry in entries for w in re.findall(r"[^\W\d_]+", entry)}
 
 
 def checkable(names: set[str]) -> set[str]:
@@ -50,6 +39,8 @@ def checkable(names: set[str]) -> set[str]:
 
 
 def leaks_in(names: set[str], texts: dict[str, str]) -> dict[str, list[str]]:
+    if not names:
+        return {}  # an empty pattern would match everywhere
     found = re.compile(r"(?<![\w#])(" + "|".join(map(re.escape, names)) + r")(?![\w#])")
     return {
         path: sorted(hits) for path, text in texts.items() if (hits := set(found.findall(text)))
@@ -91,7 +82,8 @@ def test_no_name_from_the_private_samples_is_committed():
 
 def test_a_real_looking_name_is_still_caught_and_a_game_word_is_not():
     """#483: "Green" (a word of the game lists) stopped every local run; names stay strict."""
-    names = checkable({"Garbleguy", "Green", "Match"})
-    assert names == {"Garbleguy"}
+    names = checkable({"Garbleguy", "Green", "Match", "Source"})
+    assert names == {"Garbleguy", "Source"}  # the file's metadata words stay checked
     texts = {"tests/fixtures/chat/x.json": '{"speaker": "Garbleguy"}', "game.json": "Green Day"}
     assert leaks_in(names, texts) == {"tests/fixtures/chat/x.json": ["Garbleguy"]}
+    assert leaks_in(set(), texts) == {}
