@@ -1,10 +1,12 @@
 <#
 .SYNOPSIS
-    Install or update YapTracker from the newest GitHub (pre-)release.
+    Install or update YapTracker from the newest GitHub release.
 
 .DESCRIPTION
-    Downloads the newest release zip, closes a running YapTracker, replaces
-    <InstallRoot>\app and starts YapTracker again.
+    Downloads the newest stable release zip (with -PreRelease: the newest test
+    version), closes a running YapTracker, replaces <InstallRoot>\app and
+    starts YapTracker again. Before the first stable release, test versions
+    are all there is, so those count.
     <InstallRoot>\data (chat log, players, notes) is never touched.
     Works in Windows PowerShell 5.1 and PowerShell 7.
 
@@ -22,7 +24,9 @@ param(
     [ValidateSet('Ask', 'Yes', 'No')]
     [string]$Autostart = 'Ask',
     # Run this copy as it is, without fetching the newest update.ps1 first (CI tests its own).
-    [switch]$NoSelfUpdate
+    [switch]$NoSelfUpdate,
+    # Test versions too (pre-releases, every new build), not only stable releases (#454).
+    [switch]$PreRelease
 )
 
 $ErrorActionPreference = 'Stop'
@@ -188,6 +192,36 @@ function Get-WhatsNew {
     return $lines.ToArray()
 }
 
+function Get-VersionKey {
+    # A number that sorts like the version (#454): "v1.1.0-pre.5" before "v1.1.0-pre.12" before
+    # "v1.1.0". $null for a tag that isn't a version.
+    param([string]$Tag)
+    if ($Tag -notmatch '^v?(\d+)\.(\d+)\.(\d+)(-pre\.(\d+))?') { return $null }
+    $stable = if ($Matches[4]) { 0 } else { 1 }
+    $pre = if ($Matches[5]) { [decimal]$Matches[5] } else { [decimal]0 }
+    $base = ([decimal]$Matches[1] * 1000 + [decimal]$Matches[2]) * 1000000 + [decimal]$Matches[3]
+    return ($base * 10 + $stable) * 1000000 + $pre
+}
+
+function Select-Releases {
+    # The releases that count, newest version first (#454): stable ones, unless -PreRelease or
+    # there is no stable release yet (before v1.0.0 every build was a test version).
+    param([object[]]$Releases, [switch]$PreRelease)
+    $list = @($Releases | Where-Object { -not $_.draft -and $null -ne (Get-VersionKey $_.tag_name) })
+    $stable = @($list | Where-Object { -not $_.prerelease })
+    if (-not $PreRelease -and $stable.Count -gt 0) { $list = $stable }
+    return @($list | Sort-Object -Property @{ Expression = { Get-VersionKey $_.tag_name } } -Descending)
+}
+
+function Test-SameBuild {
+    # A stable release is a promoted test version, the very same build; its notes say
+    # "Same build as v1.1.0-pre.512". Installed that one: nothing new to get.
+    param([object]$Release, [string]$Installed)
+    if (-not $Installed) { return $false }
+    if ("$($Release.body)" -notmatch 'Same build as v?(\d+\.\d+\.\d+(-pre\.\d+)?)') { return $false }
+    return $Matches[1] -eq ($Installed -replace '^v', '')
+}
+
 function Stop-YapTracker {
     $running = @(Get-Process -Name 'YapTracker' -ErrorAction SilentlyContinue |
         Where-Object { $_.Path -and $_.Path.StartsWith($AppDir, [StringComparison]::OrdinalIgnoreCase) })
@@ -202,10 +236,11 @@ function Stop-YapTracker {
 $headers = @{ 'User-Agent' = 'YapTracker-update' }
 if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }
 
-Write-Host 'Looking for the newest YapTracker release...'
+Write-Host $(if ($PreRelease) { 'Looking for the newest YapTracker test version...' } else { 'Looking for the newest YapTracker release...' })
 # 100: enough to find the installed version and tell everything since (#281), one call.
-$releases = Invoke-RestMethod -UseBasicParsing -Headers $headers -Uri "https://api.github.com/repos/$Repo/releases?per_page=100"
-$release = $releases | Where-Object { -not $_.draft } | Select-Object -First 1
+$listed = Invoke-RestMethod -UseBasicParsing -Headers $headers -Uri "https://api.github.com/repos/$Repo/releases?per_page=100"
+$releases = @(Select-Releases -Releases $listed -PreRelease:$PreRelease)
+$release = $releases | Select-Object -First 1
 if (-not $release) { throw "No release found on github.com/$Repo" }
 $asset = $release.assets | Where-Object { $_.name -like 'YapTracker-*-win64.zip' } | Select-Object -First 1
 if (-not $asset) { throw "Release $($release.tag_name) has no YapTracker-*-win64.zip" }
@@ -231,14 +266,21 @@ if ($replaced) {  # outside the try: if the new one fails, this one must not run
     $again = @{}
     foreach ($key in $PSBoundParameters.Keys) { $again[$key] = $PSBoundParameters[$key] }
     if ($latest -match 'NoSelfUpdate') { $again['NoSelfUpdate'] = $true }  # older ones don't know it
+    if ($latest -notmatch 'PreRelease') { [void]$again.Remove('PreRelease') }  # nor this (#454)
     $global:LASTEXITCODE = 0
     & $PSCommandPath @again
     exit $LASTEXITCODE
 }
 
 $installed = if (Test-Path $ReleaseFile) { (Get-Content $ReleaseFile -Raw).Trim() } else { '' }
-if ($installed -eq $release.tag_name -and -not $Force) {
+if (($installed -eq $release.tag_name -or (Test-SameBuild $release $installed)) -and -not $Force) {
     Write-Host "YapTracker $installed is already the newest version."
+    exit 0
+}
+$installedKey = Get-VersionKey $installed
+if ($null -ne $installedKey -and $installedKey -gt (Get-VersionKey $release.tag_name) -and -not $Force) {
+    # A test version newer than the newest stable release: never step back by itself (#454).
+    Write-Host "YapTracker $installed is newer than the newest stable release ($($release.tag_name)). Test versions: update.ps1 -PreRelease"
     exit 0
 }
 
