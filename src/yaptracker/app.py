@@ -502,6 +502,7 @@ def _open_store() -> Callable[[], None]:
                                 config.save_empty_removed)  # fmt: skip
         normalise_places_once(runtime.store, paths.backup_dir(), config.places_normalised,
                               config.save_places_normalised)  # fmt: skip
+        runtime.players.reload()  # players the clean-ups removed are gone for the matcher (#458)
 
     def close_store() -> None:
         if runtime.backups is not None:

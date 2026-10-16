@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · No lost lines after a tidy-up or a merge (#458)
+- When the tidy-up after a match removed a misread name, the next line from someone read the same way could get lost. Now that name simply becomes a player again, and after a merge a line still on screen goes to the player it was merged into.
+
 ### 2026-10-16 · Line pictures for every Windows user name (#459)
 - Line pictures, Read again and debug samples now also work when your Windows user name has letters like ü, ö or ß in it.
 

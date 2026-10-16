@@ -405,11 +405,16 @@ class Store:
     def rename_player(self, player_id: int, display_name: str) -> None:
         self._write("UPDATE players SET display_name = ? WHERE id = ?", (display_name, player_id))
 
-    def player_seen(self, player_id: int, ts: float) -> None:
-        self._write(
-            "UPDATE players SET last_seen = MAX(COALESCE(last_seen, ?), ?) WHERE id = ?",
-            (ts, ts, player_id),
-        )
+    def player_seen(self, player_id: int, ts: float) -> bool:
+        """False when that player isn't there anymore (removed by a tidy-up or merged, #458)."""
+        with self._lock:
+            return (
+                self._conn.execute(
+                    "UPDATE players SET last_seen = MAX(COALESCE(last_seen, ?), ?) WHERE id = ?",
+                    (ts, ts, player_id),
+                ).rowcount
+                > 0
+            )
 
     def players(self) -> list[PlayerRow]:
         """Every player with how often you met them and how much they said."""
