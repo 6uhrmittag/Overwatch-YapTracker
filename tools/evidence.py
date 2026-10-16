@@ -30,6 +30,13 @@ CAPTURE = re.compile(_TIME + r"capture: asking Windows for ([\d.]+) frames a sec
 FPS = re.compile(_TIME + r"game fps \(Overwatch overlay\): median (\d+), .* — (running|paused), "
                  r"(in match|between matches)(?:, (\w+))?;")  # fmt: skip
 MODE = re.compile(_TIME + r"reading: (best|light|after) \(")
+STARTED = re.compile(_TIME + r"match (\d+) started \(\w+, [^,]*, (.*)\)$")
+PLACE = re.compile(
+    _TIME + r"match (\d+): (?:hero select \([^,]*, (.*)\) takes over"
+    r"|hero select read again: [^,]*, (.*)$|map from the end screen: (.*)$)"
+)
+SAMPLES = re.compile(r"\bn=(\d+)")
+FULL_MINUTE = 8  # an FPS minute with fewer reads is a pause flush or a match end (#448)
 EVENING = re.compile(_TIME + r"(evening \d{4}-\d\d-\d\d: .*)")
 ROUND = re.compile(_TIME + r"match (\d+): round (\d+)")
 TIDIED = re.compile(_TIME + r"(tidied match \d+: .*?removed)")
@@ -107,14 +114,18 @@ def _version_key(version: str) -> tuple:
 
 
 def scan(lines: list[str]) -> dict:
-    """Everything the log says, per evening: versions, CPU, in-match threads, FPS by version,
-    reading mode and state, errors. The version of a line is the last one logged before it; the
-    mode is in the FPS line itself (#444), in older logs the last `reading:` line before it."""
+    """Everything the log says, per evening: versions, CPU, in-match threads, errors, and each
+    in-match FPS minute with its version, reading mode, state, match and whether it's a full
+    minute; the map of each match (from its start, a hero-select take-over or the end screen).
+    The version of a line is the last one logged before it; the mode is in the FPS line itself
+    (#444), in older logs the last `reading:` line before it."""
     found: dict = {"versions": defaultdict(set), "cpu": defaultdict(list),
                    "capture": defaultdict(set), "threads": defaultdict(Counter),
-                   "thread_minutes": Counter(), "fps": defaultdict(list), "evenings": [],
-                   "rounds": [], "tidied": [], "errors": defaultdict(Counter)}  # fmt: skip
+                   "thread_minutes": Counter(), "evenings": [],
+                   "rounds": [], "tidied": [], "errors": defaultdict(Counter),
+                   "minutes": [], "maps": {}}  # fmt: skip
     version, mode, day = "?", "?", None
+    match, hero_select = None, False  # the match the FPS minutes are in; its hero select minute
     for line in lines:
         m = re.match(_TIME, line)
         if m:
@@ -141,38 +152,72 @@ def scan(lines: list[str]) -> dict:
         elif m := FPS.match(line):
             if m[5] == "in match":
                 said = m[6] or ("-" if m[4] == "paused" else mode)  # in the line since #444
-                found["fps"][(day, version, said, m[4])].append(float(m[3]))
+                n = SAMPLES.search(line)
+                full = not hero_select and (n is None or int(n[1]) >= FULL_MINUTE)
+                found["minutes"].append((day, version, said, m[4], match, float(m[3]), full))
+                hero_select = False
+        elif m := STARTED.match(line):
+            match, hero_select = int(m[3]), True  # its first minute is mostly hero select
+            _place(found["maps"], match, m[4])
+        elif m := PLACE.match(line):
+            match = int(m[3])
+            hero_select = hero_select or m[4] is not None
+            _place(found["maps"], match, m[4] or m[5] or m[6])
         elif m := EVENING.match(line):
             found["evenings"].append((day, "filled in later" if "(filled in)" in line
                                       else f"v{version}", m[3]))  # fmt: skip
         elif m := ROUND.match(line):
             found["rounds"].append((day, int(m[3]), int(m[4])))
+            hero_select = True  # the next round starts with hero select too
         elif m := TIDIED.match(line):
             found["tidied"].append((day, m[3]))
     return found
 
 
-def fps_verdict(running: list[float], paused: list[float]) -> str:
-    """In-match FPS, running vs paused, against the bar (≤ 5 % of in-match FPS)."""
-    if not paused:
-        return (f"no paused in-match samples (running median {_median(running)} fps, "
-                f"n={len(running)}): one paused match settles it")  # fmt: skip
-    if not running:
-        return f"no running in-match samples (paused median {_median(paused)} fps)"
-    run, rest = statistics.median(running), statistics.median(paused)
-    cost = 100 * (rest - run) / rest if rest else 0.0
+def _place(maps: dict, match: int, name: str | None) -> None:
+    if name and name.strip() not in ("None", ""):
+        maps[match] = name.strip()
+
+
+def fps_verdict(running: dict, paused: dict) -> str:
+    """In-match FPS by map, running vs paused, against the bar (≤ 5 % of in-match FPS). Only
+    maps with both count (#448); the cost is the median of their costs."""
+    every_run = [v for values in running.values() for v in values]
+    every_pause = [v for values in paused.values() for v in values]
+    if not every_pause:
+        return (f"no paused in-match samples (running median {_median(every_run)} fps, "
+                f"n={len(every_run)}): one paused match settles it")  # fmt: skip
+    if not every_run:
+        return f"no running in-match samples (paused median {_median(every_pause)} fps)"
+    shared = sorted(place for place in running if place is not None and paused.get(place))
+    if not shared:
+        on = ", ".join(sorted(place or "unknown map" for place in paused if paused[place]))
+        return (f"no same-map running minutes: paused on {on} (running median "
+                f"{_median(every_run)} fps, n={len(every_run)})")  # fmt: skip
+    costs, maps = [], []
+    for place in shared:
+        run, rest = statistics.median(running[place]), statistics.median(paused[place])
+        costs.append(100 * (rest - run) / rest if rest else 0.0)
+        maps.append(f"{place}: running {run:.0f} vs paused {rest:.0f} fps ({costs[-1]:.1f} %, "
+                    f"{len(running[place])}/{len(paused[place])} min)")  # fmt: skip
+    cost = statistics.median(costs)
     verdict = "within" if cost <= FPS_BAR else "over"
-    return (f"running {run:.0f} fps vs paused {rest:.0f} fps: costs {cost:.1f} % "
-            f"({verdict} the {FPS_BAR:.0f} % bar)")  # fmt: skip
+    return f"{'; '.join(maps)}: costs {cost:.1f} % ({verdict} the {FPS_BAR:.0f} % bar)"
 
 
-def fps_verdicts(fps: dict, days: set[str] | None = None) -> list[str]:
-    """One verdict per version and reading mode, never a mix: running samples of that mode
-    against the paused ones of the same version (paused, the mode doesn't matter)."""
-    running, paused = defaultdict(list), defaultdict(list)
-    for (day, version, mode, state), values in fps.items():
-        if days is None or day in days:
-            (running[(version, mode)] if state == "running" else paused[version]).extend(values)
+def fps_verdicts(found: dict, days: set[str] | None = None) -> list[str]:
+    """One verdict per version and reading mode, never a mix (#444): running minutes of that
+    mode against the paused ones of the same version (paused, the mode doesn't matter), map by
+    map (#448): maps differ more than YapTracker does (105 fps on Junkertown, 156 on Route 66).
+    Hero-select minutes (~60 fps) and partial minutes are left out."""
+    running = defaultdict(lambda: defaultdict(list))
+    paused = defaultdict(lambda: defaultdict(list))
+    for day, version, mode, state, match, value, full in found["minutes"]:
+        if full and (days is None or day in days):
+            place = found["maps"].get(match)
+            (running[(version, mode)] if state == "running" else paused[version])[place].append(
+                value
+            )
     order = sorted(running, key=lambda k: (_version_key(k[0]), k[1]))
     return [f"v{v} {mode}: {fps_verdict(running[(v, mode)], paused[v])}" for v, mode in order] \
         or ["no running in-match samples"]  # fmt: skip
@@ -213,10 +258,14 @@ def _sections(data: Path, found: dict, happened: dict, db: sqlite3.Connection | 
     out += [f"  {tag}: {text}" for day, tag, text in found["evenings"] if day in recent]
     out.append("")
 
-    out.append("## #187 / #330 FPS in match (median of the minute medians)")
-    for (day, version, mode, state), values in sorted(found["fps"].items()):
+    out.append("## #187 / #330 FPS in match (median of the full minutes, hero select left out)")
+    fps = defaultdict(list)
+    for day, version, mode, state, _, value, full in found["minutes"]:
+        if full:
+            fps[(day, version, mode, state)].append(value)
+    for (day, version, mode, state), values in sorted(fps.items()):
         out.append(f"- {day} v{version} {mode} {state}: {_median(values)} fps (n={len(values)})")
-    out += [f"- verdict {line}" for line in fps_verdicts(found["fps"])]
+    out += [f"- verdict {line}" for line in fps_verdicts(found)]
     out.append("")
 
     out.append("## #451 / #452 Errors (per evening)")
@@ -272,7 +321,7 @@ def _sections(data: Path, found: dict, happened: dict, db: sqlite3.Connection | 
     if last:
         shown, after = happened[last]["familiar"], happened[last]["familiar_after"]
         out.append(f"- familiar faces shown: {shown + after} (after the match {after})")
-        out += [f"- FPS {line}" for line in fps_verdicts(found["fps"], {last})]
+        out += [f"- FPS {line}" for line in fps_verdicts(found, {last})]
         tidied = [text for day, text in found["tidied"] if day == last]
         out.append(f"- tidy-ups logged: {len(tidied)}"
                    + (f" (last: {tidied[-1]})" if tidied else ""))  # fmt: skip

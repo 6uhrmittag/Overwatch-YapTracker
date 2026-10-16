@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · FPS check compares the same map (#448)
+- Behind the scenes: `tools/evidence.py` compares YapTracker running vs paused on the same map only, and leaves out hero-select and partial minutes, so the FPS verdict no longer blames YapTracker for a heavier map.
+
 ### 2026-10-16 · A full disk or a hiccup in Windows OCR no longer loses chat (#452)
 - When a line's picture or a debug sample can't be saved (for example on a full disk), the chat line is still saved. Read again then says the line has no picture.
 - With less than 1 GB free, debug samples pause and Live says so: "Disk almost full: debug samples paused". They start again by themselves once there's space.
