@@ -174,6 +174,7 @@ def test_a_saved_reading_choice_keeps_best_for_other_matches():
     paths.config_file().write_text(json.dumps({"reading": {"competitive": "best"}}))
     assert (config.reading("competitive"), config.reading("other")) == ("best", "best")
     paths.config_file().write_text("{}")  # a new install
+    config.forget()
     config.save_reading("competitive", "best")
     assert config.reading("other") == "light"
 

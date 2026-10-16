@@ -33,6 +33,11 @@ MODE = re.compile(_TIME + r"reading: (best|light|after) \(")
 EVENING = re.compile(_TIME + r"(evening \d{4}-\d\d-\d\d: .*)")
 ROUND = re.compile(_TIME + r"match (\d+): round (\d+)")
 TIDIED = re.compile(_TIME + r"(tidied match \d+: .*?removed)")
+ERRORS = {  # what a line says -> its name in the report; a traceback counts by its error line
+    "config busy (#451)": re.compile(r"PermissionError.*config\.(json|tmp)"),
+    "settings not saved (#451)": re.compile(r"settings: couldn't save"),  # once per failing run
+    "reading the chat failed (#452)": re.compile(r"reading the chat failed"),
+}
 SHARE = re.compile(r"(.+?) ([\d.]+) %(?:, |$)")  # "capture watcher 9.8 %, pywebview-js 1.0 %"
 FPS_BAR = 5.0  # % of in-match FPS YapTracker may cost (Definition of done)
 CUT_H = 5  # an evening runs until 05:00 (#440)
@@ -103,17 +108,21 @@ def _version_key(version: str) -> tuple:
 
 def scan(lines: list[str]) -> dict:
     """Everything the log says, per evening: versions, CPU, in-match threads, FPS by version,
-    reading mode and state. The version of a line is the last one logged before it; the mode
-    is in the FPS line itself (#444), in older logs the last `reading:` line before it."""
+    reading mode and state, errors. The version of a line is the last one logged before it; the
+    mode is in the FPS line itself (#444), in older logs the last `reading:` line before it."""
     found: dict = {"versions": defaultdict(set), "cpu": defaultdict(list),
                    "capture": defaultdict(set), "threads": defaultdict(Counter),
                    "thread_minutes": Counter(), "fps": defaultdict(list), "evenings": [],
-                   "rounds": [], "tidied": []}  # fmt: skip
-    version, mode = "?", "?"
+                   "rounds": [], "tidied": [], "errors": defaultdict(Counter)}  # fmt: skip
+    version, mode, day = "?", "?", None
     for line in lines:
-        if not (m := re.match(_TIME, line)):
+        m = re.match(_TIME, line)
+        if m:
+            day = evening_of(m[1], m[2])
+        if day is not None:  # a traceback line belongs to the evening of the line above it
+            found["errors"][day].update(name for name, said in ERRORS.items() if said.search(line))
+        if not m:
             continue
-        day = evening_of(m[1], m[2])
         if m := VERSION.match(line):
             version, mode = m[3], "?"  # a new run: its own reading lines follow
             found["versions"][day].add(version)
@@ -208,6 +217,16 @@ def _sections(data: Path, found: dict, happened: dict, db: sqlite3.Connection | 
     for (day, version, mode, state), values in sorted(found["fps"].items()):
         out.append(f"- {day} v{version} {mode} {state}: {_median(values)} fps (n={len(values)})")
     out += [f"- verdict {line}" for line in fps_verdicts(found["fps"])]
+    out.append("")
+
+    out.append("## #451 / #452 Errors (per evening)")
+    for day, counts in sorted(found["errors"].items()):
+        if counts:
+            out.append(
+                f"- {day}: " + ", ".join(f"{name} ×{n}" for name, n in sorted(counts.items()))
+            )
+    if not any(found["errors"].values()):
+        out.append("- none")
     out.append("")
 
     out.append("## #372 Competitive")

@@ -1,4 +1,8 @@
 import json
+import logging
+from pathlib import Path
+
+import numpy as np
 
 from yaptracker import config
 from yaptracker.capture.source import Region
@@ -45,3 +49,50 @@ def test_a_new_window_size_asks_for_one_check(tmp_path):
 def test_aspect_ratio_keys():
     assert config.aspect(2560, 1440) == config.aspect(1920, 1080) == "16:9"
     assert config.aspect(3440, 1440) == "43:18"
+
+
+def busy(*_args, **_kwargs):
+    raise PermissionError(13, "The process cannot access the file")  # what Windows says (#451)
+
+
+def test_the_capture_path_never_reads_the_file_again(tmp_path, monkeypatch):
+    """#451: on Windows, reading config.json while a save replaces it crashed the capture."""
+    from yaptracker.debug import DebugSamples
+
+    path = config.paths.config_file()
+    config.save_debug_samples(True)
+    samples = DebugSamples(tmp_path / "debug", config.debug_samples)
+    monkeypatch.setattr(config, "_read", busy)
+    samples.on_signals({"overview": np.zeros((36, 64, 3), np.uint8)})  # no PermissionError
+    assert config.debug_samples() and config.hotkeys()["pause"] == ""
+    assert config.read_every_s() == config.READ_GAPS[0] and path.exists()
+
+
+def test_a_busy_file_is_tried_again(tmp_path, monkeypatch):
+    path, real_replace, tries = tmp_path / "config.json", Path.replace, []
+
+    def replace(self, target):
+        tries.append(target)
+        if len(tries) < 3:
+            busy()
+        return real_replace(self, target)
+
+    monkeypatch.setattr(config, "RETRY_WAITS_S", (0, 0, 0))
+    monkeypatch.setattr(Path, "replace", replace)
+    config.save_window_place({"x": 1}, path)
+    assert len(tries) == 3 and json.loads(path.read_text())["window"] == {"x": 1}
+
+
+def test_a_save_that_keeps_failing_never_fails_the_caller(tmp_path, monkeypatch, caplog):
+    path = tmp_path / "config.json"
+    caplog.set_level(logging.INFO, "yaptracker.config")
+    monkeypatch.setattr(config, "RETRY_WAITS_S", (0,))
+    with monkeypatch.context() as locked:
+        locked.setattr(Path, "replace", busy)
+        config.save_window_place({"x": 1}, path)
+        config.save_show_callouts(True, path)
+        assert config.window_place(path) == {"x": 1} and config.show_callouts(path)  # in memory
+    assert caplog.text.count("couldn't save config.json") == 1  # logged once, not per save
+    config.save_line_pictures(False, path)  # the file is free again: everything lands on disk
+    saved = json.loads(path.read_text())
+    assert saved["window"] == {"x": 1} and saved["show_callouts"] and "saved again" in caplog.text

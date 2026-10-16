@@ -65,6 +65,10 @@ def data_folder(tmp_path: Path, paused: bool) -> Path:
         "(light 4); whole app: 30.0 % of a core",  # 01:00: still this evening
         f"{stamp(T0 + 5 * 3600)} INFO yaptracker.cpu_parts: cpu threads (in match): native 4.5 %, "
         "pywebview-js 1.5 %",
+        f"{stamp(T0 + 5 * 3600)} ERROR yaptracker.capture.watcher: capture failed",
+        "Traceback (most recent call last):",  # no time: still that evening
+        "PermissionError: [Errno 13] Permission denied: 'C:\\data\\config.json'",
+        f"{stamp(T0 + 5 * 3600)} ERROR yaptracker.reader: reading the chat failed",
     ]
     if paused:
         log.append(f"{stamp(T0 + 1100)} INFO yaptracker.game_fps: game fps (Overwatch overlay): "
@@ -101,6 +105,7 @@ def test_the_report_answers_every_waiting_issue_with_ids_only(tmp_path, monkeypa
     assert "tidied match 1: 2 fixed, 1 found, 3 removed" in text
     assert "v0.5.470: evening 2026-10-12: 2 matches" in text
     assert "filled in later: evening 2026-10-01: 5 matches" in text
+    assert "- 2026-10-12: config busy (#451) ×1, reading the chat failed (#452) ×1" in text
     for name in ("NoodleBonk", "Pip", "Bo:"):  # ids only, never a name
         assert name not in text, name
 
