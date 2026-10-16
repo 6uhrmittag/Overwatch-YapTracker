@@ -35,8 +35,8 @@ _MINUTE = re.compile(
     re.MULTILINE,
 )
 _PARTS = re.compile(
-    r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d),\d+ INFO yaptracker\.cpu_parts: cpu parts\b.*"
-    r"\(whole app ([\d.]+) %\)$",
+    r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d),\d+ INFO yaptracker\.cpu_parts: cpu parts"
+    r"(?: \(([^)]*)\))?: .*\(whole app ([\d.]+) %\)$",
     re.MULTILINE,
 )
 # Events counted per evening (#425, #437): kind -> pattern with the time and, if it says so,
@@ -67,7 +67,8 @@ def scan(files: list[Path]) -> tuple[list[tuple[str, str, float]], list[tuple[st
     """Each log file read once: the reader's minute lines (local time, read modes like
     "light 31, best 9", CPU %), the counted events (local time, kind, number): lines seen
     but never stored (number: how many), rounds of a match, familiar-face cards (1 each), and
-    the whole app's CPU once a minute (local time, % of a core)."""
+    the whole app's CPU once a minute (local time, % of a core; minutes with Overwatch closed
+    left out: the app waits for it all day, #45)."""
     minutes, events, cpu = [], [], []
     for path in files:
         try:
@@ -75,7 +76,7 @@ def scan(files: list[Path]) -> tuple[list[tuple[str, str, float]], list[tuple[st
         except OSError:
             continue
         minutes += [(m[1], m[2] or "", float(m[3])) for m in _MINUTE.finditer(text)]
-        cpu += [(m[1], float(m[2])) for m in _PARTS.finditer(text)]
+        cpu += [(m[1], float(m[3])) for m in _PARTS.finditer(text) if m[2] != "no game"]
         for kind, pattern in _EVENTS.items():
             events += [(m[1], kind, int(m[2]) if m.lastindex >= 2 else 1)
                        for m in pattern.finditer(text)]  # fmt: skip

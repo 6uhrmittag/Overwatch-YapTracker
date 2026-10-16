@@ -48,6 +48,10 @@ def data_folder(tmp_path: Path, paused: bool) -> Path:
         "(after 4); whole app: 20.0 % of a core",
         f"{stamp(T0 + 120)} INFO yaptracker.cpu_parts: cpu parts (in match): reading 0.0 %, "
         "match signals 6.0 % - rest 2.0 % (whole app 10.0 %)",
+        f"{stamp(T0 + 130)} INFO yaptracker.cpu_parts: cpu parts (no game): reading 0.0 %, "
+        "capture 0.0 % - rest 0.5 % (whole app 0.5 %)",  # Overwatch closed: not the evening
+        f"{stamp(T0 + 30 * 3600)} INFO yaptracker.cpu_parts: cpu parts (no game): reading 0.0 "
+        "%, capture 0.0 % - rest 0.5 % (whole app 0.5 %)",  # the next day, game never started
         f"{stamp(T0 + 120)} INFO yaptracker.cpu_parts: cpu threads (in match): native 11.5 %, "
         "capture watcher 8.0 %, chat reader 2.5 %",
         f"{stamp(T0 + 121)} INFO yaptracker.game_fps: game fps (Overwatch overlay): median 120, "
@@ -106,6 +110,7 @@ def test_the_report_answers_every_waiting_issue_with_ids_only(tmp_path, monkeypa
         "- 2026-10-12 (v0.5.470): whole app avg 13.0 % of a core (n=2); read bursts 25.0 % "
         "(n=2)" in text
     )  # 01:00 too; once a minute, the reader's own lines apart (#476)
+    assert "- 2026-10-13" not in text  # only "no game" minutes that day: no evening
     assert "threads in match (2 min): native 8.0 %, capture watcher 4.0 %, chat reader 1.2 %, " \
         "pywebview-js 0.8 %" in text  # fmt: skip
     assert "seen but not stored 2" in text and "capture 4 fps in a match" in text

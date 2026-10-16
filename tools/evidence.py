@@ -25,7 +25,8 @@ from yaptracker.store.repo import Store
 _TIME = r"^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d),\d+ \w+ yaptracker\.[\w.]+: "
 VERSION = re.compile(_TIME + r"system: YapTracker v(\S+)")
 MINUTE = re.compile(_TIME + r"chat reading: \d+ frames, .*whole app: ([\d.]+) %")
-PARTS = re.compile(_TIME + r"cpu parts\b.*\(whole app ([\d.]+) %\)$")  # once a minute (#476)
+# Once a minute (#476); a minute with Overwatch closed (autostart waits all day) is no evening
+PARTS = re.compile(_TIME + r"cpu parts(?! \(no game\):).*\(whole app ([\d.]+) %\)$")
 THREADS = re.compile(_TIME + r"cpu threads \(([^)]*)\): (.*)")
 CAPTURE = re.compile(_TIME + r"capture: asking Windows for ([\d.]+) frames a second \(([^)]*)\)")
 FPS = re.compile(_TIME + r"game fps \(Overwatch overlay\): median (\d+), .* — (running|paused), "

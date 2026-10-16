@@ -42,6 +42,8 @@ def log_file(tmp_path):
         "match signals 6.0 % - rest 2.0 % (whole app 10.0 %)\n"
         f"{clock(T0 + 120)} INFO yaptracker.cpu_parts: cpu parts (in match + between matches): "
         "reading 9.0 %, match signals 6.0 % - rest 3.0 % (whole app 20.0 %)\n"
+        f"{clock(T0 + 150)} INFO yaptracker.cpu_parts: cpu parts (no game): reading 0.0 %, "
+        "capture 0.0 % - rest 0.5 % (whole app 0.5 %)\n"  # Overwatch closed: not the evening
         f"{clock(T0 + 120)} INFO yaptracker.reader: chat reading: no chat in the box between "
         "matches, reading every 3 s; 2 changed frames in 60 s\n"
         f"{clock(T0 + 180)} INFO yaptracker.reader: chat reading: 4 frames, 558 ms CPU each; "
