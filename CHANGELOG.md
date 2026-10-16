@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Windows 10: lighter in matches read afterwards (#453)
+- On Windows 10, in a match that's read after it ends (Competitive by default), YapTracker now looks at the chat once a second instead of twice, like while it's paused. Each look makes the game wait a moment, so this should give back most of the frames it cost there.
+
 ### 2026-10-16 · FPS check compares the same map (#448)
 - Behind the scenes: `tools/evidence.py` compares YapTracker running vs paused on the same map only, and leaves out hero-select and partial minutes, so the FPS verdict no longer blames YapTracker for a heavier map.
 

@@ -30,6 +30,16 @@ log = logging.getLogger(__name__)
 GDI_FPS = 2.0
 QUIET_FPS = 1.0
 QUIET_FRAMES = 4  # 2 s with nothing new on the chat change detector (app.chat_quiet)
+
+
+def grab_less(quiet_frames: int, reread: bool, after_the_match: bool) -> bool:
+    """The chat box once a second instead of twice: while it's quiet (#319), and all match long
+    when the match is read afterwards (#453). Paused already grabbed that way and cost Void
+    ~15-20 fps less: the grabs make the game wait, not our CPU (change detection is ~0.3 % of a
+    core). A line stays ~9 s, so it's still in ~9 grabs, and nothing is read live anyway."""
+    return after_the_match or (quiet_frames >= QUIET_FRAMES and not reread)
+
+
 _END = object()
 _SRCCOPY = 0x00CC0020
 _PER_MONITOR_AWARE_V2 = -4  # DPI_AWARENESS_CONTEXT: real pixels, whatever the scaling

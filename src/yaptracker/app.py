@@ -14,7 +14,7 @@ from nicegui.run import io_bound
 
 from yaptracker import autostart as start_with_windows
 from yaptracker import config, demo, paths, runtime, system_info
-from yaptracker.capture.gdi import QUIET_FRAMES
+from yaptracker.capture.gdi import grab_less
 from yaptracker.capture.watcher import CaptureWatcher
 from yaptracker.cpu_parts import CPU
 from yaptracker.ui import shell
@@ -113,9 +113,10 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         if changed and mode == LIGHT and runtime.reading.light_problem is None:
             runtime.reader.keep_for_tidy(frame.image)  # read again with the best when idle (#336)
 
-    def chat_quiet() -> bool:  # GDI grabs less while nothing new shows (#319)
+    def chat_quiet() -> bool:  # GDI grabs less while nothing new shows (#319) or is read (#453)
         reread = runtime.reader is not None and runtime.reader.wants_reread()
-        return changes.quiet >= QUIET_FRAMES and not reread
+        after = runtime.reading is not None and runtime.reading.now() == AFTER
+        return grab_less(changes.quiet, reread, after)
 
     def on_alive() -> None:
         if runtime.matches is not None:

@@ -34,3 +34,13 @@ def test_a_strip_is_cut_out_of_its_grab_where_it_was():
     grabbed = frame.crop(window)
     assert np.array_equal(cut(grabbed, frame, part), part.crop(window))
     assert np.array_equal(cut(window, Region(0, 0, 0, 0), part), part.crop(window))
+
+
+def test_the_chat_box_is_grabbed_once_a_second_when_quiet_or_read_after_the_match():
+    """#453: each grab makes the game wait; 'after the match' reads nothing live."""
+    from yaptracker.capture.gdi import QUIET_FRAMES, grab_less
+
+    assert not grab_less(0, reread=False, after_the_match=False)  # new chat: twice a second
+    assert grab_less(QUIET_FRAMES, reread=False, after_the_match=False)  # quiet (#319)
+    assert not grab_less(QUIET_FRAMES, reread=True, after_the_match=False)  # a weak line waits
+    assert grab_less(0, reread=False, after_the_match=True)  # busy chat, read after the match
