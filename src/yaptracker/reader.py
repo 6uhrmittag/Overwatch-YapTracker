@@ -88,6 +88,7 @@ class ChatReader:
         self._on_read = on_read  # debug samples of hard chat moments (#110)
         self._pictures = pictures  # the picture of every stored line (#120)
         self._players = players  # who said it (#23)
+        self._players_seen = 0  # the matcher's generation _speakers is from (#458)
         self._on_player = on_player  # a familiar face may be back (#26)
         self._speakers: dict[int, tuple[str | None, int | None]] = {}  # yap id -> (speaker, player)
         self._seen_colours: dict[str, float] = {}  # channel colours learned while reading (#173)
@@ -371,7 +372,8 @@ class ChatReader:
             return
         stored = self._store.match_lines(tidy.match_id)
         doomed = tidy.unconfirmed(stored, self._store.hand_touched(tidy.match_id))
-        self._store.remove_lines(doomed)
+        if self._store.remove_lines(doomed) and self._players is not None:
+            self._players.reload()  # its players went with them (#458)
         log.info("tidied match %d: %d fixed, %d found, %d removed (light readings the best reader "
                  "didn't confirm: repeats, pieces)", tidy.match_id, len(tidy.fixed), tidy.found,
                  len(doomed))  # fmt: skip
@@ -416,6 +418,9 @@ class ChatReader:
         Nobody for a system line: "[x] stopped playing" is the friend list, not meeting x (#306).
         """
         speaker = yap.best.speaker if yap.best.channel != "system" else None
+        if self._players is not None and self._players.generation != self._players_seen:
+            self._speakers.clear()  # a merge or a removal since: the ids may be gone (#458)
+            self._players_seen = self._players.generation
         known = self._speakers.get(yap.id)
         if known is not None and known[0] == speaker:
             return known[1]
