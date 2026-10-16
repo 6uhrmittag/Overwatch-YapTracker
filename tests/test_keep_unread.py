@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from yaptracker.capture.source import Region
-from yaptracker.later import KEEP_S, LaterFrames
+from yaptracker.later import LaterFrames
 from yaptracker.matches import MatchTracker
 from yaptracker.ocr.engine import OcrLine
 from yaptracker.pause import Pause
@@ -54,8 +54,9 @@ def test_a_quit_keeps_them_and_the_next_start_reads_them_into_their_match(db, tm
 
     store = Store.open(*db)  # the next start
     tracker = MatchTracker(store, Pause())
-    later = reader_for(store, tracker, unread, [T0 + 600]).later
-    assert later.restore(now=T0 + 600) is None and len(later) == 2
+    days = T0 + 4 * 24 * 3600  # Void came back four days later (#474)
+    later = reader_for(store, tracker, unread, [days]).later
+    assert later.restore(now=days) is None and len(later) == 2 and later.restored() == 2
     assert not unread.exists()  # read into memory, the folder is gone
     again = ChatReader(read, store, tracker, later=later, read_kept=lambda img, mode: read(img))
     while (kept := later.pop()) is not None:
@@ -66,15 +67,17 @@ def test_a_quit_keeps_them_and_the_next_start_reads_them_into_their_match(db, tm
     store.close()
 
 
-def test_frames_older_than_two_days_become_a_gap(db, tmp_path):
+def test_only_the_memory_cap_drops_kept_frames_the_oldest_first(tmp_path):
+    """#474: 'too old to read' lost a whole match; now only the cap can drop, with a gap."""
     unread = tmp_path / "unread"
     later = LaterFrames(lambda: 0.0, None, unread=unread)
-    later.add(T0, image(10), 1, "after")
-    later.add(T0 + 30, image(20), 1, "after")
+    for n in range(3):
+        later.add(T0 + 10 * n, image(10), 1, "after")
     assert later.close() is None
-    fresh = LaterFrames(lambda: 0.0, None, unread=unread)
-    assert fresh.restore(now=T0 + 30 + KEEP_S + 1) == (T0, T0 + 30)  # for the gap record
-    assert len(fresh) == 0 and not unread.exists()
+    smaller = LaterFrames(lambda: 0.0, None, cap_bytes=2 * image(10).nbytes, unread=unread)
+    assert smaller.restore(now=T0 + 30 * 24 * 3600) == (T0, T0)  # the oldest: a gap record
+    assert [k.ts for k in [smaller.pop(), smaller.pop()]] == [T0 + 10, T0 + 20]
+    assert smaller.restored() == 0 and not unread.exists()
 
 
 def test_a_half_written_folder_is_dropped_quietly(tmp_path):

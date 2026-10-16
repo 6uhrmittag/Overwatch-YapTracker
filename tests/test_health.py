@@ -136,6 +136,24 @@ def test_a_few_seconds_late_or_an_unknown_start_is_no_gap(store):
     assert spans(store) == []
 
 
+def test_a_gap_left_open_by_a_killed_run_is_closed_at_the_next_start(store):
+    """#463: killed while paused, the open gap overlapped every match after it."""
+    session = store.start_session(1000.0)
+    store.open_gap(1100.0, "paused")  # paused, then the PC shut down
+    match = store.start_match(session, 1200.0, "heroselect")
+    store.add_message(ts=1500.0, channel="match", text="gg", match_id=match)
+    store.open_gap(2000.0, "crash")  # nothing recorded after this one: it ends where it began
+    assert store.close_open_gaps() == 2
+    assert store.all_gaps() == [(1100.0, 1500.0, "paused"), (2000.0, 2000.0, "crash")]
+    later = store.start_match(store.start_session(5000.0), 5000.0, "heroselect")
+    store.end_match(later, 6000.0)
+    assert store.gaps_between(5000.0, 6000.0) == []  # the later match is whole again
+    from yaptracker.export import _overlapping
+
+    assert _overlapping(store.all_gaps(), 5000.0, 6000.0) == []  # export: not "incomplete"
+    assert store.close_open_gaps() == 0
+
+
 class FailsOnce:
     """CaptureHealth whose first gap write fails, like a locked database (#457)."""
 
