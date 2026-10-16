@@ -458,8 +458,9 @@ bind Pause, Start/End match, Who's that? and Save sample in Settings → Hotkeys
       PCs; CPU only - GPU OCR failed the real test and is out of v1, #219). A user who picks "best live"
       trades CPU for quality: then only the FPS bar applies (Marv, 2026-10-11, #115).
       Measured on Void's i9-9900KS / Windows 10 (2026-10-16): in match 10.5 %; the evening average
-      (~18 %) is above 15 % only because of between-match match signals while the game is idle -
-      accepted for v1, improvement in #453 (v1.1). The evening average is the mean of the
+      (~19 %) is above 15 % mainly because of the after-match reading burst (by design, while the
+      game sits idle in the menu: 44 % of the evening's CPU), second the between-match match
+      signals - accepted for v1, improvements in #453 (v1.1). The evening average is the mean of the
       once-a-minute `cpu parts … (whole app N %)` lines, not of the reader's lines (#476)
 - [ ] Update via `tools/update.ps1` works from any v0 pre-release to v1.0.0
 - [ ] README: setup, calibration, hotkeys, known limits, tested resolution

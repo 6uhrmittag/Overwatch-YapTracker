@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Void's evening CPU, recounted (#476)
+- Behind the scenes: CLAUDE.md and the decisions log say ~19 % (not ~18 %) for Void's evening and name the reason: mostly the after-match reading while the game sits in the menu, then the match signals between matches. In match it stays at 10.5 %.
+
 ### 2026-10-16 · Spicy marks stay put (#460)
 - A line you marked spicy keeps its mark when YapTracker reads it again or tidies up after the match, so the heads-up when that player is back really comes. Overwatch's own report mark stays too.
 
