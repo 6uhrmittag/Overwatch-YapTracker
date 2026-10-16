@@ -1,6 +1,7 @@
 """Open the database: WAL mode, migrations, and a backup before every migration (#15)."""
 
 import logging
+import os
 import sqlite3
 import time
 from pathlib import Path
@@ -22,13 +23,29 @@ def version(conn: sqlite3.Connection) -> int:
     return conn.execute("SELECT version FROM schema_version").fetchone()[0] if exists else 0
 
 
+def copy_to(conn: sqlite3.Connection, target: Path) -> None:
+    """A consistent copy via SQLite's backup API (safe even while WAL has unmerged pages), into
+    <target>.part first (#461): a copy that fails halfway (full disk, crash) never sits under a
+    backup's name, nor replaces a good one. A .part left by an earlier failure goes first."""
+    part = target.with_name(target.name + ".part")
+    part.unlink(missing_ok=True)
+    try:
+        copy = sqlite3.connect(part)
+        try:
+            conn.backup(copy)
+        finally:
+            copy.close()
+        os.replace(part, target)
+    except BaseException:
+        part.unlink(missing_ok=True)
+        raise
+
+
 def backup(conn: sqlite3.Connection, backups: Path, from_version: int) -> Path:
-    """A consistent copy via SQLite's backup API (safe even while WAL has unmerged pages)."""
+    """The copy before a schema migration."""
     backups.mkdir(parents=True, exist_ok=True)
     target = backups / f"yaptracker-v{from_version}-{time.strftime('%Y%m%d-%H%M%S')}.db"
-    with sqlite3.connect(target) as copy:
-        conn.backup(copy)
-    copy.close()
+    copy_to(conn, target)
     return target
 
 

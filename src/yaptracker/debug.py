@@ -21,7 +21,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from yaptracker import side_work
+from yaptracker import images, side_work
 from yaptracker.sizes import FolderSizes
 
 log = logging.getLogger(__name__)
@@ -175,7 +175,7 @@ class DebugSamples:
         for ts, jpg in overviews:
             (sample / f"{time.strftime('%H-%M-%S', time.localtime(ts))}.jpg").write_bytes(jpg)
         for name, crop in signals.items():
-            cv2.imwrite(str(sample / f"{name}.png"), crop)
+            images.write(sample / f"{name}.png", crop)
         self.sizes.set(sample, folder_size(sample))
         self.clean_up()
         return sample
@@ -220,7 +220,7 @@ class DebugSamples:
             last = n == len(frames) - 1  # the hard one: lossless, the context as JPEG
             name = f"{n:02d}-{time.strftime('%H-%M-%S', time.localtime(ts))}"
             name += ".png" if last else ".jpg"
-            cv2.imwrite(str(sample / name), image, [] if last else [cv2.IMWRITE_JPEG_QUALITY, 90])
+            images.write(sample / name, image, [] if last else [cv2.IMWRITE_JPEG_QUALITY, 90])
             records.append({
                 "t": ts,
                 "image": name,
