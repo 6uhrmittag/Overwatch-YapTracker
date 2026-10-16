@@ -34,8 +34,16 @@ def log_file(tmp_path):
     path.write_text(
         f"{clock(T0 - 60)} INFO yaptracker.reader: chat reading: 9 frames, 900 ms CPU each "
         "(best 9); whole app: 90.0 % of a core\n"  # before the evening: not counted
+        f"{clock(T0 - 60)} INFO yaptracker.cpu_parts: cpu parts (no game): reading 0.0 %, "
+        "capture 0.0 % - rest 1.0 % (whole app 90.0 %)\n"
         f"{clock(T0 + 60)} INFO yaptracker.reader: chat reading: 16 frames, 1332 ms CPU each "
         "(best 12, after 4); whole app: 20.0 % of a core\n"
+        f"{clock(T0 + 60)} INFO yaptracker.cpu_parts: cpu parts (in match): reading 0.0 %, "
+        "match signals 6.0 % - rest 2.0 % (whole app 10.0 %)\n"
+        f"{clock(T0 + 120)} INFO yaptracker.cpu_parts: cpu parts (in match + between matches): "
+        "reading 9.0 %, match signals 6.0 % - rest 3.0 % (whole app 20.0 %)\n"
+        f"{clock(T0 + 150)} INFO yaptracker.cpu_parts: cpu parts (no game): reading 0.0 %, "
+        "capture 0.0 % - rest 0.5 % (whole app 0.5 %)\n"  # Overwatch closed: not the evening
         f"{clock(T0 + 120)} INFO yaptracker.reader: chat reading: no chat in the box between "
         "matches, reading every 3 s; 2 changed frames in 60 s\n"
         f"{clock(T0 + 180)} INFO yaptracker.reader: chat reading: 4 frames, 558 ms CPU each; "
@@ -82,14 +90,14 @@ def test_the_end_of_an_evening_writes_its_line(store, log_file, tmp_path, caplog
     pip = store.add_player("Pip", T0)
     store.set_notes(pip, "nice Ana")
     tracker.stop()  # YapTracker quits
-    assert "· whole app 25 % of a core · seen but not stored 2" in caplog.text
+    assert "· whole app 15 % of a core · seen but not stored 2" in caplog.text
     assert ("· competitive 0 (rounds merged 1) · familiar faces 2 (after the match 1) · players "
             "with notes 1" in caplog.text)  # (#437)  # fmt: skip
     assert (
         "evening 2026-10-10: 2 matches (hero select 1, gap 1, hand 0) · map known 100 % · queue "
         "known 100 % · result 50 % · missed ends 1 · lines 5 (avg confidence 0.89, "
         "low-confidence 20 %, ◇ 20 %, no channel 20 %) · fixed by hand 1 · read modes best 12, "
-        "light 0, after 4 · whole app 25 % of a core" in caplog.text
+        "light 0, after 4 · whole app 15 % of a core" in caplog.text
     )
     saved = json.loads((tmp_path / "evenings.json").read_text(encoding="utf-8"))
     assert [e["session"] for e in saved] == [tracker.session_id]
