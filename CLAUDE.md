@@ -78,11 +78,19 @@ Comments from the planning chat end with _(planning chat)_.
 3. Prefer `priority`, then `quick-win`, then the lowest issue number.
 4. Comment "Starting" on the issue, work on a branch `issue-<N>-<slug>`, open a
    PR that `Closes #N`.
-5. **Push and merge yourself, unattended (hard rule).** Push the branch, open the PR,
-   and run `/code-review` on the PR. Fix every high-confidence finding in the same PR;
-   anything bigger becomes a `bug` issue in the current milestone. Mention the result
-   in the PR under "Decisions I made". Then, once CI is green (and the closing checklist
-   below is done), squash-merge it with `gh pr merge <PR> --squash --delete-branch`.
+5. **Push and merge yourself, unattended (hard rule).** Before you push, review the branch's
+   diff and fix what it finds, so CI runs once per PR:
+   - docs-only PRs (`*.md`, `docs/**`): no review
+   - quick-win, UI-only, tests-only, small fixes: `/code-review low`
+   - anything touching capture, reader/dedup/parser, storage/migrations, threads, update/release
+     pipeline: full `/code-review`
+
+   Fix every high-confidence finding before pushing; anything bigger becomes a `bug` issue in the
+   current milestone. Note the review level and result in the PR under "Decisions I made".
+   If `/code-review` can only review an opened PR, open the PR as a draft first, review, fix, then
+   mark it ready: CI only counts the final push. Then push the branch, open the PR, and once CI is
+   green (and the closing checklist below is done), squash-merge it with
+   `gh pr merge <PR> --squash --delete-branch`.
    Don't hand the merge back to Marv and don't wait for his review: he reviews the
    pre-release. Never force-push.
 6. **Don't idle while CI runs.** While a PR waits for CI (~4 min), start the next issue on
