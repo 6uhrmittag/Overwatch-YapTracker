@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-17 · The name check knows the game's own words (#483)
+- Behind the scenes: the test that keeps real player names out of the public repo no longer trips over words from the game lists (a player named like a map's word); it stays strict for every other name.
+
 ### 2026-10-16 · No false ◇ from colourful maps behind the chat (#475)
 - A ◇ at the end of a line now only marks a real icon or emoji. Colourful scenery right behind the end of a line (a red wall, a green floor) no longer counts as one, which showed up a lot with pink chat colours.
 
