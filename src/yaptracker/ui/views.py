@@ -380,6 +380,12 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         ui.label(SCREEN_SAY).classes("yt-grow")  # (#236)
     with ui.element("div").classes("yt-banner yt-hidden").mark("disk-low") as disk_hint:
         ui.label(DISK_LOW_SAY).classes("yt-grow")  # (#452)
+    with ui.element("div").classes("yt-banner yt-hidden").mark("config-broken") as broken_hint:
+        ui.label(
+            "Your settings file was broken: defaults are back, the old file is kept in the data "
+            "folder."
+        ).classes("yt-grow")  # (#456)
+        button("Got it", lambda: broken_seen(), "quiet").mark("config-broken-ok")
     with ui.element("div").classes("yt-banner yt-hidden").mark("no-name") as name_hint:
         ui.label("I don't know your name yet, so I might greet you as a stranger.").classes(
             "yt-grow"
@@ -534,6 +540,10 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         peeking["closed"] = not on
         refresh()
 
+    def broken_seen() -> None:
+        config.broken = None
+        broken_hint.classes(add="yt-hidden")
+
     def size_checked() -> None:
         if runtime.window_size:
             config.mark_size_checked(*runtime.window_size)
@@ -644,6 +654,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         screen_hint.classes(**{"remove" if screen and capturing else "add": "yt-hidden"})
         disk_low = runtime.debug is not None and config.debug_samples() and runtime.debug.disk_low()
         disk_hint.classes(**{"remove" if disk_low else "add": "yt-hidden"})
+        broken_hint.classes(**{"add" if config.broken is None else "remove": "yt-hidden"})
         # no own name: your own lines would greet you with "Look who's back!" (#168)
         name_hint.classes(**{"add" if config.identity().me else "remove": "yt-hidden"})
         size = runtime.window_size

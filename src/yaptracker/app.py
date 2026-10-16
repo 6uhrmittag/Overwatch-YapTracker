@@ -260,7 +260,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         if runtime.watcher is not None:
             runtime.watcher.reopen()
 
-    rate = CaptureRate(match_running, reopen)  # 2 frames a second between matches (#350)
+    rate = CaptureRate(match_running, reopen)  # 2 frames a second, in and between (#350, #115)
 
     def open_source(hwnd: int):
         from yaptracker.capture.wgc import WgcFrameSource, has_rate_setting, windows_build

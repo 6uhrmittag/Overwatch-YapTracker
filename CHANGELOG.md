@@ -7,6 +7,20 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-16 · A pause at shutdown no longer marks every later match incomplete (#463)
 - If YapTracker was shut down while paused or while recording was broken (Windows shutting down, a power cut), the open "not recording" span is now closed at the next start, at the last thing it recorded. Later matches no longer show it, and the export no longer calls them incomplete.
 
+### 2026-10-16 · The evening's CPU number is the real average (#476)
+- Settings → About: an evening's "whole app … of a core" is now the average over the whole evening, not only of the minutes while chat was being read, so it's lower and fairer (one of Void's evenings: 18 % instead of 37 %). Evenings already listed keep their old number.
+- README → Known limits: what to do on Windows 10 or an older CPU, and what YapTracker costs between matches.
+
+### 2026-10-16 · A broken settings file no longer stops YapTracker (#456)
+- If the settings file got broken (a power cut or a full disk while it was saved), YapTracker starts with the default settings, keeps the old file in the data folder and says so once in Live.
+- Settings are now fully on disk before they replace the old file, so a power cut leaves the old or the new settings, never a broken file.
+
+### 2026-10-16 · Lighter on your PC in matches (#115)
+- In a match YapTracker now looks at the game 2 times a second instead of 4, like between matches. A chat line stays on screen for about 9 seconds, so it is still seen many times; the copying of the game picture costs about half as much.
+
+### 2026-10-16 · Stable releases are promoted test versions (#454, part 2)
+- Behind the scenes: a stable release is a tested build published again as it is (workflow "Promote pre-release to stable", only when Marv says so); its notes gather everything since the last stable release. After v1.0.0, test versions are named like v1.1.0-pre.512. README explains stable vs test versions.
+
 ### 2026-10-16 · Stable releases, test versions if you want them (#454)
 - Settings → About has a new switch, "Get test versions (pre-releases)": off means you get stable releases only. Until the first stable release (v1.0.0) is out, every new build still reaches you.
 - `update.ps1` installs the newest stable release; `update.ps1 -PreRelease` installs the newest test version.
