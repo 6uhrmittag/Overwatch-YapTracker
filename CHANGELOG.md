@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Void's evening CPU, recounted (#476)
+- Behind the scenes: CLAUDE.md and the decisions log say ~19 % (not ~18 %) for Void's evening and name the reason: mostly the after-match reading while the game sits in the menu, then the match signals between matches. In match it stays at 10.5 %.
+
 ### 2026-10-16 · The planning chat edits issues too
 - Behind the scenes: CLAUDE.md says the planning chat also files, comments and ticks issues directly, so issue bodies are re-read right before an edit and its comments are marked _(planning chat)_.
 
