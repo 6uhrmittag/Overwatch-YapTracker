@@ -13,8 +13,12 @@ permissions:
   contents: read
 
 env:
-  # v0.<milestone>.<run_number> - bump when a milestone is closed.
+  # Pre-release versions (#454, CLAUDE.md -> Release policy). Until the first stable release:
+  # v0.<MILESTONE>.<run_number>, bump MILESTONE when a milestone is closed. Once v1.0.0 is out,
+  # set NEXT_VERSION to the next stable one ("1.1.0"): every build is then v1.1.0-pre.<run>,
+  # until that one is promoted and NEXT_VERSION moves on ("1.2.0", or "1.1.1" for a patch).
   MILESTONE: "5"
+  NEXT_VERSION: ""
 
 jobs:
   test:
@@ -77,7 +81,7 @@ jobs:
       - name: Set version
         id: version
         run: |
-          $version = "0.$env:MILESTONE.${{ github.run_number }}"
+          $version = if ($env:NEXT_VERSION) { "$env:NEXT_VERSION-pre.${{ github.run_number }}" } else { "0.$env:MILESTONE.${{ github.run_number }}" }
           if ("${{ github.event_name }}" -eq "pull_request") { $version += "+pr${{ github.event.number }}" }
           Set-Content src/yaptracker/_version.py "__version__ = `"$version`""
           "VERSION=$version" >> $env:GITHUB_ENV

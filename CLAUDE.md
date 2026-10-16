@@ -122,8 +122,8 @@ made.
 - Keep `docs/decisions.md` short: one line per decision or dead end, with issue link.
 - When a milestone's **code** issues are all closed: make sure a pre-release exists,
   move any remaining `human` issues to the next milestone (comment why), close the
-  milestone, bump `MILESTONE` in `ci.yml`, update the Roadmap — and **keep going** with
-  the next milestone. Don't stop at milestone boundaries just because a `human` issue
+  milestone, bump `MILESTONE` in `ci.yml` (after v1.0.0: `NEXT_VERSION`), update the
+  Roadmap — and **keep going** with the next milestone. Don't stop at milestone boundaries just because a `human` issue
   is open; only stop when every remaining issue is blocked on Marv.
 
 **PR template** (`.github/pull_request_template.md`):
@@ -232,6 +232,22 @@ pre-release.
 **M5 — v1.0**
 - Acceptance session (see Definition of done), README, `v1.0.0` stable release,
   close the milestone. Then stop.
+
+---
+
+## Release policy
+
+Marv, 2026-10-16 (#454):
+- Stable releases: v1.0.0, then one per closed milestone (v1.1.0 ...), plus patch releases
+  (v1.0.1) for bad bugs.
+- Every merge to main still builds a pre-release, named v<next minor>.0-pre.<run>
+  (e.g. v1.1.0-pre.512). Before v1.0.0 they stay `v0.<MILESTONE>.<run>`; after it, set
+  `NEXT_VERSION` in `ci.yml`.
+- A stable release = promoting a tested pre-release (milestone closed + one real evening on it with
+  nothing new). Same build, no rebuild (workflow "Promote pre-release to stable"). No release branches.
+- The app and `update.ps1` get stable releases by default; test versions (pre-releases) only with
+  Settings → About → "Get test versions" or `update.ps1 -PreRelease`.
+- You never publish a stable release on your own: promoting is Marv's call (one line from him is enough).
 
 ---
 
@@ -444,4 +460,6 @@ bind Pause, Start/End match, Who's that? and Save sample in Settings → Hotkeys
 - [ ] README: setup, calibration, hotkeys, known limits, tested resolution
 - [ ] `v1.0.0` released, M5 closed, everything else is `parked`
 
-When this list is done, **the project is done.** Say so, and stop.
+When this list is done, v1 is done. Say so and stop. After v1.0.0: Marv picks the v1.1 scope from
+the parked issues and creates the milestone. Until then, only `bug` issues on the stable release
+are worked on (as v1.0.x patches, promoted per the release policy).

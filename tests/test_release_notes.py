@@ -67,3 +67,51 @@ def test_command_line(tmp_path):
         out = subprocess.run([*base, "--subject", "Fix a typo"], capture_output=True, text=True,
                              check=True)  # fmt: skip
         assert "- Behind the scenes: Fix a typo" in out.stdout
+
+
+def rel(tag, *bullets, pre=True, draft=False):
+    body = "### What's new\n" + "".join(f"- {b}\n" for b in bullets) + "\nUpdate: run it."
+    return {"tag_name": tag, "prerelease": pre, "draft": draft, "body": body}
+
+
+def test_a_stable_release_gathers_its_test_versions_and_names_its_build():
+    """#454: v1.1.0 is v1.1.0-pre.512 again; its notes are everything since v1.0.0."""
+    releases = [
+        rel("v1.1.0-pre.513", "Too new: not in this build."),
+        rel("v1.1.0-pre.512", "Snaps get a frame.", "Behind the scenes: tests."),
+        rel("v1.1.0-pre.9", "Search is faster.", "Snaps get a frame."),
+        rel("v1.1.0-pre.8", "Draft.", draft=True),
+        rel("v1.0.0", "Hello, v1.", pre=False),
+        rel("v1.0.0-pre.7", "Already in v1.0.0."),
+        rel("v0.5.500", "Old."),
+    ]
+    text = release_notes.stable_notes(releases, "v1.1.0-pre.512", "1.1.0", "o/r")
+    assert text.splitlines()[:4] == [
+        "### What's new",
+        "- Snaps get a frame.",
+        "- Search is faster.",
+        "- (+ 1 behind-the-scenes change)",
+    ]
+    assert "Same build as v1.1.0-pre.512 · [All changes since v1.0.0](https://github.com/o/r/" \
+        "compare/v1.0.0...v1.1.0-pre.512)" in text  # fmt: skip
+    from yaptracker.updates import SAME_BUILD
+
+    assert SAME_BUILD.search(text)[1] == "1.1.0-pre.512"  # what the app reads back
+
+
+def test_the_first_stable_release_takes_every_v0_build_before_it(tmp_path):
+    releases = [rel("v0.5.513", "Later."), rel("v0.5.512", "Ready."), rel("v0.5.400", "Early.")]
+    pages = [releases[:2], releases[2:]]  # gh api --paginate --slurp
+    (tmp_path / "releases.json").write_text(json.dumps(pages), encoding="utf-8")
+    out = subprocess.run([sys.executable, str(SCRIPT), "--stable", "1.0.0", "--from", "v0.5.512",
+                          "--releases", str(tmp_path / "releases.json"), "--repo", "o/r"],
+                         capture_output=True, text=True, check=True).stdout  # fmt: skip
+    assert "- Ready.\n- Early.\n" in out and "Later." not in out
+    assert out.rstrip().endswith("Same build as v0.5.512")
+
+
+def test_a_long_stretch_of_test_versions_is_capped():
+    releases = [rel(f"v0.5.{n}", f"Change {n}.") for n in range(40, 0, -1)]
+    text = release_notes.stable_notes(releases, "v0.5.40", "1.0.0", "o/r")
+    assert "- Change 40.\n" in text and "- Change 25.\n" not in text
+    assert "- ... and 25 more ([all notes](https://github.com/o/r/blob/main/CHANGELOG.md))" in text
