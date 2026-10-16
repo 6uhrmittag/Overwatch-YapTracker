@@ -16,6 +16,7 @@ from yaptracker.capture.watcher import fps
 from yaptracker.debug import DISK_LOW_SAY
 from yaptracker.glyphs import GLYPH
 from yaptracker.matches import AFTER_END_GAP_S
+from yaptracker.reader import FAIL_LIMIT
 from yaptracker.snaps import MAX_LINES
 from yaptracker.store.backups import last_backup
 from yaptracker.ui import timing
@@ -378,6 +379,11 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         ui.label(BLACK_SAY).classes("yt-grow")  # (#217)
     with ui.element("div").classes("yt-banner yt-hidden").mark("screen-capture") as screen_hint:
         ui.label(SCREEN_SAY).classes("yt-grow")  # (#236)
+    with ui.element("div").classes("yt-banner yt-hidden").mark("reads-failing") as failing_hint:
+        ui.label(
+            "Reading the chat keeps failing. I keep trying; what went wrong is in the log "
+            "(Settings \u2192 Your data \u2192 Open logs)."
+        ).classes("yt-grow")  # (#457)
     with ui.element("div").classes("yt-banner yt-hidden").mark("disk-low") as disk_hint:
         ui.label(DISK_LOW_SAY).classes("yt-grow")  # (#452)
     with ui.element("div").classes("yt-banner yt-hidden").mark("config-broken") as broken_hint:
@@ -654,6 +660,8 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         screen_hint.classes(**{"remove" if screen and capturing else "add": "yt-hidden"})
         disk_low = runtime.debug is not None and config.debug_samples() and runtime.debug.disk_low()
         disk_hint.classes(**{"remove" if disk_low else "add": "yt-hidden"})
+        failing = runtime.reader is not None and getattr(runtime.reader, "failing", 0) >= FAIL_LIMIT
+        failing_hint.classes(**{"remove" if failing else "add": "yt-hidden"})
         broken_hint.classes(**{"add" if config.broken is None else "remove": "yt-hidden"})
         # no own name: your own lines would greet you with "Look who's back!" (#168)
         name_hint.classes(**{"add" if config.identity().me else "remove": "yt-hidden"})

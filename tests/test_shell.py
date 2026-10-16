@@ -523,3 +523,27 @@ async def test_a_broken_settings_file_is_said_once_in_live(user: User, tmp_path)
     await user.should_see("Your settings file was broken: defaults are back")
     user.find(marker="config-broken-ok").click()
     assert "yt-hidden" in banner.classes and config.broken is None
+
+
+async def test_reads_failing_in_a_row_are_said_in_live(user: User, monkeypatch):
+    from types import SimpleNamespace
+
+    from yaptracker import runtime
+    from yaptracker.reader import FAIL_LIMIT
+
+    reader = SimpleNamespace(failing=FAIL_LIMIT, later=(), tidy_frames=(), tidied=None,
+                             wants_reread=lambda: False)  # fmt: skip
+    monkeypatch.setattr(runtime, "reader", reader)
+    await user.open("/")
+    (banner,) = user.find(marker="reads-failing").elements
+    for _ in range(30):
+        if "yt-hidden" not in banner.classes:
+            break
+        await asyncio.sleep(0.1)
+    assert "yt-hidden" not in banner.classes  # (#457)
+    reader.failing = 0
+    for _ in range(30):
+        if "yt-hidden" in banner.classes:
+            break
+        await asyncio.sleep(0.1)
+    assert "yt-hidden" in banner.classes

@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Recording never stops silently (#457)
+- If reading the chat keeps failing, Live says so in words and the time counts as "not recording"; it goes away by itself once reading works again.
+- A database hiccup can no longer stop the chat reader or the capture for the rest of the evening: they note it in the log and go on.
+
 ### 2026-10-16 · A broken settings file no longer stops YapTracker (#456)
 - If the settings file got broken (a power cut or a full disk while it was saved), YapTracker starts with the default settings, keeps the old file in the data folder and says so once in Live.
 - Settings are now fully on disk before they replace the old file, so a power cut leaves the old or the new settings, never a broken file.
