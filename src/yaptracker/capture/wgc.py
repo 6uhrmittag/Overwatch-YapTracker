@@ -33,16 +33,19 @@ def windows_build() -> int:
 
 
 def has_rate_setting(build: int) -> bool:
-    """WGC can be asked for 4 fps (Windows 11 24H2 on). Without it every game frame arrives, and
+    """WGC can be asked for 2 fps (Windows 11 24H2 on). Without it every game frame arrives, and
     windows-capture copies each one from the graphics card before we can skip it (#248)."""
     return build >= SINCE["minimum_update_interval"][0]
 
 
-MATCH_FPS, MENU_FPS = 4.0, 2.0  # frames a second asked from Windows, in and between matches
+# Frames a second asked from Windows, in and between matches. 2 in a match too (#115, Marv
+# 2026-10-11): a chat line stays ~9 s on screen and is read every 1.5-3 s at most, so 2 a second
+# still see it 15+ times; each frame is a whole-window GPU->CPU copy before we see it.
+MATCH_FPS, MENU_FPS = 2.0, 2.0
 
 
 class CaptureRate:
-    """4 frames a second in a match, 2 between matches (#350). Windows copies every frame it
+    """The rate for in and between matches (#350; both 2 since #115). Windows copies every frame it
     delivers from the GPU, the whole 4K window, before we see it: between matches (menus,
     where it really sends all 4) that was most of YapTracker's CPU. Menu chat stays for seconds,
     so 2 a second miss nothing. The rate is fixed per capture session: a change reopens it
@@ -59,7 +62,7 @@ class CaptureRate:
         """A window capture opens now: at this rate."""
         self.fps = self.wanted()
         log.info("capture: asking Windows for %g frames a second (%s)", self.fps,
-                 "in a match" if self.fps == MATCH_FPS else "between matches")  # fmt: skip
+                 "in a match" if self._running() else "between matches")  # fmt: skip
         return self.fps
 
     def check(self) -> None:
@@ -85,7 +88,7 @@ class WgcFrameSource:
         self,
         hwnd: int,
         region_for: Callable[[int, int], Region],
-        fps: float = 4.0,
+        fps: float = MATCH_FPS,
         stall_s: float = 10.0,
         signals_for: Callable[[int, int], dict[str, Region]] = lambda w, h: {},
         signals_every_s: float = 1.0,
@@ -102,7 +105,7 @@ class WgcFrameSource:
         self._start = time.monotonic()
         self._region_for = region_for
         # Our own gate: without minimum_update_interval (before Windows 11 24H2) every frame the
-        # game draws arrives here. A bit under 1/fps, so Windows' own 4 fps aren't cut.
+        # game draws arrives here. A bit under 1/fps, so Windows' own rate isn't cut.
         self._gap_s, self._used_at = 0.9 / fps, -1.0
         build = windows_build()
         options, dropped = capture_options(build, fps)
