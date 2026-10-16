@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from yaptracker import days, paths
-from yaptracker.store.db import connect
+from yaptracker.store.db import connect, copy_to
 
 
 @dataclass(frozen=True)
@@ -143,10 +143,10 @@ class Store:
             self._conn.close()
 
     def backup_to(self, target: Path) -> None:
-        """A consistent copy of the whole database, safe while the app runs (#125)."""
-        with self._lock, sqlite3.connect(target) as copy:
-            self._conn.backup(copy)
-        copy.close()
+        """A consistent copy of the whole database, safe while the app runs (#125); a failed
+        one leaves no file under the target's name (#461)."""
+        with self._lock:
+            copy_to(self._conn, target)
 
     def _write(self, sql: str, params: tuple = ()) -> int:
         with self._lock:
