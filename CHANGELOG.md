@@ -7,6 +7,35 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 ### 2026-10-16 · Chat kept at quit is read, however long you were away (#474)
 - When YapTracker was closed before it finished reading a match "after the match", it reads that chat at the next start, also days later, into the match it came from. Live says "Reading N chat pictures from your last session" while it does.
 
+### 2026-10-16 · No lost lines after a tidy-up or a merge (#458)
+- When the tidy-up after a match removed a misread name, the next line from someone read the same way could get lost. Now that name simply becomes a player again, and after a merge a line still on screen goes to the player it was merged into.
+
+### 2026-10-16 · Line pictures for every Windows user name (#459)
+- Line pictures, Read again and debug samples now also work when your Windows user name has letters like ü, ö or ß in it.
+
+### 2026-10-16 · A failed backup never replaces a good one (#461)
+- Backups are written to a temporary file first and only then get their name. A backup that fails halfway (a full disk, a crash) leaves today's good backup as it was, and its leftover is cleared at the next backup.
+
+### 2026-10-16 · Void's evening CPU, recounted (#476)
+- Behind the scenes: CLAUDE.md and the decisions log say ~19 % (not ~18 %) for Void's evening and name the reason: mostly the after-match reading while the game sits in the menu, then the match signals between matches. In match it stays at 10.5 %.
+
+### 2026-10-16 · The planning chat edits issues too
+- Behind the scenes: CLAUDE.md says the planning chat also files, comments and ticks issues directly, so issue bodies are re-read right before an edit and its comments are marked _(planning chat)_.
+
+### 2026-10-16 · A pause at shutdown no longer marks every later match incomplete (#463)
+- If YapTracker was shut down while paused or while recording was broken (Windows shutting down, a power cut), the open "not recording" span is now closed at the next start, at the last thing it recorded. Later matches no longer show it, and the export no longer calls them incomplete.
+
+### 2026-10-16 · Spicy marks stay put (#460)
+- A line you marked spicy keeps its mark when YapTracker reads it again or tidies up after the match, so the heads-up when that player is back really comes. Overwatch's own report mark stays too.
+
+### 2026-10-16 · The evening's CPU number is the real average (#476)
+- Settings → About: an evening's "whole app … of a core" is now the average over the whole evening, not only of the minutes while chat was being read, so it's lower and fairer (one of Void's evenings: 18 % instead of 37 %). Evenings already listed keep their old number.
+- README → Known limits: what to do on Windows 10 or an older CPU, and what YapTracker costs between matches.
+
+### 2026-10-16 · A broken settings file no longer stops YapTracker (#456)
+- If the settings file got broken (a power cut or a full disk while it was saved), YapTracker starts with the default settings, keeps the old file in the data folder and says so once in Live.
+- Settings are now fully on disk before they replace the old file, so a power cut leaves the old or the new settings, never a broken file.
+
 ### 2026-10-16 · Lighter on your PC in matches (#115)
 - In a match YapTracker now looks at the game 2 times a second instead of 4, like between matches. A chat line stays on screen for about 9 seconds, so it is still seen many times; the copying of the game picture costs about half as much.
 

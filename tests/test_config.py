@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from yaptracker import config
 from yaptracker.capture.source import Region
@@ -96,3 +97,39 @@ def test_a_save_that_keeps_failing_never_fails_the_caller(tmp_path, monkeypatch,
     config.save_line_pictures(False, path)  # the file is free again: everything lands on disk
     saved = json.loads(path.read_text())
     assert saved["window"] == {"x": 1} and saved["show_callouts"] and "saved again" in caplog.text
+
+
+@pytest.mark.parametrize("text", ["", '{"window": {"x": 1', "null", "\x00\x00\x00"])
+def test_a_broken_settings_file_is_kept_aside_and_the_defaults_start(tmp_path, text, caplog):
+    """#456: half-written after a power cut, YapTracker crashed at every start."""
+    path = tmp_path / "config.json"
+    path.write_text(text, encoding="utf-8")
+    assert config.setup_state(path) is None and config.update_check(path) is True
+    (kept,) = tmp_path.glob("config.broken-*.json")
+    assert kept.read_text(encoding="utf-8") == text and not path.exists()
+    assert config.broken == kept and "was broken" in caplog.text
+    config.save_show_callouts(True, path)  # the next save writes a good file again
+    assert json.loads(path.read_text()) == {"show_callouts": True}
+
+
+def test_a_save_is_on_disk_before_it_replaces_the_file(tmp_path, monkeypatch):
+    synced = []
+    monkeypatch.setattr(config.os, "fsync", lambda fd: synced.append(fd))
+    config.save_show_callouts(True, tmp_path / "config.json")
+    assert len(synced) == 1
+
+
+def test_a_broken_file_that_cant_be_moved_still_starts_and_never_overwrites_an_older_one(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "config.json"
+    path.write_text("{", encoding="utf-8")
+    monkeypatch.setattr(config.time, "strftime", lambda fmt: "20261016-220000")
+    (tmp_path / "config.broken-20261016-220000.json").write_text("older", encoding="utf-8")
+    assert config.update_check(path) is True  # moved aside next to the older one
+    assert (tmp_path / "config.broken-20261016-220000.json").read_text() == "older"
+    assert (tmp_path / "config.broken-20261016-220000-1.json").read_text() == "{"
+    config.forget()
+    path.write_text("{", encoding="utf-8")
+    monkeypatch.setattr(config.Path, "replace", lambda self, target: busy())  # open elsewhere
+    assert config.update_check(path) is True and config.broken == path  # starts anyway

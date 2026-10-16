@@ -96,3 +96,20 @@ async def test_the_card_gives_a_heads_up_and_only_suggests_nope(user: User, stor
     assert store.player(pid).verdict is None  # never set by itself
     user.find(marker="face-nope").click()
     assert store.player(pid).verdict == "avoid"
+
+
+def test_a_mark_survives_a_better_reading_and_can_still_be_taken_back(store):
+    """#460: the next reading or the tidy-up wrote flagged = NULL over a hand mark."""
+    session = store.start_session(1000.0)
+    match = store.start_match(session, 1000.0, "gap")
+    hand = store.add_message(ts=1001.0, channel="match", text="ez", match_id=match)
+    report = store.add_message(ts=1002.0, channel="match", text="trash", match_id=match,
+                               flagged="overwatch")  # fmt: skip
+    store.set_flag(hand, "manual")
+    for line, text in ((hand, "ez."), (report, "trash.")):  # read again, no [Report] link seen
+        store.update_message(line, channel="match", text=text, flagged=None)
+    assert (store.message(hand).flagged, store.message(report).flagged) == ("manual", "overwatch")
+    store.update_message(hand, channel="match", text="ez", flagged="overwatch")
+    assert store.message(hand).flagged == "manual"  # the hand mark wins
+    store.set_flag(hand, None)  # taken back by hand
+    assert store.message(hand).flagged is None

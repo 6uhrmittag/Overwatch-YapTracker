@@ -378,6 +378,7 @@ def _open_store() -> Callable[[], None]:
     from yaptracker import later
     from yaptracker.capture.health import CaptureHealth
     from yaptracker.cleanups import (
+        close_open_gaps,
         normalise_places_once,
         remove_empty_lines_once,
         remove_input_hints_once,
@@ -416,6 +417,7 @@ def _open_store() -> Callable[[], None]:
             log.error("%s", error)
             runtime.data_too_new = str(error)
             return
+        close_open_gaps(runtime.store)  # killed while paused: it overlapped every match (#463)
         try:  # one match per real match, also for matches split before (#371, #377)
             merge_split_matches(
                 runtime.store,
@@ -500,6 +502,7 @@ def _open_store() -> Callable[[], None]:
                                 config.save_empty_removed)  # fmt: skip
         normalise_places_once(runtime.store, paths.backup_dir(), config.places_normalised,
                               config.save_places_normalised)  # fmt: skip
+        runtime.players.reload()  # players the clean-ups removed are gone for the matcher (#458)
 
     def close_store() -> None:
         if runtime.backups is not None:

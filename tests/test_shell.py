@@ -510,6 +510,21 @@ async def test_a_nearly_full_disk_is_said_in_live(user: User, monkeypatch, tmp_p
     await user.should_see("Disk almost full: debug samples paused")
 
 
+async def test_a_broken_settings_file_is_said_once_in_live(user: User, tmp_path):
+    from yaptracker import config
+
+    await user.open("/")
+    config.broken = tmp_path / "config.broken-20261016-200000.json"  # found at start (#456)
+    (banner,) = user.find(marker="config-broken").elements
+    for _ in range(30):  # Live looks again every second
+        if "yt-hidden" not in banner.classes:
+            break
+        await asyncio.sleep(0.1)
+    await user.should_see("Your settings file was broken: defaults are back")
+    user.find(marker="config-broken-ok").click()
+    assert "yt-hidden" in banner.classes and config.broken is None
+
+
 async def test_live_says_when_it_reads_chat_from_the_last_session(user: User, monkeypatch):
     from types import SimpleNamespace
 

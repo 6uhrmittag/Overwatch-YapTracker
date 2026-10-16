@@ -3,8 +3,10 @@ evenings, not by digging through the log and the database.
 
 When an evening ends (Overwatch closed, YapTracker quits, or the next evening starts) the log
 gets an `evening` line and data/evenings.json keeps it for Settings -> About. Matches, maps and
-lines come from the database; CPU and read modes from the reader's minute lines in the log
-("chat reading: 16 frames ... (best 16); whole app: 23.1 % of a core"). The evenings since
+lines come from the database; read modes from the reader's minute lines in the log
+("chat reading: 16 frames ... (best 16); whole app: 23.1 % of a core"), CPU from the
+once-a-minute "cpu parts ... (whole app 18.2 %)" lines (#476): the reader only logs when it
+reads, so its lines sample the read bursts after a match, not the evening. The evenings since
 2026-10-01 are filled in once, at the first start with this, as a baseline.
 """
 
@@ -32,6 +34,11 @@ _MINUTE = re.compile(
     r"\d+ ms CPU each(?: \(([^)]*)\))?; whole app: ([\d.]+) %",
     re.MULTILINE,
 )
+_PARTS = re.compile(
+    r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d),\d+ INFO yaptracker\.cpu_parts: cpu parts"
+    r"(?: \(([^)]*)\))?: .*\(whole app ([\d.]+) %\)$",
+    re.MULTILINE,
+)
 # Events counted per evening (#425, #437): kind -> pattern with the time and, if it says so,
 # how many (else 1 per line)
 _EVENTS = {
@@ -55,27 +62,33 @@ def log_files(since: float = 0) -> list[Path]:
     return [f for f in files if f.exists() and f.stat().st_mtime >= since]
 
 
-def scan(files: list[Path]) -> tuple[list[tuple[str, str, float]], list[tuple[str, str, int]]]:
+def scan(files: list[Path]) -> tuple[list[tuple[str, str, float]], list[tuple[str, str, int]],
+                                    list[tuple[str, float]]]:  # fmt: skip
     """Each log file read once: the reader's minute lines (local time, read modes like
-    "light 31, best 9", CPU %) and the counted events (local time, kind, number): lines seen
-    but never stored (number: how many), rounds of a match, familiar-face cards (1 each)."""
-    minutes, events = [], []
+    "light 31, best 9", CPU %), the counted events (local time, kind, number): lines seen
+    but never stored (number: how many), rounds of a match, familiar-face cards (1 each), and
+    the whole app's CPU once a minute (local time, % of a core; minutes with Overwatch closed
+    left out: the app waits for it all day, #45)."""
+    minutes, events, cpu = [], [], []
     for path in files:
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
         minutes += [(m[1], m[2] or "", float(m[3])) for m in _MINUTE.finditer(text)]
+        cpu += [(m[1], float(m[3])) for m in _PARTS.finditer(text) if m[2] != "no game"]
         for kind, pattern in _EVENTS.items():
             events += [(m[1], kind, int(m[2]) if m.lastindex >= 2 else 1)
                        for m in pattern.finditer(text)]  # fmt: skip
-    return minutes, events
+    return minutes, events, cpu
 
 
 def summarize(store: Store, session: SessionRow, logged: list[tuple],
-              happened: list[tuple] = (), notes: int | None = None) -> dict | None:  # fmt: skip
+              happened: list[tuple] = (), notes: int | None = None,
+              cpu_minutes: list[tuple] = ()) -> dict | None:  # fmt: skip
     """The evening's numbers; None when it had no match. notes: players with notes when the
-    evening ended (None when filled in later: today's count says nothing about back then)."""
+    evening ended (None when filled in later: today's count says nothing about back then).
+    cpu_minutes: the once-a-minute whole-app CPU, the number the 15 % bar is about (#476)."""
     played, (count, confidence, low, glyphs, fixed, unknown) = store.evening(
         session.id, LOW_CONFIDENCE
     )
@@ -85,14 +98,14 @@ def summarize(store: Store, session: SessionRow, logged: list[tuple],
     sources = Counter(m[0] for m in played)
     start, end = (time.strftime(_CLOCK, time.localtime(t)) for t in (session.started_at,
                                                                     session.ended_at))  # fmt: skip
-    cpu, modes = [], Counter()
+    modes = Counter()
     counted = Counter()
     for clock, kind, n in happened:
         if start <= clock <= end:
             counted[kind] += n
-    for clock, read, whole in logged:
+    cpu = [whole for clock, whole in cpu_minutes if start <= clock <= end]
+    for clock, read, _ in logged:
         if start <= clock <= end:
-            cpu.append(whole)
             for part in filter(None, read.split(", ")):
                 mode, _, n = part.rpartition(" ")
                 modes[mode] += int(n)
@@ -173,9 +186,9 @@ class Evenings:
             session = next((s for s in self._store.sessions() if s.id == session_id), None)
             if session is None:
                 return
-            logged, happened = scan(self._files(session.started_at))
+            logged, happened, cpu = scan(self._files(session.started_at))
             evening = summarize(self._store, session, logged, happened,
-                                self._store.players_with_notes())  # fmt: skip
+                                self._store.players_with_notes(), cpu)  # fmt: skip
             with self._lock:
                 saved = self._load()
                 if evening is not None and evening not in saved:
@@ -197,10 +210,11 @@ class Evenings:
                 self._fill_in_chat()
                 return
             start = time.mktime(time.strptime(since, "%Y-%m-%d"))
-            logged, happened = scan(self._files(start))
+            logged, happened, cpu = scan(self._files(start))
             sessions = [s for s in self._store.sessions() if s.started_at >= start]
             done = [e for s in reversed(sessions)
-                    if (e := summarize(self._store, s, logged, happened))]  # fmt: skip
+                    if (e := summarize(self._store, s, logged, happened,
+                                       cpu_minutes=cpu))]  # fmt: skip
             for evening in done:
                 log.info("%s (filled in)", line(evening))
             self._save(done)  # an empty file too: filled in once
