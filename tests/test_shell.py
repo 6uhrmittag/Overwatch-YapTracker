@@ -543,7 +543,12 @@ async def test_reads_failing_in_a_row_are_said_in_live(user: User, monkeypatch):
     from yaptracker import runtime
     from yaptracker.reader import FAIL_LIMIT
 
-    reader = SimpleNamespace(failing=FAIL_LIMIT, later=(), tidy_frames=(), tidied=None,
+    class NothingKept(tuple):  # nothing waiting, nothing from the last session (#474)
+        def restored(self) -> int:
+            return 0
+
+    later = NothingKept()
+    reader = SimpleNamespace(failing=FAIL_LIMIT, later=later, tidy_frames=(), tidied=None,
                              wants_reread=lambda: False)  # fmt: skip
     monkeypatch.setattr(runtime, "reader", reader)
     await user.open("/")
