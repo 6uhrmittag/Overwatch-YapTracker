@@ -25,6 +25,7 @@ from yaptracker.store.repo import Store
 _TIME = r"^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d),\d+ \w+ yaptracker\.[\w.]+: "
 VERSION = re.compile(_TIME + r"system: YapTracker v(\S+)")
 MINUTE = re.compile(_TIME + r"chat reading: \d+ frames, .*whole app: ([\d.]+) %")
+PARTS = re.compile(_TIME + r"cpu parts\b.*\(whole app ([\d.]+) %\)$")  # once a minute (#476)
 THREADS = re.compile(_TIME + r"cpu threads \(([^)]*)\): (.*)")
 CAPTURE = re.compile(_TIME + r"capture: asking Windows for ([\d.]+) frames a second \(([^)]*)\)")
 FPS = re.compile(_TIME + r"game fps \(Overwatch overlay\): median (\d+), .* — (running|paused), "
@@ -120,6 +121,7 @@ def scan(lines: list[str]) -> dict:
     The version of a line is the last one logged before it; the mode is in the FPS line itself
     (#444), in older logs the last `reading:` line before it."""
     found: dict = {"versions": defaultdict(set), "cpu": defaultdict(list),
+                   "bursts": defaultdict(list),
                    "capture": defaultdict(set), "threads": defaultdict(Counter),
                    "thread_minutes": Counter(), "evenings": [],
                    "rounds": [], "tidied": [], "errors": defaultdict(Counter),
@@ -139,8 +141,11 @@ def scan(lines: list[str]) -> dict:
             found["versions"][day].add(version)
         elif m := MODE.match(line):
             mode = m[3]
-        elif m := MINUTE.match(line):
+        elif m := PARTS.match(line):
             found["cpu"][day].append(float(m[3]))
+            found["versions"][day].add(version)
+        elif m := MINUTE.match(line):
+            found["bursts"][day].append(float(m[3]))
             found["versions"][day].add(version)  # still running from an earlier day too
         elif m := THREADS.match(line):
             if m[3] == "in match":  # where the game feels it; idle minutes would thin it out
@@ -241,13 +246,16 @@ def report(data: Path) -> str:
 def _sections(data: Path, found: dict, happened: dict, db: sqlite3.Connection | None) -> list:
     out = [f"Evidence from {data.name}/ (ids only, evenings run until 0{CUT_H}:00)", ""]
 
-    out.append("## #115 CPU (per evening)")
-    for day in sorted(set(found["cpu"]) | set(found["thread_minutes"])):
+    out.append("## #115 CPU (per evening): once a minute, the number the 15 % bar is about (#476)")
+    for day in sorted(set(found["cpu"]) | set(found["bursts"]) | set(found["thread_minutes"])):
         versions = sorted(found["versions"].get(day, set()) - {"?"}, key=_version_key)
         tag = f"v{', '.join(versions)}" if versions else "v?"
-        cpu = found["cpu"].get(day, [])
-        out.append(f"- {day} ({tag}): whole app avg {statistics.mean(cpu):.1f} % of a core "
-                   f"(n={len(cpu)})" if cpu else f"- {day} ({tag}): no CPU minutes")  # fmt: skip
+        cpu, bursts = found["cpu"].get(day, []), found["bursts"].get(day, [])
+        said = (f"whole app avg {statistics.mean(cpu):.1f} % of a core (n={len(cpu)})" if cpu
+                else "no CPU minutes")  # fmt: skip
+        # the reader's own line comes only while it reads: the bursts, as before #476 (#115)
+        read = f"; read bursts {statistics.mean(bursts):.1f} % (n={len(bursts)})" if bursts else ""
+        out.append(f"- {day} ({tag}): {said}{read}")
         n = found["thread_minutes"][day]
         shares = sorted(found["threads"][day].items(), key=lambda kv: -kv[1])
         threads = ", ".join(f"{name} {total / n:.1f} %" for name, total in shares) if n else "-"

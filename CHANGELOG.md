@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · The evening's CPU number is the real average (#476)
+- Settings → About: an evening's "whole app … of a core" is now the average over the whole evening, not only of the minutes while chat was being read, so it's lower and fairer (one of Void's evenings: 18 % instead of 37 %). Evenings already listed keep their old number.
+- README → Known limits: what to do on Windows 10 or an older CPU, and what YapTracker costs between matches.
+
 ### 2026-10-16 · Lighter on your PC in matches (#115)
 - In a match YapTracker now looks at the game 2 times a second instead of 4, like between matches. A chat line stays on screen for about 9 seconds, so it is still seen many times; the copying of the game picture costs about half as much.
 
