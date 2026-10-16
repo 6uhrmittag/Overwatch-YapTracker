@@ -4,12 +4,13 @@ import re
 import time
 from collections.abc import Callable
 
-from nicegui import app, run, ui
+from nicegui import app, background_tasks, run, ui
 
 from yaptracker import config, paths, runtime, updates
 from yaptracker.ui.components import button, switch
 
 HINT = "Asks GitHub which version is newest. Nothing else is sent."
+TEST_HINT = "For testing: get every new build, not only stable releases."
 HOW = "Update now closes YapTracker, updates it and starts it again. Your data stays."
 
 
@@ -181,6 +182,12 @@ def update_section() -> None:
         "update-switch"
     )
     ui.label(HINT).classes("yt-hint")
+    switch("Get test versions (pre-releases)", config.test_versions(), lambda on: test(on),
+           hint=TEST_HINT).mark("test-versions-switch")  # (#454)  # fmt: skip
+
+    def test(on: bool) -> None:
+        config.save_test_versions(on)
+        background_tasks.create(ask())  # what's newest changes with it
 
     async def ask() -> None:
         if runtime.updates is None:

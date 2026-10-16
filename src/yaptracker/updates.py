@@ -3,8 +3,10 @@
 This is the only network call the app itself makes (CLAUDE.md: local-only, with this exception):
 one GET of the repo's release list, nothing sent but the request. On by default, switchable in
 Settings -> About. Never during a match: it waits until the match is over. Offline or rate
-limited: one log line, the next try a day later. Pre-releases count while YapTracker is on
-v0; from v1.0.0 on, only stable releases.
+limited: one log line, the next try a day later. Stable releases only, unless "Get test
+versions" is on (#454), or no stable release exists yet (before v1.0.0 every build was a
+pre-release). A stable release is a promoted pre-release, the same build: its notes say "Same
+build as v1.1.0-pre.512", and that build counts as up to date with it.
 
 Update now runs the update.ps1 bundled with the app (the same script as by hand): from %TEMP%,
 since the app folder is replaced, in its own console with the download bar. YapTracker quits;
@@ -44,18 +46,38 @@ def fetch_releases() -> list[dict]:
         return json.load(response)
 
 
-def version(text: str | None) -> tuple[int, int, int] | None:
-    """(0, 5, 412) from "v0.5.412" or "0.5.412"; None for anything else ("0.0.0.dev0" is 0.0.0)."""
-    found = re.match(r"v?(\d+)\.(\d+)\.(\d+)", text or "")
-    return (int(found[1]), int(found[2]), int(found[3])) if found else None
+Version = tuple[int, int, int, int, int]
+NOTHING: Version = (0, 0, 0, 0, 0)
+SAME_BUILD = re.compile(r"Same build as v?(\d+\.\d+\.\d+(?:-pre\.\d+)?)")
 
 
-def candidates(releases: list[dict], installed: str) -> list[dict]:
-    """The releases that count, newest first: no drafts; no pre-releases once on v1 or later."""
-    stable = (version(installed) or (0, 0, 0)) >= (1, 0, 0)
+def version(text: str | None) -> Version | None:
+    """(0, 5, 412, 1, 0) from "v0.5.412" or "0.5.412"; (1, 1, 0, 0, 5) from "v1.1.0-pre.5", a
+    test version that comes before "v1.1.0" (1, 1, 0, 1, 0). None for anything else
+    ("0.0.0.dev0" is 0.0.0)."""
+    found = re.match(r"v?(\d+)\.(\d+)\.(\d+)(?:-pre\.(\d+))?", text or "")
+    if not found:
+        return None
+    pre = found[4]
+    return int(found[1]), int(found[2]), int(found[3]), 0 if pre else 1, int(pre or 0)
+
+
+def candidates(releases: list[dict], installed: str, test_versions: bool = False) -> list[dict]:
+    """The releases that count, newest first: no drafts; stable releases only, unless test
+    versions are wanted or there is no stable release yet."""
     found = [r for r in releases if not r.get("draft") and version(r.get("tag_name"))]
-    found = [r for r in found if not (stable and r.get("prerelease"))]
+    if not test_versions and any(not r.get("prerelease") for r in found):
+        found = [r for r in found if not r.get("prerelease")]
     return sorted(found, key=lambda r: version(r["tag_name"]), reverse=True)
+
+
+def newer(release: dict, installed: str) -> bool:
+    """A later version than the installed one, and not the very build that runs (a promoted
+    stable release has the pre-release's build inside, with its version)."""
+    same = SAME_BUILD.search(release.get("body") or "")
+    if same and version(same[1]) == version(installed):
+        return False
+    return version(release["tag_name"]) > (version(installed) or NOTHING)
 
 
 def whats_new(releases: list[dict], installed: str) -> list[str]:
@@ -101,9 +123,11 @@ class UpdateCheck:
         fetch: Callable[[], list[dict]] = fetch_releases,
         clock: Callable[[], float] = time.time,
         cache: Path | None = None,
+        test_versions: Callable[[], bool] = lambda: False,
     ) -> None:
         self.installed = installed
         self._enabled, self._busy, self._fetch, self._clock = enabled, busy, fetch, clock
+        self._test_versions = test_versions  # "Get test versions" in Settings (#454)
         self._cache = cache  # the releases last fetched, for What's new after an update (#412)
         self._lock = threading.Lock()
         self._stop = threading.Event()
@@ -130,14 +154,14 @@ class UpdateCheck:
         with self._lock:
             now = self._clock()
             try:
-                releases = candidates(self._fetch(), self.installed)
+                releases = candidates(self._fetch(), self.installed, self._test_versions())
                 save_releases(self._cache, releases)
             except Exception as error:  # offline, rate limit, garbage: silent, tomorrow again
                 found = Found(now, error=f"{type(error).__name__}: {error}"[:200])
                 log.info("update: check failed (%s)", found.error)
             else:
                 newest = releases[0]["tag_name"] if releases else None
-                if newest and version(newest) > (version(self.installed) or (0, 0, 0)):
+                if newest and newer(releases[0], self.installed):
                     found = Found(now, newest, whats_new(releases, self.installed))
                     log.info("update: %s is out (this is v%s)", newest, self.installed)
                 else:
@@ -224,7 +248,7 @@ def after_update(installed: str, last_run: str | None, notes_file: Path, cache: 
     if not isinstance(releases, list) or not any(version(r.get("tag_name")) == now
                                                  for r in releases):  # fmt: skip
         try:
-            releases = candidates(fetch(), installed)
+            releases = candidates(fetch(), installed, test_versions=True)
             save_releases(cache, releases)
         except Exception as error:
             log.info("update: no notes for What's new (%s)", type(error).__name__)

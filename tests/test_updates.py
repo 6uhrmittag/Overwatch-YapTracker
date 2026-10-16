@@ -29,16 +29,45 @@ RELEASES = [  # as GitHub lists them, newest first
 ]
 
 
-def test_versions_compare_as_numbers():
+def test_versions_compare_as_numbers_and_a_test_version_comes_before_its_release():
     assert version("v0.5.399") < version("v0.5.412") < version("v1.0.0")
-    assert version("0.5.412") == (0, 5, 412) and version("0.0.0.dev0") == (0, 0, 0)
+    assert version("v1.0.0") < version("v1.1.0-pre.5") < version("v1.1.0-pre.12") < version("1.1.0")
+    assert version("v1.1.0-pre.512") < version("v1.1.1") and version("1.0.1") > version("1.0.0")
+    assert version("0.5.412") == (0, 5, 412, 1, 0) and version("0.0.0.dev0") == (0, 0, 0, 1, 0)
     assert version("nightly") is None
 
 
-def test_pre_releases_count_on_v0_only():
-    on_v1 = [release("v1.1.0", prerelease=False), release("v1.0.9"), release("v1.2.0", draft=True)]
-    assert [r["tag_name"] for r in candidates(on_v1, "0.5.412")] == ["v1.1.0", "v1.0.9"]
-    assert [r["tag_name"] for r in candidates(on_v1, "1.0.0")] == ["v1.1.0"]  # stable only
+def tags(releases):
+    return [r["tag_name"] for r in releases]
+
+
+def test_stable_only_unless_test_versions_or_no_stable_release_yet():
+    """#454: Marv's and Void's v0 installs keep updating until v1.0.0 is out, switch or not."""
+    before_v1 = [release("v0.5.512"), release("v0.5.511"), release("v0.5.513", draft=True)]
+    assert tags(candidates(before_v1, "0.5.400")) == ["v0.5.512", "v0.5.511"]
+    later = [release("v1.1.0-pre.520"), release("v1.0.0", prerelease=False), *before_v1]
+    assert tags(candidates(later, "0.5.400")) == ["v1.0.0"]  # from any v0: the newest stable
+    assert tags(candidates(later, "1.0.0", test_versions=True))[:2] == ["v1.1.0-pre.520", "v1.0.0"]
+
+
+def test_a_promoted_build_is_up_to_date_with_its_stable_release():
+    stable = release("v1.1.0", "Fewer crashes.", prerelease=False)
+    stable["body"] += "\nSame build as v1.1.0-pre.512."  # what the promote workflow writes
+    for installed, offered in (("1.1.0-pre.512", None), ("1.1.0-pre.500", "v1.1.0"),
+                               ("1.0.0", "v1.1.0")):  # fmt: skip
+        check = UpdateCheck(installed, lambda: True, fetch=lambda: [stable], clock=lambda: 1.0)
+        assert check.check().newest == offered, installed
+
+
+def test_the_switch_decides_whether_test_versions_are_offered(tmp_path):
+    out = [release("v1.1.0-pre.520"), release("v1.0.0", prerelease=False)]
+    on = {"test": False}
+    check = UpdateCheck("1.0.0", lambda: True, fetch=lambda: out, clock=lambda: 1.0,
+                        test_versions=lambda: on["test"])  # fmt: skip
+    assert check.check().newest is None
+    on["test"] = True
+    assert check.check().newest == "v1.1.0-pre.520"
+    assert not config.test_versions()  # off by default, for everyone (#454)
 
 
 def test_whats_new_lists_every_release_since_mine_once():
@@ -123,6 +152,9 @@ async def test_about_checks_now_and_has_the_switch(user: User, monkeypatch):
     await user.should_see("Up to date (v0.5.412), checked at")
     user.find(marker="update-switch").click()
     assert config.update_check() is False
+    await user.should_see("For testing: get every new build, not only stable releases.")
+    user.find(marker="test-versions-switch").click()  # (#454)
+    assert config.test_versions() is True
 
 
 def test_update_now_runs_from_the_install_root_only(monkeypatch, tmp_path):

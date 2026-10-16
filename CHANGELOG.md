@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-16 · Stable releases, test versions if you want them (#454)
+- Settings → About has a new switch, "Get test versions (pre-releases)": off means you get stable releases only. Until the first stable release (v1.0.0) is out, every new build still reaches you.
+- `update.ps1` installs the newest stable release; `update.ps1 -PreRelease` installs the newest test version.
+
 ### 2026-10-16 · A full disk or a hiccup in Windows OCR no longer loses chat (#452)
 - When a line's picture or a debug sample can't be saved (for example on a full disk), the chat line is still saved. Read again then says the line has no picture.
 - With less than 1 GB free, debug samples pause and Live says so: "Disk almost full: debug samples paused". They start again by themselves once there's space.
