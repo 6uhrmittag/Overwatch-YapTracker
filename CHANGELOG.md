@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-17 · Yap snaps with many lines fit the window (#499)
+- The yap snap window never grows past the YapTracker window: the middle scrolls, and Save PNG, Copy and Close always stay in view. The preview shrinks to fit; click it to see it full size. The saved and copied picture stays full size.
+- Scrolling inside a dialog no longer closes it.
+
 ### 2026-10-17 · Other windows over the chat box aren't chat (#497)
 - Where YapTracker reads the chat box from the screen (Windows 10, or when the game window stays black), a window on top of it (File Explorer, a tooltip) is no longer read as chat. Live says "Another window covers Overwatch's chat box" while it lasts, and reading goes on by itself once it's free.
 - Text far to the right of a chat message in another colour (like a folder path) is no longer glued onto the message.
