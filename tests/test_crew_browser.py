@@ -133,6 +133,13 @@ class Page:
             await self.call("Input.dispatchMouseEvent", type=kind, x=box[0], y=box[1],
                             button="left", clickCount=1)  # fmt: skip
 
+    async def until_js(self, condition: str, seconds: float = 10) -> None:
+        deadline = time.time() + seconds
+        while not await self.js(condition):
+            if time.time() > deadline:
+                raise AssertionError(f"timed out waiting for {condition}")
+            await asyncio.sleep(0.1)
+
     async def text(self) -> str:
         return await self.js("document.body.innerText")
 
@@ -215,6 +222,10 @@ def test_names_typed_in_a_real_browser_are_saved_and_survive_a_restart(tmp_path)
         # One browser for both halves: a second Chrome on the same default profile can hand
         # off to the killed one and never open its debugging port.
         await steps(page)
+        # Off the app's page first (#487): left open, its script reconnects to the restarted
+        # app and reloads itself, racing our navigation, which then never answered.
+        await page.call("Page.navigate", url="about:blank")
+        await page.until_js("document.readyState === 'complete' && location.href === 'about:blank'")
         app.stop()
         app.start()
         await after_restart(page)

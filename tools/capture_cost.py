@@ -27,6 +27,7 @@ still costs a full readback. Read-only screen capture; nothing is sent to any wi
 import argparse
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -48,15 +49,24 @@ root.mainloop()
 """
 
 
-def find_window(title: str) -> int:
+def find_window(title: str, target: subprocess.Popen, errors, seconds: float = 60.0) -> int:
+    """The target's window, as soon as it's there (#487): a cold Python + Tk start on a busy CI
+    runner took more than the 10 s this used to wait. Fails at once if the target died."""
     import ctypes
 
-    for _ in range(100):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
         hwnd = ctypes.windll.user32.FindWindowW(None, title)
         if hwnd:
             return hwnd
+        if target.poll() is not None:
+            errors.seek(0)
+            err = errors.read()
+            raise SystemExit(
+                f"the {title!r} window's process ended: {err.decode(errors='replace')}"
+            )
         time.sleep(0.1)
-    raise SystemExit(f"window {title!r} didn't open")
+    raise SystemExit(f"window {title!r} didn't open within {seconds:g} s")
 
 
 def measure(name: str, seconds: float, run) -> dict:
@@ -241,31 +251,33 @@ def main() -> None:
         sys.exit("Windows only.")
     from yaptracker.capture.wgc import windows_build
 
-    target = subprocess.Popen([sys.executable, "-c", ANIMATE])
-    try:
-        hwnd = find_window("capture-cost-target")
-        time.sleep(1.0)
-        modes = [("idle", lambda s, c: time.sleep(s)), ("skip", wgc(hwnd, None, False)),
-                 ("use", wgc(hwnd, None, True)), ("gate", wgc(hwnd, 0.225, True)),
-                 ("burst", burst(hwnd)), ("gdi", gdi(hwnd)), ("src4", source(hwnd, fps=4)),
-                 ("source", source(hwnd)), ("quiet", source(hwnd, quiet=True))]  # fmt: skip
-        if windows_build() >= 26100:
-            modes.append(("rate", wgc(hwnd, None, True, rate_ms=250)))
-        print(f"Windows build {windows_build()}, {args.seconds:g} s per mode")
-        blits(hwnd)
-        print(f"{'mode':6} {'delivered/s':>12} {'used/s':>8} {'cpu %':>7} {'cpu ms/frame':>13} "
-          f"{'ms/frame here':>14}")  # fmt: skip
-        for name, run in modes:
-            try:
-                r = measure(name, args.seconds, run)
-            except Exception as error:  # a mode this Windows can't do: say so, go on
-                print(f"{name:6} failed: {error!r}", flush=True)
-                continue
-            here = f"{r['ms/frame here']:14.2f}" if r["ms/frame here"] is not None else ""
-            print(f"{r['mode']:6} {r['delivered/s']:12.1f} {r['used/s']:8.1f} {r['cpu %']:7.1f} "
-                  f"{r['cpu ms/frame']:13.2f} {here}", flush=True)  # fmt: skip
-    finally:
-        target.kill()
+    with tempfile.TemporaryFile() as errors:  # not a pipe: nobody empties it while measuring
+        target = subprocess.Popen([sys.executable, "-c", ANIMATE], stderr=errors)
+        try:
+            hwnd = find_window("capture-cost-target", target, errors)
+            time.sleep(1.0)
+            modes = [("idle", lambda s, c: time.sleep(s)), ("skip", wgc(hwnd, None, False)),
+                     ("use", wgc(hwnd, None, True)), ("gate", wgc(hwnd, 0.225, True)),
+                     ("burst", burst(hwnd)), ("gdi", gdi(hwnd)), ("src4", source(hwnd, fps=4)),
+                     ("source", source(hwnd)), ("quiet", source(hwnd, quiet=True))]  # fmt: skip
+            if windows_build() >= 26100:
+                modes.append(("rate", wgc(hwnd, None, True, rate_ms=250)))
+            print(f"Windows build {windows_build()}, {args.seconds:g} s per mode")
+            blits(hwnd)
+            print(f"{'mode':6} {'delivered/s':>12} {'used/s':>8} {'cpu %':>7} {'cpu ms/frame':>13} "
+              f"{'ms/frame here':>14}")  # fmt: skip
+            for name, run in modes:
+                try:
+                    r = measure(name, args.seconds, run)
+                except Exception as error:  # a mode this Windows can't do: say so, go on
+                    print(f"{name:6} failed: {error!r}", flush=True)
+                    continue
+                here = f"{r['ms/frame here']:14.2f}" if r["ms/frame here"] is not None else ""
+                print(f"{r['mode']:6} {r['delivered/s']:12.1f} {r['used/s']:8.1f} "
+                      f"{r['cpu %']:7.1f} {r['cpu ms/frame']:13.2f} {here}",
+                      flush=True)  # fmt: skip
+        finally:
+            target.kill()
 
 
 if __name__ == "__main__":

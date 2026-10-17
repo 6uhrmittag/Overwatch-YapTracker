@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-17 · Steadier CI (#487)
+- Behind the scenes: two checks that failed now and then on the build servers wait for what they need instead of a fixed time, so new builds don't get stuck behind a flaky test.
+
 ### 2026-10-17 · Reviews before the push (CLAUDE.md)
 - Behind the scenes: changes are now reviewed before they're pushed, and how deeply depends on what they touch (docs: none, small fixes: a light review, capture/reading/storage/threads/updates: a full one), so CI runs once per change.
 
