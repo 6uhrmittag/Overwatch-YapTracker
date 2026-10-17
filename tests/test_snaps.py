@@ -112,3 +112,53 @@ async def test_pick_lines_preview_and_save(user: User, tmp_path, monkeypatch):
         assert list((tmp_path / "Pictures" / "YapTracker").glob("yapsnap-*.png"))
     finally:
         store.close()
+
+
+async def test_twenty_lines_keep_the_buttons_in_view_and_a_full_png(user, tmp_path, monkeypatch):
+    """#499: with ~18 lines Copy and Save were below the window; the dialog now scrolls in the
+    middle, the buttons sit in a bar of their own, and only the on-screen preview shrinks."""
+    config.save_setup_state("done")
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    try:
+        now = time.time()
+        session = store.start_session(now - 600)
+        match = store.start_match(session, now - 600, "heroselect", "push", "esperanca")
+        ids = [store.add_message(ts=now - 500 + n, channel="match", text=f"line {n} wahoo",
+                                 speaker_raw="NoodleBonk", match_id=match)
+               for n in range(20)]  # fmt: skip
+        monkeypatch.setattr(runtime, "store", store)
+        monkeypatch.setattr(paths, "pictures_dir", lambda: tmp_path / "Pictures")
+        await user.open("/")
+        user.find(marker="nav-sessions").click()
+        user.find(marker="day").click()
+        user.find(marker=f"match-{match}").click()
+        user.find(marker="snap-start").click()
+        for message_id in ids:
+            user.find(marker=f"line-{message_id}").click()
+        await user.should_see("20 of 20 picked")
+        user.find(marker="snap-make").click()
+        await user.should_see(marker="snap-preview")
+        (scroll,) = user.find(marker="snap-scroll").elements
+        (actions,) = user.find(marker="snap-actions").elements
+        (save_button,) = user.find(marker="snap-save").elements
+        inside = {id(e) for e in scroll.descendants()}
+        assert id(actions) not in inside  # the buttons' bar never scrolls away
+        assert id(save_button) in {id(e) for e in actions.descendants()}
+        (preview,) = user.find(marker="snap-preview").elements
+        user.find(marker="snap-preview").click()  # full size, inside the scrolling middle
+        assert "yt-snap-preview--full" in preview.classes
+        user.find(marker="snap-save").click()
+        await user.should_see("Saved to")
+        (saved,) = (tmp_path / "Pictures").glob("yapsnap-*.png")
+        messages = [store.message(i) for i in ids]
+        expected = render(snap_lines(messages, False, False, now - 600), "", config_style())
+        assert Image.open(saved).size == expected.size  # the PNG itself never shrinks
+    finally:
+        store.close()
+
+
+def config_style():
+    from yaptracker import chat_colours
+    from yaptracker.snaps import remembered
+
+    return remembered(config.snap_style(), chat_colours.current())

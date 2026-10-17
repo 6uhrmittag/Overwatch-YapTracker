@@ -42,8 +42,14 @@ def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> 
     with ui.dialog() as dialog, ui.element("section").classes("yt-card yt-snap"):
         with ui.element("div").classes("yt-card-body"):
             ui.label("Your yap snap").classes("yt-h2")
-            preview = ui.image().classes("yt-snap-preview").mark("snap-preview")
-            with ui.element("div").classes("yt-switches"):  # one per row, each its hint (#397)
+            # The dialog never grows past the window (#499): the middle scrolls, the buttons
+            # stay in view, and the preview shrinks to fit (a click shows it full size).
+            scroll = ui.element("div").classes("yt-snap-scroll").mark("snap-scroll")
+            with scroll:
+                preview = ui.image().classes("yt-snap-preview").mark("snap-preview")
+                preview.on("click", lambda: preview.classes(toggle="yt-snap-preview--full"))
+                switches = ui.element("div").classes("yt-switches")
+            with switches:  # one per row, each its hint (#397)
                 switch(
                     "Hide names",
                     False,
@@ -58,8 +64,9 @@ def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> 
                     hint="With Hide names: your own name and your crew's stay readable.",
                 ).mark("snap-crew")
                 allow_switch(crew, False, _CREW_WHY)
-            looks = ui.element("div").classes("yt-snap-looks").mark("snap-looks")
-            with ui.element("div").classes("yt-row"):
+            with scroll:
+                looks = ui.element("div").classes("yt-snap-looks").mark("snap-looks")
+            with ui.element("div").classes("yt-row yt-snap-actions").mark("snap-actions"):
                 button("Save PNG", lambda: keep(), "primary").mark("snap-save")
                 copy = ui.element("button").classes("yt-btn yt-btn--secondary")
                 copy.props('type="button"').mark("snap-copy")
