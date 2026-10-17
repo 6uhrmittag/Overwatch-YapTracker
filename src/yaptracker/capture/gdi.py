@@ -19,6 +19,7 @@ from ctypes import wintypes
 
 import numpy as np
 
+from yaptracker import side_work
 from yaptracker.capture.source import CaptureStalled, Frame, Region
 from yaptracker.capture.stats import CAPTURE
 from yaptracker.cpu_parts import CPU
@@ -163,8 +164,12 @@ class GdiFrameSource:
         signals_every_s: float = 1.0,
         overview_every_s: float = 5.0,
         quiet: Callable[[], bool] = lambda: False,
+        covering: Callable[[int, Region], str | None] | None = None,
     ):
         self._hwnd, self._region_for, self._signals_for = hwnd, region_for, signals_for
+        if covering is None:
+            from yaptracker.capture.cover import covering
+        self._covering = covering  # another window over the chat box on screen (#497)
         self._gap_s, self._signals_every_s = 1.0 / fps, signals_every_s
         self._quiet, self._quiet_gap_s = quiet, max(1.0 / fps, 1.0 / QUIET_FPS)
         self._overview_every_s, self._stall_s = overview_every_s, stall_s
@@ -211,7 +216,15 @@ class GdiFrameSource:
                             signals.update({n: cut(image, frame, strips[n]) for n in names})
                 if chat is None:
                     chat = grabber.grab(sx + r.x, sy + r.y, r.width, r.height)
-                self._put(Frame(now - self._start, chat, signals))
+                try:
+                    covered = self._covering(
+                        self._hwnd, Region(sx + r.x, sy + r.y, r.width, r.height)
+                    )
+                except Exception as error:  # can't tell: read it, as before #497
+                    side_work.failed("checking what's over the chat box", error,
+                                     then="the frame is read")  # fmt: skip
+                    covered = None
+                self._put(Frame(now - self._start, chat, signals, covered))
                 spent = time.perf_counter() - started
                 CAPTURE.frame(spent)
                 CPU.add("capture", time.thread_time() - started_cpu)  # (#302)

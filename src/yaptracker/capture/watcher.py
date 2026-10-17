@@ -10,6 +10,9 @@ from yaptracker.capture.health import CaptureHealth
 from yaptracker.capture.source import CaptureStalled, Frame, FrameSource
 
 log = logging.getLogger(__name__)
+# Covered longer than this: a gap record (#497). A line stays ~9 s on screen and is read every
+# 1.5 s, so a shorter cover can't hide a whole line: it was read before or after.
+COVER_GAP_S = 6.0
 
 
 class CaptureWatcher:
@@ -26,6 +29,7 @@ class CaptureWatcher:
         health: CaptureHealth | None = None,
         on_signals: Callable[[Frame], None] = lambda frame: None,
         on_closed: Callable[[], None] = lambda: None,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._find_window = find_window
         self._open_source = open_source
@@ -37,6 +41,10 @@ class CaptureWatcher:
         self._on_signals = on_signals  # match signals (#93); they run even while paused
         self._on_closed = on_closed  # Overwatch closed after capturing: the evening line (#379)
         self._failures = 0  # in a row; the retry wait grows with them
+        self._clock = clock
+        self._covered_since: float | None = None  # another window over the chat box (#497)
+        self.covered: str | None = None  # what covers it right now, for Live
+        self._cover_gap = False
         self._stop = threading.Event()
         self._reopen = threading.Event()
         self._source: FrameSource | None = None
@@ -118,6 +126,27 @@ class CaptureWatcher:
         except Exception as error:
             side_work.failed("ending the match when the game closed", error, then="it goes on")
 
+    def _cover(self, frame: Frame) -> None:
+        """Not read; said once per cover; a cover over COVER_GAP_S is a gap (#497)."""
+        self.last_frame = frame  # "What I see" shows what's in the way
+        now, self.covered = self._clock(), frame.covered
+        if self._covered_since is None:
+            self._covered_since = now
+            log.info("capture: chat box covered by another window - not reading")  # no title:
+            # it may name a private document, and logs get pasted into issues
+        elif not self._cover_gap and now - self._covered_since >= COVER_GAP_S:
+            self._cover_gap = True
+            self._health_call("lost", "no_frames")  # no usable picture (the DB has no "covered")
+
+    def _uncover(self) -> None:
+        if self._covered_since is not None:
+            log.info("capture: chat box free again after %.0f s - reading",
+                     self._clock() - self._covered_since)  # fmt: skip
+            self._forget_cover()  # the next frame() closes a gap
+
+    def _forget_cover(self) -> None:
+        self._covered_since, self._cover_gap, self.covered = None, False, None
+
     def _health_call(self, method: str, *args) -> None:
         """Gap records (#75); one that can't be written never stops the capture (#457)."""
         if self._health is not None:
@@ -148,13 +177,19 @@ class CaptureWatcher:
                     was_paused = paused
                 if paused:  # the frame is dropped, not even previewed (#20)
                     self.last_frame = None
+                    self._forget_cover()  # the pause is its own gap; a cover after it starts anew
                     continue
+                if frame.covered:  # read from the screen with a window over it: not chat
+                    self._cover(frame)
+                    continue
+                self._uncover()
                 self._health_call("frame")
                 self.last_frame = frame
                 self._on_frame(frame)
         finally:
             source.close()
             self._source = None
+            self._forget_cover()
             log.info("capture of window %s ended", window)
 
 

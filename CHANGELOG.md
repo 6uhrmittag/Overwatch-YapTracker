@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-17 · Other windows over the chat box aren't chat (#497)
+- Where YapTracker reads the chat box from the screen (Windows 10, or when the game window stays black), a window on top of it (File Explorer, a tooltip) is no longer read as chat. Live says "Another window covers Overwatch's chat box" while it lasts, and reading goes on by itself once it's free.
+- Text far to the right of a chat message in another colour (like a folder path) is no longer glued onto the message.
+
 ### 2026-10-17 · Steadier CI (#487)
 - Behind the scenes: two checks that failed now and then on the build servers wait for what they need instead of a fixed time, so new builds don't get stuck behind a flaky test.
 

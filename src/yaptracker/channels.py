@@ -195,13 +195,18 @@ def cut_glued(lines: list[OcrLine], image: np.ndarray, known: dict[str, float] |
               hue=text_hue) -> list[OcrLine]:  # fmt: skip
     """Background text glued to the end of a line on a bright frame ("gg 512", "boy 型 2325",
     #172) is cut: trailing words whose colour is far from the line's first word (the name is
-    there) and from every chat colour. The first word always stays."""
+    there) and from every chat colour. The first word always stays.
+
+    Text far after the message (a gap over FAR_GAP line heights) that isn't in a chat colour
+    is cut too, white or grey included (#497: "gj E:\\data\\shots", a File Explorer window
+    over the chat box on screen)."""
     chat = list((known or {}).values())
     result = []
     for line in lines:
         keep = list(line.parts)
         own = hue(image, keep[0][1]) if keep else None
         refs = ([own] if own is not None else []) + chat
+        keep = _before_far_text(keep, image, refs, hue)
         while len(keep) > 1 and refs:
             last = hue(image, keep[-1][1])
             if last is None or any(hue_distance(last, ref) <= GLUED_DISTANCE for ref in refs):
@@ -216,6 +221,27 @@ def cut_glued(lines: list[OcrLine], image: np.ndarray, known: dict[str, float] |
         result.append(replace(line, text=" ".join(t for t, _ in keep), parts=tuple(keep),
                               box=Region(x0, y0, x1 - x0, y1 - y0)))  # fmt: skip
     return result
+
+
+FAR_GAP = 3.0  # line heights of empty space after which other text isn't the message (#497)
+_REPORT_LINK = re.compile(r"\[?Report\]?$", re.IGNORECASE)
+
+
+def _before_far_text(parts: list, image: np.ndarray, refs: list[float], hue) -> list:
+    """The words up to a big gap after which the text isn't in the line's or a chat colour.
+    Without a colour to compare, nothing goes; Overwatch's own "[Report]" link always stays."""
+    if not refs:
+        return parts
+    for n in range(1, len(parts)):
+        (_, before), (_, after) = parts[n - 1], parts[n]
+        gap = after.x - (before.x + before.width)
+        if gap > FAR_GAP * max(before.height, after.height) and not _REPORT_LINK.match(
+                parts[n][0]):  # fmt: skip
+            colour = hue(image, after)
+            if colour is None or not any(hue_distance(colour, ref) <= GLUED_DISTANCE
+                                         for ref in refs):  # fmt: skip
+                return parts[:n]
+    return parts
 
 
 def hue_distance(a: float, b: float) -> float:

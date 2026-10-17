@@ -60,6 +60,9 @@ class Frame:
     image: np.ndarray  # height x width x 3, uint8, BGR (what OCR and WGC capture use)
     # Small crops elsewhere in the window, about once a second: hero select, end screens (#93).
     signals: dict[str, np.ndarray] = field(default_factory=dict)
+    # Read from the screen with another window over the chat box: what covers it (#497).
+    # Such a frame isn't read: the other window's text would become chat.
+    covered: str | None = None
 
 
 class CaptureStalled(RuntimeError):
