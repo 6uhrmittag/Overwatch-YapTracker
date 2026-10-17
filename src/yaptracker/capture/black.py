@@ -14,7 +14,7 @@ BLACK_FOR_S = 5.0  # longer than a fade between screens
 SAY = ("Windows sends me a black picture. Overwatch is probably in Fullscreen: Options → "
        "Video → Display Mode → Borderless Windowed.")  # fmt: skip
 SCREEN_SAY = ("Capturing the screen Overwatch is on: the window gave a black picture. Keep "
-              "other windows off the chat box, what's on top of it is what I read.")  # fmt: skip
+              "other windows off the chat box: while one covers it, I don't read it.")  # fmt: skip
 
 
 def is_black(image: np.ndarray | None) -> bool:

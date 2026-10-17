@@ -67,6 +67,9 @@ _TODO = {
     "no_frames": "Is Overwatch minimised? Bring it up once, I keep trying.",
     "window_lost": "I'm looking for it again, nothing to do.",
 }
+# Read from the screen, a window over the chat box isn't chat (#497): said while it lasts.
+COVERED_SAY = ("Another window covers Overwatch's chat box ({what}), so I'm not reading it. "
+               "Move it off the chat box; I read again as soon as it's free.")  # fmt: skip
 
 
 def _backup_text() -> str:
@@ -649,7 +652,11 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         match_id = runtime.matches.match_id if runtime.matches else None
         if match_id != heart.match_id:  # the current match, or the last one until the next
             heart.show(match_id)
-        if broken:  # paused has its own pill (#20)
+        covered = getattr(watcher, "covered", None)
+        if covered:  # read from the screen, another window is in the way (#497)
+            health_text.set_text(COVERED_SAY.format(what=covered[:60]))
+            health_banner.classes(remove="yt-hidden")
+        elif broken:  # paused has its own pill (#20)
             since = time.strftime("%H:%M", time.localtime(gap.since))
             error = watcher.last_error if watcher is not None else None
             said = f" Windows says: \u201c{error.strip()[:160]}\u201d" if error else ""  # (#216)
