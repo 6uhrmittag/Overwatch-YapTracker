@@ -2,6 +2,7 @@
 
 import sqlite3
 import threading
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -366,25 +367,28 @@ class Store:
         )[0]
         return played, lines
 
-    def played_matches(self, day: str | None = None) -> list[MatchRow]:
+    def played_matches(self, day: str | None = None, also: Iterable[int] = ()) -> list[MatchRow]:
         """Every played match in play order with how much was said (#29), or those of one day
-        ('2026-10-11', #440)."""
+        ('2026-10-11', #440). also: matches to list even without a yap or result yet (their
+        chat still waits to be read, #501)."""
         if day is None:
-            return self._match_rows("", ())
-        return self._match_rows(f"WHERE {_day('m')} = ? ", (day,))
+            return self._match_rows("", (), also)
+        return self._match_rows(f"WHERE {_day('m')} = ? ", (day,), also)
 
     def match_day(self, match_id: int) -> str | None:
         """The day a match was played (#440), '2026-10-11'; None if there's no such match."""
         rows = self._read(f"SELECT {_day('m')} FROM matches m WHERE m.id = ?", (match_id,))
         return rows[0][0] if rows else None
 
-    def _match_rows(self, where: str, params: tuple) -> list[MatchRow]:
+    def _match_rows(self, where: str, params: tuple, also: Iterable[int] = ()) -> list[MatchRow]:
+        also = tuple(also)
         rows = self._read(
             "SELECT m.id, m.started_at, m.ended_at, m.outcome, m.map, m.mode, COUNT(c.id), "
             f"MAX(c.ts), m.loved_at, m.session_id, {_day('m')} FROM matches m "
             f"LEFT JOIN live_messages c ON c.match_id = m.id {where}GROUP BY m.id "
-            "HAVING COUNT(c.id) > 0 OR m.outcome IS NOT NULL ORDER BY m.started_at, m.id",
-            params,
+            "HAVING COUNT(c.id) > 0 OR m.outcome IS NOT NULL "
+            f"OR m.id IN ({', '.join('?' * len(also))}) ORDER BY m.started_at, m.id",
+            params + also,
         )
         return [MatchRow(*row) for row in rows]
 

@@ -529,12 +529,14 @@ async def test_live_says_when_it_reads_chat_from_the_last_session(user: User, mo
     from types import SimpleNamespace
 
     from yaptracker import runtime
+    from yaptracker.later import Backlog
 
-    later = SimpleNamespace(restored=lambda: 3)  # kept at the last quit, read now (#474)
-    reader = SimpleNamespace(later=later, tidy_frames=[], tidied=None, wants_reread=lambda: False)
+    waiting = Backlog({7: (3, 0)}, 1.0, False, None, restored=3)  # kept at the last quit (#474)
+    reader = SimpleNamespace(backlog=lambda: waiting, tidy_frames=[], tidied=None,
+                             wants_reread=lambda: False)  # fmt: skip
     monkeypatch.setattr(runtime, "reader", reader)
     await user.open("/")
-    await user.should_see("Reading 3 chat pictures from your last session.")
+    await user.should_see("Reading 3 chat pictures from your last session (under a minute).")
 
 
 async def test_reads_failing_in_a_row_are_said_in_live(user: User, monkeypatch):

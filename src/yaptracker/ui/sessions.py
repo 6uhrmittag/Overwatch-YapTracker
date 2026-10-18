@@ -11,7 +11,7 @@ from nicegui import ui
 
 from yaptracker import config, days, runtime
 from yaptracker.days import end_of as _match_end
-from yaptracker.ui import icons
+from yaptracker.ui import backlog, icons
 from yaptracker.ui.components import button, callout_toggle, count, place_name, sub_page, when
 from yaptracker.ui.heart import Heart
 from yaptracker.ui.picker import LinePicker
@@ -67,12 +67,18 @@ def sessions(match_id: int | None = None) -> None:
 
     store = runtime.store
     key = store.match_day(match_id) if store and match_id is not None else None
-    matches = store.played_matches(key) if key else []
+    matches = store.played_matches(key, _reading()) if key else []
     number = next((n for n, m in enumerate(matches, start=1) if m.id == match_id), None)
     if number is not None:
         show_match(key, matches[number - 1], number)
     else:
         show_days()
+
+
+def _reading() -> list[int]:
+    """Matches whose chat still waits to be read: listed even before their first yap (#501)."""
+    waiting = backlog.now()
+    return [m for m in waiting.matches if m is not None] if waiting else []
 
 
 def _day_list(open_day) -> None:
@@ -82,7 +88,8 @@ def _day_list(open_day) -> None:
         "One row per day you played. Past midnight still counts to the day before, until 5 am."
     ).classes("yt-hint").mark("days-hint")
     store = runtime.store
-    rows = days.group(store.played_matches()) if store else []
+    rows = days.group(store.played_matches(also=_reading())) if store else []
+    badges = {}
     with ui.element("section").classes("yt-card yt-card--list"):
         with ui.element("div").classes("yt-card-body").mark("sessions"):
             if not rows:
@@ -95,6 +102,7 @@ def _day_list(open_day) -> None:
                 with row:
                     ui.label(days.title(day.key)).classes("yt-yapper-name")
                     ui.label(when(*days.ago(day.key))).classes("yt-meta")
+                    badges[tuple(m.id for m in day.matches)] = _badge()
                     ui.element("div").classes("yt-grow")
                     span = f"{_clock(day.started_at)}\u2013{_clock(day.ended_at)}"
                     ui.label(
@@ -102,6 +110,13 @@ def _day_list(open_day) -> None:
                         f"{count(len(day.matches), 'match', 'matches')} \u00b7 "
                         f"{count(day.yaps, 'yap', 'yaps')}"
                     ).classes("yt-meta")
+    backlog.follow(badges, lambda waiting, ids: backlog.READING if waiting and any(
+        waiting.state(m) for m in ids) else None)  # fmt: skip
+
+
+def _badge() -> ui.label:
+    """'Still reading', pulsing until the match's chat is read through (#501)."""
+    return ui.label().classes("yt-reading yt-hidden").mark("still-reading")
 
 
 def _match_list(key: str, back, open_match) -> None:
@@ -112,7 +127,8 @@ def _match_list(key: str, back, open_match) -> None:
     ui.label("Open a match to read it back or make a yap snap.").classes("yt-hint").mark(
         "matches-hint"
     )  # snaps are in the match, in Search and in Live (#325)
-    blocks = days.blocks(store.played_matches(key))
+    blocks = days.blocks(store.played_matches(key, _reading()))
+    badges = {}
     with ui.element("section").classes("yt-card yt-card--list"):
         with ui.element("div").classes("yt-card-body").mark("matches"):
             if not blocks:
@@ -127,10 +143,11 @@ def _match_list(key: str, back, open_match) -> None:
                     )
                 for match in block:
                     number += 1
-                    _match_row(match, number, open_match)
+                    badges[match.id] = _match_row(match, number, open_match)
+    backlog.follow(badges, backlog.badge)
 
 
-def _match_row(match, number: int, open_match) -> None:
+def _match_row(match, number: int, open_match) -> ui.label:
     store = runtime.store
     row = ui.element("div").classes("yt-yapper").mark(f"match match-{match.id}")
     row.on("click", lambda m=match, n=number: open_match(m, n))
@@ -146,6 +163,7 @@ def _match_row(match, number: int, open_match) -> None:
             )
         if store.gaps_between(match.started_at, _match_end(match)):
             ui.label("incomplete").classes("yt-incomplete").mark("incomplete")
+        badge = _badge()
         ui.element("div").classes("yt-grow")
         mode = f"{place_name(match.mode)} \u00b7 " if match.mode else ""
         ui.label(
@@ -153,6 +171,7 @@ def _match_row(match, number: int, open_match) -> None:
             f"{_length(match.started_at, _match_end(match))} \u00b7 "
             f"{count(match.yaps, 'yap', 'yaps')}"
         ).classes("yt-meta")
+    return badge
 
 
 def _title(match, number: int) -> str:
@@ -240,50 +259,78 @@ def _transcript(match, number: int, back) -> None:
         if not picker.clicked(message, shift):
             show_picture(message, rows.get(message.id))
 
+    with ui.element("div").classes("yt-reading-banner yt-hidden").mark("reading-banner") as banner:
+        banner_text = ui.label().mark("reading-banner-text")
+        with ui.element("div").classes("yt-meter"):
+            done = ui.element("div").classes("yt-meter-fill")
+    with ui.element("section").classes("yt-card yt-card--list"):
+        body = ui.element("div").classes("yt-card-body yt-transcript").mark("transcript")
+    with toggle_slot:
+        callouts = callout_toggle(body)  # hidden by default (#289)
+    shown = {"lines": _draw(match, body, rows, picker, clicked, callouts), "read": None}
+
+    def follow() -> None:
+        """While the match's chat is read after it (#501): the banner, and new lines at once."""
+        said = backlog.banner(backlog.now(), match.id)
+        banner.classes(**{"add" if said is None else "remove": "yt-hidden"})
+        if said is not None:
+            banner_text.set_text(said[0])
+            done.style(f"width: {said[1]:.0%}")
+        read = said and said[1]
+        if read != shown["read"]:  # its last picture read, too: better readings show
+            shown["read"] = read
+            if len(lines := store.messages(match.id)) != shown["lines"] or said is None:
+                shown["lines"] = _draw(match, body, rows, picker, clicked, callouts, lines)
+
+    follow()
+    ui.timer(backlog.FOLLOW_S, follow)
+
+
+def _draw(match, body, rows: dict, picker, clicked, callouts, messages=None) -> int:
+    """The transcript's lines, gaps and dividers into body (again); returns how many lines."""
+    store = runtime.store
+    body.clear()
+    rows.clear()  # the same dict: Read again fills its rows in place
+    picker.clear_rows()
     verdicts = {p.id: p.verdict for p in store.players()}
-    messages = store.messages(match.id)
+    messages = store.messages(match.id) if messages is None else messages
     gaps = store.gaps_between(match.started_at, _match_end(match))
     events = [(m.ts, "yap", m) for m in messages] + [(g[0], "gap", g) for g in gaps]
     if match.ended_at and any(m.ts > match.ended_at for m in messages):
         events.append((match.ended_at, "end", match))  # what was said after the result (#176)
     if any(m.ts < match.started_at for m in messages):
         events.append((match.started_at, "start", match))  # chat before it, e.g. the range (#307)
-    with ui.element("section").classes("yt-card yt-card--list"):
-        with ui.element("div").classes("yt-card-body yt-transcript").mark("transcript") as body:
-            if not events:
-                ui.label("No yaps in this match. Suspiciously quiet lobby.").classes("yt-hint")
-            last = None  # the row before, to count repeated callouts
-            for _, kind, item in sorted(events, key=lambda e: (e[0], e[1] != "start")):
-                if kind in ("start", "end", "gap"):
-                    last = None  # never count repeats across a divider
-                if kind == "start":
-                    ui.label("The match starts").classes("yt-gap-line yt-end-line").mark(
-                        "start-line"
-                    )
-                    continue
-                if kind == "end":
-                    result = (
-                        f" ({_OUTCOMES.get(item.outcome, item.outcome)})" if item.outcome else ""
-                    )
-                    ui.label(f"After the match{result}").classes("yt-gap-line yt-end-line").mark(
-                        "end-line"
-                    )
-                    continue
-                if kind == "gap":
-                    started, ended, reason = item
-                    span = f"{_clock(started)}\u2013{_clock(ended)}" if ended else \
-                        f"since {_clock(started)}"  # fmt: skip
-                    ui.label(f"Not recorded {span} ({_GAP_WHY.get(reason, reason)})").classes(
-                        "yt-gap-line"
-                    ).mark("gap-line")
-                elif last and same_callout(last[0], item):
-                    repeat(last[1], item.id)  # "Enemy Sombra!" x4 (#185)
-                    picker.add(item, last[1]["line"])
-                else:
-                    row = chat_line(item, match.started_at, verdicts.get(item.player_id),
-                                    on_click=lambda shift, m=item: clicked(m, shift))  # fmt: skip
-                    rows[item.id] = row
-                    picker.add(item, row["line"])
-                    last = (item, row)
-    with toggle_slot:
-        callout_toggle(body)(sum(1 for m in messages if m.hero))  # hidden by default (#289)
+    with body:
+        if not events:
+            ui.label("No yaps in this match. Suspiciously quiet lobby.").classes("yt-hint")
+        last = None  # the row before, to count repeated callouts
+        for _, kind, item in sorted(events, key=lambda e: (e[0], e[1] != "start")):
+            if kind in ("start", "end", "gap"):
+                last = None  # never count repeats across a divider
+            if kind == "start":
+                ui.label("The match starts").classes("yt-gap-line yt-end-line").mark("start-line")
+                continue
+            if kind == "end":
+                result = f" ({_OUTCOMES.get(item.outcome, item.outcome)})" if item.outcome else ""
+                ui.label(f"After the match{result}").classes("yt-gap-line yt-end-line").mark(
+                    "end-line"
+                )
+                continue
+            if kind == "gap":
+                started, ended, reason = item
+                span = f"{_clock(started)}\u2013{_clock(ended)}" if ended else \
+                    f"since {_clock(started)}"  # fmt: skip
+                ui.label(f"Not recorded {span} ({_GAP_WHY.get(reason, reason)})").classes(
+                    "yt-gap-line"
+                ).mark("gap-line")
+            elif last and same_callout(last[0], item):
+                repeat(last[1], item.id)  # "Enemy Sombra!" x4 (#185)
+                picker.add(item, last[1]["line"])
+            else:
+                row = chat_line(item, match.started_at, verdicts.get(item.player_id),
+                                on_click=lambda shift, m=item: clicked(m, shift))  # fmt: skip
+                rows[item.id] = row
+                picker.add(item, row["line"])
+                last = (item, row)
+    callouts(sum(1 for m in messages if m.hero))
+    return len(messages)

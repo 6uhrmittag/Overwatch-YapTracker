@@ -32,6 +32,7 @@ log = logging.getLogger(__name__)
 CAP_BYTES = 150 * 1024 * 1024  # ~200 chat boxes at 1440p, ~90 at 4K
 NOTE_EVERY_S = 10.0  # how often the waiting span is written down (a crash loses at most this)
 INDEX = "index.json"  # written last: a folder without it was cut off mid-write
+PER_PICTURE_S = 1.0  # time left is guessed with this until a few are read (i9, Void, #501)
 
 
 def unread_matches(unread: Path) -> set[int]:
@@ -54,6 +55,45 @@ class Kept:
     restored: bool = False  # kept at the last quit, read at this start (#474)
 
 
+@dataclass(frozen=True)
+class Backlog:
+    """What still waits to be read after its match (#501): the UI says it everywhere such a
+    match shows, so a half-read match never looks like missing chat."""
+
+    matches: dict[int | None, tuple[int, int]]  # match -> (pictures left, read), reading order
+    per_picture_s: float
+    deferring: bool  # a match read afterwards runs: nothing is read before it's over
+    match_id: int | None  # the running match, or the last one
+    restored: int = 0  # pictures kept at the last quit (#474)
+
+    @property
+    def left(self) -> int:
+        return sum(left for left, _ in self.matches.values())
+
+    def seconds_left(self, match_id: int | None = None) -> float:
+        """Until that match is read through (the ones before it first), or all of them."""
+        pictures = 0
+        for match, (left, _) in self.matches.items():
+            pictures += left
+            if match_id is not None and match == match_id:
+                break
+        return pictures * self.per_picture_s
+
+    def state(self, match_id: int | None) -> str | None:
+        """'reading' now, 'after' (it runs: read once it's over), 'waiting' behind others, or
+        None: read through."""
+        if match_id is None or match_id not in self.matches:
+            return None
+        if self.deferring:
+            return "after" if match_id == self.match_id else "waiting"
+        first = next(match for match in self.matches if match is not None)
+        return "reading" if match_id == first else "waiting"
+
+    def earlier(self) -> list[int]:
+        """The matches waiting other than the running one."""
+        return [m for m in self.matches if m is not None and m != self.match_id]
+
+
 class LaterFrames:
     def __init__(
         self,
@@ -69,6 +109,8 @@ class LaterFrames:
         self._noted_at: float | None = None
         self.kept = 0  # since the last take_counts()
         self.dropped: Counter[int | None] = Counter()  # match -> frames dropped for the cap
+        self._done: Counter[int | None] = Counter()  # match -> frames read, while some wait (#501)
+        self._reading: Kept | None = None  # popped, not read through yet: still waiting (#501)
 
     def __len__(self) -> int:
         with self._lock:
@@ -96,9 +138,10 @@ class LaterFrames:
     def pop(self) -> Kept | None:
         """The oldest frame, to be read now. The note goes once the last one is out."""
         with self._lock:
+            self._finish()  # the one before is read by now
             if not self._frames:
                 return None
-            frame = self._frames.pop(0)
+            frame = self._reading = self._frames.pop(0)
             self._bytes -= frame.image.nbytes
             if not self._frames:
                 self._noted_at = None
@@ -109,6 +152,8 @@ class LaterFrames:
         """Quitting with frames still unread: they're gone; returns their span for the gap."""
         with self._lock:
             frames, self._frames, self._bytes, self._noted_at = self._frames, [], 0, None
+            self._done.clear()
+            self._reading = None
             self._forget_note()
             return (frames[0].ts, frames[-1].ts) if frames else None
 
@@ -119,6 +164,8 @@ class LaterFrames:
             return self.discard()
         with self._lock:
             frames, self._frames, self._bytes, self._noted_at = self._frames, [], 0, None
+            self._done.clear()
+            self._reading = None
         if not frames:
             self._forget_note()
             return None
@@ -183,7 +230,21 @@ class LaterFrames:
     def restored(self) -> int:
         """Frames from the last session still to read, for Live (#474)."""
         with self._lock:
-            return sum(1 for kept in self._frames if kept.restored)
+            reading = [self._reading] if self._reading is not None else []
+            return sum(1 for kept in reading + self._frames if kept.restored)
+
+    def finish(self) -> None:
+        """The frame from the last pop() is read (#501): it counts as done."""
+        with self._lock:
+            self._finish()
+
+    def waiting(self) -> dict[int | None, tuple[int, int]]:
+        """{match: (frames left, frames read)} in the order they're read (#501); the frame
+        being read counts as left."""
+        with self._lock:
+            reading = [self._reading] if self._reading is not None else []
+            left = Counter(kept.match_id for kept in reading + self._frames)  # in reading order
+            return {match: (n, self._done[match]) for match, n in left.items()}
 
     def take_counts(self) -> tuple[int, Counter]:
         """(frames kept, {match: frames dropped for the cap}) since the last call."""
@@ -191,6 +252,14 @@ class LaterFrames:
             counts = self.kept, self.dropped
             self.kept, self.dropped = 0, Counter()
             return counts
+
+    def _finish(self) -> None:
+        frame, self._reading = self._reading, None
+        if frame is None:
+            return
+        self._done[frame.match_id] += 1
+        if all(kept.match_id != frame.match_id for kept in self._frames):
+            del self._done[frame.match_id]  # read through: nothing left to show
 
     def _drop_one(self) -> bool:
         """Drop the frame whose neighbours in its own match are closest: the least time goes

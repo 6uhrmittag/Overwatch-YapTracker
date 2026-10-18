@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-10-18 · Matches read after the match say so (#501)
+- A match whose chat is still being read after it shows "Still reading · 37 pictures left" in Sessions (and its day shows "Still reading"); the ones queued behind it say "Waiting to be read". The badges go away by themselves once the chat is read.
+- A match's transcript says how far reading is ("63 of 100 pictures done, ~2 min") with a progress bar, and new lines show up while you look at it.
+- Live says how much is left: "Reading the chat of 3 earlier matches: 214 pictures left (~4 min)", and during a Competitive match how many earlier matches still wait.
+
 ### 2026-10-17 · Yap snaps with many lines fit the window (#499)
 - The yap snap window never grows past the YapTracker window: the middle scrolls, and Save PNG, Copy and Close always stay in view. The preview shrinks to fit; click it to see it full size. The saved and copied picture stays full size.
 - Scrolling inside a dialog no longer closes it.

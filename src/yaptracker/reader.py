@@ -23,7 +23,7 @@ from yaptracker.cpu_parts import CPU
 from yaptracker.dedup import FADE_S, YAP_KINDS, Dedup, Yap, hero_speaker, match_key
 from yaptracker.identity import Identity
 from yaptracker.input_row import without_input
-from yaptracker.later import Kept, LaterFrames
+from yaptracker.later import PER_PICTURE_S, Backlog, Kept, LaterFrames
 from yaptracker.ocr.engine import OcrLine
 from yaptracker.parser import ChatLine, parse
 from yaptracker.reading_mode import AFTER, BEST
@@ -45,6 +45,8 @@ LATER_POLL_S = 2.0  # frames wait for later: how often to look whether the game 
 NO_CHAT_READS = 3
 MENU_GAP_S = 6.0
 FAIL_LIMIT = 5  # reads failing in a row before a crash gap opens and Live says so (#457)
+RATE_GAP_S = 30.0  # kept frames read further apart than this: a pause, not the reading pace
+RATE_WEIGHT = 0.2  # how much each kept frame moves the time-left guess (#501)
 
 
 def _fields(line: ChatLine) -> dict:
@@ -106,6 +108,10 @@ class ChatReader:
         self._read_kept = read_kept or (lambda image, mode: read(image))
         self._deferring, self._idle = deferring, idle
         self._batch: tuple[float, int] | None = None  # (started, frames) of reading kept ones
+        # Time between two kept frames read through, as the UI's time left (#501): in a live
+        # match they only go between live reads, so this beats the OCR time alone.
+        self.per_picture_s, self._paced = PER_PICTURE_S, False
+        self._kept_at: float | None = None
         # Light matches (#336): their changed frames, read again with the best quality when idle
         self.tidy_frames = LaterFrames(lambda: self.min_gap_s, None)
         self._tidy: TidyMatch | None = None
@@ -259,8 +265,20 @@ class ChatReader:
         """Frames wait, and the match they wait for is over (or the game is gone)."""
         return len(self.later) > 0 and not self._deferring()
 
+    def backlog(self) -> Backlog:
+        """What waits to be read after its match, for the UI (#501)."""
+        return Backlog(self.later.waiting(), self.per_picture_s, self._deferring(),
+                       self._matches.match_id, self.later.restored())  # fmt: skip
+
     def _kept_read(self, kept: Kept) -> None:
         """Says in the log when reading the kept frames starts and how it went (#335)."""
+        self.later.finish()
+        now = time.monotonic()
+        if self._kept_at is not None and now - self._kept_at < RATE_GAP_S:
+            weight = RATE_WEIGHT if self._paced else 1.0  # the first one replaces the guess
+            self.per_picture_s += weight * (now - self._kept_at - self.per_picture_s)
+            self._paced = True
+        self._kept_at = now
         started, frames = self._batch or (time.monotonic(), 0)
         if self._batch is None:
             log.info("reading %d chat frames kept since %s", len(self.later) + 1,
