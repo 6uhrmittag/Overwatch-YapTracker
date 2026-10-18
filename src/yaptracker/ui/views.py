@@ -19,7 +19,7 @@ from yaptracker.matches import AFTER_END_GAP_S
 from yaptracker.reader import FAIL_LIMIT
 from yaptracker.snaps import MAX_LINES
 from yaptracker.store.backups import last_backup
-from yaptracker.ui import timing
+from yaptracker.ui import backlog, timing
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.chat_colours import chat_colours_card
 from yaptracker.ui.components import (
@@ -627,16 +627,14 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             pill.props(f'title="{meta.text}"')
         else:
             pill.props(remove="title")
-        from_last = runtime.reader.later.restored() if runtime.reader is not None else 0
-        if runtime.reading is not None and runtime.reading.now() == modes.AFTER:
-            from_last = 0  # a match read afterwards is on: they wait for it, nothing reads now
+        waiting = backlog.now()  # kept chat read now, also from the last session (#474, #501)
         hint.set_text(
-            f"Reading {count(from_last, 'chat picture', 'chat pictures')} from your last session."
-            if from_last and state in ("listening", "waiting")  # (#474)
+            backlog.live(waiting)
+            if waiting and not waiting.deferring and state in ("listening", "waiting")
             else {
                 "paused": "Ears covered. Nothing is being saved.",
                 "trouble": "Overwatch is running, but I can't see it right now. Trying again.",
-                "listening": _listening(),
+                "listening": _listening(waiting),
                 "waiting": "Waiting for Overwatch. I'll be right here.",
             }[state]
         )
@@ -707,14 +705,11 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
     refresh()
 
 
-def _listening() -> str:
+def _listening(waiting) -> str:
     """The chat card's line while capturing: reading after the match is said in words (#335)."""
-    waiting = len(runtime.reader.later) if runtime.reader is not None else 0
     if runtime.reading is not None and runtime.reading.now() == modes.AFTER:
         kind = "Competitive" if modes.competitive(runtime.matches.match_mode) else "This match"
-        return f"{kind}: reading after the match. Your FPS stays untouched."
-    if waiting:
-        return f"Reading the last match: {count(waiting, 'chat picture', 'chat pictures')} to go."
+        return backlog.during(kind, waiting)
     tidying = len(runtime.reader.tidy_frames) if runtime.reader is not None else 0
     if tidying and not runtime.matches.running:  # (#336)
         pictures = count(tidying, "chat picture", "chat pictures")

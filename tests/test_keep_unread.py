@@ -77,6 +77,8 @@ def test_only_the_memory_cap_drops_kept_frames_the_oldest_first(tmp_path):
     smaller = LaterFrames(lambda: 0.0, None, cap_bytes=2 * image(10).nbytes, unread=unread)
     assert smaller.restore(now=T0 + 30 * 24 * 3600) == (T0, T0)  # the oldest: a gap record
     assert [k.ts for k in [smaller.pop(), smaller.pop()]] == [T0 + 10, T0 + 20]
+    assert smaller.restored() == 1  # the one being read still counts (#501)
+    smaller.finish()
     assert smaller.restored() == 0 and not unread.exists()
 
 
