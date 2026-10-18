@@ -267,8 +267,9 @@ class ChatReader:
 
     def backlog(self) -> Backlog:
         """What waits to be read after its match, for the UI (#501)."""
-        return Backlog(self.later.waiting(), self.per_picture_s, self._deferring(),
-                       self._matches.match_id, self.later.restored())  # fmt: skip
+        waiting, restored = self.later.waiting()
+        return Backlog(waiting, self.per_picture_s, self._deferring(), self._matches.match_id,
+                       restored)  # fmt: skip
 
     def _kept_read(self, kept: Kept) -> None:
         """Says in the log when reading the kept frames starts and how it went (#335)."""

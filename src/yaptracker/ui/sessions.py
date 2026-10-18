@@ -110,8 +110,7 @@ def _day_list(open_day) -> None:
                         f"{count(len(day.matches), 'match', 'matches')} \u00b7 "
                         f"{count(day.yaps, 'yap', 'yaps')}"
                     ).classes("yt-meta")
-    backlog.follow(badges, lambda waiting, ids: backlog.READING if waiting and any(
-        waiting.state(m) for m in ids) else None)  # fmt: skip
+    backlog.follow(badges, backlog.day_badge)
 
 
 def _badge() -> ui.label:

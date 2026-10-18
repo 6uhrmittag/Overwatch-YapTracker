@@ -39,16 +39,23 @@ def test_what_waits_per_match_in_reading_order():
         later.add(T0 + n, frame(), 1, "after")
     for n in range(2):
         later.add(T0 + 10 + n, frame(), 2, "after")
-    assert later.waiting() == {1: (3, 0), 2: (2, 0)}
+    assert later.waiting() == ({1: (3, 0), 2: (2, 0)}, 0)
     later.pop()
-    assert later.waiting() == {1: (3, 0), 2: (2, 0)}  # being read: its lines aren't in yet
+    assert later.waiting()[0] == {1: (3, 0), 2: (2, 0)}  # being read: its lines aren't in yet
     later.finish()
-    assert later.waiting() == {1: (2, 1), 2: (2, 0)}
+    assert later.waiting()[0] == {1: (2, 1), 2: (2, 0)}
     later.pop()
     later.pop()  # the one before is read by now
-    assert later.waiting() == {1: (1, 2), 2: (2, 0)}
+    assert later.waiting()[0] == {1: (1, 2), 2: (2, 0)}
     later.finish()
-    assert later.waiting() == {2: (2, 0)}  # read through: no badge left
+    assert later.waiting()[0] == {2: (2, 0)}  # read through: no badge left
+    later.add(T0 + 20, frame(), 2, "light")  # a live frame of match 2 queues behind
+    later.pop()
+    later.finish()
+    assert later.waiting()[0] == {2: (2, 1)}  # its count goes on, never back to 0 of 1
+    while later.pop() is not None:
+        later.finish()
+    assert later.waiting() == ({}, 0)
 
 
 def test_pictures_from_the_last_run_wait_in_their_matches(tmp_path):
@@ -59,7 +66,7 @@ def test_pictures_from_the_last_run_wait_in_their_matches(tmp_path):
     assert later.close() is None
     again = LaterFrames(lambda: 0.0, None, unread=unread)
     assert again.restore(now=T0 + 3600) is None
-    assert again.waiting() == {4: (2, 0), 5: (1, 0)} and again.restored() == 3  # (#474)
+    assert again.waiting() == ({4: (2, 0), 5: (1, 0)}, 3) and again.restored() == 3  # (#474)
 
 
 def test_which_match_reads_now_and_how_long_it_takes():
@@ -68,6 +75,14 @@ def test_which_match_reads_now_and_how_long_it_takes():
     assert (waiting.seconds_left(1), waiting.seconds_left(), waiting.left) == (1.5, 3.5, 7)
     running = Backlog({1: (3, 0), 2: (4, 0)}, 1.0, True, 2)  # match 2 runs, read afterwards
     assert (running.state(1), running.state(2), running.earlier()) == ("waiting", "after", [1])
+    between = Backlog({None: (2, 0), 7: (5, 0)}, 1.0, False, 7)  # kept outside a match first
+    assert between.state(7) == "waiting"
+    assert backlog.banner(between, 7)[0].startswith(
+        "This match's chat waits to be read: 5 pictures (under a minute)."
+    )
+    assert backlog.day_badge(running, (1, 2)) == "Waiting to be read"
+    assert backlog.day_badge(Backlog({1: (3, 0)}, 1.0, False, 2), (1, 2)) == "Still reading"
+    assert backlog.day_badge(running, (5,)) is None
 
 
 def test_the_words():
@@ -84,9 +99,9 @@ def test_the_words():
         "This match's chat waits to be read: 140 pictures, after 1 earlier match (~2 min). "
         "New lines will keep appearing."
     )
-    assert backlog.live(waiting, 2) == "Reading the chat of 2 earlier matches: 143 pictures " \
+    assert backlog.live(waiting) == "Reading the chat of 2 earlier matches: 143 pictures " \
         "left (~2 min)."  # fmt: skip
-    assert backlog.live(Backlog({2: (37, 0)}, 1.0, False, 2), 2) == (
+    assert backlog.live(Backlog({2: (37, 0)}, 1.0, False, 2)) == (
         "Reading the chat of the last match: 37 pictures left (under a minute)."
     )
     running = Backlog({1: (3, 0), 2: (4, 0), 3: (9, 0)}, 1.0, True, 3)
@@ -96,7 +111,11 @@ def test_the_words():
     assert backlog.banner(running, 3)[0] == (
         "This match is read once it's over: 9 chat pictures kept so far. Your FPS stays untouched."
     )
-    assert backlog.eta(240) == "~4 min"
+    assert (backlog.eta(59), backlog.eta(75), backlog.eta(240)) == (
+        "under a minute",
+        "~1 min",
+        "~4 min",
+    )
 
 
 def test_back_to_back_matches_then_reading_them_with_a_time_left_that_holds(store):

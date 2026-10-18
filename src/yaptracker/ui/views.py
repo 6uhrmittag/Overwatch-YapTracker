@@ -628,14 +628,13 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         else:
             pill.props(remove="title")
         waiting = backlog.now()  # kept chat read now, also from the last session (#474, #501)
-        last_match = runtime.matches.match_id if runtime.matches else None
         hint.set_text(
-            backlog.live(waiting, last_match)
+            backlog.live(waiting)
             if waiting and not waiting.deferring and state in ("listening", "waiting")
             else {
                 "paused": "Ears covered. Nothing is being saved.",
                 "trouble": "Overwatch is running, but I can't see it right now. Trying again.",
-                "listening": _listening(),
+                "listening": _listening(waiting),
                 "waiting": "Waiting for Overwatch. I'll be right here.",
             }[state]
         )
@@ -706,11 +705,11 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
     refresh()
 
 
-def _listening() -> str:
+def _listening(waiting) -> str:
     """The chat card's line while capturing: reading after the match is said in words (#335)."""
     if runtime.reading is not None and runtime.reading.now() == modes.AFTER:
         kind = "Competitive" if modes.competitive(runtime.matches.match_mode) else "This match"
-        return backlog.during(kind, backlog.now())
+        return backlog.during(kind, waiting)
     tidying = len(runtime.reader.tidy_frames) if runtime.reader is not None else 0
     if tidying and not runtime.matches.running:  # (#336)
         pictures = count(tidying, "chat picture", "chat pictures")

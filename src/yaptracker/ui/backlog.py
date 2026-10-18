@@ -22,7 +22,7 @@ def now() -> Backlog | None:
 
 def eta(seconds: float) -> str:
     """'~4 min', 'under a minute'."""
-    return f"~{round(seconds / 60)} min" if seconds >= 90 else "under a minute"
+    return f"~{max(1, round(seconds / 60))} min" if seconds >= 60 else "under a minute"
 
 
 def badge(waiting: Backlog | None, match_id: int) -> str | None:
@@ -32,6 +32,12 @@ def badge(waiting: Backlog | None, match_id: int) -> str | None:
         left, _ = waiting.matches[match_id]
         return f"{READING} \u00b7 {count(left, 'picture', 'pictures')} left"
     return {"after": "Read after the match", "waiting": "Waiting to be read"}.get(state)
+
+
+def day_badge(waiting: Backlog | None, match_ids: tuple[int, ...]) -> str | None:
+    """A day's badge: what its matches' badges say at most."""
+    states = {waiting.state(m) for m in match_ids} if waiting else set()
+    return READING if "reading" in states else "Waiting to be read" if states - {None} else None
 
 
 def banner(waiting: Backlog | None, match_id: int) -> tuple[str, float] | None:
@@ -57,16 +63,17 @@ def banner(waiting: Backlog | None, match_id: int) -> tuple[str, float] | None:
             "once the running match is over."
         )
     else:
-        ahead = list(waiting.matches).index(match_id)
+        order = list(waiting.matches)
+        ahead = sum(1 for m in order[: order.index(match_id)] if m is not None)
+        after = f", after {count(ahead, 'earlier match', 'earlier matches')}" if ahead else ""
         text = (
-            f"This match's chat waits to be read: {count(total, 'picture', 'pictures')}, after "
-            f"{count(ahead, 'earlier match', 'earlier matches')} "
+            f"This match's chat waits to be read: {count(total, 'picture', 'pictures')}{after} "
             f"({eta(waiting.seconds_left(match_id))}). New lines will keep appearing."
         )
     return text, read / total
 
 
-def live(waiting: Backlog, last_match: int | None) -> str:
+def live(waiting: Backlog) -> str:
     """Live's line while kept chat is read (not during a match read afterwards)."""
     pictures = count(waiting.left, "chat picture", "chat pictures")
     left = f"{count(waiting.left, 'picture', 'pictures')} left ({eta(waiting.seconds_left())})"
@@ -76,7 +83,7 @@ def live(waiting: Backlog, last_match: int | None) -> str:
     if not matches:
         return f"Reading the chat kept for after the match: {left}."
     whose = (
-        "the last match" if matches == [last_match]
+        "the last match" if matches == [waiting.match_id]
         else "an earlier match" if len(matches) == 1
         else count(len(matches), "earlier match", "earlier matches")
     )  # fmt: skip

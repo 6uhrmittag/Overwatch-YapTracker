@@ -86,8 +86,7 @@ class Backlog:
             return None
         if self.deferring:
             return "after" if match_id == self.match_id else "waiting"
-        first = next(match for match in self.matches if match is not None)
-        return "reading" if match_id == first else "waiting"
+        return "reading" if match_id == next(iter(self.matches)) else "waiting"
 
     def earlier(self) -> list[int]:
         """The matches waiting other than the running one."""
@@ -230,21 +229,21 @@ class LaterFrames:
     def restored(self) -> int:
         """Frames from the last session still to read, for Live (#474)."""
         with self._lock:
-            reading = [self._reading] if self._reading is not None else []
-            return sum(1 for kept in reading + self._frames if kept.restored)
+            return sum(1 for kept in self._not_read() if kept.restored)
 
     def finish(self) -> None:
         """The frame from the last pop() is read (#501): it counts as done."""
         with self._lock:
             self._finish()
 
-    def waiting(self) -> dict[int | None, tuple[int, int]]:
-        """{match: (frames left, frames read)} in the order they're read (#501); the frame
-        being read counts as left."""
+    def waiting(self) -> tuple[dict[int | None, tuple[int, int]], int]:
+        """({match: (frames left, frames read)} in the order they're read, frames from the last
+        session among them) at one moment (#501); the frame being read counts as left."""
         with self._lock:
-            reading = [self._reading] if self._reading is not None else []
-            left = Counter(kept.match_id for kept in reading + self._frames)  # in reading order
-            return {match: (n, self._done[match]) for match, n in left.items()}
+            unread = self._not_read()
+            left = Counter(kept.match_id for kept in unread)  # in reading order
+            restored = sum(1 for kept in unread if kept.restored)
+            return {match: (n, self._done[match]) for match, n in left.items()}, restored
 
     def take_counts(self) -> tuple[int, Counter]:
         """(frames kept, {match: frames dropped for the cap}) since the last call."""
@@ -253,13 +252,16 @@ class LaterFrames:
             self.kept, self.dropped = 0, Counter()
             return counts
 
+    def _not_read(self) -> list[Kept]:
+        return ([self._reading] if self._reading is not None else []) + self._frames
+
     def _finish(self) -> None:
         frame, self._reading = self._reading, None
         if frame is None:
             return
-        self._done[frame.match_id] += 1
-        if all(kept.match_id != frame.match_id for kept in self._frames):
-            del self._done[frame.match_id]  # read through: nothing left to show
+        self._done[frame.match_id] += 1  # kept while frames of it may still come (#501)
+        if not self._frames:
+            self._done.clear()  # all read through: the next backlog counts from zero
 
     def _drop_one(self) -> bool:
         """Drop the frame whose neighbours in its own match are closest: the least time goes
