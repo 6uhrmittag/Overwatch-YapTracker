@@ -7,6 +7,7 @@ from collections.abc import Callable
 from nicegui import ui
 
 from yaptracker import days, runtime
+from yaptracker.ui import backlog
 from yaptracker.ui.components import (
     VERDICTS,
     button,
@@ -107,6 +108,8 @@ def profile(player_id: int, on_back: Callable[[], None]) -> None:
                     if player.callouts:  # comms-wheel lines: kept, but out of the way (#182)
                         switch(f"Show callouts ({player.callouts})", False,
                                lambda on: show_yaps(on)).mark("show-callouts")  # fmt: skip
+                note = ui.label().classes("yt-hint yt-hidden").mark("profile-still-reading")
+                backlog.follow({None: note}, backlog.player_note)  # (#502)
                 said = ui.element("div").classes("yt-their-yaps")
 
                 def show_yaps(callouts: bool) -> None:
@@ -216,11 +219,15 @@ def _yaps(player_id: int, callouts: bool = False) -> None:
     for message in messages:
         by_match.setdefault(message.match_id, []).append(message)
     numbers = store.day_numbers(set(by_match) - {None})  # day and number, as in Sessions (#440)
+    badges = {}  # a match still being read says so (#502)
     for match_id, said in by_match.items():
         key, number = numbers.get(match_id, (days.day_of(said[0].ts), None))
         day = days.title(key, "%a, %b %d")
         title = f"{day} \u00b7 Match {number}" if number else day
-        ui.label(title).classes("yt-match-title")
+        with ui.element("div").classes("yt-row yt-row--wrap"):
+            ui.label(title).classes("yt-match-title")
+            if match_id is not None:
+                badges[match_id] = backlog.badge_label()
         for message in reversed(said):  # in the order they said it
             channel = message.channel if message.channel in _CHANNELS else "chat"
             callout = " yt-their-yap--callout" if message.hero else ""
@@ -241,3 +248,4 @@ def _yaps(player_id: int, callouts: bool = False) -> None:
             delete_button(line, lambda m=message: [m.id])
     typed = sum(1 for m in messages if not m.hero)
     ui.label(count(typed, "yap", "yaps") + " in total").classes("yt-meta")
+    backlog.follow(badges, backlog.badge)
