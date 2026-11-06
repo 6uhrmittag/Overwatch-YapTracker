@@ -21,13 +21,20 @@ from yaptracker.store.repo import Store
 log = logging.getLogger(__name__)
 # Starting YapTracker a few seconds after the game isn't worth a gap.
 MIN_MISSED_S = 30.0
+# A gap is always recorded, but Live only raises the orange banner after this long; before that
+# it quietly says "Reconnecting to Overwatch" (#506): most gaps are back within seconds.
+BANNER_AFTER_S = 10.0
+# ... and at least this long after the loss was noticed: a stall noticed only after 10 s (between
+# matches) that's back a second later doesn't flash the banner.
+RECONNECT_S = 3.0
 
 
 @dataclass(frozen=True)
 class Gap:
     id: int
     reason: str
-    since: float
+    since: float  # the last picture before it: the record and "Not recording since"
+    noticed: float  # when the loss was noticed: Live's banner gives it RECONNECT_S (#506)
 
 
 class CaptureHealth:
@@ -44,12 +51,23 @@ class CaptureHealth:
             if self.gap is not None and self.gap.reason != "paused":
                 self._close("recording again")
 
+    def state(self) -> str | None:
+        """For Live (#506): None (recording or paused), "reconnecting" (a gap younger than
+        BANNER_AFTER_S) or "lost" (time for the banner)."""
+        gap = self.gap
+        if gap is None or gap.reason == "paused":
+            return None
+        now = self._clock()
+        long = now - gap.since >= BANNER_AFTER_S and now - gap.noticed >= RECONNECT_S
+        return "lost" if long else "reconnecting"
+
     def lost(self, reason: str) -> None:
         """Capture broke; the gap starts at the last picture we had. The first reason wins."""
         with self._lock:
             if self.gap is None:
-                since = self.last_frame_at or self._clock()
-                self.gap = Gap(self._store.open_gap(since, reason), reason, since)
+                now = self._clock()
+                since = self.last_frame_at or now
+                self.gap = Gap(self._store.open_gap(since, reason), reason, since, now)
                 log.warning("not recording since %s: %s", _clock_time(since), reason)
 
     def paused(self, on: bool) -> None:
@@ -59,7 +77,7 @@ class CaptureHealth:
                 if self.gap is not None:
                     self._close("paused now")
                 now = self._clock()
-                self.gap = Gap(self._store.open_gap(now, "paused"), "paused", now)
+                self.gap = Gap(self._store.open_gap(now, "paused"), "paused", now, now)
                 log.info("paused")
             elif not on and is_paused:
                 self._close("recording again")
@@ -67,6 +85,7 @@ class CaptureHealth:
     def game_closed(self, why: str = "Overwatch is gone") -> None:
         """Overwatch is gone: nothing more is being lost. Not "recording again" (#216)."""
         with self._lock:
+            self.last_frame_at = None  # the next gap can't start before the game came back
             if self.gap is not None:
                 self._close(f"not recorded, {why}")
 

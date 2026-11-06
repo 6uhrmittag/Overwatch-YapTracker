@@ -46,6 +46,8 @@ class CaptureWatcher:
         retry_s: float = RETRY_S,
         in_front: Callable[[int], bool] = lambda window: False,
         on_failing: Callable[[int], None] = lambda window: None,
+        on_ended: Callable[[int, str], None] = lambda window, why: None,
+        on_back: Callable[[], None] = lambda: None,
     ) -> None:
         self._find_window = find_window
         self._open_source = open_source
@@ -63,6 +65,15 @@ class CaptureWatcher:
         self._front_failures = 0  # failed restarts in a row with Overwatch in front
         self._opened_at = 0.0
         self._stalled: tuple[FrameSource, str] | None = None  # set by the watchdog
+        # Diagnostics (#506): what the window did when a capture ended, once per lost stretch.
+        self._on_ended, self._on_back = on_ended, on_back
+        self._focus_window: int | None = None  # the last captured window, for focus changes
+        self._in_focus: bool | None = None
+        self._focus_lost_at: float | None = None  # wall clock, for the log
+        self._focus_back_at: float | None = None
+        # None, "lost" (diagnosed) or "back" (its first picture noted); over after HEALTHY_S of
+        # pictures, so a session that dies after each picture is one stretch, not one a second
+        self._stretch: str | None = None
         self._clock = clock
         self._covered_since: float | None = None  # another window over the chat box (#497)
         self.covered: str | None = None  # what covers it right now, for Live
@@ -119,6 +130,9 @@ class CaptureWatcher:
                 if self._failures:  # it broke and then the game went: no more loss
                     self._game_closed()
                 self.state, self._failures, self._front_failures = "waiting", 0, 0
+                self.last_error = self._stretch = None  # the next launch starts afresh
+                self._focus_window = self._in_focus = None
+                self._focus_lost_at = self._focus_back_at = None
                 self._stop.wait(self._poll_s)
                 continue
             try:
@@ -142,6 +156,10 @@ class CaptureWatcher:
                 continue
             self._health_call("lost", reason)
             self._failures += 1
+            if self._stretch is None:  # the first loss of a stretch: what was going on (#506)
+                self._stretch = "lost"
+                ended = "Windows ended the capture session"  # last_error may be older
+                self._diagnose(window, ended if reason == "window_lost" else self.last_error or "")
             self._failing(window, lived=self._clock() - self._opened_at)
             self._stop.wait(self._retry_wait())
 
@@ -171,6 +189,37 @@ class CaptureWatcher:
             except Exception as error:
                 side_work.failed("switching to the screen", error, then="the capture goes on")
 
+    def _diagnose(self, window: int, why: str) -> None:
+        try:
+            self._on_ended(window, why)
+        except Exception as error:
+            side_work.failed("noting why the capture ended", error, then="the capture goes on")
+
+    def focus_note(self) -> str:
+        """When Overwatch last lost and regained focus, for the capture-ended line (#506)."""
+        lost, back = self._focus_lost_at, self._focus_back_at
+        if lost is None:
+            return "focus: not lost since the capture started"
+        said = f"focus: lost {_clock_time(lost)}"
+        return f"{said}, back {_clock_time(back)}" if back and back >= lost else f"{said}, not back"
+
+    def _check_focus(self) -> None:
+        """Overwatch losing focus is when Windows tends to drop its capture (#506): logged."""
+        window = self._focus_window
+        if window is None:
+            return
+        now, focus = time.time(), self._in_front(window)
+        if self._in_focus is not None and focus != self._in_focus:
+            if focus:
+                self._focus_back_at = now
+                lost = self._focus_lost_at
+                log.info("capture: Overwatch in front again%s",
+                         f" after {now - lost:.0f} s" if lost else "")  # fmt: skip
+            else:
+                self._focus_lost_at = now
+                log.info("capture: Overwatch lost focus")
+        self._in_focus = focus
+
     def _watch(self) -> None:
         """The watchdog (#506): its own thread, so frame handling, the database or the UI can't
         delay it. A capture that went quiet is closed; the supervisor opens it again."""
@@ -182,6 +231,7 @@ class CaptureWatcher:
             due = now + TICK_S
             try:
                 self._check_stall(now)
+                self._check_focus()
             except Exception as error:
                 side_work.failed("the capture watchdog", error, then="it goes on")
 
@@ -196,6 +246,12 @@ class CaptureWatcher:
         if now - max(last, self._opened_at) > limit:
             self._stalled = (source, f"no picture from the window for {limit:g} s")
             source.close()  # the frame loop ends; the supervisor restarts it
+
+    def _back(self) -> None:
+        try:
+            self._on_back()
+        except Exception as error:
+            side_work.failed("noting that the capture is back", error, then="it goes on")
 
     def _game_closed(self) -> None:
         self._health_call("game_closed")
@@ -235,6 +291,7 @@ class CaptureWatcher:
 
     def _capture(self, window: int) -> None:
         self._stalled, self._opened_at = None, self._clock()
+        self._focus_window = window
         self._source = source = self._open_source(window)
         log.info("capturing window %s", window)
         self.state, self.window = "capturing", window
@@ -249,9 +306,12 @@ class CaptureWatcher:
                     self._on_signals(frame)
                 if self._reopen.is_set():
                     break
+                if self._stretch == "lost":  # pictures again after a lost stretch (#506)
+                    self._stretch = "back"
+                    self._back()
                 self.last_error, self._failures = None, 0
                 if self._clock() - self._opened_at >= HEALTHY_S:
-                    self._front_failures = 0
+                    self._front_failures, self._stretch = 0, None
                 paused = self._paused()
                 if paused != was_paused:
                     self._health_call("paused", paused)
@@ -290,3 +350,7 @@ def fps(watcher: CaptureWatcher, window_s: float = 5.0) -> Callable[[], float]:
         return (f1 - f0) / (t1 - t0) if t1 > t0 else 0.0
 
     return measure
+
+
+def _clock_time(ts: float) -> str:
+    return time.strftime("%H:%M:%S", time.localtime(ts))

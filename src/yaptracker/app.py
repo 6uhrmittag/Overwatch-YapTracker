@@ -13,7 +13,7 @@ from nicegui import app, ui
 from nicegui.run import io_bound
 
 from yaptracker import autostart as start_with_windows
-from yaptracker import config, demo, paths, runtime, system_info
+from yaptracker import config, demo, paths, runtime, side_work, system_info
 from yaptracker.capture.gdi import QUIET_FRAMES
 from yaptracker.capture.watcher import MATCH_STALL_S, STALL_S, CaptureWatcher
 from yaptracker.cpu_parts import CPU
@@ -296,6 +296,24 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         if found["window_capture"]:  # GDI already: nothing else to switch to
             runtime.screen.stalled()
 
+    def capture_ended(window: int, why: str) -> None:  # what the game did (#506)
+        focus = runtime.watcher.focus_note() if runtime.watcher else ""
+
+        def note() -> None:  # own thread: the display lookup and files never delay the restart
+            try:
+                state = system_info.window_state(window)
+                log.info("capture ended (%s): %s | %s", why, state, focus)
+                if runtime.debug is not None:
+                    runtime.debug.match_event("capture-ended", last=3)  # the last 15 s before
+            except Exception as error:
+                side_work.failed("noting why the capture ended", error)
+
+        threading.Thread(target=note, name="capture ended note", daemon=True).start()
+
+    def capture_back() -> None:
+        if runtime.debug is not None:
+            runtime.debug.match_event("capture-back")  # the first picture after (#506)
+
     def evening_over() -> None:  # Overwatch closed: maybe for tonight (#379)
         runtime.screen.game_closed()  # the next start tries the window again (#506)
         if runtime.evenings is not None and runtime.matches is not None:
@@ -316,6 +334,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
 
         return CaptureWatcher(find_overwatch, open_source, on_frame, stall_s=stall_s,
                               in_front=in_front, on_failing=capture_failing,
+                              on_ended=capture_ended, on_back=capture_back,
                               **common)  # fmt: skip
 
     if not dev and sys.platform != "win32":

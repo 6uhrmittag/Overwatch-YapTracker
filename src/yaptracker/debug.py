@@ -148,17 +148,17 @@ class DebugSamples:
             while self._overviews and now - self._overviews[0][0] > self._buffer_s:
                 self._overviews.popleft()
 
-    def match_event(self, what: str) -> Path | None:
+    def match_event(self, what: str, last: int = 1) -> Path | None:
         """'start' / 'end' / 'end-map' (#383): the newest overview and crops. 'missed-end' and
         'missed-start-…' (#170): every buffered overview, to look back at what the detection
-        didn't see."""
+        didn't see. 'capture-ended' (#506): the `last` few, what the game showed before."""
         if not self._active():
             return None
         with self._lock:
             overviews = list(self._overviews)
             signals = dict(self._signals)
         if not what.startswith("missed"):
-            overviews = overviews[-1:]
+            overviews = overviews[-last:]
         if not overviews and not signals:
             return None
         try:  # from the capture thread: a full disk must not stop the capture (#452)
