@@ -195,3 +195,97 @@ def test_a_window_on_a_screen_with_other_scaling_stays_where_it_was_born():
     assert birth(maxed, [SECOND_100, MAIN_150])["maximized"] is True
     assert "maximized" not in birth(Place((-966, 1078, 972, 1038), (-966, 1078, 972, 1038)),
                                     [SECOND_100, MAIN_150])  # fmt: skip
+
+
+# Marv's screens, 2026-10-31 (#505): the left 4K screen moved and the right 1080p one was gone.
+LEFT_4K_THEN, LEFT_4K_NOW = (-5760, 0, 3840, 2160), (-5327, -1065, 3840, 2160)
+MAIN_4K, RIGHT_1080 = (0, 0, 3840, 2160), (3840, 0, 1920, 1080)
+ON_LEFT_4K = {"rect": [-4092, 0, 2187, 2097], "normal": [-4092, 0, 2187, 2097],
+              "maximized": False}  # fmt: skip
+
+
+def monitors_of(*rects):
+    return [Monitor(r, r, 96) for r in rects]
+
+
+def test_a_changed_screen_layout_opens_the_window_on_the_main_screen():
+    from yaptracker.window_place import birth, layout, saved_place
+
+    then = monitors_of(LEFT_4K_THEN, MAIN_4K, RIGHT_1080)
+    now = monitors_of(LEFT_4K_NOW, MAIN_4K)
+    data = {**ON_LEFT_4K, "screens": layout(then)}
+    assert saved_place(data, now) is None  # the shifted place would be on a screen Marv can't see
+    assert birth(saved_place(data, now), now) == {}  # pywebview's default: the main screen
+
+
+def test_an_unchanged_layout_uses_the_saved_place_exactly_as_before():
+    from yaptracker.window_place import layout, saved_place
+
+    now = monitors_of(MAIN_4K, LEFT_4K_THEN, RIGHT_1080)  # Windows lists them in any order
+    assert saved_place({**ON_LEFT_4K, "screens": layout(now)}, now) == Place.from_dict(ON_LEFT_4K)
+    assert saved_place(ON_LEFT_4K, now) == Place.from_dict(ON_LEFT_4K)  # saved before #505
+    assert saved_place(None, now) is None
+
+
+def test_a_second_start_puts_the_window_in_the_middle_of_the_mouses_screen():
+    from yaptracker.window_place import to_screen
+
+    assert to_screen((-4092, -1059, 2187, 2097), (0, 0, 3840, 2112)) == (826, 7)
+    assert to_screen((0, 0, 5000, 3000), (3840, 0, 1920, 1040)) == (3840, 0)  # too big: top-left
+
+
+def test_a_move_that_landed_scaled_is_asked_again_corrected():
+    """#420: asked top 1065, got 710 (x 2/3): asking 1065 x 1065/710 lands at 1065."""
+    from yaptracker.window_place import corrected
+
+    assert corrected((-966, 1065), (-644, 710), (-966, 1065)) == (-1449, 1598)
+    assert corrected((0, 1065), (0, 1065), (0, 1065)) == (0, 1065)  # landed right: the same
+
+
+class FakeWindow:
+    """A window moved from outside; `scale` mimics #420's landing in the window's units."""
+
+    def __init__(self, rect, maximized=False, minimised=False, scale=1.0):
+        self.rect, self.maximized, self.minimised, self.scale = rect, maximized, minimised, scale
+        self.shown = []
+
+    def read(self, hwnd):
+        return None if self.minimised else Place(self.rect, self.rect, self.maximized)
+
+    def move(self, hwnd, x, y):
+        self.rect = (round(x * self.scale), round(y * self.scale), *self.rect[2:])
+
+    def show(self, hwnd, how):
+        self.shown.append(how)
+        self.minimised = False
+        self.maximized = how == 3
+
+    def come_to(self, mouse, found):
+        from yaptracker.window_place import come_to
+
+        return come_to(1, mouse, found, self.read, self.move, self.show, lambda h: self.minimised)
+
+
+def test_a_second_start_brings_the_window_to_the_mouses_screen():
+    found = monitors_of(LEFT_4K_NOW, MAIN_4K)
+    lost = FakeWindow((-4092, -1059, 2187, 2097))  # on the screen Marv couldn't see
+    assert lost.come_to((1000, 500), found) and lost.rect == (826, 31, 2187, 2097)
+    minimised = FakeWindow((-4092, -1059, 2187, 2097), minimised=True)
+    assert minimised.come_to((1000, 500), found) and minimised.shown[0] == 9  # restored
+    maxed = FakeWindow((-5327, -1065, 3840, 2160), maximized=True)
+    assert maxed.come_to((1000, 500), found) and maxed.maximized  # maximised again, here
+
+
+def test_a_window_already_on_the_mouses_screen_isnt_moved():
+    here = FakeWindow((100, 100, 800, 600))
+    assert here.come_to((1000, 500), monitors_of(LEFT_4K_NOW, MAIN_4K))
+    assert here.rect == (100, 100, 800, 600) and here.shown == []
+
+
+def test_a_scaled_landing_is_corrected():
+    """#420: a move from outside lands scaled; here so far that it's still on the main screen."""
+    found = monitors_of(LEFT_4K_NOW, MAIN_4K)
+    window = FakeWindow((200, 200, 800, 600), scale=0.3)
+    assert window.come_to((-3000, 0), found)  # to the left screen, by the mouse
+    x, y = window.rect[:2]  # where it was asked first, within rounding, after the correction
+    assert abs(x - -3807) <= 2 and abs(y - -285) <= 2

@@ -1,10 +1,12 @@
 """Only one YapTracker (#45): a second start brings the running one to the front. Windows only."""
 
 import ctypes
+import logging
 import os
 import sys
 from ctypes import wintypes
 
+log = logging.getLogger(__name__)
 MUTEX = "Local\\YapTracker"
 _ERROR_ALREADY_EXISTS = 183
 _SW_RESTORE = 9
@@ -38,9 +40,19 @@ def _exe_of(pid: int) -> str | None:
 
 def bring_running_to_front() -> bool:
     """Restore and focus the other YapTracker's window: title "YapTracker…" and our exe name.
+    It comes to the screen under the mouse first (#505): on a screen you can't see, starting
+    YapTracker again is the way back.
 
     Checking the exe keeps an Explorer window of the folder "YapTracker" from matching.
     """
+    found = _find(skip_pid=os.getpid())
+    if found:
+        try:
+            from yaptracker import window_place
+
+            window_place.bring_to_mouse(found[0])
+        except Exception:  # still to the front, wherever it is
+            log.exception("window: couldn't bring it to the screen under the mouse")
     return _to_front(skip_pid=os.getpid())
 
 
@@ -60,7 +72,8 @@ def _to_front(skip_pid: int | None) -> bool:
     user32 = ctypes.windll.user32
     found = _find(skip_pid)
     if found:
-        user32.ShowWindow(found[0], _SW_RESTORE)
+        if user32.IsIconic(found[0]):  # restored only if minimised: a maximised one stays so
+            user32.ShowWindow(found[0], _SW_RESTORE)
         user32.SetForegroundWindow(found[0])
     return bool(found)
 

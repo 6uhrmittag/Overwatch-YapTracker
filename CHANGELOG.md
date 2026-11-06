@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-11-06 · Can't find the window? Start YapTracker again (#505)
+- Starting YapTracker while it already runs brings its window to the screen your mouse is on (restored if minimised, still maximised if it was).
+- If your screens changed since YapTracker last closed (a screen moved, was unplugged or switched off), it opens on the main screen instead of a spot you can't see.
+
 ### 2026-11-06 · Recording comes back within seconds when Windows drops the game window (#506, part 1)
 - When Windows stops sending pictures of the Overwatch window (more often since Overwatch's 2026-11-02 patch, around alt-tab), YapTracker notices within 3 seconds in a match and reconnects within a second, instead of losing 15-45 seconds of chat.
 - If reconnecting keeps failing while Overwatch is in front, YapTracker reads the screen Overwatch is on instead, says so in Live, and goes back to the window the next time Overwatch starts.
