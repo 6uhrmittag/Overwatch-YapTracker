@@ -15,7 +15,7 @@ from nicegui.run import io_bound
 from yaptracker import autostart as start_with_windows
 from yaptracker import config, demo, paths, runtime, system_info
 from yaptracker.capture.gdi import QUIET_FRAMES
-from yaptracker.capture.watcher import CaptureWatcher
+from yaptracker.capture.watcher import MATCH_STALL_S, STALL_S, CaptureWatcher
 from yaptracker.cpu_parts import CPU
 from yaptracker.ui import shell
 
@@ -289,7 +289,15 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         rate.check()  # a match started or ended: the other frame rate (#350)
         return capture_region(config.chat_region(width, height), height, match_running())
 
+    def stall_s() -> float:  # a game in a match always draws (#506); menus send few pictures
+        return MATCH_STALL_S if match_running() and overwatch_in_front() else STALL_S
+
+    def capture_failing(window: int) -> None:  # restarts brought no picture (#506)
+        if found["window_capture"]:  # GDI already: nothing else to switch to
+            runtime.screen.stalled()
+
     def evening_over() -> None:  # Overwatch closed: maybe for tonight (#379)
+        runtime.screen.game_closed()  # the next start tries the window again (#506)
         if runtime.evenings is not None and runtime.matches is not None:
             runtime.evenings.record(runtime.matches.session_id)
 
@@ -304,9 +312,11 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         if dev:
             runtime.window_size = (2560, 1440)  # the demo stands in for a 1440p Overwatch window
             return CaptureWatcher(lambda: 1, lambda _: demo.DemoFrameSource(), on_frame, **common)
-        from yaptracker.capture.window import find_overwatch
+        from yaptracker.capture.window import find_overwatch, in_front
 
-        return CaptureWatcher(find_overwatch, open_source, on_frame, **common)
+        return CaptureWatcher(find_overwatch, open_source, on_frame, stall_s=stall_s,
+                              in_front=in_front, on_failing=capture_failing,
+                              **common)  # fmt: skip
 
     if not dev and sys.platform != "win32":
         return  # native mode only exists on Windows; Linux uses --dev

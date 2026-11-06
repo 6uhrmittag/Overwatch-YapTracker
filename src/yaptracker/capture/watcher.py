@@ -13,6 +13,18 @@ log = logging.getLogger(__name__)
 # Covered longer than this: a gap record (#497). A line stays ~9 s on screen and is read every
 # 1.5 s, so a shorter cover can't hide a whole line: it was read before or after.
 COVER_GAP_S = 6.0
+# A lost capture session (Windows ended it, or no picture came) is opened again at once, then
+# every RETRY_S; after FAST_TRIES failed restarts with Overwatch in front, the screen is read
+# instead (#506). Later failures wait longer and longer, as before.
+RETRY_S, FAST_TRIES = 1.0, 5
+# A session that gave pictures for this long worked: only then do failed restarts start over. A
+# new session gets one picture at once, so "it gave a picture" alone doesn't prove it (#506).
+HEALTHY_S = 30.0
+# No picture for this long is a lost session: in a match the game always draws (#506); menus
+# may send few pictures. Checked by the watchdog, not by the thread that handles the frames;
+# only for sources that say when Windows last sent a picture (WGC). GDI keeps its own 10 s.
+MATCH_STALL_S, STALL_S = 3.0, 10.0
+TICK_S, LATE_S = 0.5, 2.0  # the watchdog's tick, and when a late tick is logged
 
 
 class CaptureWatcher:
@@ -30,6 +42,10 @@ class CaptureWatcher:
         on_signals: Callable[[Frame], None] = lambda frame: None,
         on_closed: Callable[[], None] = lambda: None,
         clock: Callable[[], float] = time.monotonic,
+        stall_s: Callable[[], float] = lambda: STALL_S,
+        retry_s: float = RETRY_S,
+        in_front: Callable[[int], bool] = lambda window: False,
+        on_failing: Callable[[int], None] = lambda window: None,
     ) -> None:
         self._find_window = find_window
         self._open_source = open_source
@@ -41,6 +57,12 @@ class CaptureWatcher:
         self._on_signals = on_signals  # match signals (#93); they run even while paused
         self._on_closed = on_closed  # Overwatch closed after capturing: the evening line (#379)
         self._failures = 0  # in a row; the retry wait grows with them
+        self._stall_s, self._retry_s = stall_s, retry_s  # (#506)
+        self._in_front = in_front  # Overwatch is the foreground window (#506)
+        self._on_failing = on_failing  # restarts keep failing: read the screen instead (#506)
+        self._front_failures = 0  # failed restarts in a row with Overwatch in front
+        self._opened_at = 0.0
+        self._stalled: tuple[FrameSource, str] | None = None  # set by the watchdog
         self._clock = clock
         self._covered_since: float | None = None  # another window over the chat box (#497)
         self.covered: str | None = None  # what covers it right now, for Live
@@ -58,6 +80,7 @@ class CaptureWatcher:
     def start(self) -> None:
         self._thread = threading.Thread(target=self._run, name="capture watcher", daemon=True)
         self._thread.start()
+        threading.Thread(target=self._watch, name="capture watchdog", daemon=True).start()
 
     def snapshot(self, timeout: float = 2.0):
         """A full-size BGR frame of the game window right now, or None (#112). Blocks."""
@@ -95,11 +118,13 @@ class CaptureWatcher:
             if window is None:
                 if self._failures:  # it broke and then the game went: no more loss
                     self._game_closed()
-                self.state, self._failures = "waiting", 0
+                self.state, self._failures, self._front_failures = "waiting", 0, 0
                 self._stop.wait(self._poll_s)
                 continue
             try:
                 self._capture(window)
+                if self._stop.is_set():
+                    return  # shutting down closed it: not a loss
                 if self._reopen.is_set():
                     self._reopen.clear()
                     continue
@@ -113,11 +138,64 @@ class CaptureWatcher:
             self.state, self.window = "waiting", None
             if reason is None:
                 self._game_closed()
-                self._failures = 0
+                self._failures = self._front_failures = 0
                 continue
             self._health_call("lost", reason)
             self._failures += 1
-            self._stop.wait(min(60.0, self._poll_s * 2 ** (self._failures - 1)))
+            self._failing(window, lived=self._clock() - self._opened_at)
+            self._stop.wait(self._retry_wait())
+
+    def _retry_wait(self) -> float:
+        """At once, then every second, then longer and longer (#506). Never more than one open a
+        second: a session Windows ends right after each picture mustn't spin."""
+        if self._failures == 1:
+            return max(0.0, self._retry_s - (self._clock() - self._opened_at))
+        if self._failures <= FAST_TRIES + 1:
+            return self._retry_s
+        return min(60.0, self._poll_s * 2 ** (self._failures - FAST_TRIES - 2))
+
+    def _failing(self, window: int, lived: float = HEALTHY_S) -> None:
+        """A restart that brought no picture, or only a few seconds of them, with Overwatch in
+        front: FAST_TRIES of them in a row read the screen instead (#506). Minimised or
+        alt-tabbed doesn't count."""
+        if self._failures < 2 and lived >= HEALTHY_S:
+            return  # the first loss after a session that worked isn't a failed restart
+        if not self._in_front(window):
+            self._front_failures = 0
+            return
+        self._front_failures += 1
+        if self._front_failures >= FAST_TRIES:
+            self._front_failures = 0
+            try:
+                self._on_failing(window)
+            except Exception as error:
+                side_work.failed("switching to the screen", error, then="the capture goes on")
+
+    def _watch(self) -> None:
+        """The watchdog (#506): its own thread, so frame handling, the database or the UI can't
+        delay it. A capture that went quiet is closed; the supervisor opens it again."""
+        due = self._clock() + TICK_S
+        while not self._stop.wait(TICK_S):
+            now = self._clock()
+            if now - due > LATE_S:
+                log.info("capture: watchdog tick %.1f s late", now - due)
+            due = now + TICK_S
+            try:
+                self._check_stall(now)
+            except Exception as error:
+                side_work.failed("the capture watchdog", error, then="it goes on")
+
+    def _check_stall(self, now: float) -> None:
+        source = self._source
+        last = getattr(source, "last_frame_at", None)  # when Windows last sent a picture
+        if source is None or last is None:
+            return
+        if self._stalled is not None and self._stalled[0] is source:
+            return  # already closed; a stale one for an older session doesn't count
+        limit = self._stall_s()
+        if now - max(last, self._opened_at) > limit:
+            self._stalled = (source, f"no picture from the window for {limit:g} s")
+            source.close()  # the frame loop ends; the supervisor restarts it
 
     def _game_closed(self) -> None:
         self._health_call("game_closed")
@@ -156,6 +234,7 @@ class CaptureWatcher:
                 side_work.failed(f"recording '{method}'", error, then="the capture goes on")
 
     def _capture(self, window: int) -> None:
+        self._stalled, self._opened_at = None, self._clock()
         self._source = source = self._open_source(window)
         log.info("capturing window %s", window)
         self.state, self.window = "capturing", window
@@ -171,6 +250,8 @@ class CaptureWatcher:
                 if self._reopen.is_set():
                     break
                 self.last_error, self._failures = None, 0
+                if self._clock() - self._opened_at >= HEALTHY_S:
+                    self._front_failures = 0
                 paused = self._paused()
                 if paused != was_paused:
                     self._health_call("paused", paused)
@@ -186,6 +267,9 @@ class CaptureWatcher:
                 self._health_call("frame")
                 self.last_frame = frame
                 self._on_frame(frame)
+            stalled, wanted = self._stalled, self._reopen.is_set() or self._stop.is_set()
+            if stalled is not None and stalled[0] is source and not wanted:
+                raise CaptureStalled(stalled[1])  # the watchdog closed it (#506)
         finally:
             source.close()
             self._source = None

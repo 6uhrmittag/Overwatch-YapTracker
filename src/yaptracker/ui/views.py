@@ -381,7 +381,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
     with ui.element("div").classes("yt-banner yt-hidden").mark("black-picture") as black_hint:
         ui.label(BLACK_SAY).classes("yt-grow")  # (#217)
     with ui.element("div").classes("yt-banner yt-hidden").mark("screen-capture") as screen_hint:
-        ui.label(SCREEN_SAY).classes("yt-grow")  # (#236)
+        screen_text = ui.label(SCREEN_SAY).classes("yt-grow")  # (#236, #506)
     with ui.element("div").classes("yt-banner yt-hidden").mark("reads-failing") as failing_hint:
         ui.label(
             "Reading the chat keeps failing. I keep trying; what went wrong is in the log "
@@ -668,6 +668,8 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         black_hint.classes(**{"remove" if black else "add": "yt-hidden"})
         screen = runtime.screen is not None and runtime.screen.screen and not black
         screen_hint.classes(**{"remove" if screen and capturing else "add": "yt-hidden"})
+        if screen:
+            screen_text.set_text(runtime.screen.say)
         disk_low = runtime.debug is not None and config.debug_samples() and runtime.debug.disk_low()
         disk_hint.classes(**{"remove" if disk_low else "add": "yt-hidden"})
         failing = runtime.reader is not None and getattr(runtime.reader, "failing", 0) >= FAIL_LIMIT
@@ -868,7 +870,7 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                         else "Capture: not running right now"
                     ).classes("yt-meta").mark("capture-rate")
                     if runtime.screen is not None and runtime.screen.screen:  # (#236)
-                        ui.label(SCREEN_SAY).classes("yt-hint").mark("capture-screen")
+                        ui.label(runtime.screen.say).classes("yt-hint").mark("capture-screen")
                     elif CAPTURE.how != "WGC":  # Windows 10 and 11 before 24H2 (#248)
                         ui.label(
                             "This Windows sends every frame the game draws, so I only copy the "

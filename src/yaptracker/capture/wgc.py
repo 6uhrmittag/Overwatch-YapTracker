@@ -89,7 +89,7 @@ class WgcFrameSource:
         hwnd: int,
         region_for: Callable[[int, int], Region],
         fps: float = MATCH_FPS,
-        stall_s: float = 10.0,
+        stall_s: float = 30.0,  # a backstop: the watcher's watchdog notices much sooner (#506)
         signals_for: Callable[[int, int], dict[str, Region]] = lambda w, h: {},
         signals_every_s: float = 1.0,
         overview_every_s: float = 5.0,
@@ -101,8 +101,8 @@ class WgcFrameSource:
         self._snapshot_wanted, self._snapshot_ready = threading.Event(), threading.Event()
         self._snapshot = None
         self._stall_s = stall_s
-        self._closed = threading.Event()
-        self._start = time.monotonic()
+        self._closed, self._closing = threading.Event(), threading.Lock()
+        self._start = self.last_frame_at = time.monotonic()  # Windows sent a picture (#506)
         self._region_for = region_for
         # Our own gate: without minimum_update_interval (before Windows 11 24H2) every frame the
         # game draws arrives here. A bit under 1/fps, so Windows' own rate isn't cut.
@@ -132,7 +132,7 @@ class WgcFrameSource:
             if self._closed.is_set():
                 control.stop()
                 return
-            now = time.monotonic()
+            now = self.last_frame_at = time.monotonic()  # also a skipped one: still alive
             if now - self._used_at < self._gap_s and not self._snapshot_wanted.is_set():
                 CAPTURE.skipped()  # before the frame buffer is touched (#216)
                 return
@@ -161,6 +161,8 @@ class WgcFrameSource:
 
         @capture.event
         def on_closed() -> None:
+            if not self._closed.is_set():  # not our own close: Windows ended it (#506)
+                log.info("capture: Windows ended the capture session")
             self._put(_END)
 
         return capture
@@ -193,7 +195,11 @@ class WgcFrameSource:
             yield item
 
     def close(self) -> None:
-        self._closed.set()
+        """Once; the watchdog (#506) and the frame loop may both close it."""
+        with self._closing:
+            if self._closed.is_set():
+                return
+            self._closed.set()
         if not self._control.is_finished():
             self._control.stop()
         self._put(_END)
