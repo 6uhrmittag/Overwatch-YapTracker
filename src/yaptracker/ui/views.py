@@ -870,7 +870,7 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                         else "Capture: not running right now"
                     ).classes("yt-meta").mark("capture-rate")
                     if runtime.screen is not None and runtime.screen.screen:  # (#236)
-                        ui.label(SCREEN_SAY).classes("yt-hint").mark("capture-screen")
+                        ui.label(runtime.screen.say).classes("yt-hint").mark("capture-screen")
                     elif CAPTURE.how != "WGC":  # Windows 10 and 11 before 24H2 (#248)
                         ui.label(
                             "This Windows sends every frame the game draws, so I only copy the "

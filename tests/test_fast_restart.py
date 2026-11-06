@@ -133,6 +133,32 @@ def test_failed_restarts_while_alt_tabbed_dont_switch(store):
     assert failing_restarts(False, store) == []  # minimised: no picture is expected
 
 
+def test_sessions_that_die_after_their_first_picture_count_as_failed_restarts(store):
+    """A new WGC session sends one picture at once: that alone doesn't make a restart work."""
+    switched = []
+    opened, open_source = opener([FakeWgc(1, "ended") for _ in range(FAST_TRIES + 3)])
+    watcher = CaptureWatcher(lambda: 42, open_source, health=CaptureHealth(store), retry_s=0.01,
+                             in_front=lambda w: True, on_failing=switched.append,
+                             poll_s=10)  # fmt: skip
+    watcher.start()
+    try:
+        wait_for(lambda: switched)
+    finally:
+        watcher.stop()
+    assert switched == [42]
+
+
+def test_failed_restarts_start_over_when_the_game_closes():
+    watcher = CaptureWatcher(lambda: None, lambda _: None, poll_s=10)
+    watcher._failures, watcher._front_failures = 3, FAST_TRIES - 1
+    watcher.start()
+    try:
+        wait_for(lambda: watcher._front_failures == 0, timeout=2.0)
+    finally:
+        watcher.stop()
+    assert watcher._failures == 0
+
+
 def test_retries_wait_once_a_second_then_longer():
     watcher = CaptureWatcher(lambda: None, lambda _: None, poll_s=2.0)
     waits = []

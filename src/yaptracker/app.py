@@ -289,11 +289,6 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         rate.check()  # a match started or ended: the other frame rate (#350)
         return capture_region(config.chat_region(width, height), height, match_running())
 
-    def window_in_front(window: int) -> bool:
-        from yaptracker.capture.window import in_front
-
-        return in_front(window)
-
     def stall_s() -> float:  # a game in a match always draws (#506); menus send few pictures
         return MATCH_STALL_S if match_running() and overwatch_in_front() else STALL_S
 
@@ -317,10 +312,10 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         if dev:
             runtime.window_size = (2560, 1440)  # the demo stands in for a 1440p Overwatch window
             return CaptureWatcher(lambda: 1, lambda _: demo.DemoFrameSource(), on_frame, **common)
-        from yaptracker.capture.window import find_overwatch
+        from yaptracker.capture.window import find_overwatch, in_front
 
         return CaptureWatcher(find_overwatch, open_source, on_frame, stall_s=stall_s,
-                              in_front=window_in_front, on_failing=capture_failing,
+                              in_front=in_front, on_failing=capture_failing,
                               **common)  # fmt: skip
 
     if not dev and sys.platform != "win32":

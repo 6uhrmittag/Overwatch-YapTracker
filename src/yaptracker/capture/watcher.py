@@ -17,8 +17,12 @@ COVER_GAP_S = 6.0
 # every RETRY_S; after FAST_TRIES failed restarts with Overwatch in front, the screen is read
 # instead (#506). Later failures wait longer and longer, as before.
 RETRY_S, FAST_TRIES = 1.0, 5
+# A session that gave pictures for this long worked: only then do failed restarts start over. A
+# new session gets one picture at once, so "it gave a picture" alone doesn't prove it (#506).
+HEALTHY_S = 30.0
 # No picture for this long is a lost session: in a match the game always draws (#506); menus
-# may send few pictures. Checked by the watchdog, not by the thread that handles the frames.
+# may send few pictures. Checked by the watchdog, not by the thread that handles the frames;
+# only for sources that say when Windows last sent a picture (WGC). GDI keeps its own 10 s.
 MATCH_STALL_S, STALL_S = 3.0, 10.0
 TICK_S, LATE_S = 0.5, 2.0  # the watchdog's tick, and when a late tick is logged
 
@@ -114,7 +118,7 @@ class CaptureWatcher:
             if window is None:
                 if self._failures:  # it broke and then the game went: no more loss
                     self._game_closed()
-                self.state, self._failures = "waiting", 0
+                self.state, self._failures, self._front_failures = "waiting", 0, 0
                 self._stop.wait(self._poll_s)
                 continue
             try:
@@ -138,7 +142,7 @@ class CaptureWatcher:
                 continue
             self._health_call("lost", reason)
             self._failures += 1
-            self._failing(window)
+            self._failing(window, lived=self._clock() - self._opened_at)
             self._stop.wait(self._retry_wait())
 
     def _retry_wait(self) -> float:
@@ -150,11 +154,12 @@ class CaptureWatcher:
             return self._retry_s
         return min(60.0, self._poll_s * 2 ** (self._failures - FAST_TRIES - 2))
 
-    def _failing(self, window: int) -> None:
-        """A restart that brought no picture, with Overwatch in front: FAST_TRIES of them in a
-        row read the screen instead (#506). Minimised or alt-tabbed doesn't count."""
-        if self._failures < 2:
-            return  # the first loss isn't a failed restart
+    def _failing(self, window: int, lived: float = HEALTHY_S) -> None:
+        """A restart that brought no picture, or only a few seconds of them, with Overwatch in
+        front: FAST_TRIES of them in a row read the screen instead (#506). Minimised or
+        alt-tabbed doesn't count."""
+        if self._failures < 2 and lived >= HEALTHY_S:
+            return  # the first loss after a session that worked isn't a failed restart
         if not self._in_front(window):
             self._front_failures = 0
             return
@@ -183,8 +188,10 @@ class CaptureWatcher:
     def _check_stall(self, now: float) -> None:
         source = self._source
         last = getattr(source, "last_frame_at", None)  # when Windows last sent a picture
-        if source is None or last is None or self._stalled is not None:
+        if source is None or last is None:
             return
+        if self._stalled is not None and self._stalled[0] is source:
+            return  # already closed; a stale one for an older session doesn't count
         limit = self._stall_s()
         if now - max(last, self._opened_at) > limit:
             self._stalled = (source, f"no picture from the window for {limit:g} s")
@@ -242,7 +249,9 @@ class CaptureWatcher:
                     self._on_signals(frame)
                 if self._reopen.is_set():
                     break
-                self.last_error, self._failures, self._front_failures = None, 0, 0
+                self.last_error, self._failures = None, 0
+                if self._clock() - self._opened_at >= HEALTHY_S:
+                    self._front_failures = 0
                 paused = self._paused()
                 if paused != was_paused:
                     self._health_call("paused", paused)

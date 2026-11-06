@@ -2,7 +2,8 @@
 
 Gaps are stored in capture_gaps, never silent holes:
 - crash        capture raised an error (it is retried with backoff)
-- no_frames    the window was there but no picture came (3 s in a match, 10 s between; #506)
+- no_frames    the window was there but no picture came (window capture: 3 s in a match,
+                10 s between, #506; screen/GDI capture: 10 s)
 - window_lost  the capture ended but the Overwatch window is still there
 - paused       the user paused (#20)
 - app_not_running  Overwatch already ran when YapTracker started (#99)
