@@ -271,6 +271,32 @@ def game_found(hwnd: int | None, width: int, height: int) -> None:
     log.info("system: %s", line)
 
 
+def window_state(hwnd: int | None) -> str:
+    """For a capture that ended (#506): the window and the display it's on. No names: these
+    lines go into issues."""
+    if not hwnd or sys.platform != "win32":
+        return "window: unknown"
+    from ctypes import wintypes
+
+    from yaptracker.capture.window import has_title_bar, in_front
+
+    user32 = ctypes.windll.user32
+    user32.GetClientRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+    user32.IsIconic.argtypes = [wintypes.HWND]
+    user32.GetDpiForWindow.argtypes = [wintypes.HWND]
+    user32.GetDpiForWindow.restype = wintypes.UINT
+    try:
+        rect = wintypes.RECT()
+        user32.GetClientRect(hwnd, ctypes.byref(rect))
+        mode = "windowed" if has_title_bar(hwnd) else "borderless"
+        line = game_line(display_of(hwnd), rect.right, rect.bottom, mode)
+        minimised = "minimised" if user32.IsIconic(hwnd) else "not minimised"
+        front = "in front" if in_front(hwnd) else "not in front"
+        return f"{line}, {minimised}, {front}, DPI {user32.GetDpiForWindow(hwnd)}"
+    except OSError as error:
+        return f"window: unknown ({error})"
+
+
 def summary() -> list[str]:
     """For Settings -> About and Copy system info."""
     with _lock:

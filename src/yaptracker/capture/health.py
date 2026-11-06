@@ -21,6 +21,9 @@ from yaptracker.store.repo import Store
 log = logging.getLogger(__name__)
 # Starting YapTracker a few seconds after the game isn't worth a gap.
 MIN_MISSED_S = 30.0
+# A gap is always recorded, but Live only raises the orange banner after this long; before that
+# it quietly says "Reconnecting to Overwatch" (#506): most gaps are back within seconds.
+BANNER_AFTER_S = 10.0
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,14 @@ class CaptureHealth:
             self.last_frame_at = self._clock()
             if self.gap is not None and self.gap.reason != "paused":
                 self._close("recording again")
+
+    def state(self) -> str | None:
+        """For Live (#506): None (recording or paused), "reconnecting" (a gap younger than
+        BANNER_AFTER_S) or "lost" (time for the banner)."""
+        gap = self.gap
+        if gap is None or gap.reason == "paused":
+            return None
+        return "lost" if self._clock() - gap.since >= BANNER_AFTER_S else "reconnecting"
 
     def lost(self, reason: str) -> None:
         """Capture broke; the gap starts at the last picture we had. The first reason wins."""

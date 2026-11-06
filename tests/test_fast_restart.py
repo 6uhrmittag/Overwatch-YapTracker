@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 from yaptracker.capture.black import SCREEN_SAY, STALLED_SAY, BlackPicture, ScreenFallback
-from yaptracker.capture.health import CaptureHealth
+from yaptracker.capture.health import BANNER_AFTER_S, CaptureHealth
 from yaptracker.capture.source import Frame
 from yaptracker.capture.watcher import FAST_TRIES, CaptureWatcher
 from yaptracker.store.repo import Store
@@ -187,3 +187,53 @@ def test_the_screen_after_failed_restarts_lasts_until_overwatch_closes():
     assert screen.screen and screen.say == STALLED_SAY and saved == []  # not remembered per PC
     screen.game_closed()
     assert not screen.screen and screen.why is None
+
+
+def test_a_short_gap_says_reconnecting_and_only_a_long_one_raises_the_banner(store):
+    """Every gap is recorded; Live's orange banner waits BANNER_AFTER_S (#506)."""
+    now = [1000.0]
+    health = CaptureHealth(store, clock=lambda: now[0])
+    assert health.state() is None
+    health.frame()
+    health.lost("no_frames")
+    now[0] += BANNER_AFTER_S - 1
+    assert health.state() == "reconnecting"
+    now[0] += 1
+    assert health.state() == "lost"
+    health.frame()
+    assert health.state() is None and len(gaps(store)) == 1  # the short gap is still a record
+    health.paused(True)
+    now[0] += 60
+    assert health.state() is None  # paused has its own words
+
+
+def test_a_lost_stretch_is_diagnosed_once_and_its_end_noted(store):
+    ended, back = [], []
+    sources = [FakeWgc(2, "ended"), FakeWgc(0, "ended"), FakeWgc(0, "ended"), FakeWgc(1000)]
+    opened, open_source = opener(sources)
+    watcher = CaptureWatcher(lambda: 42, open_source, health=CaptureHealth(store), retry_s=0.01,
+                             on_ended=lambda w, why: ended.append((w, why)),
+                             on_back=lambda: back.append(1))  # fmt: skip
+    watcher.start()
+    try:
+        wait_for(lambda: back)
+    finally:
+        watcher.stop()
+    assert ended == [(42, "Windows ended the capture session")] and back == [1]
+
+
+def test_overwatch_losing_and_regaining_focus_is_logged(caplog):
+    front = [True]
+    opened, open_source = opener([FakeWgc(1000)])
+    watcher = CaptureWatcher(lambda: 42, open_source, in_front=lambda w: front[0])
+    with caplog.at_level(logging.INFO, logger="yaptracker.capture.watcher"):
+        watcher.start()
+        try:
+            wait_for(lambda: watcher._in_focus is True)
+            front[0] = False
+            wait_for(lambda: "lost focus" in caplog.text)
+            front[0] = True
+            wait_for(lambda: "in front again" in caplog.text)
+        finally:
+            watcher.stop()
+    assert watcher.focus_note().startswith("focus: lost ") and ", back " in watcher.focus_note()
