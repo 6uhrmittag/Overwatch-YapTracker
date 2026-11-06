@@ -97,6 +97,40 @@ def fit(place: Place, works: list[Rect], dpis: list[int] | None = None) -> Place
                  place.maximized)  # fmt: skip
 
 
+def layout(found: list["Monitor"]) -> list[list[int]]:
+    """The screen layout (#505): every monitor's rect, sorted. Saved with the place."""
+    return sorted(list(m.rect) for m in found)
+
+
+def saved_place(data: dict | None, found: list["Monitor"], say: bool = False) -> Place | None:
+    """The saved place, unless the screens changed since it was saved (#505): a screen that
+    moved or went away left Marv's window on a screen he couldn't see. Then None: the main
+    screen at the default size. A place saved before #505 has no layout and is used as before."""
+    data = data or {}
+    screens_then = data.get("screens")
+    if screens_then is not None and found and sorted(map(list, screens_then)) != layout(found):
+        if say:
+            log.info("window: the screens changed since its place was saved (then %s): opens on "
+                     "the main screen", screens_then)  # fmt: skip
+        return None
+    return Place.from_dict(data)
+
+
+def to_screen(rect: Rect, work: Rect) -> tuple[int, int]:
+    """Top-left for the window in the middle of a screen's work area (#505); one too big for it
+    starts at its top-left, so the title bar is reachable."""
+    _, _, w, h = rect
+    wx, wy, ww, wh = work
+    return wx + max(0, (ww - w) // 2), wy + max(0, (wh - h) // 2)
+
+
+def corrected(asked: tuple[int, int], got: tuple[int, int], target: tuple[int, int]) -> tuple:
+    """A move from outside can land scaled in the window's units (#420: asked 1065, got 710).
+    The next ask, scaled back by what the first one did, per axis."""
+    return tuple(t if a == 0 or g == 0 else round(t * a / g)
+                 for a, g, t in zip(asked, got, target, strict=True))  # fmt: skip
+
+
 def birth(saved: Place | None, found: list["Monitor"]) -> dict:
     """pywebview's x, y, width and height for the saved place (#365): the window is born on its
     own screen, so it never has to cross to a screen with other scaling, which left it too tall.
@@ -177,7 +211,7 @@ class Keeper:
 # Windows -----------------------------------------------------------------------------------
 
 _SW_SHOWNORMAL, _SW_SHOWMINIMIZED, _SW_SHOWMAXIMIZED, _SW_SHOWMINNOACTIVE = 1, 2, 3, 7
-_SW_SHOWNOACTIVATE = 4
+_SW_SHOWNOACTIVATE, _SW_RESTORE = 4, 9
 _PER_MONITOR_AWARE_V2 = -4
 
 
@@ -371,7 +405,8 @@ def birth_args() -> dict:
 
     def work() -> None:
         try:
-            args.update(birth(Place.from_dict(config.window_place() or {}), monitors()))
+            found = monitors()
+            args.update(birth(saved_place(config.window_place(), found), found))
         except Exception:
             log.warning("window: no saved place to open at", exc_info=True)
 
@@ -400,7 +435,7 @@ def keep(find: Callable[[], int | None], minimized: bool, stop: threading.Event)
         log.info("window: screens %s", "; ".join(  # so the next report explains itself (#299)
             f"{m.rect} work {m.work} at {round(100 * m.dpi / 96)} %" for m in found))  # fmt: skip
         works, dpis = [m.work for m in found], [m.dpi for m in found]
-        saved = Place.from_dict(config.window_place() or {})
+        saved = saved_place(config.window_place(), found, say=True)  # (#505)
         if saved is not None and visible(saved, [m.rect for m in found]):
             wanted = fit(saved, works, dpis)
             if wanted != saved:
@@ -411,8 +446,13 @@ def keep(find: Callable[[], int | None], minimized: bool, stop: threading.Event)
             saved = wanted
         elif saved is not None:
             log.info("window: saved place %s is off every screen, default place", saved.rect)
-        keeper = Keeper(lambda: read(hwnd), lambda p: config.save_window_place(asdict(p)), saved,
-                        fit=lambda p: fit(p, works, dpis))  # fmt: skip
+
+        def save(place: Place) -> None:  # with the screens it's on now (#505)
+            config.save_window_place({**asdict(place), "screens": layout(monitors())})
+
+        if saved is not None and "screens" not in (config.window_place() or {}):
+            save(saved)  # a place from before #505: its screens from now on
+        keeper = Keeper(lambda: read(hwnd), save, saved, fit=lambda p: fit(p, works, dpis))
         _kept.update(hwnd=hwnd, keeper=keeper)
         while not stop.wait(POLL_S):
             keeper.check()
@@ -464,6 +504,61 @@ def restore(hwnd: int, wanted: Place, minimized: bool, stop: threading.Event,
     if target is not None and late.rect[3] > target.work[3] + 2 * border(target.dpi):
         log.warning("window: still taller than its screen (%d of %d px): something in the window"
                     " keeps it that tall", late.rect[3], target.work[3])  # fmt: skip
+
+
+def bring_to_mouse(hwnd: int) -> None:
+    """A second start (#505): the running window comes to the screen under the mouse."""
+    ctypes, wintypes, user32, _ = _win32()
+    point = wintypes.POINT()
+    user32.GetCursorPos(ctypes.byref(point))
+    show, minimised = user32.ShowWindow, lambda h: bool(user32.IsIconic(h))
+    come_to(hwnd, (point.x, point.y), monitors(), read, move, show, minimised)
+
+
+def come_to(
+    hwnd: int,
+    mouse: tuple[int, int],
+    found: list[Monitor],
+    read: Callable[[int], Place | None],
+    move: Callable[[int, int, int], None],
+    show: Callable[[int, int], object],
+    minimised: Callable[[int], bool],
+) -> bool:
+    """In the middle of the mouse's screen at its size, restored if minimised, maximised again
+    if it was. Checked: a move from outside can land scaled (#420), so a wrong landing is asked
+    once more, corrected. True if it's on the mouse's screen."""
+    if not found:
+        return False
+    rects = [m.rect for m in found]
+    there = home((*mouse, 1, 1), rects)
+    if minimised(hwnd):
+        show(hwnd, _SW_RESTORE)
+    place = read(hwnd)
+    if place is None:
+        return False
+    screen = [rects[there]]
+
+    def on_it(rect: Rect) -> bool:  # its title bar on the mouse's screen
+        return visible(Place(rect, rect), screen)
+
+    if on_it(place.rect):
+        return True  # already there: only to the front
+    maximized = place.maximized
+    if maximized:
+        show(hwnd, _SW_RESTORE)
+        place = read(hwnd) or place
+    target = to_screen(place.rect, found[there].work)
+    move(hwnd, *target)
+    got = read(hwnd)
+    if got is not None and not on_it(got.rect):
+        move(hwnd, *corrected(target, got.rect[:2], target))
+        got = read(hwnd)
+    if maximized:
+        show(hwnd, _SW_SHOWMAXIMIZED)
+    arrived = got is not None and on_it(got.rect)
+    log.info("window: brought to the screen under the mouse (second start)%s",
+             "" if arrived else f", but it landed at {got.rect if got else None}")  # fmt: skip
+    return arrived
 
 
 def reset() -> bool:
