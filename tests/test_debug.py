@@ -163,3 +163,13 @@ def test_a_line_seen_but_not_stored_is_worth_a_sample():
 
     assert why_hard([], [], unstored=["a line"]) == ["seen-not-stored"]
     assert why_hard([], []) == []
+
+
+def test_a_capture_that_ended_keeps_the_last_few_overviews(samples, clock):
+    for _ in range(10):
+        samples.on_signals(signals())
+        clock.now += 5
+    sample = samples.match_event("capture-ended", last=3)  # what the game showed before (#506)
+    assert [f for f in files(sample) if f.endswith(".jpg")] == [
+        "12-00-35.jpg", "12-00-40.jpg", "12-00-45.jpg"
+    ]  # fmt: skip

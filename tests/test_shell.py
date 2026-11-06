@@ -228,13 +228,31 @@ async def test_live_says_loudly_when_nothing_is_recorded(user: User, monkeypatch
     from yaptracker.store.repo import Store
 
     store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
-    health = CaptureHealth(store)
+    now = [time.time()]
+    health = CaptureHealth(store, clock=lambda: now[0])
     health.lost("crash")
+    now[0] += 30  # the banner waits 10 s (#506)
     monkeypatch.setattr(runtime, "health", health)
     await user.open("/")
     await user.should_see("(capture stopped). I'm restarting it.")  # what to do (#137)
     await user.should_see("Not recording")
     await user.should_see("Overwatch is running, but I can't see it right now.")
+    store.close()
+
+
+async def test_live_says_reconnecting_quietly_for_a_short_gap(user: User, monkeypatch, tmp_path):
+    from yaptracker import runtime
+    from yaptracker.capture.health import CaptureHealth
+    from yaptracker.store.repo import Store
+
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    health = CaptureHealth(store)
+    health.lost("no_frames")  # just now: Windows dropped the window, back in a second (#506)
+    monkeypatch.setattr(runtime, "health", health)
+    await user.open("/")
+    await user.should_see("Reconnecting to Overwatch\u2026")
+    await user.should_see("I'm picking it up again, nothing to do.")
+    await user.should_not_see("Not recording")
     store.close()
 
 

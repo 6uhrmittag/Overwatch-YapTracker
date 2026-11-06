@@ -337,7 +337,8 @@ def fill_line(row: dict, message) -> None:
 
 
 # Pill colour per Live state: trouble shares the orange of paused - a heads-up, not an alarm.
-_PILLS = {"paused": "paused", "trouble": "paused", "listening": "listening", "waiting": "waiting"}
+_PILLS = {"paused": "paused", "trouble": "paused", "listening": "listening", "waiting": "waiting",
+          "reconnecting": "waiting"}  # fmt: skip
 
 
 def live() -> None:
@@ -596,10 +597,18 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         paused = runtime.pause.paused
         capturing = watcher is not None and watcher.state == "capturing"
         gap = runtime.health.gap if runtime.health else None
-        broken = gap is not None and gap.reason != "paused"  # the game runs, capture doesn't
+        lost = runtime.health.state() if runtime.health else None  # the game runs, capture not
+        covered = getattr(watcher, "covered", None)
+        if covered and lost:  # a window in the way isn't Windows reconnecting (#497)
+            lost = "lost"
+        broken = lost == "lost" and gap is not None  # banner only after 10 s (#506)
         state = (
-            "paused" if paused else "trouble" if broken else "listening" if capturing else "waiting"
-        )
+            "paused" if paused
+            else "trouble" if broken
+            else "reconnecting" if lost == "reconnecting"
+            else "listening" if capturing
+            else "waiting"
+        )  # fmt: skip
         pill.classes(
             add=f"yt-pill--{_PILLS[state]}",
             remove=" ".join(f"yt-pill--{p}" for p in set(_PILLS.values()) if p != _PILLS[state]),
@@ -610,6 +619,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             {
                 "paused": "Paused",
                 "trouble": "Not recording",
+                "reconnecting": "Reconnecting to Overwatch\u2026",
                 "listening": said if runtime.matches else "Listening for yaps",
                 "waiting": "Waiting for Overwatch",
             }[state]
@@ -634,6 +644,8 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             else {
                 "paused": "Ears covered. Nothing is being saved.",
                 "trouble": "Overwatch is running, but I can't see it right now. Trying again.",
+                "reconnecting": "Windows dropped the game window for a moment. I'm picking "
+                "it up again, nothing to do.",
                 "listening": _listening(waiting),
                 "waiting": "Waiting for Overwatch. I'll be right here.",
             }[state]
@@ -641,7 +653,9 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         set_button_label(pause_button, "Resume" if paused else "Pause")
         running = runtime.matches is not None and runtime.matches.running
         set_button_label(match_button, "End match" if running else "Start match")
-        match_info.set_text(line if runtime.matches and state in ("listening", "paused") else "")
+        match_info.set_text(
+            line if runtime.matches and state in ("listening", "paused", "reconnecting") else ""
+        )
         match_info.props(f'title="{html.escape(match_info.text)}"')  # cut short when narrow
         ended = where is not None and where.ended
         result = _RESULTS.get(where.outcome) if ended else None
@@ -650,7 +664,6 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         match_id = runtime.matches.match_id if runtime.matches else None
         if match_id != heart.match_id:  # the current match, or the last one until the next
             heart.show(match_id)
-        covered = getattr(watcher, "covered", None)
         if covered:  # read from the screen, another window is in the way (#497)
             health_text.set_text(COVERED_SAY.format(what=covered[:60]))
             health_banner.classes(remove="yt-hidden")
