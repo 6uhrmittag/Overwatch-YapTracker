@@ -7,6 +7,7 @@ from nicegui import ui
 
 from yaptracker import runtime
 from yaptracker.familiar import Card
+from yaptracker.ui import backlog
 from yaptracker.ui.components import button, count, spicy_mark, sticker, when
 
 
@@ -31,8 +32,11 @@ def familiar_card(card: Card, on_open: Callable[[], None], on_dismiss: Callable[
                 if card.verdict:
                     sticker(card.verdict)
             together = count(card.matches, "match", "matches")
-            ui.label(f"{met} \u00b7 {together} together \u00b7 "
-                     f"{count(card.yaps, 'yap', 'yaps')}").classes("yt-face-meta")  # fmt: skip
+            with ui.element("div").classes("yt-row yt-row--wrap"):
+                ui.label(f"{met} \u00b7 {together} together \u00b7 "
+                         f"{count(card.yaps, 'yap', 'yaps')}").classes("yt-face-meta")  # fmt: skip
+                if card.match_id is not None:  # its match still being read: not final (#502)
+                    backlog.follow({card.match_id: backlog.badge_label()}, backlog.badge)
             if card.note:
                 ui.label(f"\u201c{card.note}\u201d").classes("yt-face-note")
             if card.spicy:

@@ -20,6 +20,20 @@ def now() -> Backlog | None:
     return found if found is not None and found.left else None
 
 
+def badge_label() -> ui.label:
+    """'Still reading', pulsing until the match's chat is read through; fed by `follow`."""
+    return ui.label().classes("yt-reading yt-hidden").mark("still-reading")
+
+
+def player_note(waiting: Backlog | None, _key: object = None) -> str | None:
+    """A profile's line while chat waits to be read (#502): their lines may be in it."""
+    matches = [m for m in waiting.matches if m is not None] if waiting else []
+    if not matches:
+        return None
+    which = count(len(matches), "match", "matches")
+    return f"{READING} the chat of {which}: more of their lines may show up."
+
+
 def eta(seconds: float) -> str:
     """'~4 min', 'under a minute'."""
     return f"~{max(1, round(seconds / 60))} min" if seconds >= 60 else "under a minute"

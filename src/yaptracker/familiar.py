@@ -32,6 +32,7 @@ class Card:
     shown_at: float
     spicy: int = 0  # flagged lines before this match: a heads-up, never a verdict (#77)
     after: bool = False  # heard when the match was read afterwards: "Look who was there!" (#335)
+    match_id: int | None = None  # where they were heard: still being read, the card says (#502)
 
 
 class FamiliarFaces:
@@ -74,7 +75,7 @@ class FamiliarFaces:
             return None  # first time you meet them: nothing to greet yet
         note = (player.notes or "").strip().splitlines()
         card = Card(player_id, player.display_name, player.verdict, note[0] if note else "",
-                    matches, yaps, last_met, self._clock(), spicy, after)  # fmt: skip
+                    matches, yaps, last_met, self._clock(), spicy, after, match_id)  # fmt: skip
         with self._lock:
             self._cards = [c for c in self._cards if c.player_id != player_id] + [card]
         met = time.strftime("%Y-%m-%d", time.localtime(last_met)) if last_met else "?"

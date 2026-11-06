@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-11-06 · Profiles and "Look who was there!" cards say when chat is still being read (#502)
+- A player's profile shows "Still reading · N pictures left" next to a match whose chat is still being read, and says that more of their lines may show up. Both go away once it's read.
+- A familiar-face card for someone heard in a match that's still being read shows the same badge under "matches together".
+
 ### 2026-11-06 · A short hiccup says "Reconnecting", not "Not recording" (#506)
 - When Windows drops the game window for a moment, Live quietly says "Reconnecting to Overwatch…". The orange "Not recording" banner only shows when it lasts longer than 10 seconds. Every gap is still recorded, however short.
 - Behind the scenes: each time the capture ends, the log notes what the game window was doing (size, minimised, in front, display mode, HDR, refresh rate) and when Overwatch last lost and got back focus, and a debug sample keeps the game's last pictures before it and the first one after.
