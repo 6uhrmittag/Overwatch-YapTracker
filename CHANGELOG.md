@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-11-06 · Recording comes back within seconds when Windows drops the game window (#506, part 1)
+- When Windows stops sending pictures of the Overwatch window (more often since Overwatch's 2026-11-02 patch, around alt-tab), YapTracker notices within 3 seconds in a match and reconnects within a second, instead of losing 15-45 seconds of chat.
+- If reconnecting keeps failing while Overwatch is in front, YapTracker reads the screen Overwatch is on instead, says so in Live, and goes back to the window the next time Overwatch starts.
+
 ### 2026-10-18 · Matches read after the match say so (#501)
 - A match whose chat is still being read after it shows "Still reading · 37 pictures left" in Sessions (and its day shows "Still reading"); the ones queued behind it say "Waiting to be read". The badges go away by themselves once the chat is read.
 - A match's transcript says how far reading is ("63 of 100 pictures done, ~2 min") with a progress bar, and new lines show up while you look at it.

@@ -15,6 +15,9 @@ SAY = ("Windows sends me a black picture. Overwatch is probably in Fullscreen: O
        "Video → Display Mode → Borderless Windowed.")  # fmt: skip
 SCREEN_SAY = ("Capturing the screen Overwatch is on: the window gave a black picture. Keep "
               "other windows off the chat box: while one covers it, I don't read it.")  # fmt: skip
+STALLED_SAY = ("Capturing the screen Overwatch is on: Windows kept dropping the window capture. "
+               "Keep other windows off the chat box: while one covers it, I don't read it. Back "
+               "to the window next time Overwatch starts.")  # fmt: skip
 
 
 def is_black(image: np.ndarray | None) -> bool:
@@ -63,6 +66,7 @@ class ScreenFallback:
                  remember: Callable[[bool], None]) -> None:  # fmt: skip
         self.black, self.remembered, self._remember = black, remembered, remember
         self.screen = False  # read the screen instead of the window
+        self.why: str | None = None  # "black" | "stalled" (#506): what Live says
         black.for_s = 0.0 if remembered else BLACK_FOR_S
 
     def check(self, window_capture: bool) -> bool:
@@ -76,8 +80,26 @@ class ScreenFallback:
             return False
         log.warning("capture: the window stayed black with Overwatch in front: reading the "
                     "screen it's on instead (#236)")  # fmt: skip
-        self.screen = True
+        self.screen, self.why = True, "black"
         if not self.remembered:
             self.remembered = True
             self._remember(True)
         return True
+
+    def stalled(self) -> None:
+        """Window capture keeps ending with Overwatch in front (#506): the screen until Overwatch
+        closes. Not remembered: it's the game's hiccup (since its 2026-11-02 patch), not this PC."""
+        if self.screen:
+            return
+        log.warning("capture: the window capture keeps ending: reading the screen Overwatch is on "
+                    "instead until it closes (#506)")  # fmt: skip
+        self.screen, self.why = True, "stalled"
+
+    def game_closed(self) -> None:
+        """The next Overwatch start tries the window again (#506)."""
+        if self.why == "stalled":
+            self.screen, self.why = False, None
+
+    @property
+    def say(self) -> str:
+        return STALLED_SAY if self.why == "stalled" else SCREEN_SAY
