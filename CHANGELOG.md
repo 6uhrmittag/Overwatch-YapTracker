@@ -12,7 +12,6 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 - Starting YapTracker while it already runs brings its window to the screen your mouse is on (restored if minimised, still maximised if it was).
 - If your screens changed since YapTracker last closed (a screen moved, was unplugged or switched off), it opens on the main screen instead of a spot you can't see.
 
-
 ### 2026-11-06 · A short hiccup says "Reconnecting", not "Not recording" (#506)
 - When Windows drops the game window for a moment, Live quietly says "Reconnecting to Overwatch…". The orange "Not recording" banner only shows when it lasts longer than 10 seconds. Every gap is still recorded, however short.
 - Behind the scenes: each time the capture ends, the log notes what the game window was doing (size, minimised, in front, display mode, HDR, refresh rate) and when Overwatch last lost and got back focus, and a debug sample keeps the game's last pictures before it and the first one after.
