@@ -115,7 +115,7 @@ def _day_list(open_day) -> None:
 
 def _badge() -> ui.label:
     """'Still reading', pulsing until the match's chat is read through (#501)."""
-    return ui.label().classes("yt-reading yt-hidden").mark("still-reading")
+    return backlog.badge_label()
 
 
 def _match_list(key: str, back, open_match) -> None:

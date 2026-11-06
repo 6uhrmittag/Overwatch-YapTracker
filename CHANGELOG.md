@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-11-06 · Profiles and "Look who was there!" cards say when chat is still being read (#502)
+- A player's profile shows "Still reading · N pictures left" next to a match whose chat is still being read, and says that more of their lines may show up. Both go away once it's read.
+- A familiar-face card for someone heard in a match that's still being read shows the same badge under "matches together".
+
 ### 2026-11-06 · Can't find the window? Start YapTracker again (#505)
 - Starting YapTracker while it already runs brings its window to the screen your mouse is on (restored if minimised, still maximised if it was).
 - If your screens changed since YapTracker last closed (a screen moved, was unplugged or switched off), it opens on the main screen instead of a spot you can't see.

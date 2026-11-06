@@ -198,3 +198,39 @@ async def test_days_the_day_and_the_transcript_say_it_until_read_through(
         await asyncio.sleep(0.1)
     assert "yt-hidden" in banner.classes
     await user.should_see("nice shot")  # the transcript refreshed itself
+
+
+async def test_the_card_and_the_profile_say_their_match_is_still_being_read(
+    user: User, store, monkeypatch
+):
+    """#502: "met before" counts and their lines aren't final while their match is read."""
+    from yaptracker.familiar import FamiliarFaces
+
+    config.save_setup_state("done")
+    session = store.start_session(EVENING)
+    pid = store.add_player("NoodleBonk", EVENING)
+    before = store.start_match(session, EVENING + 60, "heroselect")
+    store.add_message(ts=EVENING + 70, channel="match", text="gg", match_id=before,
+                      speaker_raw="NoodleBonk", player_id=pid)  # fmt: skip
+    now = store.start_match(session, EVENING + 1000, "heroselect")
+    store.add_message(ts=EVENING + 1010, channel="match", text="wahoo", match_id=now,
+                      speaker_raw="NoodleBonk", player_id=pid)  # fmt: skip
+    faces = FamiliarFaces(store)
+    assert faces.heard(pid, now, after=True).match_id == now
+    waiting = {"now": Backlog({now: (37, 63)}, 1.0, False, now)}
+    reader = SimpleNamespace(backlog=lambda: waiting["now"], tidy_frames=(), tidied=None,
+                             wants_reread=lambda: False)  # fmt: skip
+    for name, value in (("store", store), ("reader", reader), ("familiar", faces)):
+        monkeypatch.setattr(runtime, name, value)
+    monkeypatch.setattr(backlog, "FOLLOW_S", 0.1)
+    await user.open("/")
+    await user.should_see("Look who was there!")
+    await user.should_see("Still reading · 37 pictures left")  # on the card
+    user.find(marker="face-open").click()
+    await user.should_see("Still reading the chat of 1 match: more of their lines may show up.")
+    await user.should_see("wahoo")
+    badges = [b for b in user.find(marker="still-reading").elements if "yt-hidden" not in b.classes]
+    assert [b.text for b in badges] == ["Still reading · 37 pictures left"]  # its match only
+    waiting["now"] = Backlog({}, 1.0, False, now)  # read through
+    await user.should_not_see("more of their lines may show up", retries=30)
+    await user.should_not_see("37 pictures left", retries=30)
