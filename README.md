@@ -103,6 +103,7 @@ Chat logs, line pictures and debug samples contain other players' names and mess
 - **Unknown queue:** if hero select couldn't be read (glare, or YapTracker started mid-match), the match is read the lighter of your two settings.
 - **Only who writes in chat:** players who never chat aren't logged (type their name in **Who's that?** to add them). No match stats, no full lobbies.
 - **CPU:** reading chat costs about 16–18 % of one core over a 1440p recording, and an estimated 25 % at 4K. It always reads on the CPU, never on your graphics card: that's the game's. On Windows 11 it costs no measurable FPS; for Windows 10 see above.
+- **Can't find the window?** Start YapTracker again: the running window comes to the screen your mouse is on. If your screens changed since last time (one moved, unplugged or switched off), YapTracker opens on the main screen.
 - Windows only.
 
 ## License
