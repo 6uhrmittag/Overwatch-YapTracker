@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 from yaptracker.capture.black import SCREEN_SAY, STALLED_SAY, BlackPicture, ScreenFallback
-from yaptracker.capture.health import BANNER_AFTER_S, CaptureHealth
+from yaptracker.capture.health import BANNER_AFTER_S, RECONNECT_S, CaptureHealth
 from yaptracker.capture.source import Frame
 from yaptracker.capture.watcher import FAST_TRIES, CaptureWatcher
 from yaptracker.store.repo import Store
@@ -237,3 +237,41 @@ def test_overwatch_losing_and_regaining_focus_is_logged(caplog):
         finally:
             watcher.stop()
     assert watcher.focus_note().startswith("focus: lost ") and ", back " in watcher.focus_note()
+
+
+def test_a_session_that_dies_after_each_picture_is_diagnosed_once(store):
+    """Each one-picture session resets the failure count: still one stretch, one sample (#506)."""
+    ended, back = [], []
+    sources = [FakeWgc(1, "ended") for _ in range(3)] + [FakeWgc(1000)]
+    opened, open_source = opener(sources)
+    watcher = CaptureWatcher(lambda: 42, open_source, health=CaptureHealth(store), retry_s=0.01,
+                             on_ended=lambda w, why: ended.append(why),
+                             on_back=lambda: back.append(1))  # fmt: skip
+    watcher.start()
+    try:
+        wait_for(lambda: len(opened) == 4 and opened[3].first_at is not None)
+    finally:
+        watcher.stop()
+    assert ended == ["Windows ended the capture session"] and back == [1]
+
+
+def test_a_late_noticed_loss_still_gets_a_few_seconds_of_reconnecting(store):
+    """A stall is noticed 10 s after the last picture: still "reconnecting" at first (#506)."""
+    now = [1000.0]
+    health = CaptureHealth(store, clock=lambda: now[0])
+    health.frame()
+    now[0] += 10  # the watchdog's 10 s between matches
+    health.lost("no_frames")
+    assert health.state() == "reconnecting" and health.gap.since == 1000.0
+    now[0] += RECONNECT_S
+    assert health.state() == "lost"
+
+
+def test_a_new_launch_doesnt_start_its_gap_at_the_last_evenings_picture(store):
+    now = [1000.0]
+    health = CaptureHealth(store, clock=lambda: now[0])
+    health.frame()
+    health.game_closed()
+    now[0] += 3600
+    health.lost("crash")  # the next launch's first session died before a picture
+    assert health.gap.since == now[0] and health.state() == "reconnecting"

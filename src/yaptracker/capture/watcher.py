@@ -71,6 +71,9 @@ class CaptureWatcher:
         self._in_focus: bool | None = None
         self._focus_lost_at: float | None = None  # wall clock, for the log
         self._focus_back_at: float | None = None
+        # None, "lost" (diagnosed) or "back" (its first picture noted); over after HEALTHY_S of
+        # pictures, so a session that dies after each picture is one stretch, not one a second
+        self._stretch: str | None = None
         self._clock = clock
         self._covered_since: float | None = None  # another window over the chat box (#497)
         self.covered: str | None = None  # what covers it right now, for Live
@@ -127,7 +130,9 @@ class CaptureWatcher:
                 if self._failures:  # it broke and then the game went: no more loss
                     self._game_closed()
                 self.state, self._failures, self._front_failures = "waiting", 0, 0
+                self.last_error = self._stretch = None  # the next launch starts afresh
                 self._focus_window = self._in_focus = None
+                self._focus_lost_at = self._focus_back_at = None
                 self._stop.wait(self._poll_s)
                 continue
             try:
@@ -151,8 +156,10 @@ class CaptureWatcher:
                 continue
             self._health_call("lost", reason)
             self._failures += 1
-            if self._failures == 1:  # the first loss of a stretch: what was going on (#506)
-                self._diagnose(window, self.last_error or "Windows ended the capture session")
+            if self._stretch is None:  # the first loss of a stretch: what was going on (#506)
+                self._stretch = "lost"
+                ended = "Windows ended the capture session"  # last_error may be older
+                self._diagnose(window, ended if reason == "window_lost" else self.last_error or "")
             self._failing(window, lived=self._clock() - self._opened_at)
             self._stop.wait(self._retry_wait())
 
@@ -299,11 +306,12 @@ class CaptureWatcher:
                     self._on_signals(frame)
                 if self._reopen.is_set():
                     break
-                if self._failures:  # pictures again after a lost stretch (#506)
+                if self._stretch == "lost":  # pictures again after a lost stretch (#506)
+                    self._stretch = "back"
                     self._back()
                 self.last_error, self._failures = None, 0
                 if self._clock() - self._opened_at >= HEALTHY_S:
-                    self._front_failures = 0
+                    self._front_failures, self._stretch = 0, None
                 paused = self._paused()
                 if paused != was_paused:
                     self._health_call("paused", paused)

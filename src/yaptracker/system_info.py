@@ -293,7 +293,7 @@ def window_state(hwnd: int | None) -> str:
         minimised = "minimised" if user32.IsIconic(hwnd) else "not minimised"
         front = "in front" if in_front(hwnd) else "not in front"
         return f"{line}, {minimised}, {front}, DPI {user32.GetDpiForWindow(hwnd)}"
-    except OSError as error:
+    except Exception as error:  # e.g. no GetDpiForWindow: still the log line
         return f"window: unknown ({error})"
 
 
