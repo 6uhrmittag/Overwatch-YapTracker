@@ -74,8 +74,9 @@ def rel(tag, *bullets, pre=True, draft=False):
     return {"tag_name": tag, "prerelease": pre, "draft": draft, "body": body}
 
 
-def test_a_stable_release_gathers_its_test_versions_and_names_its_build():
-    """#454: v1.1.0 is v1.1.0-pre.512 again; its notes are everything since v1.0.0."""
+def test_a_stable_release_gathers_its_test_versions_without_a_same_build_line():
+    """#454: v1.1.0 is v1.1.0-pre.512's commit; its notes are everything since v1.0.0. No "Same
+    build as" line (#514): installs of v1.1.0-pre.512 must be offered the stamped v1.1.0."""
     releases = [
         rel("v1.1.0-pre.513", "Too new: not in this build."),
         rel("v1.1.0-pre.512", "Snaps get a frame.", "Behind the scenes: tests."),
@@ -92,11 +93,11 @@ def test_a_stable_release_gathers_its_test_versions_and_names_its_build():
         "- Search is faster.",
         "- (+ 1 behind-the-scenes change)",
     ]
-    assert "Same build as v1.1.0-pre.512 · [All changes since v1.0.0](https://github.com/o/r/" \
-        "compare/v1.0.0...v1.1.0-pre.512)" in text  # fmt: skip
+    assert text.rstrip().endswith("[All changes since v1.0.0](https://github.com/o/r/compare/"
+                                  "v1.0.0...v1.1.0-pre.512)")  # fmt: skip
     from yaptracker.updates import SAME_BUILD
 
-    assert SAME_BUILD.search(text)[1] == "1.1.0-pre.512"  # what the app reads back
+    assert not SAME_BUILD.search(text)
 
 
 def test_the_first_stable_release_takes_every_v0_build_before_it(tmp_path):
@@ -107,7 +108,8 @@ def test_the_first_stable_release_takes_every_v0_build_before_it(tmp_path):
                           "--releases", str(tmp_path / "releases.json"), "--repo", "o/r"],
                          capture_output=True, text=True, check=True).stdout  # fmt: skip
     assert "- Ready.\n- Early.\n" in out and "Later." not in out
-    assert out.rstrip().endswith("Same build as v0.5.512")
+    assert "Same build as" not in out  # #514: the stamped build is offered to v0.5.512 installs
+    assert out.rstrip().endswith("your data stays where it is.")
 
 
 def test_a_long_stretch_of_test_versions_is_capped():

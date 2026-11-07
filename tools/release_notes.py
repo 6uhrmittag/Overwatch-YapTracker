@@ -8,8 +8,8 @@ CI's release job runs it; one merge to main is one release.
 pr.json: GitHub's pull request of the release commit ({"number", "title", "body", "html_url"}),
 or null for a commit pushed without a PR.
 
-A stable release (#454) is a tested pre-release published again, the same zip. Its notes gather
-the bullets of every pre-release since the last stable one and name the build it is:
+A stable release (#454, #514) is the tested pre-release's commit built again with the stable
+version stamped in. Its notes gather the bullets of every pre-release since the last stable one:
 
     python tools/release_notes.py --stable 1.1.0 --from v1.1.0-pre.512 \
         --releases releases.json --repo owner/name > notes.md
@@ -63,8 +63,9 @@ def _version(tag: str | None) -> tuple | None:
 
 def stable_notes(releases: list[dict], build: str, stable: str, repo: str) -> str:
     """What's new in a stable release: the bullets of the pre-releases since the last stable one
-    up to the build, newest first, repeats once, "behind the scenes" counted. The last line says
-    which build it is: the app and update.ps1 take that build as up to date with it."""
+    up to the build, newest first, repeats once, "behind the scenes" counted. No "Same build as"
+    line any more (#514): the stable build is its own, so installs of the pre-release are offered
+    it; the app and update.ps1 still read that line in older releases."""
     mine = _version(build)
     listed = [r for r in releases if not r.get("draft") and _version(r.get("tag_name"))]
     before = [r for r in listed if not r.get("prerelease") and _version(r["tag_name"]) < mine]
@@ -90,12 +91,10 @@ def stable_notes(releases: list[dict], build: str, stable: str, repo: str) -> st
     if behind:
         bullets.append(f"- (+ {behind} behind-the-scenes change{'s' if behind != 1 else ''})")
     lines = ["### What's new", *(bullets or ["- Behind the scenes: small fixes."]), "", UPDATE, ""]
-    links = [f"Same build as {build}"]
     if last:
-        links.append(f"[All changes since {last['tag_name']}](https://github.com/{repo}/compare/"
+        lines.append(f"[All changes since {last['tag_name']}](https://github.com/{repo}/compare/"
                      f"{last['tag_name']}...{build})")  # fmt: skip
-    lines.append(" · ".join(links))
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def main() -> None:

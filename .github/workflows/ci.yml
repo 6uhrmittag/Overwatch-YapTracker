@@ -4,9 +4,21 @@ on:
   pull_request:
   push:
     branches: [main]
+  # A stable release (#514): the promote workflow runs this whole CI at the tested pre-release's
+  # commit, with the stable version stamped into the app. No pre-release is published then.
+  workflow_call:
+    inputs:
+      ref:
+        description: "The commit to build: the tested pre-release's"
+        type: string
+        required: true
+      version:
+        description: "The stable version to stamp in, e.g. 1.0.0"
+        type: string
+        required: true
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -26,6 +38,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}  # empty outside the promote workflow: the usual commit
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -49,6 +63,8 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}  # empty outside the promote workflow: the usual commit
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -71,6 +87,8 @@ jobs:
         shell: pwsh
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}  # empty outside the promote workflow: the usual commit
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -81,8 +99,9 @@ jobs:
       - name: Set version
         id: version
         run: |
-          $version = if ($env:NEXT_VERSION) { "$env:NEXT_VERSION-pre.${{ github.run_number }}" } else { "0.$env:MILESTONE.${{ github.run_number }}" }
-          if ("${{ github.event_name }}" -eq "pull_request") { $version += "+pr${{ github.event.number }}" }
+          $stable = "${{ inputs.version }}"  # the promote workflow's stamped stable build (#514)
+          $version = if ($stable) { $stable } elseif ($env:NEXT_VERSION) { "$env:NEXT_VERSION-pre.${{ github.run_number }}" } else { "0.$env:MILESTONE.${{ github.run_number }}" }
+          if (-not $stable -and "${{ github.event_name }}" -eq "pull_request") { $version += "+pr${{ github.event.number }}" }
           Set-Content src/yaptracker/_version.py "__version__ = `"$version`""
           "VERSION=$version" >> $env:GITHUB_ENV
           "version=$version" >> $env:GITHUB_OUTPUT
@@ -118,6 +137,12 @@ jobs:
           if (Select-String -Path "$env:LOCALAPPDATA/YapTracker/data/logs/yaptracker.log" -Pattern 'Traceback|ERROR' -Quiet) {
             throw 'the app logged an error (see app log above)'
           }
+      - name: A stable build says its version and collects no debug samples (#514)
+        if: inputs.version
+        run: |
+          $log = Get-Content "$env:LOCALAPPDATA/YapTracker/data/logs/yaptracker.log" -Raw
+          if ($log -notmatch [regex]::Escape("YapTracker v$env:VERSION |")) { throw "the app doesn't say v$env:VERSION" }
+          if ($log -notmatch 'debug samples off') { throw 'debug samples are on by default in a stable release' }
       - name: Window got the YapTracker icon
         run: |
           if (Select-String -Path "$env:LOCALAPPDATA/YapTracker/data/logs/yaptracker.log" -Pattern 'Could not set native' -Quiet) {
