@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.1: on the way to v1.1.0
 
+### 2026-11-07 · Look who's back: a slim strip instead of the big card (#518)
+- "Look who's back!" is now one slim strip above the chat: a chip per familiar face (name, verdict, last seen, the first words of your notes). It never grows, so the chat never jumps.
+- No more "Got it": the chips stay for the match and clear themselves when the next one starts. Click a chip for the full card; Esc or a click outside closes it.
+- Nope players show up as a red chip in the same strip.
+
 ### 2026-11-07 · Change notes without conflicts (#494)
 - Behind the scenes: each change brings its own note file, and the pre-release puts them into the changelog, so changes waiting in line don't block each other any more.
 
