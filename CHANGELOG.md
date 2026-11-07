@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v0.5: on the way to v1.0
 
+### 2026-11-06 · Real-names check knows the word "Dark" (#511)
+- Behind the scenes: the check that keeps real player names out of the code no longer mistakes the word "Dark" for a player.
+
 ### 2026-11-06 · Profiles and "Look who was there!" cards say when chat is still being read (#502)
 - A player's profile shows "Still reading · N pictures left" next to a match whose chat is still being read, and says that more of their lines may show up. Both go away once it's read.
 - A familiar-face card for someone heard in a match that's still being read shows the same badge under "matches together".

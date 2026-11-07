@@ -18,6 +18,7 @@ DEBUG = "/mnt/c/Users/*/AppData/Local/YapTracker/data/debug/*/*-chat/sample.json
 SURE = 0.95  # garbled readings of cut lines are not names anyone could find
 WORDS = {"Match", "Team", "Group", "System", "Report", "Zero"}  # read as names, are words
 WORDS |= {"Copy", "final"}  # players named like words: in our code they're the words (#369)
+WORDS |= {"Dark"}  # "dark ground", "Dark Mode": the word, not the player (#511)
 _NAME = re.compile(r"^\[([^\]\s]{4,})\]|^([^\s\[\]()]{4,})\s*\(")
 GAME_LISTS = ROOT / "src" / "yaptracker" / "data" / "game_lists.json"
 
