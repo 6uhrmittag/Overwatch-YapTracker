@@ -256,7 +256,9 @@ Marv, 2026-10-16 (#454):
   (e.g. v1.1.0-pre.512). Before v1.0.0 they stay `v0.<MILESTONE>.<run>`; after it, set
   `NEXT_VERSION` in `ci.yml`.
 - A stable release = promoting a tested pre-release (milestone closed + one real evening on it with
-  nothing new). Same build, no rebuild (workflow "Promote pre-release to stable"). No release branches.
+  nothing new). Since #514 (Marv, 2026-11-07): a **stamped rebuild** of the tested pre-release's commit,
+  the stable version in `_version.py`, full CI on it; refused if the code differs (only tests, docs and
+  CHANGELOG may), no "Same build as" line (workflow "Promote pre-release to stable"). No release branches.
 - The app and `update.ps1` get stable releases by default; test versions (pre-releases) only with
   Settings → About → "Get test versions" or `update.ps1 -PreRelease`.
 - You never publish a stable release on your own: promoting is Marv's call (one line from him is enough).

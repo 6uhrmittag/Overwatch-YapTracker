@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.1: on the way to v1.1.0
 
+### 2026-11-07 · Release policy: stable releases are stamped rebuilds (#514)
+- Behind the scenes: the project's release rules and decision log now describe how stable releases are built.
+
 ### 2026-11-07 · Stable releases say their own version (#514)
 - A stable release is now the tested test version's code built again with the stable version inside, so About says "v1.0.0" and it collects no debug samples by default. Installs of that test version are offered the stable one.
 
