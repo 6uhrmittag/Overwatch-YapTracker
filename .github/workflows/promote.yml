@@ -1,8 +1,13 @@
 name: Promote pre-release to stable
-# A stable release is a tested pre-release published again as it is (#454): the same zip, the
-# same build, no rebuild, no release branch. Promoting is Marv's call (CLAUDE.md -> Release
-# policy). Dry run by default: it shows the zip, the notes and the command, and publishes nothing.
-# A PR that changes this file or the notes script runs it as a dry run on the newest pre-release.
+# A stable release is a stamped rebuild of the tested pre-release (#514): the exact commit that
+# pre-release was built from, built again by the whole CI with the stable version in _version.py,
+# so the app says "1.0.0" and behaves like a stable release (no debug samples by default). No code
+# may change between the two: a later commit is only allowed when it differs in tests, docs and
+# CHANGELOG. Promoting is Marv's call (CLAUDE.md -> Release policy). Dry run by default: it builds
+# and checks the zip and keeps it as an artifact, shows the notes and the command, and publishes
+# nothing. A PR that changes this file, ci.yml or the notes script runs it as a dry run on the
+# newest pre-release. The build runs today's ci.yml on the tested commit's files, so promote a
+# recent pre-release (one whose Windows tests ci.yml still names).
 on:
   workflow_dispatch:
     inputs:
@@ -12,37 +17,47 @@ on:
       version:
         description: "The stable version it becomes, e.g. 1.0.0"
         required: true
+      commit:
+        description: "Build this commit instead (only tests, docs and CHANGELOG may differ). Empty: the pre-release's own"
+        required: false
+        default: ""
       dry_run:
-        description: "Only show what would be published"
+        description: "Only build, check and show what would be published"
         type: boolean
         default: true
   pull_request:
-    paths: [.github/workflows/promote.yml, tools/release_notes.py]
+    paths: [.github/workflows/promote.yml, .github/workflows/ci.yml, tools/release_notes.py]
 
 concurrency:
-  group: promote
+  group: promote  # one promotion at a time, from whichever branch
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  promote:
-    name: Promote ${{ inputs.pre_release || 'the newest pre-release' }} to v${{ inputs.version || '1.0.0' }}${{ (github.event_name == 'pull_request' || inputs.dry_run) && ' (dry run)' || '' }}
+  check:
+    name: Check what to promote
     runs-on: ubuntu-latest
+    outputs:
+      pre: ${{ steps.check.outputs.pre }}
+      commit: ${{ steps.check.outputs.commit }}
+      version: ${{ steps.check.outputs.version }}
     env:
       GH_TOKEN: ${{ github.token }}
       PRE: ${{ inputs.pre_release }}
       VERSION: ${{ inputs.version || '1.0.0' }}
+      COMMIT: ${{ inputs.commit }}
       DRY_RUN: ${{ github.event_name == 'pull_request' || inputs.dry_run }}
     steps:
       - uses: actions/checkout@v7
-      - name: Check what to promote
+        with:
+          fetch-depth: 0  # the diff between the pre-release's commit and the one to build
+      - id: check
         run: |
           if [ -z "$PRE" ]; then  # a PR's dry run: the newest pre-release
             PRE=$(gh release list -R "$GITHUB_REPOSITORY" --limit 20 --json tagName,isPrerelease \
               --jq '[.[] | select(.isPrerelease)][0].tagName')
-            echo "PRE=$PRE" >> "$GITHUB_ENV"
           fi
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version must look like 1.0.0, got '$VERSION'"; exit 1; }
           if [ "$(gh release view "$PRE" -R "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)" != "true" ]; then
@@ -52,13 +67,61 @@ jobs:
              || gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" > /dev/null 2>&1; then
             if [ "$DRY_RUN" = "true" ]; then echo "::warning::v$VERSION exists already"; else echo "::error::v$VERSION exists already"; exit 1; fi
           fi
-          echo "Promoting $PRE to v$VERSION (dry run: $DRY_RUN)"
-      - name: The same zip, under the stable name
+          tested=$(gh api "repos/$GITHUB_REPOSITORY/commits/$PRE" --jq .sha)
+          commit=$tested
+          if [ -n "$COMMIT" ]; then
+            commit=$(git rev-parse --verify "$COMMIT^{commit}") || { echo "::error::no commit '$COMMIT'"; exit 1; }
+            git merge-base --is-ancestor "$tested" "$commit" \
+              || { echo "::error::$commit doesn't come after $PRE ($tested)"; exit 1; }
+            # Not tests, docs or CHANGELOG: then it isn't the tested app any more.
+            changed=$(git diff --name-only "$tested" "$commit" \
+              | grep -Ev '^(tests|docs)/|^(CHANGELOG|CLAUDE|README)\.md$' || true)
+            if [ -n "$changed" ]; then
+              echo "::error::$commit changes more than tests, docs and CHANGELOG since $PRE ($tested): $(tr '\n' ' ' <<< "$changed")"
+              exit 1
+            fi
+          fi
+          echo "Promoting $PRE ($tested) to v$VERSION, built from $commit (dry run: $DRY_RUN)"
+          { echo "pre=$PRE"; echo "commit=$commit"; echo "version=$VERSION"; } >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Stamped build
+    needs: check
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.check.outputs.commit }}
+      version: ${{ needs.check.outputs.version }}
+    permissions:
+      contents: write  # ci.yml's pre-release job asks for these; it never runs from here
+      pull-requests: read
+
+  promote:
+    name: Promote ${{ needs.check.outputs.pre }} to v${{ needs.check.outputs.version }}${{ (github.event_name == 'pull_request' || inputs.dry_run) && ' (dry run)' || '' }}
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRE: ${{ needs.check.outputs.pre }}
+      COMMIT: ${{ needs.check.outputs.commit }}
+      VERSION: ${{ needs.check.outputs.version }}
+      DRY_RUN: ${{ github.event_name == 'pull_request' || inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: YapTracker-${{ env.VERSION }}-win64
+          path: app
+      - name: Zip the stamped app
         run: |
-          gh release download "$PRE" -R "$GITHUB_REPOSITORY" -p 'YapTracker-*-win64.zip' -D pre
-          zip=$(ls pre/YapTracker-*-win64.zip)
-          cp "$zip" "YapTracker-$VERSION-win64.zip"
-          sha256sum "$zip" "YapTracker-$VERSION-win64.zip"  # the same bytes
+          (cd app && zip -qr "../YapTracker-$VERSION-win64.zip" .)
+          sha256sum "YapTracker-$VERSION-win64.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: YapTracker-${{ env.VERSION }}-win64.zip
+          path: YapTracker-${{ env.VERSION }}-win64.zip
+          retention-days: 14
       - name: Notes (every test version since the last stable release)
         run: |
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > releases.json
@@ -67,12 +130,11 @@ jobs:
           cat notes.md
       - name: Publish
         run: |
-          commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/$PRE" --jq .sha)
           cmd=(gh release create "v$VERSION" "YapTracker-$VERSION-win64.zip" -R "$GITHUB_REPOSITORY"
-               --target "$commit" --title "YapTracker $VERSION" --notes-file notes.md --latest)
+               --target "$COMMIT" --title "YapTracker $VERSION" --notes-file notes.md --latest)
           echo "${cmd[*]}"
           if [ "$DRY_RUN" = "true" ]; then
-            echo "Dry run: nothing published."
+            echo "Dry run: nothing published. The zip is this run's artifact."
           else
             "${cmd[@]}"
           fi

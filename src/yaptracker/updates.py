@@ -5,8 +5,9 @@ one GET of the repo's release list, nothing sent but the request. On by default,
 Settings -> About. Never during a match: it waits until the match is over. Offline or rate
 limited: one log line, the next try a day later. Stable releases only, unless "Get test
 versions" is on (#454), or no stable release exists yet (before v1.0.0 every build was a
-pre-release). A stable release is a promoted pre-release, the same build: the promote workflow
-writes "Same build as v1.1.0-pre.512" in its notes, and that build counts as up to date with it.
+pre-release). Older stable releases were a promoted pre-release, the same build, with "Same build
+as v1.1.0-pre.512" in their notes: that build counts as up to date with it. Since #514 a stable
+release is a stamped rebuild without that line, so the pre-release's installs are offered it.
 
 Update now runs the update.ps1 bundled with the app (the same script as by hand): from %TEMP%,
 since the app folder is replaced, in its own console with the download bar. YapTracker quits;
@@ -72,8 +73,9 @@ def candidates(releases: list[dict], installed: str, test_versions: bool = False
 
 
 def newer(release: dict, installed: str) -> bool:
-    """A later version than the installed one, and not the very build that runs (a promoted
-    stable release has the pre-release's build inside, with its version)."""
+    """A later version than the installed one, and not the very build that runs (older stable
+    releases were the promoted pre-release's build, named in a "Same build as" line; since #514
+    a stable release is a stamped rebuild without one)."""
     same = SAME_BUILD.search(release.get("body") or "")
     if same and version(same[1]) == version(installed):
         return False
