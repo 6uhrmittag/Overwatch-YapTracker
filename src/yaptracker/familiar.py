@@ -69,12 +69,10 @@ class FamiliarFaces:
         spellings = [player.display_name, *self._store.aliases(player_id)]
         if any(identity.role(name) is not None for name in spellings):
             return None  # me, or my crew, under any spelling I read (#168)
-        matches, yaps, last_met, spicy = self._store.met_before(player_id, match_id)
-        if matches == 0:
+        card = card_for(self._store, player_id, match_id, self._clock(), after)
+        if card is None or card.matches == 0:
             return None  # first time you meet them: nothing to greet yet
-        note = (player.notes or "").strip().splitlines()
-        card = Card(player_id, player.display_name, player.verdict, note[0] if note else "",
-                    matches, yaps, last_met, self._clock(), spicy, after, match_id)  # fmt: skip
+        last_met = card.last_met
         with self._lock:
             self._cards = [c for c in self._cards if c.player_id != player_id] + [card]
         met = time.strftime("%Y-%m-%d", time.localtime(last_met)) if last_met else "?"
@@ -92,3 +90,16 @@ class FamiliarFaces:
         one stays; whoever writes again gets a fresh card, it's a new match."""
         with self._lock:
             self._cards = [c for c in self._cards if c.match_id == match_id]
+
+
+def card_for(
+    store: Store, player_id: int, match_id: int | None, shown_at: float = 0.0, after: bool = False
+) -> Card | None:
+    """What you know about a player, seen from this match: the card's contents (#26, #519)."""
+    player = store.player(player_id)
+    if player is None:
+        return None
+    matches, yaps, last_met, spicy = store.met_before(player_id, match_id)
+    note = (player.notes or "").strip().splitlines()
+    return Card(player_id, player.display_name, player.verdict, note[0] if note else "", matches,
+                yaps, last_met, shown_at, spicy, after, match_id)  # fmt: skip

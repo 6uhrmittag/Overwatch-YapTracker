@@ -49,7 +49,7 @@ class FacesStrip:
                 more.props(f'type="button" aria-label="{len(rest)} more familiar faces"')
                 with more.mark("faces-more"):
                     ui.label(f"+{len(rest)}")
-                    with _popover(more):
+                    with popover(more):
                         for card in rest:
                             face_card(card, lambda pid=card.player_id: self._on_open(pid))
 
@@ -64,15 +64,17 @@ class FacesStrip:
             ui.label(f"last seen {when(card.last_met)}").classes("yt-face-chip-meta")
             if card.note:
                 ui.label(f"“{card.note}”").classes("yt-face-chip-meta yt-face-chip-note")
-            with _popover(chip):
+            with popover(chip):
                 face_card(card, lambda: self._on_open(card.player_id))
 
 
-def _popover(anchor: ui.element) -> ui.menu:
-    """The full card under a chip; Esc or a click outside closes it (Quasar's menu)."""
+def popover(anchor: ui.element | None) -> ui.menu:
+    """The full card under a chip or a name mark (#519); Esc or a click outside closes it
+    (Quasar's menu). anchor: opens on its click; None: the caller opens it."""
     menu = ui.menu().props("no-parent-event anchor='bottom left' self='top left'")
     menu.classes("yt-face-pop").mark("face-pop")
-    anchor.on("click", menu.open)
+    if anchor is not None:
+        anchor.on("click", menu.open)
     return menu
 
 
