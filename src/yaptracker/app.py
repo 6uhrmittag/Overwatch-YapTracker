@@ -479,11 +479,12 @@ def _open_store() -> Callable[[], None]:
             runtime.evenings.backfill()
         except Exception:
             log.exception("filling in the evenings failed")
+        runtime.familiar = FamiliarFaces(runtime.store, config.identity)
         runtime.matches = MatchTracker(runtime.store, runtime.pause, on_missed_end=missed_end,
                                        on_missed_start=missed_start,
-                                       on_session_end=runtime.evenings.record)  # fmt: skip
+                                       on_session_end=runtime.evenings.record,
+                                       on_match_start=runtime.familiar.match_started)  # fmt: skip
         runtime.health = CaptureHealth(runtime.store)
-        runtime.familiar = FamiliarFaces(runtime.store, config.identity)
         runtime.players = PlayerMatcher(
             runtime.store,
             config.identity,

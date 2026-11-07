@@ -237,8 +237,25 @@ html, body { background: var(--yt-night); }
   .yt-their-yaps { display: flex; flex-direction: column; gap: 8px; }
   .yt-their-yap--callout { opacity: .6; font-size: 14px; }  /* comms wheel (#182) */
 
-  /* Familiar faces (#26, Live mockup): impossible to miss on a second monitor */
-  .yt-faces { display: flex; flex-direction: column; gap: 14px; }
+  /* Look who's back! (#26, #518): one slim strip above the chat. Its height never changes, so the
+     chat never moves; loud by colour and one pulse, not by size. A chip opens the full card. */
+  .yt-strip { flex: none; box-sizing: border-box; height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 8px 0 16px; border-radius: 16px; background: var(--yt-panel); border: 1px solid var(--yt-line); overflow: hidden; }
+  .yt-strip-label { flex: none; font: 800 italic 19px var(--yt-display); letter-spacing: .5px; text-transform: uppercase; color: var(--yt-accent); white-space: nowrap; }
+  .yt-strip-chips { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; overflow: hidden; }
+  .yt-strip-empty { min-width: 0; font-size: 15px; font-weight: 700; color: var(--yt-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .yt-face-chip { flex: 0 1 auto; min-width: 0; max-width: 480px; height: 38px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px 0 12px; border-radius: 999px; border: 2px solid var(--yt-accent); background: var(--yt-panel-raised); color: var(--yt-text); font: 700 14px var(--yt-body); white-space: nowrap; overflow: hidden; cursor: pointer; }
+  .yt-face-chip:hover, .yt-face-chip:focus-visible { background: #2a303d; }
+  .yt-face-chip-name { flex: 0 1 auto; min-width: 4ch; max-width: 16ch; font: 800 18px/1 var(--yt-display); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; }
+  .yt-face-chip-meta { flex: 0 1 auto; min-width: 0; font-size: 13px; color: var(--yt-text-soft); overflow: hidden; text-overflow: ellipsis; }
+  .yt-face-chip-note { flex: 0 100 auto; min-width: 3ch; color: var(--yt-muted); }  /* shrinks first */
+  .yt-face-chip--avoid { border-color: var(--yt-danger); background: #2b1214; }
+  .yt-face-chip--more { flex: none; padding: 0 12px; border-color: var(--yt-line-strong); color: var(--yt-muted); font-weight: 800; }
+  .yt-face-chip--new { animation: yt-chip-in .45s ease-out, yt-pulse-orange 1.4s ease-out .45s 1; }
+  .yt-face-chip--avoid.yt-face-chip--new { animation: yt-chip-in .45s ease-out, yt-pulse-red 1.4s ease-out .45s 1; }
+  .yt-sticker--mini { flex: none; gap: 3px; padding: 1px 7px 1px 5px; border-width: 1.5px; font-size: 11px; box-shadow: none; }
+  .yt-sticker--mini svg { width: 12px; height: 12px; }
+  .yt-face-pop { width: min(440px, calc(100vw - 32px)); background: transparent; box-shadow: none; overflow: visible; }
+  .yt-face-pop .yt-face { margin: 6px 0; animation: none; }
   /* Sessions (#29) */
   .yt-outcome { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
   .yt-outcome--victory { background: #1c2a22; color: var(--yt-ok); }
@@ -396,15 +413,16 @@ html, body { background: var(--yt-night); }
   }
   @media (max-width: 1099px) {
     .yt-columns { flex: none; flex-direction: column; }
-    .yt-aside { display: contents; }  /* its cards join the column: faces on top, Who's that? last */
-    .yt-faces { order: -1; }
+    .yt-aside { display: contents; }  /* its cards join the column, Who's that? last */
+    .yt-face-chip-meta { display: none; }  /* name + sticker only (#518) */
+    .yt-face-chip-name { flex: none; }
+    .yt-face-chip .yt-sticker--mini > div:last-child { display: none; }  /* its icon: colour and shape */
     .yt-aside > .yt-grow { display: none; }
     .yt-card--chat { height: 60vh; min-height: 360px; flex-grow: 0; }
     .yt-profile-yaps { width: auto; }
     .yt-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .yt-yapper { flex-wrap: wrap; row-gap: 4px; }
     .yt-yapper > .yt-meta { order: 10; flex-basis: 100%; }
-    .yt-faces > * + * { display: none; }  /* the newest card only: the chat stays in view */
     .yt-crew-lists { grid-template-columns: minmax(0, 1fr); }
   }
   /* Quick fixes on a line (#227): shown on hover, at the line's right end */
@@ -457,6 +475,17 @@ html, body { background: var(--yt-night); }
   0% { box-shadow: 0 0 0 0 rgba(255, 156, 42, .55); }
   70% { box-shadow: 0 0 0 8px rgba(255, 156, 42, 0); }
   100% { box-shadow: 0 0 0 0 rgba(255, 156, 42, 0); }
+}
+
+@keyframes yt-pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(255, 92, 102, .6); }
+  70% { box-shadow: 0 0 0 8px rgba(255, 92, 102, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 92, 102, 0); }
+}
+
+@keyframes yt-chip-in {
+  from { transform: translateX(-14px); opacity: 0; }
+  to { transform: none; opacity: 1; }
 }
 
 @keyframes yt-march { to { stroke-dashoffset: calc(-1 * var(--yt-dash)); } }
