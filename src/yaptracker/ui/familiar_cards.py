@@ -1,5 +1,10 @@
-"""The "Look who's back!" cards in Live (#26, docs/ui/mockup/Live): the loudest thing in the app,
-so it can't be missed on a second monitor. Nope players get a compact red card instead."""
+""" "Look who's back!" in Live (#26, #518): one slim strip above the chat, a chip per familiar face.
+
+The strip never changes its height (empty, it says what will show up), so the chat never moves;
+loud by colour and one pulse, not by size. Chips stay for the match and clear themselves when
+the next one starts: nothing to click in a match. A chip opens the full card as a popover
+(Esc or a click outside closes it). Nope players get a red chip in the same strip.
+"""
 
 from collections.abc import Callable
 
@@ -10,16 +15,75 @@ from yaptracker.familiar import Card
 from yaptracker.ui import backlog
 from yaptracker.ui.components import button, count, spicy_mark, sticker, when
 
+CHIPS = 3  # more than fit -> a "+N" chip with the rest
+EMPTY = "Familiar faces show up here."
 
-def familiar_card(card: Card, on_open: Callable[[], None], on_dismiss: Callable[[], None]) -> None:
+
+class FacesStrip:
+    """The strip; show(cards) redraws it when the faces change."""
+
+    def __init__(self, on_open: Callable[[int], None]) -> None:
+        self._on_open = on_open
+        self._shown: list[tuple[int, float]] | None = None
+        self._ids: set[int] = set()
+        with ui.element("div").classes("yt-strip").mark("faces") as self.element:
+            ui.label("Look who's back!").classes("yt-strip-label")
+            self._chips = ui.element("div").classes("yt-strip-chips")
+
+    def show(self, cards: list[Card]) -> None:
+        key = [(c.player_id, c.shown_at) for c in cards]
+        if key == self._shown:
+            return
+        self._shown = key
+        new = {c.player_id for c in cards} - self._ids
+        self._ids = {c.player_id for c in cards}
+        self._chips.clear()
+        with self._chips:
+            if not cards:
+                ui.label(EMPTY).classes("yt-strip-empty").mark("faces-empty")
+            for card in cards[:CHIPS]:
+                self._chip(card, card.player_id in new)
+            rest = cards[CHIPS:]
+            if rest:
+                more = ui.element("button").classes("yt-face-chip yt-face-chip--more")
+                more.props(f'type="button" aria-label="{len(rest)} more familiar faces"')
+                with more.mark("faces-more"):
+                    ui.label(f"+{len(rest)}")
+                    with _popover(more):
+                        for card in rest:
+                            face_card(card, lambda pid=card.player_id: self._on_open(pid))
+
+    def _chip(self, card: Card, new: bool) -> None:
+        kind = " yt-face-chip--avoid" if card.verdict == "avoid" else ""
+        pulse = " yt-face-chip--new" if new else ""
+        chip = ui.element("button").classes(f"yt-face-chip{kind}{pulse}").props('type="button"')
+        with chip.mark("face-avoid-chip" if kind else "face-chip"):
+            ui.label(card.name).classes("yt-face-chip-name")
+            if card.verdict:
+                sticker(card.verdict).classes("yt-sticker--mini")
+            ui.label(f"last seen {when(card.last_met)}").classes("yt-face-chip-meta")
+            if card.note:
+                ui.label(f"“{card.note}”").classes("yt-face-chip-meta yt-face-chip-note")
+            with _popover(chip):
+                face_card(card, lambda: self._on_open(card.player_id))
+
+
+def _popover(anchor: ui.element) -> ui.menu:
+    """The full card under a chip; Esc or a click outside closes it (Quasar's menu)."""
+    menu = ui.menu().props("no-parent-event anchor='bottom left' self='top left'")
+    menu.classes("yt-face-pop").mark("face-pop")
+    anchor.on("click", menu.open)
+    return menu
+
+
+def face_card(card: Card, on_open: Callable[[], None]) -> None:
+    """The full card: everything you know, "Open profile". Nope players: a red heads-up."""
     met = f"Last seen {when(card.last_met)}"
     if card.verdict == "avoid":  # heads-up, not a welcome
         with ui.element("article").classes("yt-face yt-face--avoid").mark("face-avoid") as face:
             with ui.element("div").classes("yt-grow"):
                 ui.label(card.name).classes("yt-face-name yt-face-name--small")
-                ui.label(f"{met} \u00b7 \u201c{card.note}\u201d" if card.note else met).classes(
-                    "yt-meta"
-                )
+                ui.label(f"{met} · “{card.note}”" if card.note else met).classes("yt-meta")
             sticker("avoid")
         face.on("click", on_open)
         return
@@ -33,17 +97,16 @@ def familiar_card(card: Card, on_open: Callable[[], None], on_dismiss: Callable[
                     sticker(card.verdict)
             together = count(card.matches, "match", "matches")
             with ui.element("div").classes("yt-row yt-row--wrap"):
-                ui.label(f"{met} \u00b7 {together} together \u00b7 "
+                ui.label(f"{met} · {together} together · "
                          f"{count(card.yaps, 'yap', 'yaps')}").classes("yt-face-meta")  # fmt: skip
                 if card.match_id is not None:  # its match still being read: not final (#502)
                     backlog.follow({card.match_id: backlog.badge_label()}, backlog.badge)
             if card.note:
-                ui.label(f"\u201c{card.note}\u201d").classes("yt-face-note")
+                ui.label(f"“{card.note}”").classes("yt-face-note")
             if card.spicy:
                 _heads_up(card)
             with ui.element("div").classes("yt-row"):
                 button("Open profile", on_open, "primary").mark("face-open")
-                button("Got it", on_dismiss).mark("face-ok")
 
 
 def _heads_up(card: Card) -> None:

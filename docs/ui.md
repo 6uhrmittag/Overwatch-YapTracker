@@ -8,7 +8,7 @@ Mockup sources (HTML with inline styles — read them for exact values):
 
 | File | Screen |
 |---|---|
-| `docs/ui/mockup/Live.dc.html` | Live view during a match, with familiar-face cards |
+| `docs/ui/mockup/Live.dc.html` | Live view during a match, with familiar-face cards (now: the strip above the chat, #518; the card is its popover) |
 | `docs/ui/mockup/Profile.dc.html` | Player profile: verdict stickers, yap-o-meter, notes, their yaps |
 | `docs/ui/mockup/Setup.dc.html` | First start: draw the chat box |
 | `docs/ui/mockup/Kit.dc.html` | Colours, type, buttons, stickers, voice |
@@ -31,8 +31,9 @@ unexpected layouts, hidden controls or clever navigation.
 - **Live is the only screen needed during play.** Everything else is for
   between matches.
 - **Queue test:** every action takes < 10 seconds and ≤ 2 clicks.
-- **Glanceable:** body text ≥ 15 px, names ≥ 16 px bold, the familiar-face card
-  name ≥ 36 px. It sits on a second monitor and is read out of the corner of an eye.
+- **Glanceable:** body text ≥ 15 px, names ≥ 16 px bold. It sits on a second monitor and is
+  read out of the corner of an eye; what must be noticed is loud by colour and motion, never by
+  size or by moving other things (#518).
 - **No settings needed after first start.** The setup wizard (Setup mockup)
   handles calibration; defaults for everything else.
 - **Hotkeys are shown next to the buttons they trigger** (keycap chips).
@@ -136,11 +137,18 @@ Pill shape, 2 px ink-coloured border, uppercase 800 weight, hard shadow
   card says *Last match* after the result, until the next one starts.
 - **Chat line:** time · channel · speaker (bold, channel colour) · text. Known
   players get a 3 px underline in their verdict colour and a faint gold row tint.
-- **Familiar-face card** (the loudest thing in the app): orange banner
-  "LOOK WHO'S BACK!", name ≥ 36 px, verdict sticker, "Last seen … · N matches
-  together · N yaps", first line of notes as a quote, buttons *Open profile* /
-  *Got it*. Avoid-verdict players get a compact card with a red border instead
-  of the banner. New cards stack on top; they fade after ~2 minutes.
+- **"Look who's back!" strip** (the loudest thing in the app, #518): one slim strip right
+  above the chat, always the same height, so the chat never moves. Loudest means **colour and
+  motion, not size**: an orange "LOOK WHO'S BACK!" label and a chip per familiar face, newest
+  first: name · verdict sticker · "last seen …" · first words of the notes; a new chip slides
+  in with one orange pulse (none with reduced motion). More than three → a "+N" chip. Empty, it
+  says "Familiar faces show up here." Nope players get a red chip in the same strip. Narrow
+  window: name + sticker only. No "Got it": chips stay for the match and clear themselves when
+  the next one starts; nothing in a match needs a click.
+- **Familiar-face card:** the full card, opened from a chip as a popover (Esc or a click outside
+  closes it): orange banner "LOOK WHO'S BACK!", name, verdict sticker, "Last seen … · N matches
+  together · N yaps", first line of notes as a quote, *Open profile*. Nope players: a compact
+  card with a red border.
 - **Keycap chip:** small dark rounded label, e.g. `Ctrl Alt F`. Only shown when the user set that hotkey: none are set by default (#328).
 - **Yap-o-meter:** striped orange bar, levels *Silent type · Casual yapper ·
   Certified yapper · Yap lord* (by yaps per match, thresholds are a detail).

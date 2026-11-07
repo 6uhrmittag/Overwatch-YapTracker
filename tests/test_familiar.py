@@ -1,11 +1,14 @@
-"""Familiar faces (#26): a card for people you met before, once per match, never for me/crew."""
+"""Familiar faces (#26, #518): a chip for people you met before, once per match, never for me/crew;
+it stays for the match and clears itself when the next one starts."""
 
 import pytest
 from nicegui.testing import User, user_simulation
 
 from yaptracker import config, runtime
-from yaptracker.familiar import SHOW_S, FamiliarFaces
+from yaptracker.familiar import FamiliarFaces
 from yaptracker.identity import Identity
+from yaptracker.matches import MatchTracker
+from yaptracker.pause import Pause
 from yaptracker.store.repo import Store
 from yaptracker.ui import shell
 
@@ -64,7 +67,7 @@ def test_me_and_my_crew_never_get_a_card(store):
     assert faces.heard(crew, now) is None
 
 
-def test_cards_stack_newest_first_and_fade(store):
+def test_chips_stack_newest_first_stay_and_clear_at_the_next_match(store):
     a, now = met(store, "NoodleBonk", 1)
     b, _ = met(store, "gremlin.exe", 1, "avoid")
     clock = Clock()
@@ -73,9 +76,23 @@ def test_cards_stack_newest_first_and_fade(store):
     clock.now += 10
     faces.heard(b, now)
     assert [c.name for c in faces.active()] == ["gremlin.exe", "NoodleBonk"]
-    faces.dismiss(b)  # "Got it"
+    clock.now += 3600  # no fading, no "Got it": they stay for the whole match
+    assert len(faces.active()) == 2
+    nxt = now + 1
+    faces.heard(a, nxt)  # already heard in the next match before it was noticed: stays
+    faces.match_started(nxt)
     assert [c.name for c in faces.active()] == ["NoodleBonk"]
-    clock.now += SHOW_S
+    faces.match_started(nxt + 1)
+    assert faces.active() == []
+
+
+def test_a_new_match_clears_the_faces_by_itself(store):
+    """The match tracker tells the faces, not the UI: works with the window in the background."""
+    pid, now = met(store, "NoodleBonk", 2)
+    faces = FamiliarFaces(store)
+    tracker = MatchTracker(store, Pause(), on_match_start=faces.match_started)
+    faces.heard(pid, now)
+    tracker.new_match(2000.0, "heroselect", "UNRANKED")
     assert faces.active() == []
 
 
@@ -85,7 +102,11 @@ async def user():
         yield user
 
 
-async def test_live_shows_the_card_and_it_opens_their_profile(user: User, store, monkeypatch):
+def popovers(user: User) -> list:
+    return sorted(user.find(marker="face-pop").elements, key=lambda e: e.id)
+
+
+async def test_a_chip_opens_the_full_card_and_that_their_profile(user: User, store, monkeypatch):
     config.save_setup_state("done")
     pid, now = met(store, "NoodleBonk", 3, "friend", "Hype Lucio.")
     faces = FamiliarFaces(store)
@@ -94,28 +115,34 @@ async def test_live_shows_the_card_and_it_opens_their_profile(user: User, store,
     monkeypatch.setattr(runtime, "familiar", faces)
     await user.open("/")
     await user.should_see("Look who's back!")
-    await user.should_see("NoodleBonk")
+    await user.should_see(marker="face-chip")
+    await user.should_see("“Hype Lucio.”")  # on the chip: the first words of the note
+    assert [m.value for m in popovers(user)] == [False]  # the full card only on a click
+    user.find(marker="face-chip").click()
+    assert [m.value for m in popovers(user)] == [True]
     await user.should_see("3 matches together")
-    await user.should_see("“Hype Lucio.”")
     user.find(marker="face-open").click()
     await user.should_see("Your verdict")  # the profile, from the card
 
 
-async def test_got_it_and_the_compact_nope_card(user: User, store, monkeypatch):
+async def test_quiet_when_empty_red_for_nope_plus_n_and_never_a_got_it(
+    user: User, store, monkeypatch
+):
     config.save_setup_state("done")
-    friend, now = met(store, "NoodleBonk", 1, "friend")
-    nope, _ = met(store, "gremlin.exe", 1, "avoid", "rage-quits in overtime")
     faces = FamiliarFaces(store)
-    faces.heard(friend, now)
-    faces.heard(nope, now)
     monkeypatch.setattr(runtime, "store", store)
     monkeypatch.setattr(runtime, "familiar", faces)
     await user.open("/")
-    await user.should_see(marker="face-avoid")
-    await user.should_see("rage-quits in overtime")
-    user.find(marker="face-ok").click()
-    await user.should_not_see(marker="face-ok")
-    await user.should_see(marker="face-avoid")
+    await user.should_see("Familiar faces show up here.")
+    names = ["NoodleBonk", "gremlin.exe", "Pebble", "Kettle", "Mothball"]
+    for n, name in enumerate(names):
+        pid, now = met(store, name, 1, "avoid" if n == 4 else None)
+        faces.heard(pid, now)
+    await user.should_see(marker="face-avoid-chip")  # the newest, a Nope: red, same strip
+    await user.should_see("+2")  # 3 chips, the rest behind "+2"
+    assert len(user.find(marker="face-chip").elements) == 2
+    await user.should_not_see("Familiar faces show up here.")
+    await user.should_not_see(marker="face-ok")  # no "Got it" any more (#518)
 
 
 def test_never_a_card_for_me_or_crew_under_any_spelling_also_added_later(store):

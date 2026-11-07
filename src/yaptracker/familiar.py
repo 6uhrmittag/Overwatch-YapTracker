@@ -1,8 +1,8 @@
-"""Familiar faces (#26): someone you've played with before types in chat -> a card in Live.
+"""Familiar faces (#26): someone you've played with before types in chat -> a chip in Live.
 
-Decided next to the chat reader, not in the UI, so a card is waiting even if YapTracker's
-window was in the background. One card per player per match; it fades after two minutes or
-when you click "Got it". Me and my crew never get a card (#74).
+Decided next to the chat reader, not in the UI, so a chip is waiting even if YapTracker's
+window was in the background. One per player per match; they stay for the match and clear
+themselves when the next one starts, no click needed (#518). Me and my crew never get one (#74).
 """
 
 import logging
@@ -16,7 +16,6 @@ from yaptracker.store.repo import Store
 
 log = logging.getLogger(__name__)
 
-SHOW_S = 120  # docs/ui.md: cards fade after ~2 minutes
 SEEN_MATCHES = 4  # matches remembered for "one card per player and match"
 
 
@@ -85,11 +84,11 @@ class FamiliarFaces:
 
     def active(self) -> list[Card]:
         """Cards to show, newest first."""
-        now = self._clock()
         with self._lock:
-            self._cards = [c for c in self._cards if now - c.shown_at < SHOW_S]
             return list(reversed(self._cards))
 
-    def dismiss(self, player_id: int) -> None:
+    def match_started(self, match_id: int | None) -> None:
+        """The next match began: the last one's faces go (#518). Anyone already heard in the new
+        one stays; whoever writes again gets a fresh card, it's a new match."""
         with self._lock:
-            self._cards = [c for c in self._cards if c.player_id != player_id]
+            self._cards = [c for c in self._cards if c.match_id == match_id]
