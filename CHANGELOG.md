@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.1: on the way to v1.1.0
 
+### 2026-11-07 · Faster checks on every change (#493)
+- Behind the scenes: the automatic checks run in about half the time (cached setup, tests in parallel, capture benchmarks only on main, docs-only changes skip the Windows build).
+
 ### 2026-11-07 · Release policy: stable releases are stamped rebuilds (#514)
 - Behind the scenes: the project's release rules and decision log now describe how stable releases are built.
 
