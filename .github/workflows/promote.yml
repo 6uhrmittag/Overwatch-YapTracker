@@ -18,7 +18,7 @@ on:
         description: "The stable version it becomes, e.g. 1.0.0"
         required: true
       commit:
-        description: "Build this commit instead (only tests, docs and CHANGELOG may differ). Empty: the pre-release's own"
+        description: "Build this commit instead (only tests, docs, CHANGELOG and changes/ notes may differ). Empty: the pre-release's own"
         required: false
         default: ""
       dry_run:
@@ -77,7 +77,7 @@ jobs:
             changed=$(git diff --name-only "$tested" "$commit" \
               | grep -Ev '^(tests|docs|changes)/|^(CHANGELOG|CLAUDE|README)\.md$' || true)
             if [ -n "$changed" ]; then
-              echo "::error::$commit changes more than tests, docs and CHANGELOG since $PRE ($tested): $(tr '\n' ' ' <<< "$changed")"
+              echo "::error::$commit changes more than tests, docs, CHANGELOG and changes/ notes since $PRE ($tested): $(tr '\n' ' ' <<< "$changed")"
               exit 1
             fi
           fi

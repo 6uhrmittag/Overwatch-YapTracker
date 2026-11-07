@@ -271,12 +271,14 @@ jobs:
       - name: CHANGELOG.md gets the merged changes/ notes (#494)
         # A push with the workflow's own token starts no CI run: no extra pre-release. If main
         # moved meanwhile, try again on top of it; left-over notes go in with the next merge.
+        # Needs main without a "PRs only" rule for this token (none today).
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           for try in 1 2 3; do
-            git fetch -q --depth=50 origin main && git checkout -q -B main FETCH_HEAD
-            python3 tools/changelog.py --date "$(date -u +%F)"
+            if ! git fetch -q --depth=200 origin main; then sleep 5; continue; fi
+            git checkout -q -B main FETCH_HEAD
+            python3 tools/changelog.py  # each note dated the day it was merged (Berlin)
             git add -A CHANGELOG.md changes
             if git diff --cached --quiet; then exit 0; fi
             issues=$(git diff --cached --name-only --diff-filter=D -- changes | sed 's|changes/||; s|\.md$||; s|^|#|' | paste -sd' ')

@@ -4,36 +4,52 @@ so two PRs in a row never conflict over it. A fragment is the PR's "What you can
     ### Faster checks on every change (#493)
     - Behind the scenes: the automatic checks run in about half the time.
 
-After a merge, CI's pre-release job puts them into CHANGELOG.md (newest first, under the date,
-in the open version's section) and deletes them:
+A second PR for the same issue names its file changes/<issue>-2.md. After a merge, CI's
+pre-release job puts them into CHANGELOG.md (newest first, on top of the first "## " section,
+dated the day they were merged) and deletes them:
 
-    python tools/changelog.py --date 2026-11-07
+    python tools/changelog.py
 
 The release notes still come from the merged PR (tools/release_notes.py), as before.
 """
 
 import argparse
+import re
 import subprocess
+import time
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 CHANGES = "changes"
 SKIP = {"README.md"}  # the folder's own explanation
+NAME = re.compile(r"^(\d+)(?:-\d+)?\.md$")  # 493.md, 493-2.md
+TITLE = re.compile(r"^### (?P<title>\S.*\(#(?P<issue>\d+)\))$")
+LOCAL = ZoneInfo("Europe/Berlin")  # the day as Marv and Void lived it, like the older entries
 
 
 def fragments(folder: Path) -> list[Path]:
     return sorted(p for p in folder.glob("*.md") if p.name not in SKIP)
 
 
-def entry(text: str, date: str, name: str = "fragment") -> str:
-    """One fragment as a CHANGELOG entry: "### <date> · <title>" and its bullets."""
+def entry(text: str, date: str, name: str = "1.md") -> str:
+    """One fragment as a CHANGELOG entry: "### <date> · <title> (#N)" and its bullets."""
+    named = NAME.match(name)
+    if not named:
+        raise ValueError(f"{name}: name it changes/<issue>.md (or <issue>-2.md)")
     lines = [line.rstrip() for line in text.strip().splitlines()]
-    if not lines or not lines[0].startswith("### ") or len(lines[0]) <= 4:
+    title = TITLE.match(lines[0]) if lines else None
+    if not title:
         raise ValueError(f"{name}: the first line must be '### <title> (#<issue>)'")
+    if title["issue"] != named[1]:
+        raise ValueError(f"{name}: the title says #{title['issue']}, the file name #{named[1]}")
     bullets = [line for line in lines[1:] if line]
-    if not bullets or not all(line.startswith(("- ", "  ")) for line in bullets):
-        raise ValueError(f"{name}: below the title, only '- ' bullets")
-    return "\n".join([f"### {date} · {lines[0][4:].strip()}", *bullets])
+    if not bullets or not bullets[0].startswith("- "):
+        raise ValueError(f"{name}: below the title, '- ' bullets")
+    if not all(line.startswith(("- ", "  ")) for line in bullets):
+        raise ValueError(f"{name}: below the title, only '- ' bullets (and their indented lines)")
+    return "\n".join([f"### {date} · {title['title']}", *bullets])
 
 
 def assemble(changelog: str, entries: list[str]) -> str:
@@ -51,30 +67,35 @@ def assemble(changelog: str, entries: list[str]) -> str:
     return "".join(lines[:at]) + block + "".join(lines[at:])
 
 
-def _added(path: Path) -> int:
-    """When the fragment came into the repo (its newest commit): orders the entries."""
+def merged_at(path: Path) -> int:
+    """When the fragment came into main (its newest commit); 0 if git doesn't know."""
     out = subprocess.run(["git", "log", "-1", "--format=%ct", "--", path.name], cwd=path.parent,
                          capture_output=True, text=True, check=False).stdout.strip()  # fmt: skip
     return int(out or 0)
 
 
+def day(ts: int) -> str:
+    return datetime.fromtimestamp(ts or time.time(), LOCAL).strftime("%Y-%m-%d")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--date", required=True, help="the merge day, e.g. 2026-11-07")
     parser.add_argument("--root", default=str(ROOT))
     args = parser.parse_args()
     root = Path(args.root)
-    found = sorted(fragments(root / CHANGES), key=lambda p: (_added(p), p.name), reverse=True)
+    found = [(merged_at(p), int(NAME.match(p.name)[1]) if NAME.match(p.name) else 0, p)
+             for p in fragments(root / CHANGES)]  # fmt: skip
+    found.sort(key=lambda f: (f[0], f[1], f[2].name), reverse=True)  # newest first
     if not found:
         print("no changelog fragments")
         return
-    entries = [entry(p.read_text(encoding="utf-8"), args.date, p.name) for p in found]
+    entries = [entry(p.read_text(encoding="utf-8"), day(ts), p.name) for ts, _, p in found]
     changelog = root / "CHANGELOG.md"
     text = assemble(changelog.read_text(encoding="utf-8"), entries)
     changelog.write_text(text, encoding="utf-8", newline="\n")
-    for p in found:
+    for _, _, p in found:
         p.unlink()
-    print(f"CHANGELOG.md: {', '.join(p.name for p in found)}")
+    print(f"CHANGELOG.md: {', '.join(p.name for _, _, p in found)}")
 
 
 if __name__ == "__main__":
