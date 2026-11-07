@@ -166,10 +166,10 @@ def chat_line(
         # Name, chips, text and hero flow like one sentence: in a narrow window the text wraps
         # under the name, never a few letters per line (#226).
         with ui.element("div").classes("yt-line-body"):
+            at_end = system_name(message)[1]  # "You endorsed x!": the name ends the line
+            mark = marks.add(message) if marks is not None and not at_end else None  # (#519)
             name = ui.label().classes(f"yt-line-name yt-ch-{channel}")
             clickable_name(name, message)  # verdict, note, profile in one click (#220)
-            at_end = system_name(message)[1]  # "You endorsed x!": the name ends the line
-            mark = marks.add(message) if marks is not None and not at_end else None
             if message.role == "crew":
                 ui.label("crew").classes("yt-crew-badge")
             text = ui.html("", sanitize=False).classes("yt-line-text")

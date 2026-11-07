@@ -21,6 +21,7 @@ from yaptracker.ui.familiar_cards import face_card, popover
 
 MET = "met"  # known, no verdict yet: a dot
 _ENDORSED = re.compile(r"^You endorsed (?P<name>.+?)!?$")
+STOP = "(e) => { e.stopPropagation(); emit(); }"
 FRESH_S = 5.0  # Live: who's known and their verdicts, read again at most this often
 
 
@@ -70,10 +71,11 @@ class NameMarks:
         pid = self.player(message)
         if pid is None:
             return None
-        mark = ui.element("button").props('type="button"').mark("name-mark")
+        mark = ui.element("button").props('type="button"').mark(f"name-mark name-mark-{message.id}")
         holder = {"el": mark, "pid": pid, "kind": None, "match": self.match_id}
         set_kind(holder, self._kind[pid])
-        mark.on("click.stop", lambda: open_card(holder))
+        # its own click: not the line's (picture, snap pick)
+        mark.on("click", lambda: open_card(holder), js_handler=STOP)
         return holder
 
 

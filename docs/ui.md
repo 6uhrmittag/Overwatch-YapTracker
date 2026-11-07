@@ -136,7 +136,13 @@ Pill shape, 2 px ink-coloured border, uppercase 800 weight, hard shadow
   *Between matches* ("the next match starts by itself at hero select"). The chat
   card says *Last match* after the result, until the next one starts.
 - **Chat line:** time · channel · speaker (bold, channel colour) · text. Known
-  players get a 3 px underline in their verdict colour and a faint gold row tint.
+  players get a 3 px underline in their verdict colour and a faint gold row tint (transcripts),
+  and in Live and transcripts a **name mark** (#519) in front of the name: a 16 px round mini
+  sticker with the verdict's icon and colour (Bestie heart, Fun star, Meh face, Nope sign), or a
+  hollow ring for "met before, no verdict". System lines about a known player get it too ("[x]
+  started playing", at the end of "You endorsed x!"). Strangers, you and your crew get none.
+  Inline, smaller than the line: the line height never changes. A click opens the familiar-face
+  card as a popover.
 - **"Look who's back!" strip** (the loudest thing in the app, #518): one slim strip right
   above the chat, always the same height, so the chat never moves. Loudest means **colour and
   motion, not size**: an orange "LOOK WHO'S BACK!" label and a chip per familiar face, newest
