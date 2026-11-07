@@ -116,6 +116,19 @@ html, body { background: var(--yt-night); }
   .yt-known--fun .yt-line-name { text-decoration-color: #b98cff; }
   .yt-known--neutral .yt-line-name { text-decoration-color: #7d8699; }
   .yt-known--avoid .yt-line-name { text-decoration-color: #ff5c66; }
+  /* Name marks (#519): a mini verdict sticker next to a known name, system lines too. Inline and
+     16 px, below the 22 px line: the line's height stays the same. Shape + colour, not colour alone. */
+  .yt-line-body > .yt-mark { display: inline-flex; }
+  .yt-line-body > .yt-mark + *, .yt-line-body > .yt-mark + .yt-line-name:empty + * { margin-left: 6px; }
+  .yt-line-body > .yt-line-text + .yt-mark { margin-left: 6px; }  /* "You endorsed x!" */
+  .yt-mark { box-sizing: border-box; align-items: center; justify-content: center; width: 16px; height: 16px; padding: 0; border: 0; border-radius: 50%; vertical-align: -2px; cursor: pointer; }
+  .yt-mark svg { width: 10px; height: 10px; }
+  .yt-mark--friend { background: #ffc83d; color: #2a1d00; }
+  .yt-mark--fun { background: #b98cff; color: #1d0b3a; }
+  .yt-mark--neutral { background: #7d8699; color: #12151c; }
+  .yt-mark--avoid { background: #ff5c66; color: #2b0508; }
+  .yt-mark--met { width: 10px; height: 10px; border: 2px solid var(--yt-text-soft); background: transparent; vertical-align: 0; }  /* met before, no verdict: a ring */
+  .yt-mark:focus-visible { outline: 2px solid var(--yt-accent); outline-offset: 2px; }
   .yt-line-text { min-width: 0; font-size: 16px; line-height: 1.4; color: var(--yt-text); overflow-wrap: anywhere; }
   .yt-line--system .yt-line-text { color: var(--yt-system); font-style: italic; }
   /* Comms-wheel callouts (#185): there, but quieter than typed chat */

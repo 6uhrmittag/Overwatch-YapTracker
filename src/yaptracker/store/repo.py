@@ -556,6 +556,10 @@ class Store:
     def set_verdict(self, player_id: int, verdict: str | None) -> None:
         self._write("UPDATE players SET verdict = ? WHERE id = ?", (verdict, player_id))
 
+    def verdicts(self) -> dict[int, str | None]:
+        """Every player's verdict, cheaply (name marks in Live, #519)."""
+        return dict(self._read("SELECT id, verdict FROM players"))
+
     def player_names(self) -> list[tuple[int, str]]:
         """(player id, name) for every display name and alias: what a speaker is matched to."""
         return self._read(

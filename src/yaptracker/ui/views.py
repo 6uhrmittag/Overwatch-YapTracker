@@ -41,6 +41,7 @@ from yaptracker.ui.heart import Heart
 from yaptracker.ui.hotkeys import hotkeys_card
 from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark, show_mark
 from yaptracker.ui.lookup import lookup_card
+from yaptracker.ui.name_marks import FRESH_S, NameMarks, set_kind, system_name
 from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.picture_cap import picture_cap
 from yaptracker.ui.quick_verdict import CLICK_NOT_DRAG, clickable_name
@@ -142,9 +143,12 @@ def repeat(row: dict, message_id: int | None = None) -> None:
 PICK_NOT_DRAG = "(e) => { if (window.getSelection().isCollapsed) emit({shiftKey: e.shiftKey}); }"
 
 
-def chat_line(message, started_at: float | None, verdict: str | None = None, on_click=None) -> dict:
+def chat_line(
+    message, started_at: float | None, verdict: str | None = None, on_click=None, marks=None
+) -> dict:
     """One chat row (Live feed, transcripts #29): time in the match, channel, who (you for own
-    lines, a crew tag for crew), text. Known players get their verdict colour (docs/ui.md).
+    lines, a crew tag for crew), text. Known players get their verdict colour (docs/ui.md) and,
+    with `marks` (NameMarks), a small verdict mark next to the name, system lines too (#519).
     Comms-wheel callouts are small and dimmed, with the hero (#185)."""
     channel = message.channel if message.channel in _CHANNELS else "chat"
     known = f" yt-line--known yt-known--{verdict}" if verdict else ""
@@ -162,11 +166,15 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
         # Name, chips, text and hero flow like one sentence: in a narrow window the text wraps
         # under the name, never a few letters per line (#226).
         with ui.element("div").classes("yt-line-body"):
+            at_end = system_name(message)[1]  # "You endorsed x!": the name ends the line
+            mark = marks.add(message) if marks is not None and not at_end else None  # (#519)
             name = ui.label().classes(f"yt-line-name yt-ch-{channel}")
             clickable_name(name, message)  # verdict, note, profile in one click (#220)
             if message.role == "crew":
                 ui.label("crew").classes("yt-crew-badge")
             text = ui.html("", sanitize=False).classes("yt-line-text")
+            if marks is not None and at_end:
+                mark = marks.add(message)
             edited = edited_mark(message)  # fixed by hand (#227)
             if message.hero:
                 ui.label(f"\u00b7 as {message.hero}").classes("yt-line-hero")
@@ -178,7 +186,8 @@ def chat_line(message, started_at: float | None, verdict: str | None = None, on_
         # how it looked (#120, #128); not when the click ends a text selection (#221)
         line.on("click", lambda: show_picture(message, row), js_handler=CLICK_NOT_DRAG)
     row = {"name": name, "text": text, "shown": None, "line": line, "count": times, "times": 1,
-           "ids": [message.id], "edited": edited, "ch": ch, "channel": channel}  # fmt: skip
+           "ids": [message.id], "edited": edited, "ch": ch, "channel": channel,
+           "mark": mark}  # fmt: skip
     edit_button(line, message.id, text, edited)  # a misread line: fixed in place (#227)
     delete_button(line, lambda: row["ids"])  # a doubled or wrong line: gone in one click (#227)
     fill_line(row, message)
@@ -508,6 +517,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             return
         messages = runtime.store.messages(match_id)
         count_callouts(sum(1 for m in messages if m.hero))
+        marks = live_marks(match_id, messages)
         for message in messages:
             if message.id in chat["rows"]:
                 fill_line(chat["rows"][message.id], message)  # a better reading came in
@@ -520,7 +530,8 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             else:
                 pick = lambda shift, m=message: clicked(m, shift)  # noqa: E731
                 with lines:
-                    row = chat_line(message, runtime.matches.match_started_at, on_click=pick)
+                    row = chat_line(message, runtime.matches.match_started_at, on_click=pick,
+                                    marks=marks)  # fmt: skip
                 chat["rows"][message.id] = row
                 chat["last"] = (message, row)
                 chat["dom"][f"c{row['line'].id}"] = message
@@ -529,6 +540,24 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         yappers = {m.speaker_raw for m in typed if m.channel != "system" and m.speaker_raw}
         yaps, people = count(len(typed), "yap", "yaps"), count(len(yappers), "yapper", "yappers")
         yap_count.set_text(f"{yaps} \u00b7 {people}")
+
+    def live_marks(match_id: int, messages: list) -> NameMarks | None:
+        """Who's known in this match's lines (#519): read again at most every FRESH_S, and
+        only when a line arrived; a verdict set meanwhile updates the marks already shown."""
+        marks = chat.get("marks")
+        new = any(m.id not in chat["rows"] for m in messages)
+        fresh = (
+            marks
+            and marks.match_id == match_id
+            and (not new or time.monotonic() - marks.read_at < FRESH_S)
+        )
+        if fresh:
+            return marks
+        marks = chat["marks"] = NameMarks(match_id, messages, before=marks)
+        for row in {id(r): r for r in chat["rows"].values()}.values():
+            if row.get("mark"):
+                set_kind(row["mark"], marks.kind(row["mark"]["pid"]))
+        return marks
 
     def toggle_pause() -> None:
         runtime.pause.toggle()

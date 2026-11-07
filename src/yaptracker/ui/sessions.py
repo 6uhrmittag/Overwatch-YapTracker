@@ -14,6 +14,7 @@ from yaptracker.days import end_of as _match_end
 from yaptracker.ui import backlog, icons
 from yaptracker.ui.components import button, callout_toggle, count, place_name, sub_page, when
 from yaptracker.ui.heart import Heart
+from yaptracker.ui.name_marks import NameMarks
 from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.snap_dialog import snap_dialog
 from yaptracker.ui.views import (
@@ -293,6 +294,7 @@ def _draw(match, body, rows: dict, picker, clicked, callouts, messages=None) -> 
     picker.clear_rows()
     verdicts = {p.id: p.verdict for p in store.players()}
     messages = store.messages(match.id) if messages is None else messages
+    marks = NameMarks(match.id, messages)  # a verdict mark on known names (#519)
     gaps = store.gaps_between(match.started_at, _match_end(match))
     events = [(m.ts, "yap", m) for m in messages] + [(g[0], "gap", g) for g in gaps]
     if match.ended_at and any(m.ts > match.ended_at for m in messages):
@@ -327,7 +329,8 @@ def _draw(match, body, rows: dict, picker, clicked, callouts, messages=None) -> 
                 picker.add(item, last[1]["line"])
             else:
                 row = chat_line(item, match.started_at, verdicts.get(item.player_id),
-                                on_click=lambda shift, m=item: clicked(m, shift))  # fmt: skip
+                                on_click=lambda shift, m=item: clicked(m, shift),
+                                marks=marks)  # fmt: skip
                 rows[item.id] = row
                 picker.add(item, row["line"])
                 last = (item, row)
