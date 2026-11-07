@@ -531,8 +531,10 @@ def save_picture_cap_mb(mb: int, path: Path | None = None) -> None:
 
 
 def debug_samples(path: Path | None = None) -> bool:
-    """Collect debug samples (#63): on by default while YapTracker is a v0.x pre-release."""
-    return _load(path or paths.config_file()).get("debug_samples", __version__.startswith("0."))
+    """Collect debug samples (#63): on by default in test versions (v0.x, and v1.1.0-pre.N after
+    v1.0.0), off in stable releases."""
+    test_version = __version__.startswith("0.") or "-pre." in __version__
+    return _load(path or paths.config_file()).get("debug_samples", test_version)
 
 
 def save_debug_samples(on: bool, path: Path | None = None) -> None:

@@ -19,7 +19,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from yaptracker import evenings, logs, reading_mode
+from yaptracker import evenings, logs, reading_mode, updates
 from yaptracker.store.repo import Store
 
 _TIME = r"^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d),\d+ \w+ yaptracker\.[\w.]+: "
@@ -112,7 +112,8 @@ def _median(values: list[float]) -> str:
 
 
 def _version_key(version: str) -> tuple:
-    return tuple(int(p) if p.isdigit() else 0 for p in version.split("."))
+    """Like the update check: "1.1.0-pre.5" before "1.1.0-pre.12" before "1.1.0"."""
+    return updates.version(version) or updates.NOTHING
 
 
 def scan(lines: list[str]) -> dict:
