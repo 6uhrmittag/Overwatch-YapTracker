@@ -4,7 +4,7 @@
 - 
 
 ## Changelog
-- [ ] `CHANGELOG.md`: the same bullets under today's date
+- [ ] `changes/<issue>.md`: `### <title> (#<issue>)` + the same bullets (#494, see `changes/README.md`)
 
 ## Done when (copied from the issue, same ticks)
 - [x] …
