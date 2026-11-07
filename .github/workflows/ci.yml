@@ -100,7 +100,7 @@ jobs:
         run: coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
       - name: Docs only - just the tests that read docs (no real names, export schema)
         if: needs.changes.outputs.code != 'true'
-        run: pytest -n auto tests/test_no_real_names.py tests/test_example_export.py tests/test_export_all.py tests/test_export_markdown.py
+        run: pytest -n auto tests/test_no_real_names.py tests/test_example_export.py tests/test_export_all.py tests/test_export_markdown.py tests/test_changelog.py
 
   older-windows:
     # Server 2022 is build 20348: no capture-rate setting, like Windows 10 (#216). The capture
@@ -268,3 +268,20 @@ jobs:
           gh release create "v$VERSION" "YapTracker-$VERSION-win64.zip" \
             -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
             --title "YapTracker $VERSION" --notes-file notes.md
+      - name: CHANGELOG.md gets the merged changes/ notes (#494)
+        # A push with the workflow's own token starts no CI run: no extra pre-release. If main
+        # moved meanwhile, try again on top of it; left-over notes go in with the next merge.
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for try in 1 2 3; do
+            git fetch -q --depth=50 origin main && git checkout -q -B main FETCH_HEAD
+            python3 tools/changelog.py --date "$(date -u +%F)"
+            git add -A CHANGELOG.md changes
+            if git diff --cached --quiet; then exit 0; fi
+            issues=$(git diff --cached --name-only --diff-filter=D -- changes | sed 's|changes/||; s|\.md$||; s|^|#|' | paste -sd' ')
+            git commit -q -m "Changelog: $issues [skip ci]"
+            if git push -q origin main; then exit 0; fi
+            sleep 5
+          done
+          exit 1
