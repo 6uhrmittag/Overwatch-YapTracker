@@ -73,9 +73,9 @@ jobs:
             commit=$(git rev-parse --verify "$COMMIT^{commit}") || { echo "::error::no commit '$COMMIT'"; exit 1; }
             git merge-base --is-ancestor "$tested" "$commit" \
               || { echo "::error::$commit doesn't come after $PRE ($tested)"; exit 1; }
-            # Not tests, docs or CHANGELOG: then it isn't the tested app any more.
+            # Not tests, docs or CHANGELOG (or its changes/ notes, #494): then it isn't the tested app any more.
             changed=$(git diff --name-only "$tested" "$commit" \
-              | grep -Ev '^(tests|docs)/|^(CHANGELOG|CLAUDE|README)\.md$' || true)
+              | grep -Ev '^(tests|docs|changes)/|^(CHANGELOG|CLAUDE|README)\.md$' || true)
             if [ -n "$changed" ]; then
               echo "::error::$commit changes more than tests, docs and CHANGELOG since $PRE ($tested): $(tr '\n' ' ' <<< "$changed")"
               exit 1

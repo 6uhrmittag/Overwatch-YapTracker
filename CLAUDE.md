@@ -93,10 +93,13 @@ Comments from the planning chat end with _(planning chat)_.
    `gh pr merge <PR> --squash --delete-branch`.
    Don't hand the merge back to Marv and don't wait for his review: he reviews the
    pre-release. Never force-push.
-6. **Don't idle while CI runs.** While a PR waits for CI (~4 min), start the next issue on
-   a fresh branch from `main`. Merge strictly in order. Before merging a later PR, merge
-   `origin/main` into its branch (never rebase), resolve `CHANGELOG.md` by keeping both
-   entries (newest first), and wait for its CI to go green again. At most one PR waiting
+6. **Don't idle while CI runs.** While a PR waits for CI (~2-3 min), start the next issue on
+   a fresh branch from `main`. Merge strictly in order. Before merging a later PR, check
+   whether `main` moved under it into the PR's own files (#494):
+   `b=$(git merge-base HEAD origin/main); comm -12 <(git diff --name-only $b HEAD | sort) <(git diff --name-only $b origin/main | sort)`.
+   Nothing printed: squash-merge right away, no new CI run (`main`'s own push CI still runs on
+   the result; a red `main` stops the pre-release). Shared files: merge `origin/main` into the
+   branch (never rebase), push, and wait for its CI to go green again. At most one PR waiting
    at a time; this is overlap, not parallel lanes.
 
 **Closing an issue — required, every time (Marv tracks progress in the issues):**
@@ -110,8 +113,9 @@ Comments from the planning chat end with _(planning chat)_.
 4. An issue with unticked boxes and no explanation must not be closed. If a merge
    closed it anyway, reopen it and fix the checklist first.
 5. The PR's **"What you can see now"** bullets are the release notes (#239): short,
-   user-visible, in the app's voice. Add the same bullets to `CHANGELOG.md` (newest first,
-   under today's date) in the PR. Nothing user-visible: one `- Behind the scenes: ...` bullet.
+   user-visible, in the app's voice. Put the same bullets in `changes/<issue>.md` under
+   `### <title> (#<issue>)` (#494, `changes/README.md`); never edit `CHANGELOG.md` in a PR, the
+   pre-release job adds them there under the date. Nothing user-visible: one `- Behind the scenes: ...` bullet.
 
 **Labels:**
 | Label | Meaning |
