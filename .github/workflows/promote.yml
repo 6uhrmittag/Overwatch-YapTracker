@@ -6,7 +6,8 @@ name: Promote pre-release to stable
 # CHANGELOG. Promoting is Marv's call (CLAUDE.md -> Release policy). Dry run by default: it builds
 # and checks the zip and keeps it as an artifact, shows the notes and the command, and publishes
 # nothing. A PR that changes this file, ci.yml or the notes script runs it as a dry run on the
-# newest pre-release.
+# newest pre-release. The build runs today's ci.yml on the tested commit's files, so promote a
+# recent pre-release (one whose Windows tests ci.yml still names).
 on:
   workflow_dispatch:
     inputs:
@@ -28,7 +29,7 @@ on:
     paths: [.github/workflows/promote.yml, .github/workflows/ci.yml, tools/release_notes.py]
 
 concurrency:
-  group: promote-${{ github.ref }}
+  group: promote  # one promotion at a time, from whichever branch
   cancel-in-progress: false
 
 permissions:
@@ -70,11 +71,13 @@ jobs:
           commit=$tested
           if [ -n "$COMMIT" ]; then
             commit=$(git rev-parse --verify "$COMMIT^{commit}") || { echo "::error::no commit '$COMMIT'"; exit 1; }
+            git merge-base --is-ancestor "$tested" "$commit" \
+              || { echo "::error::$commit doesn't come after $PRE ($tested)"; exit 1; }
             # Not tests, docs or CHANGELOG: then it isn't the tested app any more.
             changed=$(git diff --name-only "$tested" "$commit" \
               | grep -Ev '^(tests|docs)/|^(CHANGELOG|CLAUDE|README)\.md$' || true)
             if [ -n "$changed" ]; then
-              echo "::error::$commit changes more than tests, docs and CHANGELOG since $PRE ($tested): $(echo $changed)"
+              echo "::error::$commit changes more than tests, docs and CHANGELOG since $PRE ($tested): $(tr '\n' ' ' <<< "$changed")"
               exit 1
             fi
           fi

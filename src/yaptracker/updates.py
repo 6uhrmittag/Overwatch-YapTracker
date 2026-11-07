@@ -73,8 +73,9 @@ def candidates(releases: list[dict], installed: str, test_versions: bool = False
 
 
 def newer(release: dict, installed: str) -> bool:
-    """A later version than the installed one, and not the very build that runs (a promoted
-    stable release has the pre-release's build inside, with its version)."""
+    """A later version than the installed one, and not the very build that runs (older stable
+    releases were the promoted pre-release's build, named in a "Same build as" line; since #514
+    a stable release is a stamped rebuild without one)."""
     same = SAME_BUILD.search(release.get("body") or "")
     if same and version(same[1]) == version(installed):
         return False
