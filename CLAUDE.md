@@ -455,14 +455,16 @@ bind Pause, Start/End match, Who's that? and Save sample in Settings → Hotkeys
 
 ## Definition of done (v1.0)
 
-- [ ] One real evening session (Marv + Void) produces a chat log they agree is
-      correct enough to be useful
-- [ ] They've written notes on at least three players, and the familiar-face
-      card fired for someone they met before
-- [ ] The whole evening needed **zero** YapTracker key presses or clicks
+- [x] One real evening session (Marv + Void) produces a chat log they agree is
+      correct enough to be useful (2026-10-16, #34)
+- [x] They've written notes on at least three players, and the familiar-face
+      card fired for someone they met before (card 2026-10-15, notes 2026-10-16, #34)
+- [x] The whole evening needed **zero** YapTracker key presses or clicks
       (app already running via autostart; capture, matches, sessions automatic)
-- [ ] Any time span that wasn't recorded shows up as a gap record, not a silent hole
-- [ ] FPS: YapTracker costs at most **~5 % of in-match FPS** (median of the `game fps … in match`
+      (2026-10-04, #22; again on the acceptance evening 2026-10-16, #34)
+- [x] Any time span that wasn't recorded shows up as a gap record, not a silent hole
+      (test evening 2026-11-06: 8 short capture drops, all recorded, #506/#36)
+- [x] FPS: YapTracker costs at most **~5 % of in-match FPS** (median of the `game fps … in match`
       log lines, running vs paused/closed, same graphics settings). On Windows 10 (GDI capture) up to
       ~10 fps is accepted, written in README → Known limits (Marv, 2026-10-06, #187/#319).
       CPU: with the **default reading settings** (Competitive: after the match; other matches: live light,
@@ -473,10 +475,13 @@ bind Pause, Start/End match, Who's that? and Save sample in Settings → Hotkeys
       (~19 %) is above 15 % mainly because of the after-match reading burst (by design, while the
       game sits idle in the menu: 44 % of the evening's CPU), second the between-match match
       signals - accepted for v1, improvements in #453 (v1.1). The evening average is the mean of the
-      once-a-minute `cpu parts … (whole app N %)` lines, not of the reader's lines (#476)
-- [ ] Update via `tools/update.ps1` works from any v0 pre-release to v1.0.0
-- [ ] README: setup, calibration, hotkeys, known limits, tested resolution
-- [ ] `v1.0.0` released, M5 closed, everything else is `parked`
+      once-a-minute `cpu parts … (whole app N %)` lines, not of the reader's lines (#476).
+      FPS bar met 2026-10-16 (#34/#187); CPU accepted as above
+- [x] Update via `tools/update.ps1` works from any v0 pre-release to v1.0.0
+      (2026-11-07: release choice checked against the real list, in-app and update.ps1, #36)
+- [x] README: setup, calibration, hotkeys, known limits, tested resolution (#33)
+- [x] `v1.0.0` released, M5 closed, everything else is `parked` (2026-11-07,
+      https://github.com/6uhrmittag/Overwatch-YapTracker/releases/tag/v1.0.0)
 
 When this list is done, v1 is done. Say so and stop. After v1.0.0: Marv picks the v1.1 scope from
 the parked issues and creates the milestone. Until then, only `bug` issues on the stable release
