@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.1: on the way to v1.1.0
 
+### 2026-11-07 · Change notes without conflicts (#494)
+- Behind the scenes: each change brings its own note file, and the pre-release puts them into the changelog, so changes waiting in line don't block each other any more.
+
 ### 2026-11-07 · Decision log: faster checks (#493)
 - Behind the scenes: the decision log explains how the automatic checks got faster.
 
