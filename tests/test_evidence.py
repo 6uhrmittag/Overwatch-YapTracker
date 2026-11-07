@@ -189,3 +189,9 @@ def test_paused_only_on_another_map_says_so_instead_of_a_number():
     (verdict,) = evidence.fps_verdicts(evidence.scan(log))
     assert verdict == "v? ?: no same-map running minutes: paused on Oasis (running median 120 " \
         "fps, n=1)"  # fmt: skip
+
+
+def test_versions_sort_test_builds_before_their_stable_release():
+    tags = ["1.1.0", "1.1.0-pre.12", "0.5.571", "?", "1.1.0-pre.5"]
+    found = sorted(tags, key=evidence._version_key)
+    assert found == ["?", "0.5.571", "1.1.0-pre.5", "1.1.0-pre.12", "1.1.0"]

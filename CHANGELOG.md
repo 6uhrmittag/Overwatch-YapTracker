@@ -2,6 +2,11 @@
 
 What changed in YapTracker, newest first, in plain words. Every merge is a pre-release on [GitHub](https://github.com/6uhrmittag/Overwatch-YapTracker/releases) with the same bullets as its release notes; `tools/update.ps1` installs the newest one and keeps your data.
 
+## v1.1: on the way to v1.1.0
+
+### 2026-11-07 · Test versions are now called v1.1.0-pre (#36)
+- v1.0.0 is out! Test versions (Settings → Updates → Get test versions) are now called v1.1.0-pre.N, so they come after v1.0.0 and before v1.1.0. They still collect debug samples by default; stable releases don't.
+
 ## v0.5: on the way to v1.0
 
 ### 2026-11-06 · Real-names check knows the word "Dark" (#511)

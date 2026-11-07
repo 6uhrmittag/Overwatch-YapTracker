@@ -90,6 +90,8 @@ def test_on_by_default_only_in_pre_releases(tmp_path, monkeypatch):
     path = tmp_path / "config.json"
     monkeypatch.setattr(config, "__version__", "0.2.80")
     assert config.debug_samples(path)
+    monkeypatch.setattr(config, "__version__", "1.1.0-pre.573")  # test versions after v1.0.0
+    assert config.debug_samples(path)
     monkeypatch.setattr(config, "__version__", "1.0.0")
     assert not config.debug_samples(path)
     config.save_debug_samples(True, path)
