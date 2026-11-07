@@ -36,31 +36,41 @@ def system_name(message) -> tuple[str | None, bool]:
 
 
 class NameMarks:
-    """Who in this match's lines is known, from one look at the players (cheap per line)."""
+    """Who in this match's lines is known: only the players in them are looked at, and whether
+    they were met in another match is kept for the match (`before`: the last look, same match)."""
 
-    def __init__(self, match_id: int | None, messages: list, identity: Identity | None = None):
+    def __init__(
+        self,
+        match_id: int | None,
+        messages: list,
+        identity: Identity | None = None,
+        before: "NameMarks | None" = None,
+    ):
         store = runtime.store
         self.match_id, self.read_at = match_id, time.monotonic()
         identity = identity or config.identity()
         names = store.player_names()
         mine = {pid for pid, name in names if identity.role(name) is not None}
         self._ids = {name.casefold(): pid for pid, name in names if pid not in mine}
-        here = {m.player_id for m in messages if m.player_id is not None}
+        same = before is not None and before.match_id == match_id
+        self._elsewhere: dict[int, bool] = before._elsewhere if same else {}
+        verdicts = store.verdicts()
         self._kind: dict[int, str] = {}
-        for p in store.players():
-            if p.id in mine:
-                continue
-            elsewhere = p.matches - (1 if p.id in here else 0)
-            if p.verdict or elsewhere > 0:
-                self._kind[p.id] = p.verdict or MET
+        for pid in {self._speaker(m) for m in messages} - mine - {None}:
+            if pid not in self._elsewhere:
+                self._elsewhere[pid] = store.met_before(pid, match_id)[0] > 0
+            if verdicts.get(pid) or self._elsewhere[pid]:
+                self._kind[pid] = verdicts.get(pid) or MET
+
+    def _speaker(self, message) -> int | None:
+        if message.channel == "system":
+            name, _ = system_name(message)
+            return self._ids.get(name.casefold()) if name else None
+        return message.player_id if message.role not in ("me", "crew") else None
 
     def player(self, message) -> int | None:
         """The known player a line is from or about, else None."""
-        if message.channel == "system":
-            name, _ = system_name(message)
-            pid = self._ids.get(name.casefold()) if name else None
-        else:
-            pid = message.player_id if message.role not in ("me", "crew") else None
+        pid = self._speaker(message)
         return pid if pid in self._kind else None
 
     def kind(self, player_id: int | None) -> str | None:

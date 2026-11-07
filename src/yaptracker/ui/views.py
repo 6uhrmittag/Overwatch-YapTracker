@@ -553,7 +553,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         )
         if fresh:
             return marks
-        marks = chat["marks"] = NameMarks(match_id, messages)
+        marks = chat["marks"] = NameMarks(match_id, messages, before=marks)
         for row in {id(r): r for r in chat["rows"].values()}.values():
             if row.get("mark"):
                 set_kind(row["mark"], marks.kind(row["mark"]["pid"]))
