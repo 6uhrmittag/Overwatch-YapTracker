@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.1: on the way to v1.1.0
 
+### 2026-11-07 · A verdict mark on known players' names (#519)
+- Known players get a small mark in front of their name in Live and in transcripts: their verdict sticker in mini, or a ring when you've met them before without a verdict. Also on system lines like "[x] started playing" and "You endorsed x!".
+- Click the mark for their card, the same one the "Look who's back!" chips open. The lines stay exactly as high as before.
+
 ### 2026-11-07 · Look who's back: a slim strip instead of the big card (#518)
 - "Look who's back!" is now one slim strip above the chat: a chip per familiar face (name, verdict, last seen, the first words of your notes). It never grows, so the chat never jumps.
 - No more "Got it": the chips stay for the match and clear themselves when the next one starts. Click a chip for the full card; Esc or a click outside closes it.
