@@ -453,6 +453,8 @@ html, body { background: var(--yt-night); }
   .yt-line:hover .yt-line-body > .yt-line-act:not(.yt-hidden), .yt-line-body > .yt-line-act:focus-visible { display: inline-block; }
   .yt-their-yap:has(.yt-line-translation) { flex-wrap: wrap; }
   .yt-their-yap > .yt-line-translation { flex-basis: 100%; }
+  .yt-result:has(.yt-line-translation) { flex-wrap: wrap; }
+  .yt-result > .yt-line-translation { flex-basis: 100%; }  /* found by its translation (#470) */
   .yt-line-translation { color: var(--yt-muted); font-size: 14px; font-style: italic; }
   .yt-line-translation--error { color: var(--yt-faint); font-style: normal; }
   .yt-line-edited { font-size: 12px; font-weight: 700; color: var(--yt-faint); cursor: help; }

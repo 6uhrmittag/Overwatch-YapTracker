@@ -16,7 +16,7 @@ def store(tmp_path):
 
 def test_a_new_database_has_the_latest_schema_in_wal_mode(tmp_path):
     conn = db.connect(tmp_path / "yaptracker.db", tmp_path / "backups")
-    assert db.version(conn) == db.LATEST == 8  # gaps of chat kept for later (#335)
+    assert db.version(conn) == db.LATEST == 9  # translations kept with the line (#470)
     assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     assert {"sessions", "matches", "players", "player_aliases", "chat_messages", "capture_gaps",
@@ -171,4 +171,39 @@ def test_gaps_keep_their_rows_and_learn_the_lost_frames_reason(tmp_path, monkeyp
     store.close_gap(store.open_gap(3.0, "deferred_lost"), 4.0)
     assert store.all_gaps() == [(1.0, 2.0, "paused"), (3.0, 4.0, "deferred_lost")]
     assert list(backups.iterdir())  # backed up before migrating
+    store.close()
+
+
+def test_translations_are_kept_searchable_and_dropped_with_a_hand_edit(tmp_path, monkeypatch):
+    """#470: v8 -> v9 adds the translation columns and builds search again with them; the
+    lines from before stay findable. A better reading keeps the translation (the same line);
+    a text fixed by hand drops it in the same UPDATE; the same text keeps it."""
+    path, backups = tmp_path / "yaptracker.db", tmp_path / "backups"
+    with monkeypatch.context() as v8_app:
+        v8_app.setattr(db, "MIGRATIONS", schema.MIGRATIONS[:8])
+        v8_app.setattr(db, "LATEST", 8)
+        old = db.connect(path, backups)
+        old.execute("INSERT INTO chat_messages (ts, channel, speaker_raw, text) "
+                    "VALUES (1.0, 'match', 'Kettle', 'gg buenas curas')")  # fmt: skip
+        old.close()
+    store = Store.open(path, backups)
+    assert list(backups.iterdir())  # backed up before migrating
+    (before,) = store.search("buenas")
+    assert before.translation is None
+    store.set_translation(before.id, "gg good heals", "ES", "EN")
+    assert [m.id for m in store.search("heals")] == [before.id]
+    assert [h.message.id for h in store.find("heals")] == [before.id]
+    store.update_message(before.id, channel="match", text="gg buenas curas!", speaker_raw="Kettle")
+    kept = store.message(before.id)  # a better reading: the same line, the same meaning
+    assert kept.text == "gg buenas curas!"
+    assert (kept.translation, kept.translation_from) == ("gg good heals", "ES")
+    store.edit_message(before.id, "gg buenas curas!", 5.0)  # "fixed" to the same text: kept
+    assert store.message(before.id).translation == "gg good heals"
+    store.edit_message(before.id, "gg buenas curas amigo", 6.0)  # fixed by hand: dropped
+    gone = store.message(before.id)
+    assert (gone.translation, gone.translation_from, gone.translation_to) == (None, None, None)
+    assert store.search("heals") == [] and [m.id for m in store.search("amigo")] == [before.id]
+    store.set_translation(before.id, "gg good heals friend", "ES", "EN")
+    store.unedit_message(before.id, "gg buenas curas!", None)  # Undo: the old text, no translation
+    assert store.message(before.id).translation is None
     store.close()

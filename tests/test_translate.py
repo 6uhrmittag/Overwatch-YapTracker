@@ -1,6 +1,7 @@
 """Translate a chat line with DeepL (#468): off by default, the user's own key, only the line's
 text is sent, errors in words. A fake DeepL answers: no network in tests or CI."""
 
+import asyncio
 import io
 import json
 import time
@@ -168,3 +169,57 @@ async def test_translate_in_a_profile_says_what_went_wrong_and_tries_again(
     user.find(marker="translate-line").click()  # again: in the same place
     await user.should_see("\u21b3 \u201cgg, nice heals\u201d (from Spanish)")
     assert len(user.find(marker="translation").elements) == 1
+
+
+async def test_a_translation_is_kept_with_the_line_and_never_asked_again(
+    user: User, store, monkeypatch
+):
+    """#470: clicked once, stored; after a restart (here: the page built again) it's there
+    without a click and without a request."""
+    config.save_setup_state("done")
+    config.save_translate_chat(True)
+    tracker = a_match(store)
+    fake = FakeDeepL()
+    monkeypatch.setattr(runtime, "store", store)
+    monkeypatch.setattr(runtime, "matches", tracker)
+    monkeypatch.setattr(runtime, "translator", DeepL(lambda: KEY, lambda: "EN", send=fake))
+    await user.open("/")
+    await user.should_see("gg buenas curas")
+    user.find(marker="translate-line").click()
+    await user.should_see("↳ “gg, nice heals” (from Spanish)")
+    (said,) = [m for m in store.messages(tracker.match_id) if m.channel != "system"]
+    assert (said.translation, said.translation_from, said.translation_to) == (
+        "gg, nice heals", "ES", "EN")  # fmt: skip
+    monkeypatch.setattr(runtime, "translator", DeepL(lambda: KEY, lambda: "EN", send=fake))
+    await user.open("/")  # a fresh translator: nothing in memory
+    await user.should_see("↳ “gg, nice heals” (from Spanish)")
+    assert len(fake.sent) == 1
+
+
+async def test_a_kept_translation_shows_with_the_switch_off_and_goes_with_an_edit(
+    user: User, store, monkeypatch
+):
+    """#470 review: stored translations are data (shown without Translate chat); a text fixed
+    by hand drops it, also from a Live line already on screen."""
+    config.save_setup_state("done")
+    tracker = a_match(store)
+    (said,) = [m for m in store.messages(tracker.match_id) if m.channel != "system"]
+    store.set_translation(said.id, "gg good heals", "ES", "EN")
+    monkeypatch.setattr(runtime, "store", store)
+    monkeypatch.setattr(runtime, "matches", tracker)
+    monkeypatch.setattr(runtime, "translator", FakeTranslator())
+    await user.open("/")
+    await user.should_see("↳ “gg good heals” (from Spanish)")  # switch off
+    await user.should_not_see(marker="translate-line")
+    config.save_translate_chat(True)
+    await user.open("/")
+    await user.should_see("↳ “gg good heals” (from Spanish)")
+    store.edit_message(said.id, "gg buenos tanques", NOW + 5)
+    (label,) = user.find(marker="translation").elements
+    for _ in range(50):  # Live reads the match again about every second
+        if "yt-hidden" in label.classes:
+            break
+        await asyncio.sleep(0.1)
+    assert "yt-hidden" in label.classes
+    (button,) = user.find(marker="translate-line").elements
+    assert "yt-hidden" not in button.classes  # Translate is back for the new text

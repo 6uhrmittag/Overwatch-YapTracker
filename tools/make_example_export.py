@@ -49,6 +49,10 @@ def evening(store: Store) -> None:
                           text=text, speaker_raw=who, player_id=pid, role=role, hero=hero,
                           match_id=first, ocr_confidence=0.98,
                           has_glyphs="◇" in text)  # fmt: skip
+    spanish = store.add_message(ts=berlin(2026, 10, 1, 20, 14, 20), channel="match",
+                                text="buenas curas NoodleBonk", speaker_raw="Chorizo",
+                                match_id=first, ocr_confidence=0.97)  # fmt: skip
+    store.set_translation(spanish, "good heals NoodleBonk", "ES", "EN")  # DeepL's (#470)
     store.end_match(first, berlin(2026, 10, 1, 20, 16, 0), "victory")
     store.set_loved(first, berlin(2026, 10, 1, 20, 17, 0))  # hearted after the win (#282)
     store.add_message(ts=berlin(2026, 10, 1, 20, 16, 40), channel="system",

@@ -35,7 +35,10 @@
               "text": "gl hf wahoo",
               "ocr_confidence": 0.98,
               "flagged": null,
-              "has_glyphs": false
+              "has_glyphs": false,
+              "translation": null,
+              "translation_from": null,
+              "translation_to": null
             },
             {
               "id": 2,
@@ -48,7 +51,10 @@
               "text": "i go lucio",
               "ocr_confidence": 0.98,
               "flagged": null,
-              "has_glyphs": false
+              "has_glyphs": false,
+              "translation": null,
+              "translation_from": null,
+              "translation_to": null
             },
             {
               "id": 3,
@@ -61,7 +67,10 @@
               "text": "Group up!",
               "ocr_confidence": 0.98,
               "flagged": null,
-              "has_glyphs": false
+              "has_glyphs": false,
+              "translation": null,
+              "translation_from": null,
+              "translation_to": null
             },
             {
               "id": 4,
@@ -74,7 +83,10 @@
               "text": "that rein was cracked ◇",
               "ocr_confidence": 0.98,
               "flagged": null,
-              "has_glyphs": true
+              "has_glyphs": true,
+              "translation": null,
+              "translation_from": null,
+              "translation_to": null
             },
             {
               "id": 5,
@@ -87,10 +99,29 @@
               "text": "kiri, I got you",
               "ocr_confidence": 0.98,
               "flagged": null,
-              "has_glyphs": false
+              "has_glyphs": false,
+              "translation": null,
+              "translation_from": null,
+              "translation_to": null
             },
             {
               "id": 6,
+              "time": "2026-10-01T20:14:20+02:00",
+              "channel": "match",
+              "speaker": "Chorizo",
+              "player_id": null,
+              "role": null,
+              "hero": null,
+              "text": "buenas curas NoodleBonk",
+              "ocr_confidence": 0.97,
+              "flagged": null,
+              "has_glyphs": false,
+              "translation": "good heals NoodleBonk",
+              "translation_from": "ES",
+              "translation_to": "EN"
+            },
+            {
+              "id": 7,
               "time": "2026-10-01T20:16:40+02:00",
               "channel": "system",
               "speaker": null,
@@ -100,7 +131,10 @@
               "text": "Endorsement Received!",
               "ocr_confidence": null,
               "flagged": null,
-              "has_glyphs": false
+              "has_glyphs": false,
+              "translation": null,
+              "translation_from": null,
+              "translation_to": null
             }
           ]
         },
@@ -119,7 +153,7 @@
           "loved_at": null,
           "messages": [
             {
-              "id": 7,
+              "id": 8,
               "time": "2026-10-01T20:21:05+02:00",
               "channel": "system",
               "speaker": "gremlin.exe",
@@ -129,10 +163,13 @@
               "text": "[gremlin.exe] joined the game.",
               "ocr_confidence": null,
               "flagged": null,
-              "has_glyphs": false
+              "has_glyphs": false,
+              "translation": null,
+              "translation_from": null,
+              "translation_to": null
             },
             {
-              "id": 8,
+              "id": 9,
               "time": "2026-10-01T20:23:12+02:00",
               "channel": "match",
               "speaker": "gremlin.exe",
@@ -142,10 +179,13 @@
               "text": "ez",
               "ocr_confidence": 0.95,
               "flagged": "overwatch",
-              "has_glyphs": false
+              "has_glyphs": false,
+              "translation": null,
+              "translation_from": null,
+              "translation_to": null
             },
             {
-              "id": 9,
+              "id": 10,
               "time": "2026-10-01T20:29:50+02:00",
               "channel": "match",
               "speaker": "NoodleBonk",
@@ -155,7 +195,10 @@
               "text": "gg wp, wahoo",
               "ocr_confidence": 0.99,
               "flagged": null,
-              "has_glyphs": false
+              "has_glyphs": false,
+              "translation": null,
+              "translation_from": null,
+              "translation_to": null
             }
           ]
         }

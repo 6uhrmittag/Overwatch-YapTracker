@@ -26,6 +26,9 @@ class Message:
     has_glyphs: int = 0  # an emoji or icon, shown as ◇ (#128)
     edited_at: float | None = None  # fixed by hand (#227); the OCR reading is in original_text
     original_text: str | None = None
+    translation: str | None = None  # DeepL's (#470), into translation_to ("EN"/"DE")
+    translation_from: str | None = None  # DeepL's code of the line's language, e.g. "ES"
+    translation_to: str | None = None
 
 
 @dataclass(frozen=True)
@@ -94,7 +97,15 @@ class Stats:
 
 _MESSAGE_COLUMNS = (
     "id, match_id, ts, channel, speaker_raw, player_id, hero, text, ocr_confidence, flagged, role, "
-    "has_glyphs, edited_at, original_text"
+    "has_glyphs, edited_at, original_text, translation, translation_from, translation_to"
+)
+# A text fixed by hand drops the line's translation (#470), in the same UPDATE: SET sees the
+# old row, so "text IS ?" (the new text) keeps it only when the text stays as it is. A better
+# OCR reading keeps it: the same line, the same meaning. (Not a trigger: SQLite doesn't promise
+# an order, and the full-text index must be told the old values first.)
+_KEEP_TRANSLATION = ", ".join(
+    f"{column} = CASE WHEN text IS ? THEN {column} END"
+    for column in ("translation", "translation_from", "translation_to")
 )
 
 
@@ -477,16 +488,17 @@ class Store:
         """Fixed by hand (#227): the first OCR reading is kept, search follows the new text."""
         self._write(
             "UPDATE chat_messages SET original_text = COALESCE(original_text, text), text = ?, "
-            "edited_at = ? WHERE id = ?",
-            (text, ts, message_id),
+            f"edited_at = ?, {_KEEP_TRANSLATION} WHERE id = ?",
+            (text, ts, text, text, text, message_id),
         )
 
     def unedit_message(self, message_id: int, text: str, edited_at: float | None) -> None:
         """Undo an edit: the text and mark as they were before."""
         self._write(
             "UPDATE chat_messages SET text = ?, edited_at = ?, "
-            "original_text = CASE WHEN ? IS NULL THEN NULL ELSE original_text END WHERE id = ?",
-            (text, edited_at, edited_at, message_id),
+            "original_text = CASE WHEN ? IS NULL THEN NULL ELSE original_text END, "
+            f"{_KEEP_TRANSLATION} WHERE id = ?",
+            (text, edited_at, edited_at, text, text, text, message_id),
         )
 
     def delete_message(self, message_id: int, ts: float) -> None:
@@ -696,6 +708,15 @@ class Store:
             (channel, speaker_raw, hero, text, ocr_confidence, flagged, role, int(has_glyphs),
              player_id, message_id),
         )  # fmt: skip
+
+    def set_translation(self, message_id: int, text: str, source: str | None,
+                        target: str) -> None:  # fmt: skip
+        """DeepL's translation of a line (#470), into `target` ("EN"/"DE")."""
+        self._write(
+            "UPDATE chat_messages SET translation = ?, translation_from = ?, translation_to = ? "
+            "WHERE id = ?",
+            (text, source, target, message_id),
+        )
 
     def message(self, message_id: int) -> Message | None:
         rows = self._read(f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE id = ?",

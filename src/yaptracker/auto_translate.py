@@ -7,7 +7,7 @@ Only other players' typed lines: not your own or your crew's (#74), not system l
 callouts (the game's own words). DeepL's detected language has the last word: a line it calls
 English (or another language you read) stays untranslated. Each text is sent once a run; when
 DeepL fails (quota, key, offline) the lines show why, and new ones wait a while instead of
-asking again and again. Kept in memory for this run (storing is #470).
+asking again and again. A translation is stored with its line (#470).
 """
 
 import logging
@@ -36,8 +36,10 @@ class AutoTranslate:
         on: Callable[[], bool],
         read: Callable[[], set[str]],
         clock: Callable[[], float] = time.monotonic,
+        target: Callable[[], str] = lambda: "EN",
     ) -> None:
         self._store, self._translator, self._on, self._read = store, translator, on, read
+        self._target = target  # the language translated into, stored with the line (#470)
         self._clock = clock
         self._last: int | None = None  # the newest line looked at
         self._found: dict[int, Translation] = {}  # message id -> translation, or why not
@@ -69,7 +71,7 @@ class AutoTranslate:
         foreign = [m for m in lines if _theirs(m) and languages.foreign(m.text, read)]
         if not foreign:
             return 0
-        failed = self._failed
+        failed, target = self._failed, self._target()
         if failed is not None and self._clock() < failed[0]:
             done = [failed[1]] * len(foreign)  # still failing: say so, don't ask again yet
         else:
@@ -83,6 +85,9 @@ class AutoTranslate:
             for message, translation in zip(foreign, done, strict=True):
                 if translation.error or translation.code not in read:
                     self._found[message.id] = translation
+        for message, translation in zip(foreign, done, strict=True):
+            if not translation.error and translation.code not in read:
+                store.set_translation(message.id, translation.text, translation.code, target)
         log.info("translate: %d line(s) to DeepL, %d translated", len(foreign),
                  sum(1 for d in done if not d.error and d.code not in read))  # fmt: skip
         return len(foreign)

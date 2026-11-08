@@ -140,7 +140,9 @@ def test_a_new_export_into_the_same_folder_leaves_nothing_stale(store, tmp_path)
 
 
 def test_anonymized_everywhere_consistent_notes_out_flags_kept(store, tmp_path):
-    evening(store)
+    ids = evening(store)
+    # names in DeepL's text are pseudonyms too (#470)
+    store.set_translation(ids[3], "gremlin.exe please swap, NoodleBonk is free", "ES", "EN")
     path = export_all(store, tmp_path, EVENING + 600, markdown=True, anonymize=True)
     data = json.loads(path.read_text(encoding="utf-8"))
     jsonschema.validate(data, SCHEMA)
@@ -156,6 +158,8 @@ def test_anonymized_everywhere_consistent_notes_out_flags_kept(store, tmp_path):
     assert said[2]["speaker"] == noodle  # the misread spelling is the same pseudonym
     assert said[0]["text"] == f"[{said[4]['speaker']}] started playing Overwatch."
     assert said[3]["text"] == f"{said[4]['speaker']} pls swap, {noodle} is free"
+    assert said[3]["translation"] == f"{said[4]['speaker']} please swap, {noodle} is free"
+    assert said[3]["translation_from"] == "ES"
     assert said[4]["flagged"] == "manual"  # spicy stays (#77)
     (player,) = data["players"]
     assert (player["display_name"], player["notes"], player["aliases"]) == (noodle, "", [])

@@ -66,6 +66,9 @@
 | `ocr_confidence` | 0–1, or `null`. Windows OCR always reports 1.0 |
 | `flagged` | `overwatch` (Overwatch showed a `[Report]` link), `manual` (you marked it spicy) or `null` |
 | `has_glyphs` | `true` if the text contains a `◇` |
+| `translation` | the DeepL translation (Settings → Translate chat), or `null`. With `anonymized`, names inside it are pseudonyms too |
+| `translation_from` | the line's language as DeepL detected it, e.g. `ES`, or `null` |
+| `translation_to` | the language it was translated into: `EN` or `DE`, or `null` |
 | `picture` | only with **Line pictures**: the line as it looked in Overwatch, e.g. `line-images/123.webp` |
 
 ## players[]

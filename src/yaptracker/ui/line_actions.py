@@ -12,7 +12,7 @@ from nicegui import run, ui
 
 from yaptracker import config, runtime
 from yaptracker.glyphs import GLYPH
-from yaptracker.translate import FAILED, Translation
+from yaptracker.translate import FAILED, Translation, language
 from yaptracker.ui.quick_verdict import OWN_CLICK
 
 log = logging.getLogger(__name__)
@@ -130,15 +130,18 @@ def _save_fix(before, value: str, text: ui.element, mark: ui.element, bar) -> No
         bar.show("Line fixed", undo)
 
 
-def translate_button(line: ui.element, message, under: ui.element) -> Callable[[], None] | None:
+def translate_button(line: ui.element, message, under: ui.element) -> Callable[..., None] | None:
     """A small Translate in `line`, only while Translate chat is on (#468). The
     translation, or what went wrong, appears dimmed in `under`: ↳ "gg, nice heals" (from
     Polish). Only the line's text goes to DeepL, off the UI thread; a failed one can be
-    clicked again (in the same place), nothing retries by itself. Returns a check for a
-    translation that came by itself (#469): Live calls it on every refresh."""
-    if not config.translate_chat() or runtime.translator is None:
-        return None
+    clicked again (in the same place), nothing retries by itself. A stored translation (#470)
+    shows also with Translate chat off. Returns a check, `check(fresh_message)`, for one that
+    came by itself or went with a hand edit (#469): Live calls it on every refresh."""
     if message.hero or message.channel == "system":  # the game's own words: nothing to translate
+        return None
+    target = config.translate_to()  # once per line built, not per refresh
+    if not config.translate_chat() or runtime.translator is None:
+        _kept_only(message, target, under)
         return None
     with line:
         b = ui.element("button").classes("yt-line-act").mark("translate-line")
@@ -151,6 +154,7 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[[
         if shown["out"] is None:
             with under:
                 shown["out"] = ui.label().classes("yt-line-translation").mark("translation")
+        shown["out"].classes(remove="yt-hidden")
         return shown["out"]
 
     def show(done) -> None:
@@ -160,10 +164,16 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[[
             out.set_text(f"\u21b3 {done.error}")
             out.classes(add="yt-line-translation--error")
         else:
-            source = f" (from {done.source})" if done.source else ""
-            out.set_text(f"\u21b3 \u201c{done.text}\u201d{source}")
+            out.set_text(said_as(done))
             out.classes(remove="yt-line-translation--error")
             b.classes(add="yt-hidden")  # translated: nothing more to ask
+
+    def forget() -> None:
+        """Fixed by hand (#227): the old translation went with the old text."""
+        shown["done"] = None
+        if shown["out"] is not None:
+            shown["out"].classes(add="yt-hidden")
+        b.classes(remove="yt-hidden")
 
     async def translate() -> None:
         if shown["busy"] or (shown["out"] is not None and shown["out"].is_deleted):
@@ -172,8 +182,12 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[[
         out.set_text("\u21b3 Translating\u2026")
         out.classes(remove="yt-line-translation--error")
         store = runtime.store
-        now = store.message(message.id) if store is not None else None  # maybe fixed (#227)
-        text = " ".join((now or message).text.replace(GLYPH, " ").split())
+        now = (store.message(message.id) if store is not None else None) or message  # (#227)
+        kept = stored(now, target)
+        if kept is not None:  # translated before: never sent again (#470)
+            show(kept)
+            return
+        text = " ".join(now.text.replace(GLYPH, " ").split())
         shown["busy"] = True
         try:
             done = await run.io_bound(runtime.translator.translate, text)
@@ -182,22 +196,68 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[[
             done = Translation(error=FAILED)
         finally:
             shown["busy"] = False
+        await _keep(message.id, done, target)
         if not out.is_deleted:
             show(done)
 
-    def came_by_itself() -> None:
-        auto = runtime.auto_translate
-        done = auto.known(message.id) if auto is not None else None
-        had = shown["done"]
-        if done is None or done == had or shown["busy"] or b.is_deleted:
+    def check(fresh=None) -> None:
+        """A translation from before (#470) or from the background (#469); `fresh`: the line
+        as Live just read it again."""
+        now = fresh or message
+        if shown["busy"] or b.is_deleted:
             return
-        if had is not None and not had.error:
+        done = stored(now, target)
+        auto = runtime.auto_translate
+        if done is None and now.edited_at is None and auto is not None:
+            done = auto.known(message.id)  # of the line as read; an edit makes it old
+        had = shown["done"]
+        if done is None:
+            if had is not None and not had.error and now.edited_at is not None:
+                forget()
+            return
+        if done == had or (had is not None and not had.error):
             return  # translated already (clicked): an old error from the background stays out
         show(done)
 
     b.on("click", translate, js_handler=OWN_CLICK)
-    came_by_itself()
-    return came_by_itself
+    check()
+    return check
+
+
+async def _keep(message_id: int, done: Translation, target: str) -> None:
+    """Kept with the line (#470), off the UI thread; not when DeepL says it's a language you
+    read anyway. A failure only means it's asked again after a restart."""
+    store = runtime.store
+    if done.error or store is None or done.code in config.read_languages():
+        return
+    try:
+        await run.io_bound(store.set_translation, message_id, done.text, done.code, target)
+    except Exception:
+        log.exception("translate: keeping a translation failed")
+
+
+def _kept_only(message, target: str, under: ui.element) -> None:
+    """Translate chat off: a stored translation is data, shown all the same (#470)."""
+    kept = stored(message, target)
+    if kept is not None:
+        with under:
+            ui.label(said_as(kept)).classes("yt-line-translation").mark("translation")
+
+
+def said_as(done: Translation) -> str:
+    """↳ “gg, nice heals” (from Spanish)"""
+    source = f" (from {done.source})" if done.source else ""
+    return f"\u21b3 \u201c{done.text}\u201d{source}"
+
+
+def stored(message, target: str | None = None) -> Translation | None:
+    """The line's stored translation (#470): into `target` ("EN"/"DE"), or into any."""
+    if not getattr(message, "translation", None):
+        return None
+    if target is not None and message.translation_to != target:
+        return None
+    code = message.translation_from
+    return Translation(message.translation, language(code), code=code)
 
 
 def delete_button(line: ui.element, ids: Callable[[], list[int]]) -> None:

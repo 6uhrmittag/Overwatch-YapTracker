@@ -12,7 +12,7 @@ from nicegui import ui
 from yaptracker import days, runtime
 from yaptracker.glyphs import GLYPH
 from yaptracker.ui.components import count, place_name, switch
-from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark
+from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark, said_as, stored
 from yaptracker.ui.picker import LinePicker
 from yaptracker.ui.snap_dialog import snap_dialog
 from yaptracker.ui.yappers import matching
@@ -168,6 +168,9 @@ def _result(hit, picker: LinePicker) -> ui.element:
             if hit.day and hit.day != time.strftime("%Y-%m-%d", time.localtime(message.ts)):
                 where += f", {days.title(hit.day, '%a %b %d')}"  # after midnight: its day (#440)
             ui.label(where).classes("yt-meta yt-result-where")
+        kept = stored(message)  # found by its translation, maybe (#470): shown too, any language
+        if kept is not None:
+            ui.label(said_as(kept)).classes("yt-line-translation")
     edit_button(row, message.id, text, edited)  # quick fixes (#227)
     delete_button(row, lambda: [message.id])
     return row
