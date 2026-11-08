@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.1: on the way to v1.1.0
 
+### 2026-11-08 · Fewer false "seen but not stored" counts (#504)
+- Behind the scenes: the evening's "seen but not stored" number now counts only lines that are really missing, each once per match.
+
 ### 2026-11-08 · A test version never steps back to an older stable release (#515)
 - On a test version that's newer than the latest stable release, the update check no longer offers that older stable release. This applies in the app and in update.ps1.
 
