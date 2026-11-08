@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.1: on the way to v1.1.0
 
+### 2026-11-08 · Foreign lines translate themselves (#469)
+- With Translate chat on, lines in a language you don't read get their translation by themselves, a second or two after they show up in Live. No click needed.
+- New in Settings → Translate chat: **I read** (English and German to start) and a **Translate automatically** switch. Your own and your crew's lines are never sent.
+
 ### 2026-11-08 · Translate chat with DeepL (#468)
 - New in Settings: **Translate chat**. Switch it on and add your own free DeepL key. Every chat line in Live, matches and profiles then gets a **Translate** button, and the meaning shows dimmed under the line, e.g. `↳ "gg, nice heals" (from Spanish)`.
 - Only the text of the line you translate goes to DeepL. No names, pictures or ids. It's off unless you switch it on.
