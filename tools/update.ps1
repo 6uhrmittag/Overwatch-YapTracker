@@ -203,6 +203,32 @@ function Get-VersionKey {
     return ($base * 10 + $stable) * 1000000 + $pre
 }
 
+function Get-ReleaseKey {
+    # Where a release sorts (#515): its version's key, except a stable release built from a test
+    # version ("Built from v1.1.0-pre.512" in its notes): right after that one, before
+    # v1.1.0-pre.513, the later code. $null for a tag that isn't a version.
+    param([object]$Release)
+    if (-not $Release.prerelease -and "$($Release.body)" -match '(?m)^Built from (v?\d+\.\d+\.\d+(-pre\.\d+)?)') {
+        $built = Get-VersionKey $Matches[1]
+        if ($null -ne $built) { return $built + 0.5 }
+    }
+    return Get-VersionKey $Release.tag_name
+}
+
+function Get-UpdateStep {
+    # What to do with the newest release (#454, #515): 'same' (installed already), 'newer'
+    # (the installed test version is later code: never step back by itself) or 'update'.
+    param([object]$Release, [string]$Installed, [object[]]$Listed)
+    if ($Installed -eq $Release.tag_name -or (Test-SameBuild $Release $Installed)) { return 'same' }
+    $mine = Get-VersionKey $Installed
+    if ($null -eq $mine) { return 'update' }
+    # Its own release's key if listed: a stamped v1.1.0 sorts like the test version it was built from.
+    $own = @($Listed | Where-Object { -not $_.draft -and (Get-VersionKey $_.tag_name) -eq $mine }) | Select-Object -First 1
+    if ($own) { $mine = Get-ReleaseKey $own }
+    if ($mine -gt (Get-ReleaseKey $Release)) { return 'newer' }
+    return 'update'
+}
+
 function Select-Releases {
     # The releases that count, newest version first (#454): stable ones, unless -PreRelease or
     # there is no stable release yet (before v1.0.0 every build was a test version).
@@ -210,7 +236,7 @@ function Select-Releases {
     $list = @($Releases | Where-Object { -not $_.draft -and $null -ne (Get-VersionKey $_.tag_name) })
     $stable = @($list | Where-Object { -not $_.prerelease })
     if (-not $PreRelease -and $stable.Count -gt 0) { $list = $stable }
-    return @($list | Sort-Object -Property @{ Expression = { Get-VersionKey $_.tag_name } } -Descending)
+    return @($list | Sort-Object -Property @{ Expression = { Get-ReleaseKey $_ } } -Descending)
 }
 
 function Test-SameBuild {
@@ -273,13 +299,13 @@ if ($replaced) {  # outside the try: if the new one fails, this one must not run
 }
 
 $installed = if (Test-Path $ReleaseFile) { (Get-Content $ReleaseFile -Raw).Trim() } else { '' }
-if (($installed -eq $release.tag_name -or (Test-SameBuild $release $installed)) -and -not $Force) {
+$step = Get-UpdateStep -Release $release -Installed $installed -Listed $listed
+if ($step -eq 'same' -and -not $Force) {
     Write-Host "YapTracker $installed is already the newest version."
     exit 0
 }
-$installedKey = Get-VersionKey $installed
-if ($null -ne $installedKey -and $installedKey -gt (Get-VersionKey $release.tag_name) -and -not $Force) {
-    # A test version newer than the newest stable release: never step back by itself (#454).
+if ($step -eq 'newer' -and -not $Force) {
+    # A test version later than the newest stable release: never step back by itself (#454, #515).
     Write-Host "YapTracker $installed is newer than the newest stable release ($($release.tag_name)). Test versions: update.ps1 -PreRelease"
     exit 0
 }

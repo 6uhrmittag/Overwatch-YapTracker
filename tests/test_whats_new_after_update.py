@@ -72,6 +72,21 @@ def test_nothing_on_the_same_version_a_downgrade_or_unknown(tmp_path):
                             no_fetch) is None  # fmt: skip
 
 
+def test_a_stamped_stable_release_sorts_by_the_test_version_it_was_built_from(tmp_path):
+    """#515: v1.1.0 is built from v1.1.0-pre.512, so pre.514 after it is newer code."""
+    stable = release("v1.1.0", "Fewer crashes.")
+    stable.update(prerelease=False, body=stable["body"] + "\nBuilt from v1.1.0-pre.512.\n")
+    cache = tmp_path / "releases.json"
+    listed = [stable, release("v1.1.0-pre.514", "Later."), release("v1.1.0-pre.513", "Late."),
+              release("v1.1.0-pre.512", "Fewer crashes.")]  # fmt: skip
+    save_releases(cache, candidates(listed, "1.1.0", test_versions=True))
+    found = after_update("1.1.0-pre.514", "1.1.0", tmp_path / "a.json", cache, no_fetch)
+    assert found["notes"] == ["Later.", "Late."]
+    found = after_update("1.1.0", "1.1.0-pre.500", tmp_path / "b.json", cache, no_fetch)
+    assert found["notes"] == ["Fewer crashes."]
+    assert after_update("1.1.0", "1.1.0-pre.513", tmp_path / "c.json", cache, no_fetch) is None
+
+
 @pytest.fixture
 async def user():
     async with user_simulation(root=shell.root) as user:

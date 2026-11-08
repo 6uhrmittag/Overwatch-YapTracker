@@ -59,6 +59,37 @@ def test_a_promoted_build_is_up_to_date_with_its_stable_release():
         assert check.check().newest == offered, installed
 
 
+def test_a_stable_release_is_never_offered_to_a_later_test_install():
+    """#515: v1.1.0 is built from v1.1.0-pre.512; pre.513 is later code, pre.512 and older
+    get it."""
+    stable = release("v1.1.0", "Fewer crashes.", prerelease=False)
+    stable["body"] += "\n\nBuilt from v1.1.0-pre.512 (the tested test version)."
+    out = [
+        stable,
+        release("v1.1.0-pre.514", "Later."),
+        release("v1.1.0-pre.513", "Late."),
+        release("v1.1.0-pre.512", "Fewer crashes."),
+        release("v1.0.0", prerelease=False),
+    ]
+    for installed, test, offered in (
+        ("1.1.0-pre.513", False, None),  # stable only: nothing newer than pre.513
+        ("1.1.0-pre.514", False, None),
+        ("1.1.0-pre.513", True, "v1.1.0-pre.514"),  # not the stable, which sorts above by name
+        ("1.1.0-pre.512", False, "v1.1.0"),  # the tested one itself: offered the stamped build
+        ("1.1.0-pre.500", False, "v1.1.0"),
+        ("1.0.0", False, "v1.1.0"),
+        ("1.1.0", False, None),
+        ("1.1.0", True, "v1.1.0-pre.514"),  # the stamped build counts as pre.512
+    ):
+        check = UpdateCheck(installed, lambda: True, fetch=lambda: out, clock=lambda: 1.0,
+                            test_versions=lambda test=test: test)  # fmt: skip
+        assert check.check().newest == offered, (installed, test)
+    with_test = candidates(out, "1.0.0", test_versions=True)
+    assert tags(with_test)[:4] == ["v1.1.0-pre.514", "v1.1.0-pre.513", "v1.1.0", "v1.1.0-pre.512"]
+    assert whats_new(with_test, "1.1.0-pre.513") == ["Later."]  # not the stable's bullets
+    assert whats_new(with_test, "1.1.0") == ["Later.", "Late."]
+
+
 def test_the_switch_decides_whether_test_versions_are_offered(tmp_path):
     out = [release("v1.1.0-pre.520"), release("v1.0.0", prerelease=False)]
     on = {"test": False}

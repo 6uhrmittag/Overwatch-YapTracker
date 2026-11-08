@@ -65,7 +65,9 @@ def stable_notes(releases: list[dict], build: str, stable: str, repo: str) -> st
     """What's new in a stable release: the bullets of the pre-releases since the last stable one
     up to the build, newest first, repeats once, "behind the scenes" counted. No "Same build as"
     line any more (#514): the stable build is its own, so installs of the pre-release are offered
-    it; the app and update.ps1 still read that line in older releases."""
+    it; the app and update.ps1 still read that line in older releases. "Built from <build>" (#515)
+    tells them where it sorts: after its test version, before any later one, so a newer test
+    install is never offered the older code."""
     mine = _version(build)
     listed = [r for r in releases if not r.get("draft") and _version(r.get("tag_name"))]
     before = [r for r in listed if not r.get("prerelease") and _version(r["tag_name"]) < mine]
@@ -90,7 +92,8 @@ def stable_notes(releases: list[dict], build: str, stable: str, repo: str) -> st
                        "CHANGELOG.md))")  # fmt: skip
     if behind:
         bullets.append(f"- (+ {behind} behind-the-scenes change{'s' if behind != 1 else ''})")
-    lines = ["### What's new", *(bullets or ["- Behind the scenes: small fixes."]), "", UPDATE, ""]
+    lines = ["### What's new", *(bullets or ["- Behind the scenes: small fixes."]), "",
+             f"Built from {build} (the tested test version).", "", UPDATE, ""]  # fmt: skip
     if last:
         lines.append(f"[All changes since {last['tag_name']}](https://github.com/{repo}/compare/"
                      f"{last['tag_name']}...{build})")  # fmt: skip

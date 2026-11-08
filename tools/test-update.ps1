@@ -90,5 +90,26 @@ if (Test-SameBuild $afterV1[0] 'v1.0.0-pre.518') { throw 'v1.0.0-pre.518 is an o
 if (Test-SameBuild $afterV1[0] '') { throw 'nothing installed is never the same build' }
 if ((Get-VersionKey 'v1.1.0-pre.521') -le (Get-VersionKey 'v1.0.0')) { throw 'a test version of 1.1.0 is newer than 1.0.0' }
 
+# A stable release built from a test version sorts right after it (#515): v1.1.0 is built from
+# v1.1.0-pre.512, so a v1.1.0-pre.513 install is later code and never offered it.
+$stamped = @(
+    [pscustomobject]@{ tag_name = 'v1.1.0'; draft = $false; prerelease = $false; body = "- Hi`n`nBuilt from v1.1.0-pre.512 (the tested test version)." },
+    [pscustomobject]@{ tag_name = 'v1.1.0-pre.514'; draft = $false; prerelease = $true; body = '' },
+    [pscustomobject]@{ tag_name = 'v1.1.0-pre.513'; draft = $false; prerelease = $true; body = '' },
+    [pscustomobject]@{ tag_name = 'v1.1.0-pre.512'; draft = $false; prerelease = $true; body = '' },
+    [pscustomobject]@{ tag_name = 'v1.0.0'; draft = $false; prerelease = $false; body = "- Hi`n`nSame build as v1.0.0-pre.519." }
+)
+Expect (Tags (Select-Releases -Releases $stamped)) 'v1.1.0,v1.0.0'
+Expect (Tags (Select-Releases -Releases $stamped -PreRelease)) 'v1.1.0-pre.514,v1.1.0-pre.513,v1.1.0,v1.1.0-pre.512,v1.0.0'
+foreach ($case in @(
+        @('v1.1.0-pre.513', '', 'newer'), @('v1.1.0-pre.514', '', 'newer'),
+        @('v1.1.0-pre.512', '', 'update'), @('v1.1.0-pre.500', '', 'update'), @('v1.0.0', '', 'update'),
+        @('v0.5.512', '', 'update'), @('', '', 'update'), @('v1.1.0', '', 'same'),
+        @('v1.1.0-pre.513', 'pre', 'update'), @('v1.1.0', 'pre', 'update'), @('v1.1.0-pre.514', 'pre', 'same'))) {
+    $newest = (Select-Releases -Releases $stamped -PreRelease:($case[1] -eq 'pre'))[0]
+    Expect "$($case[0]) $($case[1]): $(Get-UpdateStep -Release $newest -Installed $case[0] -Listed $stamped)" "$($case[0]) $($case[1]): $($case[2])"
+}
+Expect (Get-UpdateStep -Release $afterV1[0] -Installed 'v1.0.0-pre.519' -Listed $afterV1) 'same'  # an older promotion
+
 Write-Host "Bar lines and release choice OK on PowerShell $($PSVersionTable.PSVersion)"
 
