@@ -282,9 +282,11 @@ of view, like OBS or the Snipping Tool.
 - **Local-only.** No telemetry, no cloud, no uploads. Only network calls allowed:
   the update script fetching GitHub releases, and the app's **update check** (#46: once a day,
   on by default, switchable; only `api.github.com/repos/6uhrmittag/Overwatch-YapTracker/releases`).
-  Decided exception for later (#263, parked): **optional** chat translation via DeepL API Free
-  with the user's own key, off by default, sending only the text of foreign-language lines.
-  Same for the **OpenRouter bridge** (#326, parked): vision + text models with the user's own key,
+  Built exception (#263, v1.1): **optional** chat translation via DeepL API Free
+  (`api-free.deepl.com/v2/translate`, `translate.py`) with the user's own key (only in local
+  `config.json`), off by default, sending only the text of a line to translate: never names,
+  pictures or ids. Tests use a fake client; no real DeepL calls in tests or CI.
+  Decided for later: the **OpenRouter bridge** (#326, parked): vision + text models with the user's own key,
   off by default, never in the live path (after the match only), names hidden before sending,
   zero-data-retention providers only, monthly spend cap. The app must work identically without it.
 - **The repo is public.** Never commit screenshots or real chat logs — they

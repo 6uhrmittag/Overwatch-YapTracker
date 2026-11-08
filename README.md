@@ -85,7 +85,12 @@ Everything lives in `%LOCALAPPDATA%\YapTracker\data` (**Settings → Your data �
 
 ## Privacy
 
-Chat logs, line pictures and debug samples contain other players' names and messages. They are stored only on your PC and never uploaded anywhere. The only network access is asking GitHub for YapTracker's list of releases: `update.ps1` when you update, and YapTracker itself once a day, to tell you when a new version is out (never during a match). Nothing else is sent. Settings → About → **Check for updates once a day** switches the daily look off. Yap snaps can hide names with one switch, and exports can anonymize them.
+Chat logs, line pictures and debug samples contain other players' names and messages. They are stored only on your PC and never uploaded anywhere. YapTracker goes online for only two things:
+
+- **Updates:** it asks GitHub for YapTracker's list of releases. `update.ps1` does this when you update, and YapTracker itself does it once a day to tell you when a new version is out (never during a match). Settings → About → **Check for updates once a day** switches the daily look off.
+- **Translate chat (off unless you switch it on):** with your own free DeepL API key (Settings → Translate chat), the text of a line you translate is sent to DeepL (`api-free.deepl.com`). Only that text goes out, never a name, a line picture or an id. The key stays in `config.json` in your data folder. DeepL's own terms apply to what you send them.
+
+Nothing else is sent. Yap snaps can hide names with one switch, and exports can anonymize them.
 
 ## Known limits
 

@@ -550,3 +550,40 @@ def change_detector(path: Path | None = None) -> ChangeDetector:
     "change_detection": {"new_share": 0.03, "min_pixels": 40}
     """
     return ChangeDetector(**_load(path or paths.config_file()).get("change_detection", {}))
+
+
+def translate_chat(path: Path | None = None) -> bool:
+    """Translate chat lines with DeepL (#468): off unless switched on."""
+    return bool(_load(path or paths.config_file()).get("translate_chat", False))
+
+
+def save_translate_chat(on: bool, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["translate_chat"] = on
+    _save(path, data)
+
+
+def deepl_key(path: Path | None = None) -> str:
+    """The user's own DeepL API Free key (#468): only here, never logged or sent elsewhere."""
+    return str(_load(path or paths.config_file()).get("deepl_key", ""))
+
+
+def save_deepl_key(key: str, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["deepl_key"] = key.strip()
+    _save(path, data)
+
+
+def translate_to(path: Path | None = None) -> str:
+    """Translate into "EN" (English, the default) or "DE" (German) (#468)."""
+    target = _load(path or paths.config_file()).get("translate_to", "EN")
+    return target if target in ("EN", "DE") else "EN"
+
+
+def save_translate_to(target: str, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["translate_to"] = target
+    _save(path, data)

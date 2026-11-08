@@ -623,6 +623,16 @@ def _whats_new_after_update(installed: str) -> None:
         config.save_last_run_version(installed)
 
 
+def _translator(dev: bool) -> None:
+    """DeepL with the user's own key (#468); --dev translates with a fake, never online."""
+    from yaptracker import translate
+
+    if dev:
+        runtime.translator = translate.FakeTranslator()
+    else:
+        runtime.translator = translate.DeepL(config.deepl_key, config.translate_to)
+
+
 def run(
     *,
     dev: bool = False,
@@ -640,6 +650,7 @@ def run(
         _keep_window_place(background)
     _watch_for_overwatch(dev)
     _check_for_updates(smoke_test)
+    _translator(dev)
     app.on_shutdown(close_store)
     if smoke_test:
         _arm_smoke_test()
