@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.1: on the way to v1.1.0
 
+### 2026-11-08 · Translations in yap snaps (#530)
+- Yap snaps show a translated line's meaning, dimmed, under the line. **Translations** in the snap settings switches it off. Hide names covers the translation too.
+
 ### 2026-11-08 · Translations stay with their line (#470)
 - A translation is kept: it's still there after a restart, in Live, matches and profiles, and each line goes to DeepL only once.
 - Searching for a word from a translation finds the line, and the result shows the translation too.
