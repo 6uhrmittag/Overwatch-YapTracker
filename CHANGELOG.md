@@ -2,6 +2,8 @@
 
 What changed in YapTracker, newest first, in plain words. Every merge is a pre-release on [GitHub](https://github.com/6uhrmittag/Overwatch-YapTracker/releases) with the same bullets as its release notes; `tools/update.ps1` installs the newest one and keeps your data.
 
+## v1.2: on the way to v1.2.0
+
 ## v1.1: on the way to v1.1.0
 
 ### 2026-11-08 · Translations in yap snaps (#530)
