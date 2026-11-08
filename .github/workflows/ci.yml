@@ -31,7 +31,7 @@ env:
   # set NEXT_VERSION to the next stable one ("1.1.0"): every build is then v1.1.0-pre.<run>,
   # until that one is promoted and NEXT_VERSION moves on ("1.2.0", or "1.1.1" for a patch).
   MILESTONE: "5"
-  NEXT_VERSION: "1.1.0"
+  NEXT_VERSION: "1.2.0"
 
 jobs:
   changes:
