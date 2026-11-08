@@ -17,7 +17,12 @@ from yaptracker.ui.components import (
     switch,
     when,
 )
-from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark
+from yaptracker.ui.line_actions import (
+    delete_button,
+    edit_button,
+    edited_mark,
+    translate_button,
+)
 from yaptracker.ui.quick_verdict import CLICK_NOT_DRAG
 
 # Yap-o-meter: yaps per match together.
@@ -244,6 +249,7 @@ def _yaps(player_id: int, callouts: bool = False) -> None:
                 m, on_channel=lambda picked, ch=ch: restyle_channel(ch, picked)),
                 js_handler=CLICK_NOT_DRAG)  # fmt: skip
             line.mark(f"their-yap line-{message.id}")
+            translate_button(line, message, line)  # with Translate chat on (#468)
             edit_button(line, message.id, text, edited)  # quick fixes (#227)
             delete_button(line, lambda m=message: [m.id])
     typed = sum(1 for m in messages if not m.hero)

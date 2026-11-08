@@ -1,14 +1,15 @@
 """Quick fixes on a chat line (#227): Edit and Delete on hover, Undo for 5 s.
 Soft delete: the line stays in the database (deleted_at), every view reads around it. An edit
-keeps the OCR reading (original_text) and becomes a hand-checked debug sample."""
+keeps the OCR reading (original_text) and becomes a hand-checked debug sample. With Translate
+chat on, Translate shows a line's meaning under it (#468)."""
 
 import html
 import time
 from collections.abc import Callable
 
-from nicegui import ui
+from nicegui import run, ui
 
-from yaptracker import runtime
+from yaptracker import config, runtime
 from yaptracker.glyphs import GLYPH
 from yaptracker.ui.quick_verdict import OWN_CLICK
 
@@ -126,11 +127,58 @@ def _save_fix(before, value: str, text: ui.element, mark: ui.element, bar) -> No
         bar.show("Line fixed", undo)
 
 
+def translate_button(line: ui.element, message, under: ui.element) -> None:
+    """A small Translate in `line`, only while Translate chat is on (#468). The
+    translation, or what went wrong, appears dimmed in `under`: ↳ "gg, nice heals" (from
+    Polish). Only the line's text goes to DeepL, off the UI thread; a failed one can be
+    clicked again (in the same place), nothing retries by itself."""
+    if not config.translate_chat() or runtime.translator is None:
+        return
+    if message.hero or message.channel == "system":  # the game's own words: nothing to translate
+        return
+    with line:
+        b = ui.element("button").classes("yt-line-act").mark("translate-line")
+        b.props('type="button" title="What does it mean? Asks DeepL with your key"')
+        with b:
+            ui.label("Translate")
+    shown: dict = {"out": None, "busy": False}  # its one label; a click while asking: ignored
+
+    async def translate() -> None:
+        out = shown["out"]
+        if shown["busy"] or out is not None and out.is_deleted:
+            return
+        if out is None:
+            with under:
+                out = ui.label().classes("yt-line-translation").mark("translation")
+            shown["out"] = out
+        out.set_text("\u21b3 Translating\u2026")
+        out.classes(remove="yt-line-translation--error")
+        store = runtime.store
+        now = store.message(message.id) if store is not None else None  # maybe fixed (#227)
+        text = " ".join((now or message).text.replace(GLYPH, " ").split())
+        shown["busy"] = True
+        try:
+            done = await run.io_bound(runtime.translator.translate, text)
+        finally:
+            shown["busy"] = False
+        if out.is_deleted:  # a new match cleared Live meanwhile
+            return
+        if done.error:  # the same label, so a click again tries again in place
+            out.set_text(f"\u21b3 {done.error}")
+            out.classes(add="yt-line-translation--error")
+        else:
+            source = f" (from {done.source})" if done.source else ""
+            out.set_text(f"\u21b3 \u201c{done.text}\u201d{source}")
+            b.classes(add="yt-hidden")  # translated: nothing more to ask
+
+    b.on("click", translate, js_handler=OWN_CLICK)
+
+
 def delete_button(line: ui.element, ids: Callable[[], list[int]]) -> None:
     """A small Delete at the line's right end, shown on hover. `ids`: the messages it stands
     for (a callout shown once with ×4 is four)."""
     with line:
-        b = ui.element("button").classes("yt-line-act").mark("delete-line")
+        b = ui.element("button").classes("yt-line-act yt-line-act--delete").mark("delete-line")
         b.props('type="button" title="Delete this line (you can undo it)"')
         with b:
             ui.label("Delete")

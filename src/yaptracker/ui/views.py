@@ -39,7 +39,13 @@ from yaptracker.ui.exports import export_card
 from yaptracker.ui.familiar_cards import FacesStrip
 from yaptracker.ui.heart import Heart
 from yaptracker.ui.hotkeys import hotkeys_card
-from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark, show_mark
+from yaptracker.ui.line_actions import (
+    delete_button,
+    edit_button,
+    edited_mark,
+    show_mark,
+    translate_button,
+)
 from yaptracker.ui.lookup import lookup_card
 from yaptracker.ui.name_marks import FRESH_S, NameMarks, set_kind, system_name
 from yaptracker.ui.picker import LinePicker
@@ -48,6 +54,7 @@ from yaptracker.ui.quick_verdict import CLICK_NOT_DRAG, clickable_name
 from yaptracker.ui.reading import reading_card
 from yaptracker.ui.setup import setup_wizard, startup_card
 from yaptracker.ui.snap_dialog import snap_dialog
+from yaptracker.ui.translate_card import translate_card
 from yaptracker.ui.updates import update_banner, update_section
 
 
@@ -188,6 +195,8 @@ def chat_line(
     row = {"name": name, "text": text, "shown": None, "line": line, "count": times, "times": 1,
            "ids": [message.id], "edited": edited, "ch": ch, "channel": channel,
            "mark": mark}  # fmt: skip
+    body = text.parent_slot.parent  # Translate flows after the text: no width off it (#226)
+    translate_button(body, message, body)  # with Translate chat on (#468)
     edit_button(line, message.id, text, edited)  # a misread line: fixed in place (#227)
     delete_button(line, lambda: row["ids"])  # a doubled or wrong line: gone in one click (#227)
     fill_line(row, message)
@@ -777,6 +786,7 @@ def settings() -> None:  # noqa: C901 - split up after v1 (#311)
                         ).classes("yt-hint")
             reading_card()
             crew_card()
+            translate_card()  # DeepL, opt-in (#468)
             chat_colours_card()
             startup_card()
             hotkeys_card()

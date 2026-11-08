@@ -58,4 +58,5 @@ bind_hotkeys: Callable[[bool], None] | None = None  # (re)register them; None in
 updates: UpdateCheck | None = None  # once a day: a newer YapTracker? (#46)
 after_update: dict | None = None  # What's new since the version that ran before (#412)
 data_too_new: str | None = None  # the database is from a newer YapTracker (#352)
+translator = None  # DeepL (#468), or a fake one in --dev; None until the app starts
 lookup_requested = 0.0  # monotonic time of the last Ctrl+Alt+F; the UI focuses the search box
