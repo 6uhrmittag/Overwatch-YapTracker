@@ -14,6 +14,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from yaptracker.glyphs import GLYPH
+from yaptracker.translate import language
 
 MAX_LINES = 20
 SCALE = 2  # the PNG is drawn at twice the size, so it stays crisp on phones
@@ -29,6 +30,7 @@ class SnapLine:
     who: str  # as shown: "NoodleBonk", "Player 2", "Me"; "" for system lines
     text: str
     time: str = ""  # in the match, "4:05"
+    translation: str = ""  # its stored translation, as shown: "gg good heals" (from Spanish)
 
 
 @dataclass(frozen=True)
@@ -49,6 +51,7 @@ class Style:
     channel_labels: bool = True
     footer: bool = True
     wordmark: bool = True
+    translations: bool = True  # a translated line's meaning under it (#530)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -149,13 +152,26 @@ def snap_lines(
             for name in _BRACKETED.findall(m.text):
                 alias(name)
         who = "" if channel == "system" else alias(m.speaker_raw or "?", m.role)
-        rows.append((channel, who, m.text, _when(getattr(m, "ts", None), started_at)))
+        rows.append((channel, who, m.text, _when(getattr(m, "ts", None), started_at),
+                     _translation(m)))  # fmt: skip
     lines = []
-    for channel, who, text, when in rows:
-        for name in sorted(fake, key=len, reverse=True):  # "gg NoodleBonk" too
+    for channel, who, text, when, translated in rows:
+        for name in sorted(fake, key=len, reverse=True):  # "gg NoodleBonk" too, translated too
             text = re.sub(rf"(?<!\w){re.escape(name)}(?!\w)", fake[name], text, flags=re.I)
-        lines.append(SnapLine(channel, who, text, when))
+            translated = re.sub(rf"(?<!\w){re.escape(name)}(?!\w)", fake[name], translated,
+                                flags=re.I)  # fmt: skip
+        lines.append(SnapLine(channel, who, text, when, translated))
     return lines
+
+
+def _translation(message) -> str:
+    """A stored translation (#470) like Live shows it, without the ↳: the bundled fonts have
+    no arrows (dimmed, under the line, it reads as one anyway). Or ""."""
+    text = getattr(message, "translation", None)
+    if not text:
+        return ""
+    source = language(getattr(message, "translation_from", None))
+    return f"\u201c{text}\u201d" + (f" (from {source})" if source else "")
 
 
 @cache
@@ -219,7 +235,13 @@ def _layout(lines: list[SnapLine], width: int, style: Style) -> tuple[list[tuple
         pieces = [(f"{line.who}: ", colour, 800)] if line.who else []
         text_colour = colour if line.channel == "system" else style.text  # like Live (#401)
         pieces += [(token, text_colour, 400) for token in _tokens(line.text)]
+        if style.translations and line.translation:  # under the text, dimmed (#530)
+            pieces += [("\n", faint, 400)]
+            pieces += [(token, faint, 400) for token in _tokens(line.translation)]
         for token, token_colour, weight in pieces:
+            if token == "\n":  # the translation starts a row of its own
+                x, y = start, y + line_h
+                continue
             runs = [] if token.strip() == GLYPH else _runs(token, 17, weight, style.font)
             size = 18 * s if not runs else _length(runs)
             if x + size > width and x > start:

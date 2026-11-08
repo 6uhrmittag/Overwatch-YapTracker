@@ -24,6 +24,7 @@ _SWITCHES = {  # (label, its hint)
     "footer": ("Match and date", "The match and the day along the bottom."),
     "wordmark": ("Wordmark", "YapTracker in the bottom corner."),
     "rounded": ("Round corners", "Soft corners on the picture."),
+    "translations": ("Translations", "A translated line's meaning under it (Translate chat)."),
 }
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 # Copy (#155): the preview's own PNG to the clipboard, in the browser (WebView2 or --dev).
