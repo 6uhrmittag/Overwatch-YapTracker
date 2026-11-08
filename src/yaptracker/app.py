@@ -624,13 +624,23 @@ def _whats_new_after_update(installed: str) -> None:
 
 
 def _translator(dev: bool) -> None:
-    """DeepL with the user's own key (#468); --dev translates with a fake, never online."""
+    """DeepL with the user's own key (#468); --dev translates with a fake, never online. Foreign
+    lines translate themselves on their own thread (#469)."""
     from yaptracker import translate
+    from yaptracker.auto_translate import AutoTranslate
 
     if dev:
         runtime.translator = translate.FakeTranslator()
     else:
         runtime.translator = translate.DeepL(config.deepl_key, config.translate_to)
+    runtime.auto_translate = AutoTranslate(
+        lambda: runtime.store,
+        lambda: runtime.translator,
+        lambda: config.translate_chat() and config.translate_auto(),
+        config.read_languages,
+    )
+    app.on_startup(runtime.auto_translate.start)
+    app.on_shutdown(runtime.auto_translate.stop)
 
 
 def run(

@@ -7,6 +7,7 @@ back as words for the line, never as a retry loop. Translations stay in memory f
 (storing them is #470).
 """
 
+import http.client
 import json
 import logging
 import threading
@@ -45,15 +46,17 @@ class Translation:
     text: str | None = None  # the translation; None when it failed
     source: str | None = None  # "Polish", from DeepL's detected_source_language
     error: str | None = None  # what went wrong, in words for under the line
+    code: str | None = None  # "PL": DeepL's language code, to compare with "I read" (#469)
 
 
 def language(code: str | None) -> str | None:
     return LANGUAGES.get((code or "").upper().split("-")[0], code or None)
 
 
-def request(key: str, text: str, target: str) -> urllib.request.Request:
-    """The one request: only the line's text and the target language (#468)."""
-    body = json.dumps({"text": [text], "target_lang": _TARGET_CODES.get(target, "EN-US")})
+def request(key: str, texts: list[str], target: str) -> urllib.request.Request:
+    """The one request: only the lines' texts and the target language (#468); several lines
+    that came in together go in one (#469)."""
+    body = json.dumps({"text": texts, "target_lang": _TARGET_CODES.get(target, "EN-US")})
     return urllib.request.Request(
         URL,
         data=body.encode("utf-8"),
@@ -84,34 +87,53 @@ class DeepL:
         self._done: dict[tuple[str, str], Translation] = {}
 
     def translate(self, text: str) -> Translation:
+        return self.translate_many([text])[0]
+
+    def translate_many(self, texts: list[str]) -> list[Translation]:
+        """One request for the texts not translated yet this run; what went wrong is the same
+        for each of them."""
         key, target = (self._key() or "").strip(), self._target()
-        if not key:
-            return Translation(error=NO_KEY)
-        if not key.endswith(":fx"):
-            return Translation(error=NOT_FREE)
+        if not key or not key.endswith(":fx"):
+            return [Translation(error=NO_KEY if not key else NOT_FREE)] * len(texts)
         with self._lock:
-            known = self._done.get((text, target))
-        if known is not None:
-            return known
-        try:
-            found = self._send(request(key, text, target))["translations"][0]
-            done = Translation(found["text"], language(found.get("detected_source_language")))
-        except urllib.error.HTTPError as error:
-            log.info("translate: DeepL said %s", error.code)
-            return Translation(error=_HTTP.get(error.code, FAILED))
-        except (urllib.error.URLError, TimeoutError, OSError) as error:
-            log.info("translate: DeepL not reached (%s)", type(error).__name__)
-            return Translation(error=OFFLINE)
-        except (ValueError, KeyError, IndexError, TypeError) as error:
-            log.info("translate: odd answer from DeepL (%s)", type(error).__name__)
-            return Translation(error=FAILED)
+            new = list(dict.fromkeys(t for t in texts if (t, target) not in self._done))
+        if new:
+            try:
+                answer = self._send(request(key, new, target))["translations"]
+                done = [Translation(found["text"], language(found.get("detected_source_language")),
+                                    code=_code(found.get("detected_source_language")))
+                        for found in answer]  # fmt: skip
+                if len(done) != len(new):
+                    raise ValueError(f"{len(done)} answers for {len(new)} lines")
+            except urllib.error.HTTPError as error:
+                log.info("translate: DeepL said %s", error.code)
+                return [Translation(error=_HTTP.get(error.code, FAILED))] * len(texts)
+            except (
+                urllib.error.URLError,
+                TimeoutError,
+                OSError,
+                http.client.HTTPException,
+            ) as error:
+                log.info("translate: DeepL not reached (%s)", type(error).__name__)
+                return [Translation(error=OFFLINE)] * len(texts)
+            except (ValueError, KeyError, IndexError, TypeError) as error:
+                log.info("translate: odd answer from DeepL (%s)", type(error).__name__)
+                return [Translation(error=FAILED)] * len(texts)
+            with self._lock:
+                self._done.update(((t, target), d) for t, d in zip(new, done, strict=True))
         with self._lock:
-            self._done[(text, target)] = done
-        return done
+            return [self._done[(t, target)] for t in texts]
+
+
+def _code(code: str | None) -> str | None:
+    return (code or "").upper().split("-")[0] or None
 
 
 class FakeTranslator:
     """--dev and tests: no key, no network (#468)."""
 
     def translate(self, text: str) -> Translation:
-        return Translation(f"(made-up translation of) {text}", "Spanish")
+        return Translation(f"(made-up translation of) {text}", "Spanish", code="ES")
+
+    def translate_many(self, texts: list[str]) -> list[Translation]:
+        return [self.translate(text) for text in texts]

@@ -709,6 +709,17 @@ class Store:
         )
         return [Message(*row) for row in rows]
 
+    def messages_after(self, message_id: int | None, limit: int = 50) -> list[Message]:
+        """Lines stored after this one, oldest first (#469); None: only the newest line's id
+        matters, as a start (nothing from before is translated)."""
+        if message_id is None:
+            rows = self._read(f"SELECT {_MESSAGE_COLUMNS} FROM live_messages "
+                              "ORDER BY id DESC LIMIT 1")  # fmt: skip
+        else:
+            rows = self._read(f"SELECT {_MESSAGE_COLUMNS} FROM live_messages WHERE id > ? "
+                              "ORDER BY id LIMIT ?", (message_id, limit))  # fmt: skip
+        return [Message(*row) for row in rows]
+
     def lines_since(self, ts: float) -> list[Message]:
         """Every line stored since `ts`, in any match or none, deleted ones too (#504)."""
         rows = self._read(f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE ts >= ?", (ts,))
