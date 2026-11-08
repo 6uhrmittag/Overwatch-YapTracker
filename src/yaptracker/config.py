@@ -587,3 +587,29 @@ def save_translate_to(target: str, path: Path | None = None) -> None:
     data = _load(path)
     data["translate_to"] = target
     _save(path, data)
+
+
+def translate_auto(path: Path | None = None) -> bool:
+    """Foreign lines translate themselves while Translate chat is on (#469): on unless off."""
+    return bool(_load(path or paths.config_file()).get("translate_auto", True))
+
+
+def save_translate_auto(on: bool, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["translate_auto"] = on
+    _save(path, data)
+
+
+def read_languages(path: Path | None = None) -> set[str]:
+    """The languages you read (#469), never translated by themselves; Marv's and Void's by
+    default. The language translated into always counts as read."""
+    saved = _load(path or paths.config_file()).get("read_languages", ["EN", "DE"])
+    return {str(code) for code in saved} | {translate_to(path)}
+
+
+def save_read_languages(codes: set[str], path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["read_languages"] = sorted(codes)
+    _save(path, data)

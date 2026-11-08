@@ -42,7 +42,9 @@ def http_error(code):
 def test_only_the_lines_text_and_the_target_language_are_sent():
     fake = FakeDeepL()
     deepl = DeepL(lambda: KEY, lambda: "EN", send=fake)
-    assert deepl.translate("gg, buenas curas") == Translation("gg, nice heals", "Spanish")
+    assert deepl.translate("gg, buenas curas") == Translation(
+        "gg, nice heals", "Spanish", code="ES"
+    )
     (request,) = fake.sent
     assert request.full_url == "https://api-free.deepl.com/v2/translate"
     assert request.get_method() == "POST"
@@ -120,7 +122,7 @@ async def test_settings_switch_key_and_language(user: User):
     config.save_setup_state("done")
     await user.open("/")
     user.find(marker="nav-settings").click()
-    await user.should_see("Only the text of a line you translate goes to DeepL")
+    await user.should_see("Only the text of a line goes to DeepL, with your own key")
     user.find(marker="translate-switch").click()
     assert config.translate_chat() is True
     user.find(marker="deepl-key").type(KEY).trigger("blur")

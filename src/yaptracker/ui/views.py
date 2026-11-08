@@ -196,7 +196,7 @@ def chat_line(
            "ids": [message.id], "edited": edited, "ch": ch, "channel": channel,
            "mark": mark}  # fmt: skip
     body = text.parent_slot.parent  # Translate flows after the text: no width off it (#226)
-    translate_button(body, message, body)  # with Translate chat on (#468)
+    row["translated"] = translate_button(body, message, body)  # Translate chat on (#468, #469)
     edit_button(line, message.id, text, edited)  # a misread line: fixed in place (#227)
     delete_button(line, lambda: row["ids"])  # a doubled or wrong line: gone in one click (#227)
     fill_line(row, message)
@@ -529,7 +529,10 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         marks = live_marks(match_id, messages)
         for message in messages:
             if message.id in chat["rows"]:
-                fill_line(chat["rows"][message.id], message)  # a better reading came in
+                row = chat["rows"][message.id]
+                fill_line(row, message)  # a better reading came in
+                if row.get("translated"):  # translated by itself meanwhile (#469)
+                    row["translated"]()
                 continue
             last = chat["last"]
             if last and same_callout(last[0], message):

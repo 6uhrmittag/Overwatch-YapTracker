@@ -213,6 +213,7 @@ html, body { background: var(--yt-night); }
   .yt-search { flex: 0 1 320px; min-width: 200px; padding: 2px 14px; border-radius: 14px; background: var(--yt-panel-inset); border: 1px solid var(--yt-line-strong); }
   .yt-filters { flex-wrap: wrap; }
   .yt-filters .yt-seg { flex-shrink: 0; }
+  .yt-filters .yt-seg--wrap { flex-shrink: 1; flex-wrap: wrap; }  /* I read: 8 languages (#469) */
   .yt-filters .yt-seg-item { white-space: nowrap; padding-left: 14px; padding-right: 14px; }
   .yt-yapper { display: flex; align-items: center; gap: 14px; padding: 12px 6px; border-bottom: 1px solid var(--yt-line); }
   .yt-yapper:last-child { border-bottom: 0; }
@@ -447,7 +448,9 @@ html, body { background: var(--yt-night); }
   .yt-line-act + .yt-line-act { margin-left: 6px; }  /* Translate, Edit, Delete */
   /* A translation under the line (#468): dimmed, the original stays the main text */
   .yt-line-body > .yt-line-translation { display: block; margin: 2px 0 0; }
-  .yt-line-body > .yt-line-act { padding: 0 8px; font-size: 11px; vertical-align: 1px; }  /* after the text */
+  /* Translate after the text: no room taken (a hidden chip made every row a line taller) until hovered */
+  .yt-line-body > .yt-line-act { display: none; padding: 0 8px; font-size: 11px; vertical-align: 1px; }
+  .yt-line:hover .yt-line-body > .yt-line-act:not(.yt-hidden), .yt-line-body > .yt-line-act:focus-visible { display: inline-block; }
   .yt-their-yap:has(.yt-line-translation) { flex-wrap: wrap; }
   .yt-their-yap > .yt-line-translation { flex-basis: 100%; }
   .yt-line-translation { color: var(--yt-muted); font-size: 14px; font-style: italic; }
