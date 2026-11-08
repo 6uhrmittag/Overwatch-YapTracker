@@ -80,6 +80,13 @@ def text_key(who: str | None, text: str) -> str:
     return " ".join(key.split()).lower()
 
 
+def stored_as(k: str, keys: list[str], prefix: bool = False) -> bool:
+    """A reading's match_key() is one of these keys (#504): alike as in dedup, or, with
+    `prefix`, the start of one with junk glued on ("You endorsed X! NEXT TIER: 4071/50000").
+    The caller allows that for three words of text at least, so "Bo: gg" isn't "Bo: gg wp"."""
+    return any(fuzz.ratio(k, s) >= SAME or (prefix and s.startswith(k + " ")) for s in keys)
+
+
 NEAR_NAME = 70  # a callout's speaker this close to its hero's recent speaker is a misreading
 
 
