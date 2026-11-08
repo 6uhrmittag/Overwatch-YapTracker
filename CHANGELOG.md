@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.1: on the way to v1.1.0
 
+### 2026-11-08 · Translate chat with DeepL (#468)
+- New in Settings: **Translate chat**. Switch it on and add your own free DeepL key. Every chat line in Live, matches and profiles then gets a **Translate** button, and the meaning shows dimmed under the line, e.g. `↳ "gg, nice heals" (from Spanish)`.
+- Only the text of the line you translate goes to DeepL. No names, pictures or ids. It's off unless you switch it on.
+- If something goes wrong, it says so under the line: no key, wrong key, quota used up, or offline.
+
 ### 2026-11-08 · Fewer false "seen but not stored" counts (#504)
 - Behind the scenes: the evening's "seen but not stored" number now counts only lines that are really missing, each once per match.
 
