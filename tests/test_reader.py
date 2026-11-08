@@ -1,8 +1,10 @@
 """Live chat into the database (#108): the real pipeline with a fake OCR and a real store."""
 
 import json
+import logging
 import threading
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -11,6 +13,7 @@ from yaptracker.capture.source import Region
 from yaptracker.identity import Identity
 from yaptracker.matches import MatchTracker
 from yaptracker.ocr.engine import OcrLine
+from yaptracker.parser import ChatLine
 from yaptracker.pause import Pause
 from yaptracker.reader import ChatReader
 from yaptracker.store.repo import Store
@@ -302,3 +305,56 @@ def test_a_line_missed_after_a_match_goes_to_that_match_in_its_place(store):
     assert [m.text for m in store.messages(after)] == ["cute Mei skin so yeah", "Tracks",
                                                        "You endorsed Bo!"]  # fmt: skip
     assert store.messages(tracker.match_id) == []
+
+
+def chat(kind, text, speaker=None):
+    channel = "system" if kind == "system" else "match"
+    return ChatLine(kind, channel, text, 0.99, Region(64, 10, 400, 24), speaker=speaker)
+
+
+def test_seen_but_not_stored_counts_only_lines_really_missing_and_each_once(store, caplog):
+    """#504: an evening said 3, one was missing: a stored line (junk glued on, or a minute out
+    of Dedup's sight) and the same line with and without a full stop each counted."""
+    caplog.set_level(logging.INFO, "yaptracker.reader")
+    first = BLACK.copy()
+    reads = {id(first): [line("You endorsed Bo! NEXT TIER: 4071/50000"),
+                         line("[Pip]: nice shot, that was amazing", y=50)]}  # fmt: skip
+    seen = []
+    reader, tracker = reader_for(store, reads, on_read=lambda *args: seen.append(args[-1]))
+    reader.read_frame(1000.0, first)
+    assert len(store.messages(tracker.match_id)) == 2
+    missing = chat("message", "have fun all", "Bo")  # the only line really missing
+    unstored = [
+        [
+            chat("system", "You endorsed Bo!"),
+            chat("message", "nice shot that was amazing", "Pip"),
+            missing,
+        ],  # fmt: skip
+        [chat("message", "have fun all.", "Bo")],  # the same line, two minutes later
+        [chat("message", "have fum all", "B0")],  # and read a bit wrong
+        [chat("message", "nice shot", "Pip")],  # two words: not taken for the start of it
+    ]
+    for n, rows in enumerate(unstored):
+        reader._dedup = SimpleNamespace(update=lambda ts, lines: ([], []), unstored=rows, recent=[])
+        reader.read_frame(1100.0 + 100 * n, first)  # Dedup is faked: these rows only
+    assert [[r.text for r in rows] for rows in seen[1:]] == [
+        ["have fun all"],
+        [],
+        [],
+        ["nice shot"],
+    ]
+    assert caplog.text.count("never stored") == 2
+    assert "1 line(s) seen twice but never stored: Bo: have fun all\n" in caplog.text
+
+
+def test_seen_but_not_stored_once_per_match_also_when_kept_frames_take_turns(store):
+    """#504 review: kept frames of the match before and live frames alternate; a line stored
+    outside any match (the menu) counts as stored."""
+    reader, _ = reader_for(store, {})
+    store.add_message(ts=1000.0, channel="system", text="You have joined a group!")
+    joined, gg = chat("system", "You have joined a group!"), chat("message", "gg", "Bo")
+    assert reader._really_unstored(1010.0, [joined], None) == []
+    assert reader._really_unstored(1010.0, [gg], 5) == [gg]
+    assert reader._really_unstored(1020.0, [gg], 6) == [gg]  # another match: counted there
+    assert reader._really_unstored(1030.0, [gg], 5) == []  # match 5 still knows it
+    assert reader._really_unstored(1040.0, [gg], 6) == []

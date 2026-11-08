@@ -709,6 +709,11 @@ class Store:
         )
         return [Message(*row) for row in rows]
 
+    def lines_since(self, ts: float) -> list[Message]:
+        """Every line stored since `ts`, in any match or none, deleted ones too (#504)."""
+        rows = self._read(f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE ts >= ?", (ts,))
+        return [Message(*row) for row in rows]
+
     def players_with_notes(self) -> int:
         """How many players have notes (#437, the Definition of done counts three)."""
         rows = self._read("SELECT COUNT(*) FROM players WHERE trim(COALESCE(notes, '')) != ''")

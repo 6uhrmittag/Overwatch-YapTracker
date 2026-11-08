@@ -20,7 +20,16 @@ import numpy as np
 
 from yaptracker import channels, glyphs, priority, side_work
 from yaptracker.cpu_parts import CPU
-from yaptracker.dedup import FADE_S, YAP_KINDS, Dedup, Yap, hero_speaker, match_key
+from yaptracker.dedup import (
+    FADE_S,
+    YAP_KINDS,
+    Dedup,
+    Yap,
+    hero_speaker,
+    match_key,
+    stored_as,
+    text_key,
+)
 from yaptracker.identity import Identity
 from yaptracker.input_row import without_input
 from yaptracker.later import PER_PICTURE_S, Backlog, Kept, LaterFrames
@@ -47,6 +56,7 @@ MENU_GAP_S = 6.0
 FAIL_LIMIT = 5  # reads failing in a row before a crash gap opens and Live says so (#457)
 RATE_GAP_S = 30.0  # kept frames read further apart than this: a pause, not the reading pace
 RATE_WEIGHT = 0.2  # how much each kept frame moves the time-left guess (#501)
+UNSTORED_LOOK_S = 600.0  # seen-but-not-stored: compared with the lines stored this long (#504)
 
 
 def _fields(line: ChatLine) -> dict:
@@ -97,6 +107,7 @@ class ChatReader:
         self._seen_colours: dict[str, float] = {}  # channel colours learned while reading (#173)
         self._read_match: int | None = None  # the match of the last read
         self._on_screen: set[str] = set()  # match keys of the lines in the last read (#179)
+        self._unstored_said: dict[int | None, list[str]] = {}  # reported, per match (#504)
         self._reread_until, self._rereads_left = -math.inf, 0  # read weak lines again (#195)
         self._weak: set[int] = set()  # yaps that already got their re-reads
         self._save_colours = save_colours  # the group colour is rare: kept for next time (#80)
@@ -344,7 +355,7 @@ class ChatReader:
                 if yap.best is yap.last:  # read better in this very frame: its picture, too
                     self._keep_picture(yap, image)
         self._count(time.thread_time() - started)
-        unstored = self._dedup.unstored
+        unstored = self._really_unstored(ts, self._dedup.unstored, current)
         if unstored:  # a missed line as a number, not a feeling (#425)
             said = "; ".join(f"{line.speaker or ''}: {line.text}"[:50] for line in unstored)
             log.info("chat reading: %d line(s) seen twice but never stored: %s", len(unstored),
@@ -354,6 +365,29 @@ class ChatReader:
         except Exception as error:  # debug samples never fail a read (#452)
             side_work.failed("saving a debug sample", error)
         return new
+
+    def _really_unstored(self, ts: float, rows: list[ChatLine],
+                         match: int | None) -> list[ChatLine]:  # fmt: skip
+        """Seen-but-not-stored rows that really aren't stored (#504): not a line stored in the
+        last minutes read differently (Dedup only knows its last 40), and each one once a match:
+        Dedup forgets a row a minute out of sight, and seen again it was counted again. Kept
+        frames of the match before and live ones take turns, so each match keeps its own."""
+        if not rows:
+            return rows
+        said = self._unstored_said.setdefault(match, [])
+        for old in [m for m in self._unstored_said if m != match][:-2]:  # and 2 more at most
+            del self._unstored_said[old]
+        stored = [text_key(m.hero or m.speaker_raw, m.text)
+                  for m in self._store.lines_since(ts - UNSTORED_LOOK_S)]  # fmt: skip
+        found = []
+        for line in rows:
+            k = match_key(line)
+            whole = len(line.text.split()) >= 3  # may be the start of a line with junk glued on
+            if stored_as(k, said) or stored_as(k, stored, prefix=whole):
+                continue
+            said.append(k)
+            found.append(line)
+        return found
 
     def _lines(self, image: np.ndarray, ocr_lines: list[OcrLine]) -> tuple[list, list]:
         """(OCR lines with icons marked, chat lines with channel and who) of one read."""
