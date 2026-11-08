@@ -9,7 +9,7 @@ from PIL import Image
 
 from yaptracker import config, paths, runtime
 from yaptracker.glyphs import GLYPH
-from yaptracker.snaps import SCALE, WIDTH, render, save, snap_lines
+from yaptracker.snaps import SCALE, WIDTH, Style, render, save, snap_lines
 from yaptracker.store.repo import Store
 from yaptracker.ui import shell, snap_dialog
 
@@ -162,3 +162,20 @@ def config_style():
     from yaptracker.snaps import remembered
 
     return remembered(config.snap_style(), chat_colours.current())
+
+
+def test_a_translated_line_shows_its_translation_under_it_names_hidden_too():
+    """#530: a stored translation (#470) under its line, unless the style leaves it out."""
+    spanish = SimpleNamespace(channel="match", speaker_raw="Chorizo", text="buenas curas ana",
+                              role=None, translation="good heals ana", translation_from="ES",
+                              translation_to="EN")  # fmt: skip
+    chat = [*CHAT, spanish]
+    shown = snap_lines(chat)
+    assert shown[-1].translation == "“good heals ana” (from Spanish)"
+    assert [s.translation for s in shown[:-1]] == [""] * len(CHAT)
+    hidden = snap_lines(chat, hide_names=True)[-1]
+    assert hidden.translation == "“good heals Player 4” (from Spanish)"
+    with_it = render(snap_lines([spanish]))
+    without = render(snap_lines([spanish]), style=Style(translations=False))
+    plain = render(snap_lines([line("match", "Chorizo", "buenas curas ana")]))
+    assert with_it.height > without.height == plain.height
