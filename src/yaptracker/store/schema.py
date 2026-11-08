@@ -139,4 +139,36 @@ DROP TABLE capture_gaps;
 ALTER TABLE capture_gaps_v8 RENAME TO capture_gaps;
 """
 
-MIGRATIONS = [V1, V2, V3, V4, V5, V6, V7, V8]
+# A line's translation (#470): DeepL's text, the language it came from (DeepL's code, "ES") and
+# the one it went to ("EN"/"DE"). A new text (a better reading, an edit) drops it in the same
+# UPDATE (repo.py), no stale translation. Search covers it: the full-text index is built again.
+V9 = """
+ALTER TABLE chat_messages ADD COLUMN translation TEXT;
+ALTER TABLE chat_messages ADD COLUMN translation_from TEXT;
+ALTER TABLE chat_messages ADD COLUMN translation_to TEXT;
+DROP TRIGGER chat_fts_insert;
+DROP TRIGGER chat_fts_delete;
+DROP TRIGGER chat_fts_update;
+DROP TABLE chat_fts;
+CREATE VIRTUAL TABLE chat_fts USING fts5(
+    text, speaker_raw, translation, content='chat_messages', content_rowid='id'
+);
+CREATE TRIGGER chat_fts_insert AFTER INSERT ON chat_messages BEGIN
+    INSERT INTO chat_fts (rowid, text, speaker_raw, translation)
+    VALUES (new.id, new.text, new.speaker_raw, new.translation);
+END;
+CREATE TRIGGER chat_fts_delete AFTER DELETE ON chat_messages BEGIN
+    INSERT INTO chat_fts (chat_fts, rowid, text, speaker_raw, translation)
+    VALUES ('delete', old.id, old.text, old.speaker_raw, old.translation);
+END;
+CREATE TRIGGER chat_fts_update AFTER UPDATE OF text, speaker_raw, translation ON chat_messages
+BEGIN
+    INSERT INTO chat_fts (chat_fts, rowid, text, speaker_raw, translation)
+    VALUES ('delete', old.id, old.text, old.speaker_raw, old.translation);
+    INSERT INTO chat_fts (rowid, text, speaker_raw, translation)
+    VALUES (new.id, new.text, new.speaker_raw, new.translation);
+END;
+INSERT INTO chat_fts (chat_fts) VALUES ('rebuild');
+"""
+
+MIGRATIONS = [V1, V2, V3, V4, V5, V6, V7, V8, V9]

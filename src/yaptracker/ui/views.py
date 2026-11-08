@@ -531,8 +531,8 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             if message.id in chat["rows"]:
                 row = chat["rows"][message.id]
                 fill_line(row, message)  # a better reading came in
-                if row.get("translated"):  # translated by itself meanwhile (#469)
-                    row["translated"]()
+                if row.get("translated"):  # translated by itself meanwhile (#469, #470)
+                    row["translated"](message)
                 continue
             last = chat["last"]
             if last and same_callout(last[0], message):

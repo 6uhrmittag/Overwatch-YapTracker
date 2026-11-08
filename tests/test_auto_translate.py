@@ -238,3 +238,17 @@ async def test_the_language_translated_into_stays_read_after_picking_others(user
     user.find(marker="read-EN").click()  # the target: stays read
     config.save_translate_to("DE")
     assert config.read_languages() == {"EN", "DE", "ES"}
+
+
+def test_a_translation_from_the_background_is_stored_with_the_line(store):
+    """#470: kept, so it's there after a restart, in transcripts, search and export."""
+    fake = FakeDeepL()
+    translator = auto(store, fake)
+    translator.step()
+    said = say(store, "gg buenas curas")
+    looks = say(store, "que pasa con el tank")  # DeepL: English after all, nothing stored
+    translator.step()
+    assert store.message(said).translation == "<gg buenas curas>"
+    assert store.message(said).translation_to == "EN"
+    assert store.message(looks).translation is None
+    assert [m.id for m in store.search("buenas")] == [said]

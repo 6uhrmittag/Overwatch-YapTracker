@@ -638,6 +638,7 @@ def _translator(dev: bool) -> None:
         lambda: runtime.translator,
         lambda: config.translate_chat() and config.translate_auto(),
         config.read_languages,
+        target=config.translate_to,
     )
     app.on_startup(runtime.auto_translate.start)
     app.on_shutdown(runtime.auto_translate.stop)

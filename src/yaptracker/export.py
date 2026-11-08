@@ -17,6 +17,7 @@ from pathlib import Path
 from yaptracker import __version__, days, game_lists
 from yaptracker.lines import LinePictures
 from yaptracker.store.repo import Store
+from yaptracker.translate import language
 
 FORMAT_VERSION = 1
 VERDICT_LABELS = {"friend": "Bestie", "fun": "Fun", "neutral": "Meh", "avoid": "Nope"}
@@ -114,6 +115,9 @@ def _message(m) -> dict:
         "ocr_confidence": m.ocr_confidence,
         "flagged": m.flagged,  # overwatch ([Report] link) / manual / null (#77)
         "has_glyphs": bool(m.has_glyphs),  # an emoji or icon OCR couldn't spell, as \u25c7 (#128)
+        "translation": m.translation,  # DeepL's (#470), or null
+        "translation_from": m.translation_from,  # the line's language as DeepL saw it, e.g. "ES"
+        "translation_to": m.translation_to,  # "EN" or "DE"
     }
 
 
@@ -179,6 +183,9 @@ class _Names:
             record["speaker"] = names.get((record["speaker"] or "").casefold())
             if names:
                 record["text"] = found.sub(lambda m: names[m.group(1).casefold()], record["text"])
+                if record.get("translation"):  # a name stays a name in DeepL's text (#470)
+                    record["translation"] = found.sub(lambda m: names[m.group(1).casefold()],
+                                                      record["translation"])  # fmt: skip
         return records
 
 
@@ -245,6 +252,10 @@ def _match_markdown(match, number: int, said: list[dict], gaps: list) -> str:
         name = f"**{_md(who)}:** " if who else ""
         channel = _CHANNEL_NAMES.get(item["channel"], "Chat")
         lines.append(f"- {_clock(item['time'])} \u00b7 {channel} \u00b7 {name}{_md(item['text'])}")
+        if item.get("translation"):  # (#470)
+            source = language(item.get("translation_from"))
+            lines.append(f"  - \u21b3 *{_md(item['translation'])}*"
+                         + (f" (from {source})" if source else ""))  # fmt: skip
     out.append("\n".join(lines or ["Nobody wrote in chat in this match."]) + "\n")
     return "\n".join(out)
 
