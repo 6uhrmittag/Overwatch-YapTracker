@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-08 · Test versions are now called v1.2.0-pre (#534)
+- v1.1.0 is out! Test versions (Settings → About → Get test versions) are now called v1.2.0-pre.N, so they come after v1.1.0 and before v1.2.0.
+
 ## v1.1: on the way to v1.1.0
 
 ### 2026-11-08 · Translations in yap snaps (#530)
