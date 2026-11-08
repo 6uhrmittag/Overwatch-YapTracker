@@ -7,7 +7,9 @@ limited: one log line, the next try a day later. Stable releases only, unless "G
 versions" is on (#454), or no stable release exists yet (before v1.0.0 every build was a
 pre-release). Older stable releases were a promoted pre-release, the same build, with "Same build
 as v1.1.0-pre.512" in their notes: that build counts as up to date with it. Since #514 a stable
-release is a stamped rebuild without that line, so the pre-release's installs are offered it.
+release is a stamped rebuild without that line, so the pre-release's installs are offered it. Its
+notes say "Built from v1.1.0-pre.512" (#515): it sorts right after that test version and before
+v1.1.0-pre.513, so a later test install is never offered the older code.
 
 Update now runs the update.ps1 bundled with the app (the same script as by hand): from %TEMP%,
 since the app folder is replaced, in its own console with the download bar. YapTracker quits;
@@ -50,6 +52,8 @@ def fetch_releases() -> list[dict]:
 Version = tuple[int, int, int, int, int]
 NOTHING: Version = (0, 0, 0, 0, 0)
 SAME_BUILD = re.compile(r"Same build as v?(\d+\.\d+\.\d+(?:-pre\.\d+)?)")
+BUILT_FROM = re.compile(r"^Built from (v?\d+\.\d+\.\d+(?:-pre\.\d+)?)", re.MULTILINE)
+Rank = tuple[int, ...]
 
 
 def version(text: str | None) -> Version | None:
@@ -69,27 +73,48 @@ def candidates(releases: list[dict], installed: str, test_versions: bool = False
     found = [r for r in releases if not r.get("draft") and version(r.get("tag_name"))]
     if not test_versions and any(not r.get("prerelease") for r in found):
         found = [r for r in found if not r.get("prerelease")]
-    return sorted(found, key=lambda r: version(r["tag_name"]), reverse=True)
+    return sorted(found, key=rank, reverse=True)
 
 
-def newer(release: dict, installed: str) -> bool:
-    """A later version than the installed one, and not the very build that runs (older stable
+def rank(release: dict) -> Rank:
+    """Where a release sorts (#515): its version, except a stable release built from a test
+    version ("Built from v1.1.0-pre.512" in its notes), which comes right after that one and
+    before v1.1.0-pre.513, the later code."""
+    built = None if release.get("prerelease") else BUILT_FROM.search(release.get("body") or "")
+    if built:
+        return (*version(built[1]), 1)
+    return (*(version(release.get("tag_name")) or NOTHING), 0)
+
+
+def installed_rank(installed: str, releases: list[dict]) -> Rank:
+    """The installed version's rank: its own release's if listed (a stamped v1.1.0 sorts like
+    the test version it was built from), else its version."""
+    mine = version(installed)
+    for release in releases:
+        if mine is not None and version(release.get("tag_name")) == mine:
+            return rank(release)
+    return (*(mine or NOTHING), 0)
+
+
+def newer(release: dict, installed: str, releases: list[dict]) -> bool:
+    """A later release than the installed one, and not the very build that runs (older stable
     releases were the promoted pre-release's build, named in a "Same build as" line; since #514
-    a stable release is a stamped rebuild without one)."""
+    a stable release is a stamped rebuild without one). `releases`: the list to find the
+    installed one's rank in (#515)."""
     same = SAME_BUILD.search(release.get("body") or "")
     if same and version(same[1]) == version(installed):
         return False
-    return version(release["tag_name"]) > (version(installed) or NOTHING)
+    return rank(release) > installed_rank(installed, releases)
 
 
 def whats_new(releases: list[dict], installed: str) -> list[str]:
     """The release notes since the installed version, newest first (update.ps1's #281 text):
     every "- " bullet once, "Behind the scenes" ones only counted, at most NOTES_CAP."""
-    mine = version(installed)
+    mine = installed_rank(installed, releases) if version(installed) else None
     bullets: list[str] = []
     behind = 0
     for release in releases:
-        if mine is not None and version(release["tag_name"]) <= mine:
+        if mine is not None and rank(release) <= mine:
             break
         for line in (release.get("body") or "").splitlines():
             if not line.startswith("- "):
@@ -163,7 +188,7 @@ class UpdateCheck:
                 log.info("update: check failed (%s)", found.error)
             else:
                 newest = releases[0]["tag_name"] if releases else None
-                if newest and newer(releases[0], self.installed):
+                if newest and newer(releases[0], self.installed, releases):
                     found = Found(now, newest, whats_new(releases, self.installed))
                     log.info("update: %s is out (this is v%s)", newest, self.installed)
                 else:
@@ -231,10 +256,13 @@ def after_update(installed: str, last_run: str | None, notes_file: Path, cache: 
                  fetch: Callable[[], list[dict]] = fetch_releases) -> dict | None:  # fmt: skip
     """What's new at the first start of a new version: {"from", "to", "notes"} (notes None:
     offline, no list), or None (fresh install, same version, downgrade). From what Update now
-    saved, else the releases the daily check cached, else one fetch (the allowed URL)."""
+    saved, else the releases the daily check cached, else one fetch (the allowed URL). Newer
+    goes by rank (#515): a stamped v1.1.0 comes before v1.1.0-pre.513, despite its name."""
     now, before = version(installed), version(last_run)
-    if now is None or before is None or now <= before:
+    if now is None or before is None or now == before:
         return None
+    if now < before and not (now[:3] == before[:3] and before[3] and not now[3]):
+        return None  # a downgrade; only stamped v1.1.0 -> v1.1.0-pre.N may be newer code
     saved = _load(notes_file)
     if (
         isinstance(saved, dict)
@@ -255,7 +283,10 @@ def after_update(installed: str, last_run: str | None, notes_file: Path, cache: 
         except Exception as error:
             log.info("update: no notes for What's new (%s)", type(error).__name__)
             return {"from": last_run, "to": installed, "notes": None}
-    mine = [r for r in releases if version(r.get("tag_name")) and version(r["tag_name"]) <= now]
+    top = installed_rank(installed, releases)  # a stamped v1.1.0 ends at its test version (#515)
+    if top <= installed_rank(last_run, releases):
+        return None  # e.g. v1.1.0-pre.513 back to the stamped v1.1.0 (forced)
+    mine = [r for r in releases if version(r.get("tag_name")) and rank(r) <= top]
     found = {"from": last_run, "to": installed, "notes": whats_new(mine, last_run)}
     notes_file.write_text(json.dumps(found, ensure_ascii=False), encoding="utf-8")
     return found

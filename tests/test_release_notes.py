@@ -109,6 +109,7 @@ def test_the_first_stable_release_takes_every_v0_build_before_it(tmp_path):
                          capture_output=True, text=True, check=True).stdout  # fmt: skip
     assert "- Ready.\n- Early.\n" in out and "Later." not in out
     assert "Same build as" not in out  # #514: the stamped build is offered to v0.5.512 installs
+    assert "\n\nBuilt from v0.5.512 (the tested test version).\n" in out  # #515: where it sorts
     assert out.rstrip().endswith("your data stays where it is.")
 
 
