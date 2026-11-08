@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.1: on the way to v1.1.0
 
+### 2026-11-08 · A test version never steps back to an older stable release (#515)
+- On a test version that's newer than the latest stable release, the update check no longer offers that older stable release. This applies in the app and in update.ps1.
+
 ### 2026-11-07 · A verdict mark on known players' names (#519)
 - Known players get a small mark in front of their name in Live and in transcripts: their verdict sticker in mini, or a ring when you've met them before without a verdict. Also on system lines like "[x] started playing" and "You endorsed x!".
 - Click the mark for their card, the same one the "Look who's back!" chips open. The lines stay exactly as high as before.
