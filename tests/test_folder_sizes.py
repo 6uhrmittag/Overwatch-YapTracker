@@ -40,7 +40,10 @@ def test_picture_sizes_stay_right_after_writes_overwrites_and_clean_ups(tmp_path
     assert pictures.size_bytes() == on_disk_pictures(folder)
     pictures.save(9, NOV, chat, Region(0, 0, 600, 30))
     assert pictures.size_bytes() == on_disk_pictures(folder)
-    assert (folder / "2026-10" / "9.webp").exists()
+    pictures.set_cap(on_disk_pictures(folder) - 1)  # lowered: September goes as a whole
+    pictures.clean_up()
+    assert [p.name for p in folder.iterdir()] == ["2026-10"]
+    assert pictures.size_bytes() == on_disk_pictures(folder)
 
 
 def test_debug_sizes_stay_right_after_samples_corrections_and_clean_ups(tmp_path):

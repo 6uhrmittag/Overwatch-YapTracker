@@ -35,10 +35,10 @@ def test_two_gigabytes_unless_set():
 
 def test_what_a_lower_limit_would_free_without_walking(tmp_path):
     pictures = pictures_of(tmp_path, {"2026-08": 1000, "2026-09": 1000, "2026-10": 1000})
-    assert pictures.would_free(1500) == (2000, "2026-10", False)
-    assert pictures.would_free(3000) == (0, "2026-08", False)  # all fit: nothing goes
+    assert pictures.would_free(1500) == (2000, "2026-10", True, False)
+    assert pictures.would_free(3000) == (0, "2026-08", False, False)  # all fit: nothing goes
     # never the month being written (#462): its one picture is its newest, so it stays
-    assert pictures.would_free(500) == (2000, "2026-10", False)
+    assert pictures.would_free(500) == (2000, "2026-10", True, False)
 
 
 @pytest.fixture
@@ -93,7 +93,7 @@ async def test_a_limit_below_this_month_says_only_its_oldest_go(user, monkeypatc
     user.find(marker="nav-settings").click()
     slider = next(iter(user.find(marker="pictures-cap").elements))
     slider.set_value(0)
-    await user.should_see("Frees 50.0 MB: the oldest of October 2026 go.")
+    await user.should_see("Frees 50.0 MB: the oldest since October 2026 go.")
     user.find(marker="pictures-cap").trigger("change")
-    await user.should_see("Freed 50.0 MB: the oldest of October 2026 are gone.")
+    await user.should_see("Freed 50.0 MB: the oldest since October 2026 are gone.")
     assert sorted(p.name for p in (folder / "2026-10").iterdir()) == ["3.webp", "4.webp"]

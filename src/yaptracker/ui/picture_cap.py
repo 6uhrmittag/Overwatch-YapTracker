@@ -23,16 +23,15 @@ def effect(mb: int) -> str:
     pictures = runtime.pictures
     if pictures is None or pictures.size_bytes() is None:
         return ""
-    freed, kept, trimmed = pictures.would_free(mb * 1_000_000)
+    freed, kept, older, trimmed = pictures.would_free(mb * 1_000_000)
     if not freed or kept is None:
         return ""
     month = time.strftime("%B %Y", time.strptime(kept, "%Y-%m"))
     if not trimmed:
         return f"Frees {megabytes(freed)}: the pictures before {month} go."
-    older = pictures.would_free(10**15)[1] != kept  # an older month goes as a whole too
     before = f"the pictures before {month} and " if older else ""
-    # the newest month keeps its newest pictures (#462)
-    return f"Frees {megabytes(freed)}: {before}the oldest of {month} go."
+    # the months being written keep their newest pictures (#462)
+    return f"Frees {megabytes(freed)}: {before}the oldest since {month} go."
 
 
 def picture_cap() -> None:

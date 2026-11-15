@@ -112,3 +112,56 @@ def test_a_picture_that_cant_be_deleted_stays_counted(tmp_path, monkeypatch):
     left = {p for p in folder.rglob("*.webp")}
     assert left == stuck | {folder / "2026-10" / "9.webp"}
     assert pictures.size_bytes() == sum(p.stat().st_size for p in left) == 1100
+
+
+def at(year, month, day, hour=21):
+    return time.mktime((year, month, day, hour, 0, 0, 0, 0, -1))
+
+
+def test_an_evening_past_midnight_keeps_the_month_it_began_in(tmp_path):
+    """#462 review: Dec 1, 00:30: November isn't the newest folder any more, but tonight's
+    pictures from before midnight are in it."""
+    folder = tmp_path / "lines"
+    month_of(folder, "2026-10", {1: 400})
+    month_of(folder, "2026-11", {50: 400, 51: 400})
+    month_of(folder, "2026-12", {52: 100})
+    pictures = LinePictures(folder, cap_bytes=1000, clock=lambda: at(2026, 12, 1, 0))
+    pictures.start(background=False)
+    assert sorted(p.name for p in folder.iterdir()) == ["2026-11", "2026-12"]
+    assert sorted(p.name for p in (folder / "2026-11").iterdir()) == ["50.webp", "51.webp"]
+
+
+def test_a_future_dated_folder_never_takes_this_months_place(tmp_path):
+    folder = tmp_path / "lines"
+    month_of(folder, "2026-11", {10: 400, 11: 400})
+    month_of(folder, "2027-03", {3: 100})  # a wrong clock once
+    pictures = LinePictures(folder, cap_bytes=600, clock=lambda: at(2026, 11, 15))
+    pictures.start(background=False)
+    # November is kept as this month: only its oldest goes (and the stray, older by id)
+    assert [p.name for p in (folder / "2026-11").iterdir()] == ["11.webp"]
+
+
+def test_still_over_the_cap_waits_a_minute_before_trying_again(tmp_path, monkeypatch):
+    """#462 review: a picture open somewhere must not turn every save into a clean-up."""
+    from yaptracker import lines
+
+    clock = [at(2026, 11, 15)]
+    folder = tmp_path / "lines"
+    month_of(folder, "2026-11", {1: 5000})
+    pictures = LinePictures(folder, cap_bytes=10, clock=lambda: clock[0])
+    pictures.start(background=False)  # over the cap with nothing it may delete
+    runs = []
+    monkeypatch.setattr(pictures, "clean_up", lambda: runs.append(clock[0]))
+    pictures.save(2, clock[0], demo_chat(), Region(15, 290, 300, 24))
+    assert runs == []
+    clock[0] += lines.RETRY_S
+    pictures.save(3, clock[0], demo_chat(), Region(15, 290, 300, 24))
+    assert runs == [clock[0]]
+
+
+def test_a_save_into_a_month_on_its_way_out_is_skipped(tmp_path):
+    pictures = LinePictures(tmp_path / "lines")
+    pictures.start(background=False)
+    pictures._deleting.add("2026-10")  # a clean-up is deleting October right now
+    assert pictures.save(5, OCT, demo_chat(), Region(15, 290, 300, 24)) is None
+    assert not pictures.path(5, OCT).exists()
