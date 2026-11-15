@@ -7,11 +7,12 @@ from collections.abc import Callable
 from nicegui import ui
 
 from yaptracker import days, runtime
-from yaptracker.ui import backlog
+from yaptracker.ui import backlog, icons
 from yaptracker.ui.components import (
     VERDICTS,
     button,
     count,
+    place_name,
     saved_chip,
     spicy_mark,
     switch,
@@ -106,6 +107,8 @@ def profile(player_id: int, on_back: Callable[[], None]) -> None:
             ui.label("Saves by itself. Shows up on their card when they're back.").classes(
                 "yt-hint"
             )
+            ui.label("Matches together").classes("yt-h2")
+            _together(player_id)
         with ui.element("aside").classes("yt-card yt-profile-yaps"):
             with ui.element("div").classes("yt-card-body"):
                 with ui.element("div").classes("yt-row"):
@@ -212,17 +215,66 @@ def _day(ts: float | None) -> str:
     return time.strftime("%b %d", time.localtime(ts)).replace(" 0", " ") if ts else "-"
 
 
-def _match_link(heading: ui.element, match_id: int, said: list) -> None:
-    """A match heading opens its transcript in Sessions at their first line there (#388)."""
-    first = next((m for m in reversed(said) if not m.hero), said[-1])  # said: newest first
+def _first_line(said: list):
+    """Their first typed line of a match (a callout only if they typed nothing); `said`: newest
+    first, as the store gives it."""
+    return next((m for m in reversed(said) if not m.hero), said[-1])
+
+
+def _opens_match(element: ui.element, match_id: int, line_id: int) -> None:
+    """One click (or Enter) opens the match in Sessions at their first line there (#388)."""
 
     def open_match() -> None:
-        ui.context.client.yt_show("sessions", match_id=match_id, line_id=first.id)
+        ui.context.client.yt_show("sessions", match_id=match_id, line_id=line_id)
 
+    element.props('role="button" tabindex="0" title="Open this match, at their first line"')
+    element.on("click", open_match)
+    element.on("keydown.enter", open_match)
+
+
+def _match_link(heading: ui.element, match_id: int, said: list) -> None:
+    """A heading in their yaps opens its match (#388)."""
     heading.classes(add="yt-match-title--link").mark(f"match-link match-link-{match_id}")
-    heading.props('role="button" tabindex="0" title="Open this match, at their first line"')
-    heading.on("click", open_match)
-    heading.on("keydown.enter", open_match)
+    _opens_match(heading, match_id, _first_line(said).id)
+
+
+def _together(player_id: int) -> None:
+    """Every match they wrote in, newest first, one click to each (#388, Void's idea): day and
+    number as in Sessions, map, queue, result, the heart, how much they wrote."""
+    from yaptracker.ui.views import _OUTCOMES  # views imports this module
+
+    store = runtime.store
+    matches = store.player_match_rows(player_id)
+    if not matches:
+        ui.label("No matches together yet. Once they write in a match, it's listed here.").classes(
+            "yt-hint"
+        ).mark("together-empty")
+        return
+    by_match: dict[int, list] = {}
+    for message in store.player_messages(player_id, callouts=True):
+        by_match.setdefault(message.match_id, []).append(message)
+    numbers = store.day_numbers({m.id for m in matches})
+    with ui.element("div").classes("yt-together").mark("together"):
+        for match in matches:
+            said = by_match.get(match.id)
+            if not said:
+                continue
+            key, number = numbers.get(match.id, (match.day or days.day_of(match.started_at), None))
+            when_ = days.title(key, "%a, %b %d") + (f" \u00b7 Match {number}" if number else "")
+            typed = sum(1 for m in said if not m.hero)
+            what = [place_name(match.map) if match.map else None,
+                    place_name(match.mode) if match.mode else None,
+                    _OUTCOMES.get(match.outcome or "", None),
+                    count(typed, "yap", "yaps") if typed else "callouts only"]  # fmt: skip
+            row = ui.element("div").classes("yt-together-row").mark(f"together-{match.id}")
+            with row:
+                ui.label(when_).classes("yt-together-when")
+                if match.loved_at:  # hearted (#282)
+                    ui.html(icons.HEART, sanitize=False).classes("yt-heart-mark").props(
+                        'title="Loved"'
+                    )
+                ui.label(" \u00b7 ".join(w for w in what if w)).classes("yt-meta")
+            _opens_match(row, match.id, _first_line(said).id)
 
 
 def _yaps(player_id: int, callouts: bool = False) -> None:
