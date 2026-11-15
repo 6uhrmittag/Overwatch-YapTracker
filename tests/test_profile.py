@@ -80,3 +80,16 @@ def test_the_yap_o_meter():
     assert yap_level(4, 2)[0] == "Casual yapper"
     assert yap_level(15, 3)[0] == "Certified yapper"
     assert yap_level(90, 5) == ("Yap lord", 1.0)
+
+
+async def test_a_match_heading_opens_that_match_at_their_first_line(user: User, store):
+    """#388: Marv, 2026-10-26: "very weird that I can't jump to a full match from this view"."""
+    await open_profile(user)
+    first_match = store._read("SELECT MIN(id) FROM matches")[0][0]
+    first_line = store._read("SELECT MIN(id) FROM chat_messages WHERE match_id = ?",
+                             (first_match,))[0][0]  # fmt: skip
+    user.find(marker=f"match-link-{first_match}").click()
+    await user.should_see("All matches")  # the transcript, in Sessions
+    await user.should_see("WAHOOOO")
+    (line,) = user.find(marker=f"line-{first_line}").elements
+    assert "yt-line--found" in line.classes

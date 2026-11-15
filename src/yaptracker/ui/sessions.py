@@ -44,8 +44,9 @@ def _length(start: float, end: float) -> str:
     return days.length(end - start)
 
 
-def sessions(match_id: int | None = None) -> None:
-    """The days list; with a match (a search result, #30) its transcript in its day right away."""
+def sessions(match_id: int | None = None, line_id: int | None = None) -> None:
+    """The days list; with a match (a search result, #30) its transcript in its day right away,
+    with a line (a profile's match heading, #388) scrolled to it."""
     view = ui.element("div").classes("yt-view")
 
     def show_days() -> None:
@@ -60,18 +61,18 @@ def sessions(match_id: int | None = None) -> None:
         with view:
             _match_list(key, show_days, lambda m, n: show_match(key, m, n))
 
-    def show_match(key: str, match, number: int) -> None:
+    def show_match(key: str, match, number: int, line: int | None = None) -> None:
         sub_page(show_days)
         view.clear()
         with view:
-            _transcript(match, number, lambda: show_day(key))
+            _transcript(match, number, lambda: show_day(key), line)
 
     store = runtime.store
     key = store.match_day(match_id) if store and match_id is not None else None
     matches = store.played_matches(key, _reading()) if key else []
     number = next((n for n, m in enumerate(matches, start=1) if m.id == match_id), None)
     if number is not None:
-        show_match(key, matches[number - 1], number)
+        show_match(key, matches[number - 1], number, line_id)
     else:
         show_days()
 
@@ -229,7 +230,7 @@ def _read_again(match_id: int, rows: dict[int, dict], button):
     return start
 
 
-def _transcript(match, number: int, back) -> None:
+def _transcript(match, number: int, back, line_id: int | None = None) -> None:
     store = runtime.store
 
     def open_snap(chosen: list) -> None:
@@ -284,6 +285,15 @@ def _transcript(match, number: int, back) -> None:
 
     follow()
     ui.timer(backlog.FOLLOW_S, follow)
+    if line_id is not None and line_id in rows:
+        _point_at(rows[line_id]["line"])
+
+
+def _point_at(line: ui.element) -> None:
+    """The line you came for (#388): marked, and scrolled into the middle once it's drawn."""
+    line.classes(add="yt-line--found")
+    js = f"getHtmlElement({line.id})?.scrollIntoView({{block: 'center'}})"
+    ui.timer(0.1, lambda: ui.run_javascript(js), once=True)
 
 
 def _draw(match, body, rows: dict, picker, clicked, callouts, messages=None) -> int:
