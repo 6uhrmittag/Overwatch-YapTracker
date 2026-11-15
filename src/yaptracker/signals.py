@@ -28,6 +28,9 @@ ROUND_START_HEIGHT = 75  # px at 1440p, for has_bright_text
 HERO_DETAILS = RelativeRegion.from_pixels(Region(40, 1355, 300, 60), 2560, 1440)
 HERO_DETAILS_TEXT = "HERO DETAILS"
 DETAILS_FRESH_S = 60.0  # a sighting this old still confirms a match the chat started
+# The round-start box comes up to ~45 s after hero select ends, which itself runs 20-30 s: its
+# info corner, read at a "HERO DETAILS" sighting this long ago, is still this match's (#537).
+DETAILS_CARRY_S = 120.0
 # End of a match (#94): the centre banner, and the title strip in the top-left corner.
 END_BANNER = RelativeRegion.from_pixels(Region(900, 590, 820, 250), 2560, 1440)
 END_TITLE = RelativeRegion.from_pixels(Region(40, 30, 900, 75), 2560, 1440)
@@ -167,7 +170,13 @@ def parse_info(lines: list[str]) -> tuple[str | None, str | None]:
     if not lines:
         return None, None
     map_name = game_lists.map_name(lines[-1]) if len(lines) > 1 else None
-    return game_lists.queue(lines[0]), map_name
+    # glare may hide the queue line: then the side ("ATTACK") comes first (#537)
+    above = lines[:-1] if len(lines) > 1 else lines
+    for loose in (False, True):
+        for line in above:
+            if mode := game_lists.queue(line, loose=loose):
+                return mode, map_name
+    return None, map_name
 
 
 def _variants(image: np.ndarray):
@@ -218,6 +227,7 @@ class HeroSelect:
         self._read_at = -IN_MATCH_EVERY_S  # the last banner read (#303)
         self._details_at: float | None = None  # "HERO DETAILS" seen without the banner (#300)
         self._details_info: tuple[str | None, str | None] = (None, None)
+        self._details_left = 0  # more looks at the corner while it's unread (#537)
 
     def update(self, signals: dict[str, np.ndarray]) -> None:
         strip = signals.get("heroselect")
@@ -261,7 +271,11 @@ class HeroSelect:
             and is_round_start(self._read_line(box))
         ):
             self._active, self._last_seen = True, now
-            self._on_start(None, None)
+            # glare hid the banner, not hero select: its corner was read at "HERO DETAILS" (#537)
+            fresh = self._details_at is not None and now - self._details_at <= DETAILS_CARRY_S
+            self._known = self._details_info if fresh else (None, None)
+            self._details_at = None
+            self._on_start(*self._known)
         elif self._active and now - self._last_seen >= self._rearm_s:
             self._active = False
 
@@ -288,9 +302,14 @@ class HeroSelect:
         self._read_at = now
         if not is_hero_details(self._read_line(box)):
             return
+        info = signals.get("heroselect_info")  # often washed out too: more looks while unread
         if self._details_at is None or now - self._details_at > DETAILS_FRESH_S:
-            info = signals.get("heroselect_info")  # once per hero select: usually washed out too
             self._details_info = read_info(self._read_lines, info)
+            self._details_left = INFO_TRIES
+        elif None in self._details_info and self._details_left:
+            self._details_left -= 1
+            mode, map_name = read_info(self._read_lines, info)
+            self._details_info = (self._details_info[0] or mode, self._details_info[1] or map_name)
         self._details_at = now
 
     def _confirm(self, now: float) -> bool:

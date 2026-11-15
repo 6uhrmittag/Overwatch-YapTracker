@@ -1,6 +1,6 @@
 {
  "source": "https://overfast-api.tekrop.fr (en-us, de-de) + hand-written queue names (#276)",
- "fetched": "2026-10-10",
+ "fetched": "2026-11-15",
  "queues": [
   "UNRANKED",
   "COMPETITIVE",
@@ -134,7 +134,6 @@
   "Throne of Anubis",
   "Volskaya Industries",
   "Watchpoint: Gibraltar",
-  "Watchpoint: Grimsvotn",
   "Workshop Chamber",
   "Workshop Expanse",
   "Workshop Green Screen",
@@ -196,7 +195,6 @@
   "Throne of Anubis": ["clash"],
   "Volskaya Industries": ["assault"],
   "Watchpoint: Gibraltar": ["escort"],
-  "Watchpoint: Grimsvotn": ["escort"],
   "Workshop Chamber": ["workshop"],
   "Workshop Expanse": ["workshop"],
   "Workshop Green Screen": ["workshop"],

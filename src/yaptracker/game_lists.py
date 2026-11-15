@@ -37,8 +37,33 @@ def _best(text: str | None, names: list[str], cutoff: int = MATCH) -> str | None
     return found[2] if found else None
 
 
-def queue(text: str | None) -> str | None:
-    """The queue name at the start of hero select's top line ("UINRANKED ATTACK")."""
+LOOSE_QUEUE = 70  # a washed-out queue word, after _fold (#537)
+LOOSE_MARGIN = 15  # ...and this far ahead of the next queue, so it's never a coin toss
+LOOSE_LETTERS = 5
+
+
+def _fold(text: str) -> str:
+    """Overwatch's italic hero-select type: OCR reads its A as O ("INRONKED", #537)."""
+    return _letters(text).replace("o", "a")
+
+
+def _loose_queue(text: str) -> str | None:
+    """HDR glare leaves fragments ("IINRONKE", "ANKED"): the queue they clearly point at. Real
+    other text at that spot (ATTACK, DEFEND, menus) scored at most 62 on Marv's samples."""
+    if len(_letters(text)) < LOOSE_LETTERS:
+        return None
+    keys = {name: _fold(name) for name in lists()["queues"]}
+    found = process.extract(_fold(text), keys, scorer=fuzz.ratio, limit=2)
+    if not found or found[0][1] < LOOSE_QUEUE:
+        return None
+    if len(found) > 1 and found[0][1] - found[1][1] < LOOSE_MARGIN:
+        return None
+    return found[0][2]
+
+
+def queue(text: str | None, loose: bool = False) -> str | None:
+    """The queue name at the start of hero select's top line ("UINRANKED ATTACK"); `loose`
+    also takes a washed-out one (see _loose_queue)."""
     if not text:
         return None
     words = text.split()
@@ -47,6 +72,10 @@ def queue(text: str | None) -> str | None:
     for candidate in candidates:
         if found := _best(candidate, lists()["queues"]):
             return found
+    if loose:
+        for candidate in candidates:
+            if found := _loose_queue(candidate):
+                return found
     return None
 
 
