@@ -212,6 +212,19 @@ def _day(ts: float | None) -> str:
     return time.strftime("%b %d", time.localtime(ts)).replace(" 0", " ") if ts else "-"
 
 
+def _match_link(heading: ui.element, match_id: int, said: list) -> None:
+    """A match heading opens its transcript in Sessions at their first line there (#388)."""
+    first = next((m for m in reversed(said) if not m.hero), said[-1])  # said: newest first
+
+    def open_match() -> None:
+        ui.context.client.yt_show("sessions", match_id=match_id, line_id=first.id)
+
+    heading.classes(add="yt-match-title--link").mark(f"match-link match-link-{match_id}")
+    heading.props('role="button" tabindex="0" title="Open this match, at their first line"')
+    heading.on("click", open_match)
+    heading.on("keydown.enter", open_match)
+
+
 def _yaps(player_id: int, callouts: bool = False) -> None:
     from yaptracker.ui.views import restyle_channel, show_picture  # views imports this module
 
@@ -230,8 +243,9 @@ def _yaps(player_id: int, callouts: bool = False) -> None:
         day = days.title(key, "%a, %b %d")
         title = f"{day} \u00b7 Match {number}" if number else day
         with ui.element("div").classes("yt-row yt-row--wrap"):
-            ui.label(title).classes("yt-match-title")
+            heading = ui.label(title).classes("yt-match-title")
             if match_id is not None:
+                _match_link(heading, match_id, said)
                 badges[match_id] = backlog.badge_label()
         for message in reversed(said):  # in the order they said it
             channel = message.channel if message.channel in _CHANNELS else "chat"
