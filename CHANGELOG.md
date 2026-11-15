@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-15 · The queue is known again in most matches (#537)
+- When glare hides "Assemble your team", the match still gets its queue and map from the hero-select screen.
+- A washed-out "Unranked" on a bright hero select is still read as Unranked.
+
 ### 2026-11-08 · Test versions are now called v1.2.0-pre (#534)
 - v1.1.0 is out! Test versions (Settings → About → Get test versions) are now called v1.2.0-pre.N, so they come after v1.1.0 and before v1.2.0.
 
