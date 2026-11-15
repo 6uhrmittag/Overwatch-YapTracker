@@ -7,7 +7,8 @@ Only other players' typed lines: not your own or your crew's (#74), not system l
 callouts (the game's own words). DeepL's detected language has the last word: a line it calls
 English (or another language you read) stays untranslated. Each text is sent once a run; when
 DeepL fails (quota, key, offline) the lines show why, and new ones wait a while instead of
-asking again and again. A translation is stored with its line (#470).
+asking again and again. A translation is stored with its line (#470). DeepL gets the text of
+the few lines before as context (#538): one request per match.
 """
 
 import logging
@@ -16,7 +17,16 @@ import time
 from collections.abc import Callable
 
 from yaptracker import languages
-from yaptracker.translate import NO_KEY, NOT_FREE, OFFLINE, TOO_MANY, WRONG_KEY, Translation
+from yaptracker.glyphs import GLYPH
+from yaptracker.translate import (
+    NO_KEY,
+    NOT_FREE,
+    OFFLINE,
+    TOO_MANY,
+    WRONG_KEY,
+    Translation,
+    only_shorthand,
+)
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +36,24 @@ BATCH = 25  # lines in one request at most
 # minute later), 10 for the rest (quota). No key yet sent nothing, so nothing waits.
 WAIT_S = {OFFLINE: 60.0, TOO_MANY: 60.0, WRONG_KEY: 60.0, NO_KEY: 0.0, NOT_FREE: 0.0}
 WAIT_OTHER_S = 600.0
+CONTEXT_LINES = 5  # lines before as DeepL's context (#538): the same channel's first
+CONTEXT_SAME = 3  # fewer of those than this: the match's lines of any channel
+
+
+def context_for(store, message) -> str | None:
+    """The text of the few lines said before `message` in its match: only their text, never a
+    name or an id, and never the game's own lines (system lines carry names)."""
+    if store is None or getattr(message, "match_id", None) is None:
+        return None
+    before = [m for m in store.messages(message.match_id)
+              if m.id < message.id and _theirs_or_mine(m) and _clean(m.text)]  # fmt: skip
+    same = [m for m in before if m.channel == message.channel]
+    lines = same[-CONTEXT_LINES:] if len(same) >= CONTEXT_SAME else before[-CONTEXT_LINES:]
+    return "\n".join(_clean(m.text) for m in lines) or None
+
+
+def _clean(text: str) -> str:
+    return " ".join((text or "").replace(GLYPH, " ").split())
 
 
 class AutoTranslate:
@@ -68,19 +96,27 @@ class AutoTranslate:
             return 0
         self._last = lines[-1].id
         read = self._read()
-        foreign = [m for m in lines if _theirs(m) and languages.foreign(m.text, read)]
+        foreign = [m for m in lines if _theirs(m) and not only_shorthand(m.text)
+                   and languages.foreign(m.text, read)]  # fmt: skip
         if not foreign:
             return 0
-        failed, target = self._failed, self._target()
-        if failed is not None and self._clock() < failed[0]:
-            done = [failed[1]] * len(foreign)  # still failing: say so, don't ask again yet
-        else:
-            done = translator.translate_many([m.text for m in foreign])
-            errors = [d for d in done if d.error]
+        groups: dict = {}  # one request per match: DeepL takes one context per request (#538)
+        for message in foreign:
+            groups.setdefault(message.match_id, []).append(message)
+        foreign, done, target = [m for g in groups.values() for m in g], [], self._target()
+        for group in groups.values():
+            failed = self._failed
+            if failed is not None and self._clock() < failed[0]:
+                done += [failed[1]] * len(group)  # still failing: say so, don't ask again yet
+                continue
+            found = translator.translate_many([m.text for m in group],
+                                              context_for(store, group[0]))  # fmt: skip
+            errors = [d for d in found if d.error]
             self._failed = (
                 (self._clock() + WAIT_S.get(errors[0].error, WAIT_OTHER_S), errors[0])
                 if errors else None
             )  # fmt: skip
+            done += found
         with self._lock:
             for message, translation in zip(foreign, done, strict=True):
                 if translation.error or translation.code not in read:
@@ -104,6 +140,11 @@ class AutoTranslate:
                 self.step()
             except Exception:  # never takes the app down; tried again in a second
                 log.exception("translate: looking at new lines failed")
+
+
+def _theirs_or_mine(message) -> bool:
+    """Typed by a player: the game's own lines (system, comms wheel) never go as context."""
+    return message.channel != "system" and not message.hero
 
 
 def _theirs(message) -> bool:
