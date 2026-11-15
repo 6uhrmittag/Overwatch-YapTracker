@@ -126,3 +126,12 @@ def test_auto_translate_never_sends_a_shorthand_line(store, match):
     say(store, match, "gg ez")
     assert auto.step() == 0
     assert fake.sent == []
+
+
+def test_a_plain_answer_is_taken_as_it_comes():
+    """#538 review: only an XML request's answer is XML; "&lt;3" typed stays "&lt;3"."""
+    fake = FakeDeepL()
+    assert DeepL(lambda: KEY, lambda: "EN", send=fake).translate("te quiero &lt;3").text == (
+        "[te quiero &lt;3]"
+    )
+    assert "tag_handling" not in fake.sent[0]

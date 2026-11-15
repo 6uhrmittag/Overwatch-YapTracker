@@ -91,12 +91,17 @@ def _unmarked(text: str) -> str:
     return html.unescape(re.sub(rf"</?{_KEEP}>", "", text))
 
 
+def _has_shorthand(texts: list[str]) -> bool:
+    """Then the request goes as XML (_marked), and the answer comes back as XML too."""
+    return any(_is_short(word) for text in texts for word in text.split())
+
+
 def request(key: str, texts: list[str], target: str,
             context: str | None = None) -> urllib.request.Request:  # fmt: skip
     """The one request: only the lines' texts, the target language (#468) and the text of the
     lines before them as context (#538); several lines that came in together go in one (#469)."""
     fields: dict = {"text": texts, "target_lang": _TARGET_CODES.get(target, "EN-US")}
-    if any(_is_short(word) for text in texts for word in text.split()):
+    if _has_shorthand(texts):
         fields |= {"text": [_marked(t) for t in texts], "tag_handling": "xml",
                    "ignore_tags": [_KEEP]}  # fmt: skip
     if context:
@@ -159,7 +164,8 @@ class DeepL:
         if new:
             try:
                 answer = self._ask(key, new, target, context)["translations"]
-                done = [Translation(_unmarked(found["text"]),
+                xml = _has_shorthand(new)
+                done = [Translation(_unmarked(found["text"]) if xml else found["text"],
                                     language(found.get("detected_source_language")),
                                     code=_code(found.get("detected_source_language")))
                         for found in answer]  # fmt: skip
