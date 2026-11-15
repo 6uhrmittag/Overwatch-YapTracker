@@ -4,6 +4,13 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-15 · Clearer release rules for the robot (#536)
+- Behind the scenes: CLAUDE.md names the one hand edit of CHANGELOG.md and when the version bump may merge.
+
+### 2026-11-15 · Start menu, desktop icon and an uninstaller (#317)
+- `update.ps1` puts YapTracker in the Start menu and, the first time, on your desktop.
+- Uninstall from Windows Settings → Apps (or `uninstall.ps1`): app, shortcuts and autostart go, your yaps stay unless you ask.
+
 ### 2026-11-15 · A failed export says why (#464)
 - If "Export everything" fails (full disk, a file open in another program), it says so and why, instead of "Exporting…" forever.
 
