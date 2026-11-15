@@ -40,8 +40,9 @@ Expect (Format-PayloadLine ([long](31.2 * 1MB)) ([long](66.4 * 1MB)) (8.4 * 1MB)
     'Pushing the payload  [==>--]   46%'
 Expect (Format-PayloadLine ([long](31.2 * 1MB)) ([long](66.4 * 1MB)) (8.4 * 1MB) -Columns 30) `
     'Payload  [==>--]   46%'
-$all = (Get-Content $script -Raw)
-if ($all -match '[^\x00-\x7F]') { throw 'update.ps1 must stay ASCII (Windows PowerShell 5.1)' }
+foreach ($file in $script, (Join-Path $PSScriptRoot 'uninstall.ps1')) {
+    if ((Get-Content $file -Raw) -match '[^\x00-\x7F]') { throw "$file must stay ASCII (Windows PowerShell 5.1)" }
+}
 # What's new since the installed version (#281): every release in between, newest first.
 $Repo = 'x/y'
 $ue, $mark = [string][char]0x00FC, [string][char]0x25C7
