@@ -7,6 +7,8 @@
     version), closes a running YapTracker, replaces <InstallRoot>\app and
     starts YapTracker again. Before the first stable release, test versions
     are all there is, so those count.
+    Keeps a Start menu entry current, puts an icon on the desktop the first time,
+    and leaves uninstall.ps1 in <InstallRoot> (also in Windows Settings -> Apps).
     <InstallRoot>\data (chat log, players, notes) is never touched.
     Works in Windows PowerShell 5.1 and PowerShell 7.
 
@@ -26,7 +28,9 @@ param(
     # Run this copy as it is, without fetching the newest update.ps1 first (CI tests its own).
     [switch]$NoSelfUpdate,
     # Test versions too (pre-releases, every new build), not only stable releases (#454).
-    [switch]$PreRelease
+    [switch]$PreRelease,
+    # No icon on the desktop (the Start menu entry is always there, #317).
+    [switch]$NoDesktopIcon
 )
 
 $ErrorActionPreference = 'Stop'
@@ -259,6 +263,71 @@ function Stop-YapTracker {
     }
 }
 
+function Set-Shortcut {
+    param([string]$Path, [string]$Target)
+    $link = (New-Object -ComObject WScript.Shell).CreateShortcut($Path)
+    $link.TargetPath = $Target
+    $link.WorkingDirectory = Split-Path $Target
+    $link.IconLocation = "$Target,0"
+    $link.Description = 'YapTracker - remembers who you yapped with'
+    $link.Save()
+}
+
+function Save-Uninstaller {
+    # <InstallRoot>\uninstall.ps1 (#317): the one next to this script (a checkout), else the
+    # release's own. $false when there's none to get (a release from before it existed).
+    param([string]$Tag)
+    $to = Join-Path $InstallRoot 'uninstall.ps1'
+    $here = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'uninstall.ps1' } else { '' }
+    try {
+        if ($here -and (Test-Path $here)) {
+            if ((Resolve-Path $here).Path -ne [IO.Path]::GetFullPath($to)) { Copy-Item $here $to -Force }
+            return $true
+        }
+        $text = (Invoke-WebRequest -UseBasicParsing -Headers @{ 'User-Agent' = 'YapTracker-update' } `
+            -Uri "https://raw.githubusercontent.com/$Repo/$Tag/tools/uninstall.ps1").Content
+        if ($text -notmatch 'param\(') { return $false }
+        [IO.File]::WriteAllText($to, ($text -replace "`r?`n", "`r`n"), [Text.Encoding]::ASCII)
+        return $true
+    } catch {
+        Write-Host "Couldn't get uninstall.ps1 ($($_.Exception.Message)): next update brings it."
+        return $false
+    }
+}
+
+function Set-WindowsEntries {
+    # Where Windows users look for an app (#317), per user, no admin rights: the Start menu
+    # entry on every run (so it never points at an old place), a desktop icon only when the
+    # Start menu entry is new (deleted, it stays gone), and Settings -> Apps with Uninstall.
+    param([string]$Tag)
+    $exe = Join-Path $AppDir 'YapTracker.exe'
+    if (-not (Test-Path $exe)) { return }
+    $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'YapTracker.lnk'
+    $new = -not (Test-Path $menu)
+    Set-Shortcut $menu $exe
+    if ($new -and -not $NoDesktopIcon) {
+        Set-Shortcut (Join-Path ([Environment]::GetFolderPath('Desktop')) 'YapTracker.lnk') $exe
+        Write-Host 'Put YapTracker in the Start menu and on your desktop.'
+    } elseif ($new) {
+        Write-Host 'Put YapTracker in the Start menu.'
+    }
+    if (-not (Save-Uninstaller $Tag)) { return }
+    $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\YapTracker'
+    New-Item -Path $key -Force | Out-Null
+    $uninstall = Join-Path $InstallRoot 'uninstall.ps1'
+    $values = [ordered]@{
+        DisplayName = 'YapTracker'; DisplayVersion = ($Tag -replace '^v', ''); Publisher = 'YapTracker'
+        DisplayIcon = "$exe,0"; InstallLocation = $InstallRoot; URLInfoAbout = "https://github.com/$Repo"
+        UninstallString = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$uninstall`""
+    }
+    foreach ($name in $values.Keys) {
+        New-ItemProperty -Path $key -Name $name -Value $values[$name] -PropertyType String -Force | Out-Null
+    }
+    foreach ($name in 'NoModify', 'NoRepair') {
+        New-ItemProperty -Path $key -Name $name -Value 1 -PropertyType DWord -Force | Out-Null
+    }
+}
+
 $headers = @{ 'User-Agent' = 'YapTracker-update' }
 if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }
 
@@ -302,11 +371,13 @@ $installed = if (Test-Path $ReleaseFile) { (Get-Content $ReleaseFile -Raw).Trim(
 $step = Get-UpdateStep -Release $release -Installed $installed -Listed $listed
 if ($step -eq 'same' -and -not $Force) {
     Write-Host "YapTracker $installed is already the newest version."
+    Set-WindowsEntries $installed  # an install from before #317 gets its shortcuts all the same
     exit 0
 }
 if ($step -eq 'newer' -and -not $Force) {
     # A test version later than the newest stable release: never step back by itself (#454, #515).
     Write-Host "YapTracker $installed is newer than the newest stable release ($($release.tag_name)). Test versions: update.ps1 -PreRelease"
+    Set-WindowsEntries $installed
     exit 0
 }
 
@@ -340,6 +411,7 @@ try {
 }
 
 Write-Host "Installed YapTracker $($release.tag_name) in $AppDir (your data stays in $(Join-Path $InstallRoot 'data'))."
+Set-WindowsEntries $release.tag_name
 # The release notes' bullets (#239), everything since the version you had (#281).
 foreach ($line in (Get-WhatsNew -Releases $releases -Installed $installed)) { Write-Host $line }
 if (-not $NoStart) {

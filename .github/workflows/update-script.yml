@@ -5,10 +5,10 @@ name: Update script
 # checkout's script, not the release's (#246); the self-update has its own step.
 on:
   pull_request:
-    paths: [tools/update.ps1, tools/test-update.ps1, tools/smoke-test.ps1, .github/workflows/update-script.yml]
+    paths: [tools/update.ps1, tools/uninstall.ps1, tools/test-update.ps1, tools/smoke-test.ps1, .github/workflows/update-script.yml]
   push:
     branches: [main]
-    paths: [tools/update.ps1, tools/test-update.ps1, tools/smoke-test.ps1, .github/workflows/update-script.yml]
+    paths: [tools/update.ps1, tools/uninstall.ps1, tools/test-update.ps1, tools/smoke-test.ps1, .github/workflows/update-script.yml]
   workflow_dispatch:
 
 permissions:
@@ -39,6 +39,26 @@ jobs:
           Set-Content "$env:ROOT\data\keep.txt" 'my notes'
       - name: Fresh install
         run: ./tools/update.ps1 -InstallRoot $env:ROOT -NoStart -NoSelfUpdate
+      - name: Start menu, desktop icon, Apps entry, uninstall.ps1 (#317)
+        run: |
+          $shell = New-Object -ComObject WScript.Shell
+          $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'YapTracker.lnk'
+          $desk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'YapTracker.lnk'
+          foreach ($link in $menu, $desk) {
+            if (-not (Test-Path $link)) { throw "$link missing" }
+            $target = $shell.CreateShortcut($link).TargetPath
+            if ($target -ne "$env:ROOT\app\YapTracker.exe") { throw "$link points at $target" }
+          }
+          if (-not (Test-Path "$env:ROOT\uninstall.ps1")) { throw 'uninstall.ps1 not in the install root' }
+          $apps = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\YapTracker'
+          if ($apps.UninstallString -notmatch 'uninstall\.ps1') { throw "Apps entry: $($apps.UninstallString)" }
+      - name: A deleted desktop icon stays deleted (#317)
+        run: |
+          $desk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'YapTracker.lnk'
+          Remove-Item $desk
+          ./tools/update.ps1 -InstallRoot $env:ROOT -NoStart -NoSelfUpdate -Force
+          if (Test-Path $desk) { throw 'the update brought the deleted desktop icon back' }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) 'YapTracker.lnk'))) { throw 'Start menu entry gone' }
       - name: Already up to date
         run: |
           $out = ./tools/update.ps1 -InstallRoot $env:ROOT -NoStart -NoSelfUpdate 6>&1 | Out-String
@@ -71,3 +91,26 @@ jobs:
       - name: Installed app starts
         timeout-minutes: 5
         run: ./tools/smoke-test.ps1 -Exe "$env:ROOT\app\YapTracker.exe"
+      - name: Uninstall keeps the data (#317)
+        run: |
+          $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          New-ItemProperty -Path $run -Name YapTracker -Value "`"$env:ROOT\app\YapTracker.exe`" --background" -Force | Out-Null
+          & "$env:ROOT\uninstall.ps1" -InstallRoot $env:ROOT
+          if (Test-Path "$env:ROOT\app") { throw 'app folder still there' }
+          if (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) 'YapTracker.lnk')) { throw 'Start menu entry still there' }
+          if (Get-ItemProperty -Path $run -Name YapTracker -ErrorAction SilentlyContinue) { throw 'Run key still there' }
+          if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\YapTracker') { throw 'Apps entry still there' }
+          if (Test-Path "$env:ROOT\uninstall.ps1") { throw 'uninstall.ps1 left behind' }
+          if ((Get-Content "$env:ROOT\data\keep.txt") -ne 'my notes') { throw 'the data folder was touched' }
+      - name: -NoDesktopIcon, then uninstall -RemoveData with a backup (#317)
+        run: |
+          $desk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'YapTracker.lnk'
+          ./tools/update.ps1 -InstallRoot $env:ROOT -NoStart -NoSelfUpdate -NoDesktopIcon
+          if (Test-Path $desk) { throw '-NoDesktopIcon made a desktop icon' }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) 'YapTracker.lnk'))) { throw 'no Start menu entry' }
+          & "$env:ROOT\uninstall.ps1" -InstallRoot $env:ROOT -RemoveData -Yes -BackupDir "$env:RUNNER_TEMP\backup"
+          if (Test-Path $env:ROOT) { throw 'install root still there' }
+          $zip = @(Get-ChildItem "$env:RUNNER_TEMP\backup\YapTracker-data-*.zip")
+          if ($zip.Count -ne 1) { throw 'no backup zip' }
+          Expand-Archive $zip[0].FullName "$env:RUNNER_TEMP\restored"
+          if ((Get-Content "$env:RUNNER_TEMP\restored\keep.txt") -ne 'my notes') { throw 'backup misses the data' }
