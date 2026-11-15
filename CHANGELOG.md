@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-15 · A low picture limit keeps this month's pictures (#462)
+- With a low limit for line pictures, older months go first; this month (and last night's, past midnight) only loses its oldest pictures, the newest always stay.
+
 ### 2026-11-15 · Matches together on a profile (#388)
 - A profile lists every match you had together, newest first, with map, queue, result and how much they wrote; one click opens it at their first line.
 
