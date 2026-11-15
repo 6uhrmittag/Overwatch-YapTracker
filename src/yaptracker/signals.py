@@ -28,9 +28,12 @@ ROUND_START_HEIGHT = 75  # px at 1440p, for has_bright_text
 HERO_DETAILS = RelativeRegion.from_pixels(Region(40, 1355, 300, 60), 2560, 1440)
 HERO_DETAILS_TEXT = "HERO DETAILS"
 DETAILS_FRESH_S = 60.0  # a sighting this old still confirms a match the chat started
-# The round-start box comes up to ~45 s after hero select ends, which itself runs 20-30 s: its
-# info corner, read at a "HERO DETAILS" sighting this long ago, is still this match's (#537).
-DETAILS_CARRY_S = 120.0
+# The round-start box comes up to ~45 s after hero select ends: the info corner read at the last
+# "HERO DETAILS" sighting this long ago is still this match's (#537).
+DETAILS_CARRY_S = 90.0
+# No "HERO DETAILS" this long: the next sighting is another screen (the Practice Range, the next
+# hero select), read afresh. Above the in-match look interval, so one screen stays one (#537).
+DETAILS_GAP_S = 12.0
 # End of a match (#94): the centre banner, and the title strip in the top-left corner.
 END_BANNER = RelativeRegion.from_pixels(Region(900, 590, 820, 250), 2560, 1440)
 END_TITLE = RelativeRegion.from_pixels(Region(40, 30, 900, 75), 2560, 1440)
@@ -171,12 +174,11 @@ def parse_info(lines: list[str]) -> tuple[str | None, str | None]:
         return None, None
     map_name = game_lists.map_name(lines[-1]) if len(lines) > 1 else None
     # glare may hide the queue line: then the side ("ATTACK") comes first (#537)
-    above = lines[:-1] if len(lines) > 1 else lines
-    for loose in (False, True):
-        for line in above:
-            if mode := game_lists.queue(line, loose=loose):
-                return mode, map_name
-    return None, map_name
+    for line in lines[:-1] if len(lines) > 1 else lines:
+        if mode := game_lists.queue(line):
+            return mode, map_name
+    # a washed-out queue word: only on the top line, where the queue sits
+    return game_lists.loose_queue(lines[0]), map_name
 
 
 def _variants(image: np.ndarray):
@@ -252,7 +254,7 @@ class HeroSelect:
         if seen:
             self._last_seen = now
             if not self._active:
-                self._active = True
+                self._active, self._details_at = True, None  # its own corner, read just below
                 self._known = read_info(self._read_lines, signals.get("heroselect_info"))
                 self._info_left = INFO_TRIES if None in self._known else 0
                 self._on_start(*self._known)
@@ -302,11 +304,12 @@ class HeroSelect:
         self._read_at = now
         if not is_hero_details(self._read_line(box)):
             return
-        info = signals.get("heroselect_info")  # often washed out too: more looks while unread
-        if self._details_at is None or now - self._details_at > DETAILS_FRESH_S:
-            self._details_info = read_info(self._read_lines, info)
-            self._details_left = INFO_TRIES
-        elif None in self._details_info and self._details_left:
+        # A new screen is read afresh, never filled in from a menu's corner; washed out, it gets
+        # a few more looks while it stays up (#537)
+        if self._details_at is None or now - self._details_at > DETAILS_GAP_S:
+            self._details_info, self._details_left = (None, None), 1 + INFO_TRIES
+        info = signals.get("heroselect_info")
+        if info is not None and None in self._details_info and self._details_left:
             self._details_left -= 1
             mode, map_name = read_info(self._read_lines, info)
             self._details_info = (self._details_info[0] or mode, self._details_info[1] or map_name)

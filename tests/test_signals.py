@@ -550,3 +550,39 @@ def test_an_old_hero_details_sighting_gives_the_round_start_nothing():
     clock.now = signals.DETAILS_CARRY_S + 1  # YapTracker never saw this match's hero select
     hs.update({"heroselect": washed, "round_start": box})
     assert starts == [(None, None)]
+
+
+def test_a_menu_corner_read_is_never_carried_into_the_next_screen():
+    """#537 review: the Practice Range shows "HERO DETAILS" too, its corner reads PRACTICE. The
+    real hero select after the queue pop is another screen: read afresh, not filled in."""
+    clock, washed, hint, box = Clock(), strip(None), strip("F1 HERO DETAILS"), strip("PREPARE")
+    practice, white = strip("PRACTICE RANGE"), strip(None)
+    reads = {id(hint): ["HERO DETAILS"], id(practice): ["PRACTICE RANGE", "TRAINING GROUNDS"],
+             id(box): ["PREPARE TO ATTACK 0:30"]}  # fmt: skip
+    starts = []
+    hs = _glare_hero_select(reads, clock, starts)
+    hs.update({"heroselect": washed, "hero_details": hint, "heroselect_info": practice})
+    clock.now = 40  # queue pop, loading, then hero select washed out to white
+    for t in range(40, 66, 2):
+        clock.now = t
+        hs.update({"heroselect": washed, "hero_details": hint, "heroselect_info": white})
+    clock.now = 80
+    hs.update({"heroselect": washed, "round_start": box})
+    assert starts == [(None, None)]
+
+
+def test_frames_without_the_corner_spend_no_looks():
+    clock, washed, hint, box = Clock(), strip(None), strip("F1 HERO DETAILS"), strip("PREPARE")
+    info = strip("UNRANKED")
+    reads = {id(hint): ["HERO DETAILS"], id(info): ["UNRANKED", "ATTACK", "DORADO"],
+             id(box): ["PREPARE TO ATTACK 0:30"]}  # fmt: skip
+    starts = []
+    hs = _glare_hero_select(reads, clock, starts)
+    for t in range(0, 20, 2):  # no info crop in these frames
+        clock.now = t
+        hs.update({"heroselect": washed, "hero_details": hint})
+    clock.now = 20
+    hs.update({"heroselect": washed, "hero_details": hint, "heroselect_info": info})
+    clock.now = 50
+    hs.update({"heroselect": washed, "round_start": box})
+    assert starts == [("UNRANKED", "Dorado")]
