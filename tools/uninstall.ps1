@@ -31,15 +31,17 @@ $Exe = Join-Path $AppDir 'YapTracker.exe'
 # The same names update.ps1 and the app use (autostart.py, #45).
 $RunKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 $AppsKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\YapTracker'
+$MarkKey = 'HKCU:\Software\YapTracker'  # update.ps1: the desktop icon was offered once
 $Shortcuts = @(
     (Join-Path ([Environment]::GetFolderPath('Programs')) 'YapTracker.lnk'),
     (Join-Path ([Environment]::GetFolderPath('Desktop')) 'YapTracker.lnk')
 )
 
 function Test-Ours {
-    # A shortcut or Run entry of this install, not of another copy somewhere else.
+    # A path (or a Run entry: a quoted path and arguments) inside this install's app folder,
+    # not another copy somewhere else. The same check as update.ps1's Stop-YapTracker.
     param([string]$Text)
-    return $Text -and $Text.IndexOf($AppDir, [StringComparison]::OrdinalIgnoreCase) -ge 0
+    return $Text -and $Text.TrimStart('"').StartsWith($AppDir + '\', [StringComparison]::OrdinalIgnoreCase)
 }
 
 function Get-Answer {
@@ -75,14 +77,17 @@ foreach ($link in $Shortcuts) {
     }
 }
 
-# 4. Windows Settings -> Apps.
-if (Test-Path $AppsKey) { Remove-Item -Recurse -Force $AppsKey }
-
-# 5. The app itself (and what an interrupted update left behind).
+# 4. The app itself (and what an interrupted update left behind).
+if (Test-Path $AppDir) { $had = $true } else { $had = $false }
 foreach ($dir in @($AppDir, (Join-Path $InstallRoot 'app.new'), (Join-Path $InstallRoot 'app.old'))) {
     if (Test-Path $dir) { Remove-Item -Recurse -Force $dir }
 }
-Write-Host "  Removed the app from $AppDir"
+if ($had) { Write-Host "  Removed the app from $AppDir" }
+else { Write-Host "  No YapTracker app in $AppDir (wrong -InstallRoot?)." }
+
+# 5. Windows Settings -> Apps: last, so a failed step above can be retried from there.
+if (Test-Path $AppsKey) { Remove-Item -Recurse -Force $AppsKey }
+if (Test-Path $MarkKey) { Remove-Item -Recurse -Force $MarkKey }  # a reinstall offers the icon again
 
 # 6. Your data: stays, unless asked for.
 if (Test-Path $DataDir) {
@@ -91,9 +96,11 @@ if (Test-Path $DataDir) {
         Write-Host 'Delete them too: run this again with -RemoveData.'
     } elseif (Get-Answer "Delete ALL your yaps, players and notes in ${DataDir}? This can't be undone. [y/N]") {
         if (Get-Answer "Back up first, as a zip in ${BackupDir}? [y/N]") {
-            $zip = Join-Path $BackupDir ('YapTracker-data-{0}.zip' -f (Get-Date -Format 'yyyy-MM-dd-HHmm'))
+            $zip = Join-Path $BackupDir ('YapTracker-data-{0}.zip' -f (Get-Date -Format 'yyyy-MM-dd-HHmmss'))
             New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
-            Compress-Archive -Path (Join-Path $DataDir '*') -DestinationPath $zip
+            # ZipFile, not Compress-Archive: that one skips hidden files and stops at 2 GB (PS 5.1)
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            [IO.Compression.ZipFile]::CreateFromDirectory($DataDir, $zip)
             Write-Host "  Backed up to $zip"
         }
         Remove-Item -Recurse -Force $DataDir

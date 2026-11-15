@@ -95,7 +95,10 @@ jobs:
         run: |
           $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
           New-ItemProperty -Path $run -Name YapTracker -Value "`"$env:ROOT\app\YapTracker.exe`" --background" -Force | Out-Null
-          & "$env:ROOT\uninstall.ps1" -InstallRoot $env:ROOT
+          # what Windows Settings -> Apps -> Uninstall runs (the install root is a custom one here)
+          $cmd = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\YapTracker').UninstallString
+          cmd /c $cmd
+          if ($LASTEXITCODE -ne 0) { throw "uninstall exited with $LASTEXITCODE" }
           if (Test-Path "$env:ROOT\app") { throw 'app folder still there' }
           if (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) 'YapTracker.lnk')) { throw 'Start menu entry still there' }
           if (Get-ItemProperty -Path $run -Name YapTracker -ErrorAction SilentlyContinue) { throw 'Run key still there' }

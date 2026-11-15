@@ -273,58 +273,74 @@ function Set-Shortcut {
     $link.Save()
 }
 
+$AppsKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\YapTracker'
+$MarkKey = 'HKCU:\Software\YapTracker'  # remembers that the desktop icon was offered once (#317)
+
 function Save-Uninstaller {
-    # <InstallRoot>\uninstall.ps1 (#317): the one next to this script (a checkout), else the
-    # release's own. $false when there's none to get (a release from before it existed).
+    # <InstallRoot>\uninstall.ps1 (#317), the release's own, fetched only when the version
+    # changed. -NoSelfUpdate (a checkout, CI): the one next to this script. $false when there's
+    # none (a release from before #317): quietly, the next update brings it.
     param([string]$Tag)
     $to = Join-Path $InstallRoot 'uninstall.ps1'
     $here = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'uninstall.ps1' } else { '' }
+    if ($NoSelfUpdate -and $here -and (Test-Path $here)) {
+        if ((Resolve-Path $here).Path -ne [IO.Path]::GetFullPath($to)) { Copy-Item $here $to -Force }
+        return $true
+    }
+    $listed = Get-ItemProperty -Path $AppsKey -Name DisplayVersion -ErrorAction SilentlyContinue
+    if ((Test-Path $to) -and $listed -and $listed.DisplayVersion -eq ($Tag -replace '^v', '')) { return $true }
     try {
-        if ($here -and (Test-Path $here)) {
-            if ((Resolve-Path $here).Path -ne [IO.Path]::GetFullPath($to)) { Copy-Item $here $to -Force }
-            return $true
-        }
         $text = (Invoke-WebRequest -UseBasicParsing -Headers @{ 'User-Agent' = 'YapTracker-update' } `
             -Uri "https://raw.githubusercontent.com/$Repo/$Tag/tools/uninstall.ps1").Content
-        if ($text -notmatch 'param\(') { return $false }
-        [IO.File]::WriteAllText($to, ($text -replace "`r?`n", "`r`n"), [Text.Encoding]::ASCII)
-        return $true
     } catch {
-        Write-Host "Couldn't get uninstall.ps1 ($($_.Exception.Message)): next update brings it."
-        return $false
+        if ("$($_.Exception.Message)" -notmatch '404') {
+            Write-Host "Couldn't get uninstall.ps1 ($($_.Exception.Message)): the next update brings it."
+        }
+        return (Test-Path $to)
     }
+    if ($text -notmatch 'param\(') { return (Test-Path $to) }
+    [IO.File]::WriteAllText($to, ($text -replace "`r?`n", "`r`n"), [Text.Encoding]::ASCII)
+    return $true
 }
 
 function Set-WindowsEntries {
     # Where Windows users look for an app (#317), per user, no admin rights: the Start menu
-    # entry on every run (so it never points at an old place), a desktop icon only when the
-    # Start menu entry is new (deleted, it stays gone), and Settings -> Apps with Uninstall.
+    # entry on every run (so it never points at an old place), a desktop icon once (deleted, it
+    # stays gone), and Settings -> Apps with Uninstall. Never fails the install: only warns.
     param([string]$Tag)
     $exe = Join-Path $AppDir 'YapTracker.exe'
     if (-not (Test-Path $exe)) { return }
-    $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'YapTracker.lnk'
-    $new = -not (Test-Path $menu)
-    Set-Shortcut $menu $exe
-    if ($new -and -not $NoDesktopIcon) {
-        Set-Shortcut (Join-Path ([Environment]::GetFolderPath('Desktop')) 'YapTracker.lnk') $exe
-        Write-Host 'Put YapTracker in the Start menu and on your desktop.'
-    } elseif ($new) {
-        Write-Host 'Put YapTracker in the Start menu.'
-    }
-    if (-not (Save-Uninstaller $Tag)) { return }
-    $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\YapTracker'
-    New-Item -Path $key -Force | Out-Null
-    $uninstall = Join-Path $InstallRoot 'uninstall.ps1'
-    $values = [ordered]@{
-        DisplayName = 'YapTracker'; DisplayVersion = ($Tag -replace '^v', ''); Publisher = 'YapTracker'
-        DisplayIcon = "$exe,0"; InstallLocation = $InstallRoot; URLInfoAbout = "https://github.com/$Repo"
-        UninstallString = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$uninstall`""
-    }
-    foreach ($name in $values.Keys) {
-        New-ItemProperty -Path $key -Name $name -Value $values[$name] -PropertyType String -Force | Out-Null
-    }
-    foreach ($name in 'NoModify', 'NoRepair') {
-        New-ItemProperty -Path $key -Name $name -Value 1 -PropertyType DWord -Force | Out-Null
+    try {
+        $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'YapTracker.lnk'
+        $newMenu = -not (Test-Path $menu)
+        Set-Shortcut $menu $exe
+        $offered = Get-ItemProperty -Path $MarkKey -Name DesktopIconOffered -ErrorAction SilentlyContinue
+        if (-not $offered) {
+            if (-not $NoDesktopIcon) {
+                Set-Shortcut (Join-Path ([Environment]::GetFolderPath('Desktop')) 'YapTracker.lnk') $exe
+            }
+            New-Item -Path $MarkKey -Force | Out-Null
+            New-ItemProperty -Path $MarkKey -Name DesktopIconOffered -Value 1 -PropertyType DWord -Force | Out-Null
+        }
+        if ($newMenu) {
+            Write-Host $(if ($offered -or $NoDesktopIcon) { 'Put YapTracker in the Start menu.' } else { 'Put YapTracker in the Start menu and on your desktop.' })
+        }
+        if (-not (Save-Uninstaller $Tag)) { return }
+        New-Item -Path $AppsKey -Force | Out-Null
+        $uninstall = Join-Path $InstallRoot 'uninstall.ps1'
+        $values = [ordered]@{
+            DisplayName = 'YapTracker'; DisplayVersion = ($Tag -replace '^v', ''); Publisher = 'YapTracker'
+            DisplayIcon = "$exe,0"; InstallLocation = $InstallRoot; URLInfoAbout = "https://github.com/$Repo"
+            UninstallString = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$uninstall`" -InstallRoot `"$InstallRoot`""
+        }
+        foreach ($name in $values.Keys) {
+            New-ItemProperty -Path $AppsKey -Name $name -Value $values[$name] -PropertyType String -Force | Out-Null
+        }
+        foreach ($name in 'NoModify', 'NoRepair') {
+            New-ItemProperty -Path $AppsKey -Name $name -Value 1 -PropertyType DWord -Force | Out-Null
+        }
+    } catch {
+        Write-Host "Couldn't set up the Start menu / Apps entry ($($_.Exception.Message)). YapTracker itself is fine."
     }
 }
 
