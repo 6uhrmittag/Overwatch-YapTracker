@@ -37,16 +37,47 @@ def _best(text: str | None, names: list[str], cutoff: int = MATCH) -> str | None
     return found[2] if found else None
 
 
-def queue(text: str | None) -> str | None:
-    """The queue name at the start of hero select's top line ("UINRANKED ATTACK")."""
-    if not text:
-        return None
+LOOSE_QUEUE = 70  # a washed-out queue word, after _fold (#537)
+LOOSE_MARGIN = 15  # ...and this far ahead of the next queue, so it's never a coin toss
+LOOSE_LETTERS = 5
+
+
+def _fold(text: str) -> str:
+    """Overwatch's italic hero-select type: OCR reads its A as O ("INRONKED", #537)."""
+    return _letters(text).replace("o", "a")
+
+
+@cache
+def _folded_queues() -> dict[str, str]:
+    return {name: _fold(name) for name in lists()["queues"]}
+
+
+def _candidates(text: str) -> list[str]:
     words = text.split()
     # the queue is the first one or two words; the side ("ATTACK") follows it
-    candidates = [" ".join(words[:n]) for n in (2, 1) if len(words) >= n]
-    for candidate in candidates:
+    return [" ".join(words[:n]) for n in (2, 1) if len(words) >= n]
+
+
+def queue(text: str | None) -> str | None:
+    """The queue name at the start of hero select's top line ("UINRANKED ATTACK")."""
+    for candidate in _candidates(text or ""):
         if found := _best(candidate, lists()["queues"]):
             return found
+    return None
+
+
+def loose_queue(text: str | None) -> str | None:
+    """A washed-out queue word on hero select's top line, where queue() finds none: HDR glare
+    leaves fragments ("IINRONKE", "UNRANEES") that clearly point at one queue. Real other text
+    at that spot (ATTACK, DEFEND, menus) scored at most 62 on Marv's samples."""
+    for candidate in _candidates(text or ""):
+        if found := queue(candidate):
+            return found
+        if len(_letters(candidate)) < LOOSE_LETTERS:
+            continue
+        best = process.extract(_fold(candidate), _folded_queues(), scorer=fuzz.ratio, limit=2)
+        if best and best[0][1] >= LOOSE_QUEUE and best[0][1] - best[1][1] >= LOOSE_MARGIN:
+            return best[0][2]
     return None
 
 

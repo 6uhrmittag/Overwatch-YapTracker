@@ -1,0 +1,306 @@
+{
+ "source": "Marv's start samples 2026-11-09..14 (#537), 4K HDR: RapidOCR of the hero-select info corner, one list per look (as is, inverted saturation, blue channel). Every queue was UNRANKED (checked by eye). No names in these crops.",
+ "samples": {
+  "2026-11-09/19-25-30": {
+   "looks": [
+    [
+     "UNRANKED",
+     "ATTACK",
+     "DORADO"
+    ]
+   ],
+   "queue": "UNRANKED",
+   "map": "Dorado"
+  },
+  "2026-11-09/19-39-53": {
+   "looks": [
+    [],
+    [],
+    [
+     "A"
+    ]
+   ],
+   "queue": null,
+   "map": null,
+   "unknown_because": "round-start backup: glare hid the banner, no corner on screen (carried from HERO DETAILS now)"
+  },
+  "2026-11-09/19-55-30": {
+   "looks": [
+    [],
+    [],
+    []
+   ],
+   "queue": null,
+   "map": null,
+   "unknown_because": "round-start backup: in-match HUD, no corner on screen"
+  },
+  "2026-11-09/20-19-32": {
+   "looks": [
+    [],
+    [],
+    []
+   ],
+   "queue": null,
+   "map": null,
+   "unknown_because": "round-start backup: black screen, no corner"
+  },
+  "2026-11-09/20-31-05": {
+   "looks": [
+    [
+     "ATTACK",
+     "OUTE 66"
+    ],
+    [
+     "NRHIN",
+     "ATTACK",
+     "OUTE 66"
+    ],
+    [
+     "ATTACK OuTE 66"
+    ]
+   ],
+   "queue": null,
+   "map": "Route 66",
+   "unknown_because": "queue word washed out (HDR): fragments only"
+  },
+  "2026-11-09/20-49-23": {
+   "looks": [
+    [
+     "UNRO",
+     "ATTACK",
+     "ILIC"
+    ],
+    [
+     "UNRO",
+     "ATTACK",
+     "ILIO"
+    ],
+    [
+     "OLD"
+    ]
+   ],
+   "queue": null,
+   "map": "Ilios",
+   "unknown_because": "queue word washed out (HDR): fragments only"
+  },
+  "2026-11-09/21-06-11": {
+   "looks": [
+    [
+     "UINRANKED",
+     "a ATTACK",
+     "NEON JUNCTION"
+    ]
+   ],
+   "queue": "UNRANKED",
+   "map": "Neon Junction"
+  },
+  "2026-11-10/21-07-09": {
+   "looks": [
+    [
+     "ATTACK",
+     "EPAL TUM"
+    ],
+    [
+     "ATTACK",
+     "NEPAL STUM"
+    ],
+    [
+     "TAC",
+     "EPAL TUM"
+    ]
+   ],
+   "queue": null,
+   "map": "Nepal",
+   "unknown_because": "queue word washed out (HDR): not read at all"
+  },
+  "2026-11-10/21-20-16": {
+   "looks": [
+    [
+     "UINRANKED",
+     "DEFEND",
+     "EICHENWALDE"
+    ]
+   ],
+   "queue": "UNRANKED",
+   "map": "Eichenwalde"
+  },
+  "2026-11-10/21-31-55": {
+   "looks": [
+    [],
+    [],
+    []
+   ],
+   "queue": null,
+   "map": null,
+   "unknown_because": "round-start backup: no corner on screen"
+  },
+  "2026-11-10/21-48-15": {
+   "looks": [
+    [
+     "UNRAINR ED",
+     "ATTACK",
+     "AATLIS·STATION"
+    ]
+   ],
+   "queue": "UNRANKED",
+   "map": "Aatlis"
+  },
+  "2026-11-14/00-03-02": {
+   "looks": [
+    [
+     "UINRANKED",
+     "NUMBANI"
+    ]
+   ],
+   "queue": "UNRANKED",
+   "map": "Numbani"
+  },
+  "2026-11-14/00-12-48": {
+   "looks": [
+    [
+     "ATTACK",
+     "SSEO"
+    ],
+    [
+     "ATTACK",
+     "SSEO"
+    ],
+    [
+     "ATTACK",
+     "SSEO"
+    ]
+   ],
+   "queue": null,
+   "map": null,
+   "unknown_because": "queue word washed out (HDR): not read at all"
+  },
+  "2026-11-14/00-24-26": {
+   "looks": [
+    [
+     "DEFEND"
+    ],
+    [
+     "DEFEND"
+    ],
+    []
+   ],
+   "queue": null,
+   "map": null,
+   "unknown_because": "white on white (HDR): only the side readable"
+  },
+  "2026-11-14/00-37-16": {
+   "looks": [
+    [
+     "DANK",
+     "DEFEND",
+     "HOLLYWOOD"
+    ],
+    [
+     "DEFEND",
+     "HOLLYWOOD"
+    ],
+    [
+     "TN DANKI",
+     "DEFEND",
+     "HOLLYWOOD"
+    ]
+   ],
+   "queue": null,
+   "map": "Hollywood",
+   "unknown_because": "queue word washed out (HDR); a later look read it live"
+  },
+  "2026-11-14/21-50-54": {
+   "looks": [
+    [],
+    [],
+    []
+   ],
+   "queue": null,
+   "map": null,
+   "unknown_because": "round-start backup: no corner on screen"
+  },
+  "2026-11-14/22-03-53": {
+   "looks": [
+    [
+     "UINRANKED",
+     "ATTACK",
+     "N. DOWNT"
+    ],
+    [
+     "UNRANKED",
+     "HTTACK",
+     "N.DOWNTC"
+    ],
+    []
+   ],
+   "queue": "UNRANKED",
+   "map": null
+  },
+  "2026-11-14/22-16-35": {
+   "looks": [
+    [
+     "INRANKED",
+     "DEFEND",
+     "BLIZZARD WORLD"
+    ]
+   ],
+   "queue": "UNRANKED",
+   "map": "Blizzard World"
+  },
+  "2026-11-14/22-29-28": {
+   "looks": [
+    [
+     "VINIRVLS HERO GAVVEPLAT SVCIAL",
+     "GENERAL COMBAT INTERFACE COMMUNICATIO",
+     "ENABLE QUICK PRESS PRAISE"
+    ],
+    [
+     "VINIROLS HERO SOCIAL",
+     "GENERAL COMBAT INTERFACE COMMUNICATIO",
+     "ENABLE QUICK PRESS PRAISE"
+    ],
+    [
+     "SOCIAL",
+     "GENERAL COMBAT INTERFACE",
+     "ENABLE QUICK PRESS PRAISE"
+    ]
+   ],
+   "queue": null,
+   "map": null,
+   "unknown_because": "settings menu over hero select: no corner"
+  },
+  "2026-11-14/22-39-51": {
+   "looks": [
+    [
+     "IINRONKE",
+     "ATTACK",
+     "MIDTOWN"
+    ]
+   ],
+   "queue": "UNRANKED",
+   "map": "Midtown"
+  },
+  "2026-11-14/22-52-38": {
+   "looks": [
+    [
+     "INRANKED",
+     "ATTACK",
+     "RIALTO"
+    ]
+   ],
+   "queue": "UNRANKED",
+   "map": "Rialto"
+  },
+  "2026-11-14/22-59-56": {
+   "looks": [
+    [
+     "UNRANKED",
+     "DEFEND",
+     "EICHENWALDE"
+    ]
+   ],
+   "queue": "UNRANKED",
+   "map": "Eichenwalde"
+  }
+ }
+}

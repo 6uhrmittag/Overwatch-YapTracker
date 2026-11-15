@@ -26,10 +26,12 @@ QUEUES = ["UNRANKED", "COMPETITIVE", "QUICK PLAY", "ARCADE", "CUSTOM GAME", "PRA
 # Kept even if the API drops or lacks them (a hero or map the game still shows).
 FALLBACK = {
     "heroes": ["Soldier: 76", "Torbjörn", "Wrecking Ball", "Lúcio"],
-    "maps": ["Route 66", "King's Row", "Esperança", "Paraíso", "New Junk City", "Grímsvötn"],
-}
+    # "Watchpoint: Grimsvotn": the API's name for Grímsvötn until 2026-11 (#537)
+    "maps": ["Route 66", "King's Row", "Esperança", "Paraíso", "New Junk City", "Grímsvötn",
+             "Watchpoint: Grimsvotn"],
+}  # fmt: skip
 # Map types the API doesn't have yet (#378): Grímsvötn shows the Escort truck in hero select.
-FALLBACK_TYPES = {"Grímsvötn": ["escort"]}
+FALLBACK_TYPES = {"Grímsvötn": ["escort"], "Watchpoint: Grimsvotn": ["escort"]}
 
 
 def fetch(endpoint: str, locale: str) -> list[dict]:

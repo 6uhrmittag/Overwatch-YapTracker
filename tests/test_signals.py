@@ -87,7 +87,8 @@ def test_mode_and_map_come_from_the_corner():
 def test_garbage_modes_and_maps_are_none_not_stored_as_read():
     """#252's log: "UINRH" (Route 66), "INRONKED ALU9CK", "NEPAL NE", "66", a sub-map."""
     assert parse_info(["UINRH", "ROUTE 66"]) == (None, "Route 66")
-    assert parse_info(["INRONKED ALU9CK", "66"]) == (None, None)
+    # a washed-out "UNRANKED ATTACK": the queue it clearly is since #537, never the garbage
+    assert parse_info(["INRONKED ALU9CK", "66"]) == ("UNRANKED", None)
     assert parse_info(["UNRANKED ATTACK", "NEPAL NE"]) == ("UNRANKED", "Nepal")
     assert parse_info(["COMPETITIVE", "LIJIANGTOWER·NIGHT MARKET"]) == (
         "COMPETITIVE",
@@ -496,3 +497,92 @@ def test_an_old_hero_details_sighting_confirms_nothing():
     clock.now, match["chat"] = signals.DETAILS_FRESH_S + 1, True  # chat a minute later
     hs.update({"heroselect": no_banner, "hero_details": strip(None)})
     assert starts == []
+
+
+def _glare_hero_select(reads, clock, starts):
+    """#537: glare hides "ASSEMBLE YOUR TEAM", the round-start box is the first thing read."""
+    return HeroSelect(lambda img: " ".join(reads.get(id(img), [])),
+                      lambda img: reads.get(id(img), []), lambda *a: starts.append(a), clock,
+                      match_running=lambda: bool(starts))  # fmt: skip
+
+
+def test_the_round_start_backup_takes_the_corner_read_at_hero_details():
+    """2026-11-09 19:39: the banner washed out, "F1 HERO DETAILS" and the corner readable 4 s
+    before "PREPARE TO ATTACK 0:28" started the match - with no queue and no map."""
+    clock, washed, hint, box = Clock(), strip(None), strip("F1 HERO DETAILS"), strip("PREPARE")
+    info = strip("UNRANKED ATTACK")
+    reads = {id(hint): ["HERO DETAILS"], id(info): ["UNRANKED", "ATTACK", "NEW JUNK CITY · ARENA"],
+             id(box): ["PREPARE TO ATTACK 0:28"]}  # fmt: skip
+    starts = []
+    hs = _glare_hero_select(reads, clock, starts)
+    for t in range(0, 26, 2):
+        clock.now = t
+        hs.update({"heroselect": washed, "hero_details": hint, "heroselect_info": info})
+    assert starts == []  # "HERO DETAILS" alone never starts a match
+    clock.now = 30 + 45  # the box, up to ~45 s after hero select
+    hs.update({"heroselect": washed, "round_start": box})
+    assert starts == [("UNRANKED", "New Junk City")]
+
+
+def test_an_unread_corner_gets_more_looks_at_later_hero_details_sightings():
+    clock, washed, hint, box = Clock(), strip(None), strip("F1 HERO DETAILS"), strip("PREPARE")
+    white, later = strip(None), strip("UNRANKED")
+    reads = {id(hint): ["HERO DETAILS"], id(later): ["UINRANKED", "DEFEND", "HOLLYWOOD"],
+             id(box): ["PREPARE YOUR DEFENSES 0:42"]}  # fmt: skip
+    starts = []
+    hs = _glare_hero_select(reads, clock, starts)
+    hs.update({"heroselect": washed, "hero_details": hint, "heroselect_info": white})
+    clock.now = signals.BETWEEN_EVERY_S
+    hs.update({"heroselect": washed, "hero_details": hint, "heroselect_info": later})
+    clock.now = 60
+    hs.update({"heroselect": washed, "round_start": box})
+    assert starts == [("UNRANKED", "Hollywood")]
+
+
+def test_an_old_hero_details_sighting_gives_the_round_start_nothing():
+    clock, washed, hint, box = Clock(), strip(None), strip("F1 HERO DETAILS"), strip("PREPARE")
+    info = strip("UNRANKED")
+    reads = {id(hint): ["HERO DETAILS"], id(info): ["UNRANKED", "ATTACK", "DORADO"],
+             id(box): ["PREPARE TO ATTACK 0:30"]}  # fmt: skip
+    starts = []
+    hs = _glare_hero_select(reads, clock, starts)
+    hs.update({"heroselect": washed, "hero_details": hint, "heroselect_info": info})  # a menu
+    clock.now = signals.DETAILS_CARRY_S + 1  # YapTracker never saw this match's hero select
+    hs.update({"heroselect": washed, "round_start": box})
+    assert starts == [(None, None)]
+
+
+def test_a_menu_corner_read_is_never_carried_into_the_next_screen():
+    """#537 review: the Practice Range shows "HERO DETAILS" too, its corner reads PRACTICE. The
+    real hero select after the queue pop is another screen: read afresh, not filled in."""
+    clock, washed, hint, box = Clock(), strip(None), strip("F1 HERO DETAILS"), strip("PREPARE")
+    practice, white = strip("PRACTICE RANGE"), strip(None)
+    reads = {id(hint): ["HERO DETAILS"], id(practice): ["PRACTICE RANGE", "TRAINING GROUNDS"],
+             id(box): ["PREPARE TO ATTACK 0:30"]}  # fmt: skip
+    starts = []
+    hs = _glare_hero_select(reads, clock, starts)
+    hs.update({"heroselect": washed, "hero_details": hint, "heroselect_info": practice})
+    clock.now = 40  # queue pop, loading, then hero select washed out to white
+    for t in range(40, 66, 2):
+        clock.now = t
+        hs.update({"heroselect": washed, "hero_details": hint, "heroselect_info": white})
+    clock.now = 80
+    hs.update({"heroselect": washed, "round_start": box})
+    assert starts == [(None, None)]
+
+
+def test_frames_without_the_corner_spend_no_looks():
+    clock, washed, hint, box = Clock(), strip(None), strip("F1 HERO DETAILS"), strip("PREPARE")
+    info = strip("UNRANKED")
+    reads = {id(hint): ["HERO DETAILS"], id(info): ["UNRANKED", "ATTACK", "DORADO"],
+             id(box): ["PREPARE TO ATTACK 0:30"]}  # fmt: skip
+    starts = []
+    hs = _glare_hero_select(reads, clock, starts)
+    for t in range(0, 20, 2):  # no info crop in these frames
+        clock.now = t
+        hs.update({"heroselect": washed, "hero_details": hint})
+    clock.now = 20
+    hs.update({"heroselect": washed, "hero_details": hint, "heroselect_info": info})
+    clock.now = 50
+    hs.update({"heroselect": washed, "round_start": box})
+    assert starts == [("UNRANKED", "Dorado")]
