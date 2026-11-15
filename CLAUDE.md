@@ -116,6 +116,8 @@ Comments from the planning chat end with _(planning chat)_.
    user-visible, in the app's voice. Put the same bullets in `changes/<issue>.md` under
    `### <title> (#<issue>)` (#494, `changes/README.md`); never edit `CHANGELOG.md` in a PR, the
    pre-release job adds them there under the date. Nothing user-visible: one `- Behind the scenes: ...` bullet.
+   The one exception: the `NEXT_VERSION` bump PR after a stable release adds the next
+   `## v1.x: on the way to v1.x.0` heading to `CHANGELOG.md` by hand (#536).
 
 **Labels:**
 | Label | Meaning |
@@ -138,7 +140,9 @@ Comments from the planning chat end with _(planning chat)_.
 - Keep `docs/decisions.md` short: one line per decision or dead end, with issue link.
 - When a milestone's **code** issues are all closed: make sure a pre-release exists,
   move any remaining `human` issues to the next milestone (comment why), close the
-  milestone, bump `MILESTONE` in `ci.yml` (after v1.0.0: `NEXT_VERSION`), update the
+  milestone, bump `MILESTONE` in `ci.yml` (after v1.0.0: `NEXT_VERSION`, in a PR that merges only
+  **after** Marv's stable release is published: earlier, its note says "vX is out" too soon and a
+  v(X+1)-pre build is offered before the stable it follows, #536), update the
   Roadmap — and **keep going** with the next milestone. Don't stop at milestone boundaries just because a `human` issue
   is open; only stop when every remaining issue is blocked on Marv.
 
