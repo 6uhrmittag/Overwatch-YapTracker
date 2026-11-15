@@ -386,6 +386,13 @@ class Store:
             return self._match_rows("", (), also)
         return self._match_rows(f"WHERE {_day('m')} = ? ", (day,), also)
 
+    def player_match_rows(self, player_id: int) -> list[MatchRow]:
+        """The matches they wrote in (the profile's "matches together", #388), newest first."""
+        rows = self._match_rows(
+            "WHERE m.id IN (SELECT match_id FROM live_messages WHERE player_id = ?) ", (player_id,)
+        )
+        return rows[::-1]
+
     def match_day(self, match_id: int) -> str | None:
         """The day a match was played (#440), '2026-10-11'; None if there's no such match."""
         rows = self._read(f"SELECT {_day('m')} FROM matches m WHERE m.id = ?", (match_id,))

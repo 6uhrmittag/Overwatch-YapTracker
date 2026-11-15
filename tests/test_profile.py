@@ -93,3 +93,30 @@ async def test_a_match_heading_opens_that_match_at_their_first_line(user: User, 
     await user.should_see("WAHOOOO")
     (line,) = user.find(marker=f"line-{first_line}").elements
     assert "yt-line--found" in line.classes
+
+
+async def test_matches_together_newest_first_one_click_each(user: User, store):
+    """#388 (Void): every match they wrote in, with map, queue, result, how much they wrote."""
+    first, second = (row[0] for row in store._read("SELECT id FROM matches ORDER BY id"))
+    store.set_match_place(first, "DORADO", "UNRANKED")
+    store.end_match(first, NOW - 6000, outcome="victory")
+    await open_profile(user)
+    rows = user.find(marker="together").elements.pop()
+    assert [c._markers for c in rows.default_slot.children] == [
+        [f"together-{second}"], [f"together-{first}"]]  # fmt: skip
+    await user.should_see("Dorado · Unranked · won · 2 yaps")
+    await user.should_see("1 yap")
+    user.find(marker=f"together-{first}").click()
+    await user.should_see("All matches")
+    first_line = store._read("SELECT MIN(id) FROM chat_messages WHERE match_id = ?", (first,))
+    (line,) = user.find(marker=f"line-{first_line[0][0]}").elements
+    assert "yt-line--found" in line.classes
+
+
+async def test_no_matches_together_says_so(user: User, store):
+    biscuit = store.add_player("Biscuit", NOW)  # added by hand: never wrote a line
+    await user.open("/")
+    user.find(marker="nav-yappers").click()
+    await user.should_see("Biscuit")
+    user.find(marker=f"yapper-{biscuit}").click()
+    await user.should_see("No matches together yet.")

@@ -250,6 +250,11 @@ html, body { background: var(--yt-night); }
   .yt-match-title--link { cursor: pointer; border-radius: 6px; transition: color .15s; }
   .yt-match-title--link::after { content: " \203A"; }
   .yt-match-title--link:hover, .yt-match-title--link:focus-visible { color: var(--yt-accent); }
+  .yt-together { display: flex; flex-direction: column; gap: 6px; }
+  .yt-together-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 8px 12px; border-radius: 10px; background: var(--yt-panel-inset); cursor: pointer; transition: background-color .15s; }
+  .yt-together-row:hover, .yt-together-row:focus-visible { background: var(--yt-panel-raised); }
+  .yt-together-when { font-weight: 800; }
+  .yt-together-row .yt-heart-mark { align-self: center; }
   .yt-line--found { box-shadow: inset 3px 0 0 var(--yt-accent); background: rgba(255, 156, 42, .10); }
   .yt-their-yap { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; border-radius: 10px; background: var(--yt-panel-inset); }
   .yt-their-yaps { display: flex; flex-direction: column; gap: 8px; }
