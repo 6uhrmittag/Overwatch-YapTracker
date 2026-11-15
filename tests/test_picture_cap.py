@@ -35,9 +35,10 @@ def test_two_gigabytes_unless_set():
 
 def test_what_a_lower_limit_would_free_without_walking(tmp_path):
     pictures = pictures_of(tmp_path, {"2026-08": 1000, "2026-09": 1000, "2026-10": 1000})
-    assert pictures.would_free(1500) == (2000, "2026-10")
-    assert pictures.would_free(3000) == (0, "2026-08")  # all fit: nothing goes
-    assert pictures.would_free(500) == (3000, None)  # every month
+    assert pictures.would_free(1500) == (2000, "2026-10", False)
+    assert pictures.would_free(3000) == (0, "2026-08", False)  # all fit: nothing goes
+    # never the month being written (#462): its one picture is its newest, so it stays
+    assert pictures.would_free(500) == (2000, "2026-10", False)
 
 
 @pytest.fixture
@@ -76,3 +77,23 @@ async def test_raising_deletes_nothing(user: User, monkeypatch, tmp_path):
     await user.should_see("Line pictures: 100.0 MB of 5 GB")
     assert months(tmp_path / "lines") == ["2026-08", "2026-09", "2026-10"]
     assert config.picture_cap_mb() == 5000 and runtime.pictures.cap_bytes == 5000 * MB
+
+
+async def test_a_limit_below_this_month_says_only_its_oldest_go(user, monkeypatch, tmp_path):
+    """#462: 50 MB with a busy month: this month loses its oldest pictures, never all of them."""
+    folder = tmp_path / "lines"
+    (folder / "2026-10").mkdir(parents=True)
+    for n, size in [(1, 30), (2, 20), (3, 20), (4, 20)]:  # this month: 90 MB
+        with open(folder / "2026-10" / f"{n}.webp", "wb") as f:
+            os.truncate(f.fileno(), size * MB)
+    pictures = LinePictures(folder, cap_bytes=2000 * MB)
+    pictures.start(background=False)
+    monkeypatch.setattr(runtime, "pictures", pictures)
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    slider = next(iter(user.find(marker="pictures-cap").elements))
+    slider.set_value(0)
+    await user.should_see("Frees 50.0 MB: the oldest of October 2026 go.")
+    user.find(marker="pictures-cap").trigger("change")
+    await user.should_see("Freed 50.0 MB: the oldest of October 2026 are gone.")
+    assert sorted(p.name for p in (folder / "2026-10").iterdir()) == ["3.webp", "4.webp"]

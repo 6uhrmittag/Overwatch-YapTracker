@@ -35,9 +35,12 @@ def test_picture_sizes_stay_right_after_writes_overwrites_and_clean_ups(tmp_path
     pictures.start(background=False)
     assert pictures.size_bytes() == on_disk_pictures(folder)
     pictures.save(1, OCT, chat, Region(0, 0, 600, 60))  # a better reading, bigger: over it
-    pictures.save(9, NOV, chat, Region(0, 0, 600, 30))  # over the cap: September goes
+    # the month being written loses only its oldest pictures, never all of them (#462)
+    assert sorted(p.name for p in (folder / "2026-09").iterdir()) == ["2.webp", "3.webp"]
     assert pictures.size_bytes() == on_disk_pictures(folder)
-    assert [p.name for p in folder.iterdir()] == ["2026-10"]
+    pictures.save(9, NOV, chat, Region(0, 0, 600, 30))
+    assert pictures.size_bytes() == on_disk_pictures(folder)
+    assert (folder / "2026-10" / "9.webp").exists()
 
 
 def test_debug_sizes_stay_right_after_samples_corrections_and_clean_ups(tmp_path):
