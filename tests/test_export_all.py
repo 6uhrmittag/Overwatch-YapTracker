@@ -124,3 +124,25 @@ async def test_export_everything_from_settings(user: User, store, monkeypatch, t
     await user.should_see("yaptracker-export.json", retries=50)
     (path,) = (tmp_path / "Documents" / "YapTracker").glob("export-*/yaptracker-export.json")
     jsonschema.validate(json.loads(path.read_text(encoding="utf-8")), SCHEMA)
+
+
+async def test_a_failed_export_says_why_and_stops_saying_exporting(
+    user: User, store, monkeypatch, tmp_path, caplog
+):
+    """#464: a full disk (or a file open elsewhere) left "Exporting…" on screen for good."""
+    from yaptracker.ui import exports
+
+    def full_disk(*args, **kwargs):
+        raise OSError(28, "No space left on device", str(tmp_path / "yaptracker-export.json"))
+
+    config.save_setup_state("done")
+    monkeypatch.setattr(runtime, "store", store)
+    monkeypatch.setattr(paths, "export_dir", lambda: tmp_path / "Documents" / "YapTracker")
+    monkeypatch.setattr(exports, "export_all", full_disk)
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    user.find(marker="export-all").click()
+    await user.should_see("Export failed: No space left on device", retries=50)
+    await user.should_see("Nothing in your data changed.")
+    await user.should_not_see("Exporting")
+    assert "export everything failed" in caplog.text and "Traceback" in caplog.text
