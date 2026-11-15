@@ -103,7 +103,8 @@ def test_new_foreign_lines_of_others_go_together_and_each_once(store):
     system = say(store, "Merci pour les soins!", channel="system", speaker_raw=None)
     callout = say(store, "que pasa con el tanque", hero="Kiriko")
     assert translator.step() == 2
-    assert fake.sent == [["gg buenas curas amigos", "merci pour les soins"]]  # one request
+    # one request; the shorthand marked for DeepL to keep (#538)
+    assert fake.sent == [["<x>gg</x> buenas curas amigos", "merci pour les soins"]]
     assert translator.known(spanish) == Translation("<gg buenas curas amigos>", "Spanish",
                                                     code="ES")  # fmt: skip
     assert translator.known(french).source == "French"
