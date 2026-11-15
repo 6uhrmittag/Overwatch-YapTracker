@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-15 · Matches together on a profile (#388)
+- A profile lists every match you had together, newest first, with map, queue, result and how much they wrote; one click opens it at their first line.
+
 ### 2026-11-15 · Jump from a profile to the match (#388)
 - On a profile, each match heading in "Their greatest yaps" opens that match, scrolled to their first line and marked in orange.
 
