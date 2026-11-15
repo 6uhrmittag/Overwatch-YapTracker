@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-15 · Jump from a profile to the match (#388)
+- On a profile, each match heading in "Their greatest yaps" opens that match, scrolled to their first line and marked in orange.
+
 ### 2026-11-15 · Translations understand slang better (#538)
 - DeepL now sees the few lines said just before, so slang and short lines translate better.
 - Lines that are only gamer shorthand (gg, ez, xD…) aren't sent, and "gg" in a line comes back as "gg".
