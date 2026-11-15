@@ -170,7 +170,8 @@ def _result(hit, picker: LinePicker) -> ui.element:
             ui.label(where).classes("yt-meta yt-result-where")
         kept = stored(message)  # found by its translation, maybe (#470): shown too, any language
         if kept is not None:
-            ui.label(said_as(kept)).classes("yt-line-translation")
+            label = ui.label(said_as(kept)).classes("yt-line-translation")
+            label.tooltip(f"Said: {message.text}")  # to check a weird one (#538)
     edit_button(row, message.id, text, edited)  # quick fixes (#227)
     delete_button(row, lambda: [message.id])
     return row

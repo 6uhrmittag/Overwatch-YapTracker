@@ -11,6 +11,7 @@ from collections.abc import Callable
 from nicegui import run, ui
 
 from yaptracker import config, runtime
+from yaptracker.auto_translate import context_for
 from yaptracker.glyphs import GLYPH
 from yaptracker.translate import FAILED, Translation, language
 from yaptracker.ui.quick_verdict import OWN_CLICK
@@ -154,6 +155,7 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
         if shown["out"] is None:
             with under:
                 shown["out"] = ui.label().classes("yt-line-translation").mark("translation")
+                _original(shown["out"], message)
         shown["out"].classes(remove="yt-hidden")
         return shown["out"]
 
@@ -190,7 +192,7 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
         text = " ".join(now.text.replace(GLYPH, " ").split())
         shown["busy"] = True
         try:
-            done = await run.io_bound(runtime.translator.translate, text)
+            done = await run.io_bound(_translate, store, now, text)
         except Exception:  # never stuck on "Translating..."
             log.exception("translate: a line failed")
             done = Translation(error=FAILED)
@@ -224,6 +226,16 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
     return check
 
 
+def _translate(store, message, text: str) -> Translation:
+    """The line with the text of the lines before it as DeepL's context (#538)."""
+    return runtime.translator.translate(text, context_for(store, message))
+
+
+def _original(label: ui.element, message) -> None:
+    """Hover or tap the translation: the line as it was read, to check a weird one (#538)."""
+    label.tooltip(f"Said: {message.text}")
+
+
 async def _keep(message_id: int, done: Translation, target: str) -> None:
     """Kept with the line (#470), off the UI thread; not when DeepL says it's a language you
     read anyway. A failure only means it's asked again after a restart."""
@@ -241,7 +253,8 @@ def _kept_only(message, target: str, under: ui.element) -> None:
     kept = stored(message, target)
     if kept is not None:
         with under:
-            ui.label(said_as(kept)).classes("yt-line-translation").mark("translation")
+            _original(ui.label(said_as(kept)).classes("yt-line-translation").mark("translation"),
+                      message)  # fmt: skip
 
 
 def said_as(done: Translation) -> str:

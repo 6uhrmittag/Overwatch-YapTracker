@@ -43,19 +43,17 @@ def http_error(code):
 def test_only_the_lines_text_and_the_target_language_are_sent():
     fake = FakeDeepL()
     deepl = DeepL(lambda: KEY, lambda: "EN", send=fake)
-    assert deepl.translate("gg, buenas curas") == Translation(
-        "gg, nice heals", "Spanish", code="ES"
-    )
+    assert deepl.translate("buenas curas") == Translation("gg, nice heals", "Spanish", code="ES")
     (request,) = fake.sent
     assert request.full_url == "https://api-free.deepl.com/v2/translate"
     assert request.get_method() == "POST"
-    assert json.loads(request.data) == {"text": ["gg, buenas curas"], "target_lang": "EN-US"}
+    assert json.loads(request.data) == {"text": ["buenas curas"], "target_lang": "EN-US"}
     assert {k.lower(): v for k, v in request.header_items()} == {
         "authorization": f"DeepL-Auth-Key {KEY}",
         "content-type": "application/json",
         "user-agent": "YapTracker",
     }
-    assert deepl.translate("gg, buenas curas").text == "gg, nice heals"
+    assert deepl.translate("buenas curas").text == "gg, nice heals"
     assert len(fake.sent) == 1  # each text once a run
 
 
