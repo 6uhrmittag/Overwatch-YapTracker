@@ -1,6 +1,7 @@
 """Settings -> Export: your yappers as players.md + players.json (#31), and everything as
 yaptracker-export.json (#69). The big one runs in the background with a progress line."""
 
+import logging
 import time
 
 from nicegui import run, ui
@@ -8,6 +9,16 @@ from nicegui import run, ui
 from yaptracker import logs, paths, runtime
 from yaptracker.export import export_all, export_folder, export_players
 from yaptracker.ui.components import allow_switch, button, switch
+
+log = logging.getLogger(__name__)
+
+
+def failed_because(error: Exception) -> str:
+    """Why an export failed, in words: Windows' own ("There is not enough space on the disk")
+    and the file it was about, else the error itself (#464)."""
+    if isinstance(error, OSError) and error.strerror:
+        return error.strerror + (f" ({error.filename})" if error.filename else "")
+    return str(error) or type(error).__name__
 
 
 def export_card() -> None:
@@ -89,6 +100,11 @@ def export_card() -> None:
 
         try:
             path = await run.io_bound(work)
+        except Exception as error:  # a full disk, a file open elsewhere, OneDrive (#464)
+            log.exception("export everything failed")
+            why = failed_because(error)
+            result.set_text(f"Export failed: {why}. Nothing in your data changed.")
+            return
         finally:
             state["running"] = False
             everything.props(remove="loading")
