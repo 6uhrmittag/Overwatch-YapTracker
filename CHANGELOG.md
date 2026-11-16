@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-16 · Notes on names in the brief (#549)
+- Behind the scenes: the project brief says how to write about a player whose name is a common word, and that Void uses they/them.
+
 ### 2026-11-16 · Private-names check knows another common word (#549)
 - Behind the scenes: the local check for real player names no longer mistakes a common word for one.
 
