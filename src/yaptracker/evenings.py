@@ -21,7 +21,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from yaptracker import game_lists, logs, paths, reading_mode
-from yaptracker.store.repo import SessionRow, Store
+from yaptracker.store.repo import GUESSED, SessionRow, Store
 
 log = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ def summarize(store: Store, session: SessionRow, logged: list[tuple],
         "hand": sources["hotkey"],
         "map": _share(sum(game_lists.map_name(m[1]) is not None for m in hero), len(hero)),
         "queue": _share(sum(_queue_read(m) for m in hero), len(hero)),
-        "queue_guessed": _share(sum(m[4] == "previous" for m in hero), len(hero)),  # (#554)
+        "queue_guessed": _share(sum(m[4] == GUESSED for m in hero), len(hero)),  # (#554)
         "result": _share(sum(m[3] is not None for m in played), len(played)),
         "missed_ends": sum(m[3] is None for m in played),
         "lines": count,
@@ -164,7 +164,7 @@ def queue_known(e: dict) -> str:
 
 
 def _queue_read(m: tuple) -> bool:
-    return game_lists.queue(m[2]) is not None and (len(m) < 5 or m[4] != "previous")
+    return game_lists.queue(m[2]) is not None and m[4] != GUESSED
 
 
 def percent(value: float | None) -> str:

@@ -77,7 +77,8 @@ class ReadingMode:
         tracker = self._matches()
         if tracker is None or not tracker.running:
             mode, why = BEST, "between matches"
-        elif tracker.match_mode is None:
+        elif tracker.match_mode is None or getattr(tracker, "mode_guessed", False):
+            # a guessed queue (#554) is no reason to read more: it may be Competitive after all
             mode = lighter(self._competitive(), self._other())
             why = f"queue unknown \u2192 treated as {mode}, match {tracker.match_id}"
         elif competitive(tracker.match_mode):

@@ -8,6 +8,7 @@ from typing import Literal
 from nicegui import ui
 
 from yaptracker import game_lists
+from yaptracker.store.repo import GUESSED
 
 CHECK = (
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
@@ -178,6 +179,11 @@ def place_name(text: str) -> str:
 def queue_name(mode: str, guessed: bool = False) -> str:
     """The queue in words; one taken from the match before says so: "probably Unranked" (#554)."""
     return f"probably {place_name(mode)}" if guessed else place_name(mode)
+
+
+def match_queue(match) -> str | None:
+    """A stored match's queue in words, or None (#554)."""
+    return queue_name(match.mode, match.queue_source == GUESSED) if match.mode else None
 
 
 def when(ts: float | None, now: float | None = None) -> str:

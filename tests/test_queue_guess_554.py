@@ -10,6 +10,7 @@ from yaptracker.evenings import Evenings, queue_known
 from yaptracker.export import export_all
 from yaptracker.matches import GUESS_AFTER_S, MatchTracker
 from yaptracker.pause import Pause
+from yaptracker.reading_mode import ReadingMode
 from yaptracker.store.repo import Store
 from yaptracker.ui.components import queue_name
 
@@ -102,3 +103,60 @@ def test_the_export_says_which_queues_are_guessed(store, tmp_path):
     matches = data["sessions"][0]["matches"]
     assert [(m["mode"], m["mode_guessed"]) for m in matches] == [("UNRANKED", False),
                                                                 ("UNRANKED", True)]  # fmt: skip
+
+
+def test_a_guess_never_makes_the_reading_heavier(store):
+    """It may be Competitive after all: the lighter of the two choices, as for an unknown one."""
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    played(tracker, store, T0, "UNRANKED")
+    tracker.new_match(T0 + 700, source="heroselect", map_name="Nepal")
+    reading = ReadingMode(lambda: tracker, lambda: "light", lambda: "best", lambda: "rapidocr")
+    assert reading.now() == "light"
+    tracker.learn_info("UNRANKED", None)  # read after all: its own choice
+    assert reading.now() == "best"
+
+
+def test_a_competitive_round_after_a_guess_is_the_same_match(store):
+    """Unranked, then Competitive whose first hero select wasn't read: the side swap reads it."""
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    played(tracker, store, T0, "UNRANKED")
+    tracker.new_match(T0 + 700, source="heroselect", map_name="Nepal")
+    first = tracker.match_id
+    tracker.new_match(T0 + 1100, source="heroselect", mode="COMPETITIVE", map_name="Nepal")
+    assert tracker.match_id == first
+    assert source(store, tracker) == ("COMPETITIVE", "read")
+
+
+def test_a_dropped_hand_start_keeps_the_guess_a_guess(store):
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    played(tracker, store, T0, "UNRANKED")
+    tracker.new_match(T0 + 700, source="heroselect", map_name="Nepal")
+    tracker.new_match(T0 + 710)  # Start match by hand...
+    tracker.end_match(T0 + 720, by_hand=True)  # ...and End match: nothing in it, dropped
+    assert tracker.status().mode_guessed
+
+
+def test_a_restart_mid_match_keeps_the_guess_a_guess(store):
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    played(tracker, store, T0, "UNRANKED")
+    tracker.new_match(T0 + 700, source="heroselect", map_name="Nepal")
+    tracker.capture_alive(T0 + 730)
+    tracker.stop()  # an update
+    again = MatchTracker(store, Pause())
+    again.capture_alive(T0 + 800)
+    assert again.status().mode_guessed
+
+
+def test_the_markdown_export_says_probably(store, tmp_path):
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0)
+    played(tracker, store, T0, "UNRANKED")
+    played(tracker, store, T0 + 700, None, T0 + 1300)
+    export_all(store, tmp_path, T0 + 2000, markdown=True)
+    text = next((tmp_path / "days").iterdir()).read_text(encoding="utf-8")
+    assert "## Match 1 on Nepal · Unranked · won" in text
+    assert "## Match 2 on Nepal · probably Unranked · won" in text

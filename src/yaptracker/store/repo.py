@@ -245,7 +245,8 @@ class Store:
         started within `within_s` of each other (#371): one match split at a side swap.
         (first id, second id, map, first mode, second mode), oldest first."""
         return self._read(
-            f"SELECT a.id, b.id, a.map, a.mode, b.mode {self._PAIRS}"
+            f"SELECT a.id, b.id, a.map, {_READ_MODE.format('a')}, {_READ_MODE.format('b')} "
+            f"{self._PAIRS}"
             "WHERE a.map IS NOT NULL AND a.map = b.map AND a.outcome IS NULL "
             "AND b.started_at - a.started_at <= ? ORDER BY a.started_at, a.id",
             (within_s,),
@@ -257,7 +258,7 @@ class Store:
         split. Its end is exactly its last line, so the next start closed it, not an end
         screen or End match. (first id, second id, first mode), oldest first."""
         return self._read(
-            f"SELECT a.id, b.id, a.mode {self._PAIRS}"
+            f"SELECT a.id, b.id, {_READ_MODE.format('a')} {self._PAIRS}"
             "WHERE a.source = 'heroselect' AND a.outcome IS NULL AND b.source = 'gap' "
             "AND b.started_at - a.started_at < ? AND b.started_at - a.ended_at >= ? "
             "AND a.ended_at = (SELECT MAX(ts) FROM chat_messages WHERE match_id = a.id) "
@@ -275,12 +276,15 @@ class Store:
                 moved = conn.execute("UPDATE chat_messages SET match_id = ? WHERE match_id = ?",
                                      (first, second)).rowcount  # fmt: skip
                 conn.execute(
-                    "UPDATE matches SET mode = ?, "
+                    # a read mode, or the first half's guess kept as a guess (#554)
+                    "UPDATE matches SET mode = COALESCE(?, CASE WHEN queue_source = 'previous' "
+                    "THEN mode END), queue_source = CASE WHEN ? IS NOT NULL THEN 'read' "
+                    "WHEN queue_source = 'previous' THEN queue_source END, "
                     "ended_at = (SELECT ended_at FROM matches WHERE id = ?), "
                     "outcome = (SELECT outcome FROM matches WHERE id = ?), "
                     "loved_at = COALESCE(loved_at, (SELECT loved_at FROM matches WHERE id = ?)) "
                     "WHERE id = ?",
-                    (mode, second, second, second, first),
+                    (mode, mode, second, second, second, first),
                 )
                 conn.execute("DELETE FROM matches WHERE id = ?", (second,))
                 conn.execute("COMMIT")
@@ -318,9 +322,11 @@ class Store:
 
     def match_closed_by_shutdown(self, session_id: int) -> tuple | None:
         """The session's newest match if YapTracker's shutdown closed it (#275): no result, and
-        it ended the moment its session did. (id, started_at, ended_at, map, mode, source)."""
+        it ended the moment its session did. (id, started_at, ended_at, map, mode, source,
+        queue_source)."""
         rows = self._read(
-            "SELECT m.id, m.started_at, m.ended_at, m.map, m.mode, m.source FROM matches m "
+            "SELECT m.id, m.started_at, m.ended_at, m.map, m.mode, m.source, m.queue_source "
+            "FROM matches m "
             "JOIN sessions s ON s.id = m.session_id WHERE m.session_id = ? "
             "AND m.id = (SELECT MAX(id) FROM matches WHERE session_id = ?) "
             "AND m.outcome IS NULL AND m.ended_at = s.ended_at",
@@ -931,6 +937,11 @@ class Store:
         return Stats(*row)
 
 
+GUESSED = "previous"  # matches.queue_source of a mode taken from the match before (#554)
+# A match's mode as read, a guess counting as none (#554): repairs and rounds trust no guess.
+_READ_MODE = "CASE WHEN {0}.queue_source = 'previous' THEN NULL ELSE {0}.mode END"
+
+
 def _queue_source(mode: str | None, guessed: bool) -> str | None:
     """matches.queue_source (#554): how the mode is known."""
-    return None if mode is None else "previous" if guessed else "read"
+    return None if mode is None else GUESSED if guessed else "read"

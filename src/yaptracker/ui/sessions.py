@@ -16,8 +16,8 @@ from yaptracker.ui.components import (
     button,
     callout_toggle,
     count,
+    match_queue,
     place_name,
-    queue_name,
     sub_page,
     when,
 )
@@ -174,7 +174,7 @@ def _match_row(match, number: int, open_match) -> ui.label:
             ui.label("incomplete").classes("yt-incomplete").mark("incomplete")
         badge = _badge()
         ui.element("div").classes("yt-grow")
-        mode = f"{queue_name(match.mode, _guessed(match))} \u00b7 " if match.mode else ""
+        mode = f"{match_queue(match)} \u00b7 " if match.mode else ""
         ui.label(
             f"{mode}{_clock(match.started_at)} \u00b7 "
             f"{_length(match.started_at, _match_end(match))} \u00b7 "
@@ -243,7 +243,7 @@ def _transcript(match, number: int, back, line_id: int | None = None) -> None:
 
     def open_snap(chosen: list) -> None:
         day = days.title(match.day or days.day_of(match.started_at), "%a %b %d, %Y")  # (#440)
-        mode = f" \u00b7 {queue_name(match.mode, _guessed(match))}" if match.mode else ""
+        mode = f" \u00b7 {match_queue(match)}" if match.mode else ""
         snap_dialog(chosen, f"{_title(match, number)}{mode} \u00b7 {day}", match.started_at)
 
     picker = LinePicker(open_snap)
@@ -354,7 +354,3 @@ def _draw(match, body, rows: dict, picker, clicked, callouts, messages=None) -> 
                 last = (item, row)
     callouts(sum(1 for m in messages if m.hero))
     return len(messages)
-
-
-def _guessed(match) -> bool:
-    return match.queue_source == "previous"  # the match before's queue (#554)
