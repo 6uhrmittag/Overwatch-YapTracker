@@ -173,6 +173,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         match_running=match_running,
         adoptable=chat_started_match,
         on_info=hero_select_info,
+        read_band=read_line,
     )
 
     def end_map(map_name: str) -> None:  # "VICTORY <MAP>": for a match without one (#383)

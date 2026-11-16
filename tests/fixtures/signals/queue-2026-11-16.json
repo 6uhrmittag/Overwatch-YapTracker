@@ -1,0 +1,1090 @@
+{
+ "source": "Marv's start samples 2026-11-09..16 (#554), 4K HDR: RapidOCR of the hero-select info corner, one list per full look (as is, inverted saturation, blue channel), and the title band read alone (as is, darkest channel). The queue checked by eye: every readable one is UNRANKED. No names in these crops.",
+ "samples": {
+  "2026-11-09/19-25-30-start": {
+   "looks": [
+    [
+     "UNRANKED",
+     "ATTACK",
+     "DORADO"
+    ],
+    [
+     "RANKED",
+     "ATTACK",
+     "DORADO"
+    ],
+    [
+     "UNRANKED",
+     "ATTACK",
+     "DORADO"
+    ]
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-09/19-39-53-start": {
+   "looks": [
+    [],
+    [],
+    [
+     "A"
+    ]
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "round-start backup: in-match picture, no corner"
+  },
+  "2026-11-09/19-55-30-start": {
+   "looks": [
+    [],
+    [],
+    []
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "round-start backup: no corner"
+  },
+  "2026-11-09/20-19-32-start": {
+   "looks": [
+    [],
+    [],
+    []
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "round-start backup: no corner"
+  },
+  "2026-11-09/20-31-05-start": {
+   "looks": [
+    [
+     "ATTACK",
+     "OLTE 66"
+    ],
+    [
+     "NRHIN",
+     "ATTACK",
+     "OUTE 66"
+    ],
+    [
+     "ATTACK OUTE 66"
+    ]
+   ],
+   "band": [
+    "IINrh EOED",
+    "INrhuSo"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-09/20-49-22-missed-start-gap": {
+   "looks": [
+    [
+     "UNRO",
+     "ATTACK",
+     "ILIC"
+    ],
+    [
+     "UNRO",
+     "ATTACK",
+     "ILO"
+    ],
+    [
+     "OL"
+    ]
+   ],
+   "band": [
+    "UNRODIAEE",
+    "UNRODWWAED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-09/20-49-23-start": {
+   "looks": [
+    [
+     "UNRO",
+     "ATTACK",
+     "ILIC"
+    ],
+    [
+     "UNRO",
+     "ATTACK",
+     "ILO"
+    ],
+    [
+     "OL"
+    ]
+   ],
+   "band": [
+    "UNRODIAEE",
+    "UNRODWWAED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-09/21-06-11-start": {
+   "looks": [
+    [
+     "UINRANKED",
+     "al ATTACK",
+     "NEON JUNCTION"
+    ],
+    [
+     "INRANKED",
+     "ATTACK",
+     "NEON JUNCTION"
+    ],
+    [
+     "UNRA",
+     "ATTACK",
+     "NEON JUNCTION"
+    ]
+   ],
+   "band": [
+    "JINRANKED.",
+    " JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-10/21-07-09-start": {
+   "looks": [
+    [
+     "ATTACK",
+     "EPAL TUM"
+    ],
+    [
+     "ATTACK",
+     "NEPAL TUM"
+    ],
+    [
+     "TAO",
+     "EPAL TUM"
+    ]
+   ],
+   "band": [
+    "冏t口",
+    "口"
+   ],
+   "queue": null,
+   "unknown_because": "white on white: only the last letter shows; the later looks are the fix"
+  },
+  "2026-11-10/21-20-16-start": {
+   "looks": [
+    [
+     "UINRANKED",
+     "DEFEND",
+     "EICHENWALDE"
+    ],
+    [
+     "UNRANKED",
+     "DEFEND",
+     "EICHENWALDE"
+    ],
+    [
+     "UNRANKED",
+     "DEFEND",
+     "EICHENWALDE"
+    ]
+   ],
+   "band": [
+    "HINRANKED",
+    " HINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-10/21-31-55-start": {
+   "looks": [
+    [],
+    [],
+    []
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "round-start backup: no corner"
+  },
+  "2026-11-10/21-48-15-start": {
+   "looks": [
+    [
+     "UNRAINR ED",
+     "ATTACK",
+     "AATLIS·STATION"
+    ],
+    [
+     "UNRANRED",
+     "ATTACK",
+     "AATLIS·STATION"
+    ],
+    [
+     "ATTACA"
+    ]
+   ],
+   "band": [
+    "JINRANRED",
+    "HINRANRED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-14/00-03-02-start": {
+   "looks": [
+    [
+     "UINRANKED",
+     "NUMBANI"
+    ],
+    [
+     "UINRANKED",
+     "ATTACK",
+     "NUMBANI"
+    ],
+    [
+     "C"
+    ]
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-14/00-12-48-start": {
+   "looks": [
+    [
+     "ATTACK",
+     "SSEO"
+    ],
+    [
+     "ATTACK",
+     "SSEO"
+    ],
+    [
+     "ATTHCK",
+     "SSEO"
+    ]
+   ],
+   "band": [
+    "MNE.",
+    "HNRA."
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-14/00-24-25-missed-start-gap": {
+   "looks": [
+    [
+     "DEFEND"
+    ],
+    [
+     "DEFEND"
+    ],
+    []
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "only DEFEND left, the title is washed out completely"
+  },
+  "2026-11-14/00-24-26-start": {
+   "looks": [
+    [
+     "DEFEND"
+    ],
+    [
+     "DEFEND"
+    ],
+    []
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "only DEFEND left, the title is washed out completely"
+  },
+  "2026-11-14/00-37-16-start": {
+   "looks": [
+    [
+     "DANK",
+     "DEFEND",
+     "HOLLYWOOD"
+    ],
+    [
+     "DEFEND",
+     "HOLLYWOOD"
+    ],
+    [
+     "TN DANKI",
+     "DEFEND",
+     "HOLLYWOOD"
+    ]
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKFN"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-14/21-50-54-start": {
+   "looks": [
+    [],
+    [],
+    []
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "in-match picture, no corner"
+  },
+  "2026-11-14/22-03-53-missed-start-gap": {
+   "looks": [
+    [
+     "UINRANKED",
+     "ATTACK",
+     "AN DOWNT"
+    ],
+    [
+     "UNRANKED",
+     "ATTACK",
+     "N.DOWNTG"
+    ],
+    []
+   ],
+   "band": [
+    "JINRANKED",
+    "HINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-14/22-03-53-start": {
+   "looks": [
+    [
+     "UINRANKED",
+     "ATTACK",
+     "AN DOWNT"
+    ],
+    [
+     "UNRANKED",
+     "ATTACK",
+     "N.DOWNTG"
+    ],
+    []
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-14/22-16-35-start": {
+   "looks": [
+    [
+     "INRANKED",
+     "DEFEND",
+     "BLIZZARD WORLD"
+    ],
+    [
+     "UINRANKED",
+     "DEFEND",
+     "BLIZZARD WORLD"
+    ],
+    [
+     "UINRANKED",
+     "DEFEND",
+     "BLIZZARD WORLD"
+    ]
+   ],
+   "band": [
+    "JINRANKEN",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-14/22-29-28-missed-start-gap": {
+   "looks": [
+    [
+     "VINIRVLS HERO GAVVEFLAT SOCIAL",
+     "GENERAL COMBAT INTERFACE COMMUNICATIO",
+     "READY"
+    ],
+    [
+     "VINIROLS HERO SOCIAL",
+     "GENERAL COMBAT INTERFACE COMMUNICATIO",
+     "READY"
+    ],
+    [
+     "SOCIAL",
+     "GENERAL COMBAT INTERFACE",
+     "READY"
+    ]
+   ],
+   "band": [
+    "GENRAL COMBAT NEREAE",
+    "GENRAG COMBAT NEREAE"
+   ],
+   "queue": null,
+   "unknown_because": "the options menu over hero select"
+  },
+  "2026-11-14/22-29-28-start": {
+   "looks": [
+    [
+     "VINIRVLS HERO GAVVIEPLAT SVCIAL",
+     "GENERAL COMBAT INTERFACE COMMUNICATIO",
+     "ENABLE QUICK PRESS PRAISE"
+    ],
+    [
+     "VINIROLS HERO SOCIAL",
+     "GENERAL COMBAT INTERFACE COMMUNICATIO",
+     "ENABLE QUICK PRESS PRAISE"
+    ],
+    [
+     "SOCIAL",
+     "GENERAL COMBAT INTERFACE",
+     "ENABLE QUICK PRESS PRAISE"
+    ]
+   ],
+   "band": [
+    "GENRAL COMBAT NEREAE",
+    "GENRAG COMBAT NEREAE"
+   ],
+   "queue": null,
+   "unknown_because": "the options menu over hero select"
+  },
+  "2026-11-14/22-39-51-start": {
+   "looks": [
+    [
+     "IINRONKE",
+     "ATTACK",
+     "MIDTOWN"
+    ],
+    [
+     "INRONKE",
+     "ATTACK",
+     "MIDTOWN"
+    ],
+    [
+     "LINRONKE",
+     "ATACK",
+     "MIDTOWN"
+    ]
+   ],
+   "band": [
+    "JINRONKE.",
+    "JINRONKER"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-14/22-52-38-start": {
+   "looks": [
+    [
+     "UINRANKED",
+     "RIALTO"
+    ],
+    [
+     "UNRANKED",
+     "ATTACK",
+     "RIALTO"
+    ],
+    [
+     "UINRANKED",
+     "ATTACK",
+     "RIALTO"
+    ]
+   ],
+   "band": [
+    "HINRANKEN",
+    "HINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-14/22-59-56-start": {
+   "looks": [
+    [
+     "UNRANKED",
+     "DEFEND",
+     "EICHENWALDE"
+    ],
+    [
+     "HNRANKED",
+     "DEFEND",
+     "EICHENWALDE"
+    ],
+    [
+     "HNRANKED",
+     "DEFEND",
+     "EICHENWALDE"
+    ]
+   ],
+   "band": [
+    "JNRANKED",
+    "HNRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-15/21-26-17-missed-start-gap": {
+   "looks": [
+    [],
+    [],
+    []
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "no corner on screen"
+  },
+  "2026-11-15/21-26-34-start": {
+   "looks": [
+    [
+     "UNRANKED",
+     "ATTACK",
+     "NEW JUNK CITY · ARENA"
+    ],
+    [
+     "UNRANKED",
+     "ATTACK",
+     "NEW JUNK CITY·ARENA"
+    ],
+    [
+     "WINRANK",
+     "ATTACK",
+     "NEW JUNK CTY"
+    ]
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-15/21-40-14-start": {
+   "looks": [
+    [
+     "UINR NKED",
+     "ATTACK",
+     "OASIS NIVERSITY"
+    ],
+    [
+     "JINR NKED",
+     "ATTACK",
+     "OASIS JNIVERSITY"
+    ],
+    [
+     "INR NKED",
+     "ATACK",
+     "OASIS SNIVERSITY"
+    ]
+   ],
+   "band": [
+    "JINR NKED",
+    "JINR NKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-15/21-51-38-missed-start-hotkey": {
+   "looks": [
+    [
+     "ITLE PASS SHOP "
+    ],
+    [
+     "AITLE PASS SHOP"
+    ],
+    [
+     "ATTLE PASS"
+    ]
+   ],
+   "band": [
+    "HERCE CNS AAS",
+    "HEROS ENS BATEAS"
+   ],
+   "queue": null,
+   "unknown_because": "the main menu over hero select"
+  },
+  "2026-11-15/21-51-39-start": {
+   "looks": [
+    [
+     "ITLE PASS SHOP "
+    ],
+    [
+     "ATTLE PASS SHOP"
+    ],
+    [
+     "AITLE PASS yois.doHs."
+    ]
+   ],
+   "band": [
+    "HERCE CNS AAS",
+    "HEROS ENS BATEAS"
+   ],
+   "queue": null,
+   "unknown_because": "the main menu over hero select"
+  },
+  "2026-11-15/21-56-12-missed-start-gap": {
+   "looks": [
+    [],
+    [],
+    []
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "no corner on screen"
+  },
+  "2026-11-15/22-00-40-start": {
+   "looks": [
+    [
+     "ATTACK",
+     "BUSAN·MEKA BASE"
+    ],
+    [
+     "RHINK",
+     "ATTACK",
+     "BUSAN·MEKA BASE"
+    ],
+    [
+     "ATTACK",
+     "BUSAN MEKA BASE"
+    ]
+   ],
+   "band": [
+    "INRHINR EIL",
+    "INRHNKGIT"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-15/22-13-58-missed-start-gap": {
+   "looks": [
+    [
+     "DEFEND"
+    ],
+    [
+     "DEFEND"
+    ],
+    []
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "only DEFEND left, the title is washed out completely"
+  },
+  "2026-11-15/22-13-58-start": {
+   "looks": [
+    [
+     "DEFEND"
+    ],
+    [
+     "DEFEND"
+    ],
+    []
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "only DEFEND left, the title is washed out completely"
+  },
+  "2026-11-15/22-25-47-start": {
+   "looks": [
+    [
+     "KFL",
+     "ATTACK",
+     "ANTARCTIC PENINSUL AICEBREAKER"
+    ],
+    [
+     "KFI",
+     "ATTACK",
+     "ANTARCTIC PENINSULA ICEBREAKER"
+    ],
+    []
+   ],
+   "band": [
+    "DTKED",
+    "TKFD."
+   ],
+   "queue": null,
+   "unknown_because": "white on white: only '...KED' shows; the later looks are the fix"
+  },
+  "2026-11-15/22-36-16-start": {
+   "looks": [
+    [
+     "INRANKED",
+     "DEFEND",
+     "PARAÍSO"
+    ],
+    [
+     "UNRANKED",
+     "DEFEND",
+     "PARAÍSO"
+    ],
+    [
+     "UINRANKED",
+     "DEFEND",
+     "PARAÍSO"
+    ]
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-15/23-14-01-start": {
+   "looks": [
+    [
+     "UINRANKED",
+     "ATTACK",
+     "NEW JUNK CITY· ARENA"
+    ],
+    [
+     "UINRANKED",
+     "ATTACK",
+     "NEW JUNK CITY·ARENA"
+    ],
+    []
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-15/23-30-36-start": {
+   "looks": [
+    [
+     "UINRANKED",
+     "ATTACK",
+     "EICHENWALDE"
+    ],
+    [
+     "UINRANKED",
+     "ATTACK",
+     "EICHENWALDE"
+    ],
+    [
+     "INRANKED",
+     "ATTACK",
+     "EICHENWALDE"
+    ]
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-16/10-33-01-start": {
+   "looks": [
+    [
+     "ATTACK",
+     "LTE 66"
+    ],
+    [
+     "NRHIN",
+     "ATTACK",
+     "YOUTE 66"
+    ],
+    [
+     "ATTACK OutE 66"
+    ]
+   ],
+   "band": [
+    "IINrhyEOED",
+    "INrhuy2OSo"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-16/10-44-20-start": {
+   "looks": [
+    [
+     "UNRANKED",
+     "DEFEND",
+     "DORADO"
+    ],
+    [
+     "UNRANKED",
+     "DEFEND",
+     "DORADO"
+    ],
+    [
+     "UNRANKED",
+     "DEFEND",
+     "DORADO"
+    ]
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-16/10-56-56-start": {
+   "looks": [
+    [
+     "INRANKED",
+     "DEFEND",
+     "KING'S ROW"
+    ],
+    [
+     "UNRANKED",
+     "DEFEND",
+     "KING'S ROW"
+    ],
+    [
+     "UINRANKED",
+     "DEFEND",
+     "KING'S ROW"
+    ]
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-16/11-09-29-start": {
+   "looks": [
+    [
+     "UNRANKEn",
+     "ATTACK",
+     "ESPERANÇA"
+    ],
+    [
+     "UNRANKED",
+     "ATTACK",
+     "ESPERANÇA"
+    ],
+    [
+     "INRANKED",
+     "ATTACK",
+     "ESPERANÇA"
+    ]
+   ],
+   "band": [
+    "HINRANKEN",
+    "HINRANKEN"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-16/11-19-29-start": {
+   "looks": [
+    [
+     "INRANKED",
+     "DEFEND",
+     "PARAÍSO"
+    ],
+    [
+     "UNRANKED",
+     "DEFEND",
+     "PARAÍSO"
+    ],
+    [
+     "UINRANKED",
+     "DEFEND",
+     "PARAÍSO"
+    ]
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-16/19-49-36-missed-start-gap": {
+   "looks": [
+    [
+     "UNRO",
+     "ATTACK",
+     "ILIC"
+    ],
+    [
+     "UNRO",
+     "ATTACK",
+     "ILO"
+    ],
+    [
+     "OL"
+    ]
+   ],
+   "band": [
+    "UNRODIAEE",
+    "UNRODWWAED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-16/19-49-40-start": {
+   "looks": [
+    [],
+    [],
+    []
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "no corner on screen"
+  },
+  "2026-11-16/20-00-51-start": {
+   "looks": [
+    [
+     "NO",
+     "ATTACK",
+     "GRÍMSVÖTN"
+    ],
+    [
+     "UNRANKED",
+     "ATTACK",
+     "GRÍMSVÖTN"
+    ],
+    [
+     "UINRANKED",
+     "ATTACK",
+     "GRIMSVÖTN"
+    ]
+   ],
+   "band": [
+    "INRANKEN",
+    "JINRANKEN"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-16/20-09-36-start": {
+   "looks": [
+    [
+     "LINRANKED",
+     "UL",
+     "SAMOA·BEACH"
+    ],
+    [
+     "ATIACK ONKED",
+     "SAMOA·BEACH"
+    ],
+    [
+     "UNRANKED",
+     "ATTACK",
+     "SAMOA·BEACH"
+    ]
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-16/20-26-11-start": {
+   "looks": [
+    [
+     "ATTACK",
+     "NEPAL NE"
+    ],
+    [
+     "ATTACK",
+     "NEPAL . SL NE"
+    ],
+    [
+     "ATTACK",
+     "NEPAL . SL NE"
+    ]
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "Nepal, white on snow: only '...KED' shows; the later looks are the fix"
+  },
+  "2026-11-16/20-51-01-start": {
+   "looks": [
+    [
+     "UINRANKED",
+     "DEFEND",
+     "NEON JUNCTION"
+    ],
+    [
+     "UINRANKED",
+     "DEFEND",
+     "NEON JUNCTION"
+    ],
+    []
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-16/21-04-41-start": {
+   "looks": [
+    [],
+    [],
+    [
+     "ANOMALY-"
+    ]
+   ],
+   "band": [
+    "",
+    ""
+   ],
+   "queue": null,
+   "unknown_because": "no corner on screen"
+  },
+  "2026-11-16/21-35-43-missed-start-gap": {
+   "looks": [
+    [
+     "UINRANKED",
+     "ATTACK",
+     "AN SANCTU"
+    ],
+    [
+     "UNRANKED",
+     "HTTACK",
+     "N SANCTUA"
+    ],
+    []
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  },
+  "2026-11-16/21-35-44-start": {
+   "looks": [
+    [
+     "UINRANKED",
+     "ATTACK",
+     "AN SANCTU"
+    ],
+    [
+     "UNRANKED",
+     "HTTACK",
+     "N SANCTUA"
+    ],
+    []
+   ],
+   "band": [
+    "JINRANKED",
+    "JINRANKED"
+   ],
+   "queue": "UNRANKED"
+  }
+ }
+}

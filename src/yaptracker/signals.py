@@ -239,7 +239,31 @@ def _variants(image: np.ndarray):
     yield cv2.merge([image[:, :, 0]] * 3)
 
 
-def read_info(read_lines: Callable[[np.ndarray], list[str]], image: np.ndarray | None):
+# The queue title, top left of the info corner, as a share of its height and width (#554).
+TITLE_BAND = (0.42, 0.70)
+
+
+def read_title(read_line: Callable[[np.ndarray], str], image: np.ndarray | None) -> str | None:
+    """The queue from the title alone (#554), read without text detection: on a bright map that
+    loses the washed-out title altogether. As is, then its darkest channel: white letters stay
+    white in all three, pink or cyan glare doesn't. Two ~10 ms reads."""
+    if image is None or image.ndim != 3:
+        return None
+    height, width = image.shape[:2]
+    band = np.ascontiguousarray(image[: int(height * TITLE_BAND[0]), : int(width * TITLE_BAND[1])])
+    if band.size == 0:
+        return None
+    for look in (band, cv2.merge([band.min(axis=2)] * 3)):
+        if mode := game_lists.title_queue(read_line(look)):
+            return mode
+    return None
+
+
+def read_info(
+    read_lines: Callable[[np.ndarray], list[str]],
+    image: np.ndarray | None,
+    read_line: Callable[[np.ndarray], str] | None = None,
+):
     """(mode, map) of the info corner; the variants only while the queue or the map is still
     unknown. On Marv's 88 start samples they found 4 more queues and changed none that was
     read (#342); the map: OCR may read queue and map as one line ("UNRANKE MIDTOWN", #378)."""
@@ -251,6 +275,8 @@ def read_info(read_lines: Callable[[np.ndarray], list[str]], image: np.ndarray |
         mode, map_name = mode or found_mode, map_name or found_map
         if mode and map_name:
             break
+    if mode is None and read_line is not None:
+        mode = read_title(read_line, image)
     return mode, map_name
 
 
@@ -267,9 +293,12 @@ class HeroSelect:
         match_running: Callable[[], bool] = lambda: False,
         adoptable: Callable[[], bool] = lambda: False,
         on_info: Callable[[str | None, str | None], None] = lambda mode, map_name: None,
+        read_band: Callable[[np.ndarray], str] | None = None,
     ) -> None:
         self._read_line, self._read_lines, self._on_info = read_line, read_lines, on_info
-        self._info_left = 0  # later looks at the info corner while the queue is unknown (#342)
+        # the title band wants a fresh read of a still picture, never a kept one (#453, #554)
+        self._read_band = read_band or read_line
+        self._info_left = 0  # later full looks at the info corner while it's unread (#342)
         self._known: tuple[str | None, str | None] = (None, None)
         self._match_running, self._adoptable = match_running, adoptable
         self._on_start, self._clock, self._rearm_s = on_start, clock, rearm_s
@@ -304,10 +333,11 @@ class HeroSelect:
             self._last_seen = now
             if not self._active:
                 self._active, self._details_at = True, None  # its own corner, read just below
-                self._known = read_info(self._read_lines, signals.get("heroselect_info"))
+                info = signals.get("heroselect_info")
+                self._known = read_info(self._read_lines, info, self._read_band)
                 self._info_left = INFO_TRIES if None in self._known else 0
                 self._on_start(*self._known)
-            elif self._info_left:
+            elif self._info_left or self._known[0] is None:  # the queue: all hero select long
                 self._look_again(signals.get("heroselect_info"))
             return
         self._look_for_details(signals, now)
@@ -331,9 +361,15 @@ class HeroSelect:
             self._active = False
 
     def _look_again(self, info: np.ndarray | None) -> None:
-        """Hero select is still up and its queue or map unknown: another look (#342, #378)."""
-        self._info_left -= 1
-        mode, map_name = read_info(self._read_lines, info)
+        """Hero select is still up and its queue or map unknown: another look (#342, #378). The
+        map a few times; the queue every sighting until it's read, as the camera moves and the
+        glare with it (#554) - after the full looks only the cheap title read."""
+        mode = map_name = None
+        if self._info_left:
+            self._info_left -= 1
+            mode, map_name = read_info(self._read_lines, info, self._read_band)
+        else:
+            mode = read_title(self._read_band, info)
         known = (self._known[0] or mode, self._known[1] or map_name)
         if known != self._known:
             self._known = known
@@ -360,7 +396,7 @@ class HeroSelect:
         info = signals.get("heroselect_info")
         if info is not None and None in self._details_info and self._details_left:
             self._details_left -= 1
-            mode, map_name = read_info(self._read_lines, info)
+            mode, map_name = read_info(self._read_lines, info, self._read_band)
             self._details_info = (self._details_info[0] or mode, self._details_info[1] or map_name)
         self._details_at = now
 
