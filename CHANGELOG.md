@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-16 · "Probably Unranked" when the queue can't be read (#554)
+- A match whose queue YapTracker couldn't read takes the one of the match just before (if that ended less than 5 minutes ago), and says so: "probably Unranked". Competitive is never guessed, and a real read replaces the guess.
+- The evening line counts them apart: "queue known 89 % (+11 % guessed)".
+
 ### 2026-11-16 · Queue found on bright maps too (#554)
 - Unranked is recognized even when the big white title is washed out by snow or glare: YapTracker reads just the title, and keeps looking while hero select is up.
 
