@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-16 · Lighter between matches (#453)
+- Menus and end screens that stand still aren't read again every second: the match signals need about a quarter less CPU between matches.
+
 ### 2026-11-15 · Clearer release rules for the robot (#536)
 - Behind the scenes: CLAUDE.md names the one hand edit of CHANGELOG.md and when the version bump may merge.
 
