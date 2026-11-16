@@ -4,8 +4,8 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
-### 2026-11-16 · Private-names check knows the word "Something" (#549)
-- Behind the scenes: the local check for real player names no longer mistakes the word "Something" for one.
+### 2026-11-16 · Private-names check knows another common word (#549)
+- Behind the scenes: the local check for real player names no longer mistakes a common word for one.
 
 ### 2026-11-16 · Lighter between matches (#453)
 - Menus and end screens that stand still aren't read again every second: the match signals need about a quarter less CPU between matches.

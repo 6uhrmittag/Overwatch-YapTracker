@@ -7,8 +7,8 @@ Handover brief for Claude Code. You are starting cold; everything you need is he
 
 ## Why this exists
 
-Marv and his duo partner Void play Overwatch together after work and have a lot of
-fun with people in text chat. They want to **remember who they played with, what
+Marv and his duo partner Void (Void uses they/them) play Overwatch together after work and
+have a lot of fun with people in text chat. They want to **remember who they played with, what
 those people said, and what they thought of them** — so they can greet them next
 time ("hey, you're the Lúcio from Tuesday!").
 
@@ -296,6 +296,8 @@ of view, like OBS or the Snipping Tool.
 - **The repo is public.** Never commit screenshots or real chat logs — they
   contain other players' names. Real samples live in `fixtures/private/`
   (gitignored). Committed test fixtures are OCR-output JSON with names replaced.
+  When a player's name is also an ordinary word and trips the private-names check,
+  issue/PR/CHANGELOG text says 'a common word', never the word itself.
 - **App and data are separate.** App in `%LOCALAPPDATA%\YapTracker\app`, data in
   `%LOCALAPPDATA%\YapTracker\data`. Back up the DB automatically before any
   schema migration.
