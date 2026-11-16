@@ -40,6 +40,7 @@ def calm(image: np.ndarray, hues: tuple[int, int]) -> np.ndarray:
 
 @pytest.mark.parametrize("sample", [t for t in SHOWN if SAMPLES[t]["outcome"] == "victory"])
 def test_victory_counts_on_a_calm_scene_too(sample):
+    """The letters' own gold is enough (share and saturation), the old check alone never was."""
     gold = calm(crop(sample), (15, 45))
     hsv = cv2.cvtColor(gold, cv2.COLOR_BGR2HSV)
     saturated = float(((hsv[:, :, 1] > 120) & (hsv[:, :, 2] > 170)).mean())
@@ -72,3 +73,20 @@ def test_an_end_without_a_result_says_why(caplog):
         "end screen: match over (PLAY OF THE GAME), no result read: 6 look(s) at the banner "
         "in the 30 s before, 0 coloured enough to read, none read as a result"
     ) in caplog.text
+
+
+def test_old_looks_and_a_read_result_dont_count(caplog):
+    caplog.set_level(logging.INFO, "yaptracker.signals")
+    clock, ends = [0.0], []
+    screen = EndScreen(lambda image: "PLAY OF THE GAME" if image.shape[0] == 75 else "XQ",
+                       ends.append, lambda: clock[0], rearm_s=120)  # fmt: skip
+    title = np.zeros((75, 900, 3), np.uint8)
+    cv2.putText(
+        title, "PLAY OF THE GAME", (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 1.6, (255, 255, 255), 4
+    )
+    for _ in range(5):  # looks long before
+        screen.update({"end_banner": np.full((250, 820, 3), 90, np.uint8)})
+        clock[0] += 1
+    clock[0] += 300
+    screen.update({"end_title": title})
+    assert "0 look(s) at the banner in the 30 s before" in caplog.text

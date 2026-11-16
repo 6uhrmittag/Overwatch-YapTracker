@@ -138,9 +138,11 @@ def has_bright_text(image: np.ndarray, min_pixels: int = 150, height_1440: int =
 
 
 # The VICTORY! letters' pale gold (OpenCV hue 15-45, a little saturation, bright) fills this much
-# of the banner crop: 0.13-0.28 on Marv's victory samples, under 0.08 on every defeat (#555).
+# of the banner crop: 0.13-0.28 on Marv's victory samples (full size), under 0.08 on every defeat,
+# and 6 % of 233 other crops get there too: a wasted read every ~16 s, 0.3 % of a core (#555).
 VICTORY_SHARE = 0.10
 LOOKS_KEPT_S = 30  # banner looks remembered for the log line of an end without a result (#555)
+RESULT_HELD_S = 600  # a result read this recently: a later end screen is still its match
 
 
 def has_colour(image: np.ndarray, min_share: float = 0.08) -> bool:
@@ -153,7 +155,7 @@ def has_colour(image: np.ndarray, min_share: float = 0.08) -> bool:
     hue, sat, value = hsv[:, :, 0], hsv[:, :, 1], hsv[:, :, 2]
     if float(((sat > 120) & (value > 170)).mean()) >= min_share:
         return True
-    gold = (hue >= 15) & (hue <= 45) & (sat >= 25) & (value >= 200)
+    gold = (hue >= 15) & (hue <= 45) & (sat >= 25) & (sat <= 140) & (value >= 220)
     return float(gold.mean()) >= VICTORY_SHARE
 
 
@@ -203,13 +205,18 @@ def title_end(text: str) -> tuple[bool, str | None]:
     "UMMARYREWARS" (the SUMMARY / REWARDS tabs, first letter cut off).
     """
     letters = _letters(text)
-    if fuzz.ratio(letters[:13], "PLAYOFTHEGAME") >= 85:
+    if is_potg(letters):
         return True, None
     if fuzz.ratio(letters[:14], "SUMMARYREWARDS") >= MATCH:
         return True, None
     if found := _outcome_first(letters):
         return True, found[0]
     return False, None
+
+
+def is_potg(letters: str) -> bool:
+    """ "PLAY OF THE GAME" at the start of the title strip's letters."""
+    return fuzz.ratio(letters[:13], "PLAYOFTHEGAME") >= 85
 
 
 def title_map(text: str) -> str | None:
@@ -454,6 +461,7 @@ class EndScreen:
         self._last_seen = 0.0
         self._title_read = float("-inf")
         self._looks: deque[tuple[float, bool]] = deque()  # banner looks: (when, coloured?)
+        self._result_at = float("-inf")  # the last result read (#555)
 
     def update(self, signals: dict[str, np.ndarray]) -> None:
         now = self._clock()
@@ -476,7 +484,10 @@ class EndScreen:
         if seen:
             self._last_seen = now
             if not self._active and outcome is None:
-                self._why_no_result(text)
+                self._why_no_result(text, now)
+            if outcome:
+                self._result_at = now
+                self._looks.clear()
             if not self._active or (outcome and not self._outcome):
                 self._active, self._outcome = True, self._outcome or outcome
                 self._on_end(outcome)
@@ -488,15 +499,21 @@ class EndScreen:
 
     def _remember_look(self, now: float, coloured: bool) -> None:
         self._looks.append((now, coloured))
+        self._trim(now)
+
+    def _trim(self, now: float) -> None:
         while self._looks and now - self._looks[0][0] > LOOKS_KEPT_S:
             self._looks.popleft()
 
-    def _why_no_result(self, title: str) -> None:
+    def _why_no_result(self, title: str, now: float) -> None:
         """The match is over by a later screen, the result never read: the log says why, so an
         evening's misses can be told apart (#555) - the banner never looked at (no pictures),
         never coloured enough to read, or read as something else. No read text: names."""
+        if now - self._result_at < RESULT_HELD_S:
+            return  # the result was read: this is its summary seen again after a while
+        self._trim(now)
         coloured = sum(c for _, c in self._looks)
-        screen = "PLAY OF THE GAME" if _letters(title).startswith("PL") else "the summary"
+        screen = "PLAY OF THE GAME" if is_potg(_letters(title)) else "the summary"
         log.info("end screen: match over (%s), no result read: %d look(s) at the banner in "
                  "the %d s before, %d coloured enough to read, none read as a result", screen,
                  len(self._looks), LOOKS_KEPT_S, coloured)  # fmt: skip
