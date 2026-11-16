@@ -51,6 +51,47 @@ BETWEEN_EVERY_S = 2.0  # and between matches: the screen is up 20 s+, the start 
 INFO_TRIES = 5
 
 
+LOOK_BLOCK = 8  # px of a region per thumbnail pixel (#453)
+SAME_LOOK = 12  # grey levels: the most any thumbnail pixel may differ to count as the same look
+LOOKS_KEPT = 4  # per region size
+
+
+class SameLook:
+    """A read of a signal region, done again only when the region looks different (#453).
+
+    Between matches the menus stand still, and each look at them was a ~50 ms OCR read of the
+    same picture. Each read is kept with a tiny grey thumbnail (one pixel per 8x8 block); a
+    region whose every block is within SAME_LOOK of a kept one gets that read's text back. Text
+    that appears or changes moves its blocks far more, so hero select and the end screen see the
+    same text as before - only sooner. The weakest banner read in Marv's start and end samples
+    (washed out by HDR, 2026-11) still moves its blocks by 58 levels."""
+
+    def __init__(self, read_line: Callable[[np.ndarray], str]) -> None:
+        self._read_line = read_line
+        self._kept: dict[tuple[int, ...], list[tuple[np.ndarray, str]]] = {}
+        self.reused = 0  # looks answered from what was kept (tools/signals_cost.py)
+
+    def __call__(self, image: np.ndarray) -> str:
+        thumb = _thumb(image)
+        kept = self._kept.setdefault(image.shape, [])  # each region has its own size
+        for i, (old, text) in enumerate(kept):
+            if int(np.abs(old - thumb).max()) <= SAME_LOOK:
+                kept.insert(0, kept.pop(i))
+                self.reused += 1
+                return text
+        text = self._read_line(image)
+        if text:  # an empty read isn't kept: the OCR model may still be loading (#219)
+            kept.insert(0, (thumb, text))
+            del kept[LOOKS_KEPT:]
+        return text
+
+
+def _thumb(image: np.ndarray) -> np.ndarray:
+    grey = image if image.ndim == 2 else cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    size = (max(1, grey.shape[1] // LOOK_BLOCK), max(1, grey.shape[0] // LOOK_BLOCK))
+    return cv2.resize(grey, size, interpolation=cv2.INTER_AREA).astype(np.int16)
+
+
 def signal_regions(width: int, height: int) -> dict[str, Region]:
     return {
         "heroselect": HEROSELECT.to_pixels(width, height),

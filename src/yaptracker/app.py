@@ -127,7 +127,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
 
     from yaptracker.game_fps import FpsMeter, overlay_regions
     from yaptracker.ocr import engine as ocr
-    from yaptracker.signals import EndScreen, HeroSelect, signal_regions
+    from yaptracker.signals import EndScreen, HeroSelect, SameLook, signal_regions
 
     # The capture thread reads the signal strips: never wait for a model load there (#219).
     def read_line(image) -> str:
@@ -163,8 +163,11 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         if runtime.matches is not None:
             runtime.matches.learn_info(mode, map_name)
 
+    # A menu that stands still isn't read again every look (#453). Not the info corner: its
+    # second looks want another read of the same picture (#342); nor the FPS box, it changes.
+    signal_line = SameLook(read_line)
     hero_select = HeroSelect(
-        read_line,
+        signal_line,
         read_lines,
         hero_select_started,
         match_running=match_running,
@@ -177,7 +180,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         if taken and runtime.debug is not None:  # proof for the next evening's check
             runtime.debug.match_event("end-map")
 
-    end_screen = EndScreen(read_line, match_over, on_map=end_map)
+    end_screen = EndScreen(signal_line, match_over, on_map=end_map)
 
     def fps_state() -> str:  # one row each of the FPS test (#187), and where in the evening
         playing = runtime.matches is not None and runtime.matches.running  # menus: 60 fps (#302)
