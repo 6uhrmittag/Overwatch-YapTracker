@@ -29,7 +29,7 @@ from typing import NamedTuple
 from yaptracker import game_lists
 from yaptracker.pause import Pause
 from yaptracker.reading_mode import competitive
-from yaptracker.store.repo import Store
+from yaptracker.store.repo import GUESSED, Store
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +49,10 @@ RESUME_MATCH_S = 10 * 60
 # rounds a match can take ~20 min; hero select later than this is a new match.
 ROUND_MATCH_S = 25 * 60
 MIRROR_TYPES = frozenset({"escort", "hybrid"})
+# A match whose queue hero select couldn't read takes the one of the match before if that ended
+# this recently, marked as a guess ("probably Unranked"): one queue per evening is the norm.
+# Never Competitive, never from a guess (#554).
+GUESS_AFTER_S = 5 * 60
 # A match hero select started goes on through a quiet chat (#377) up to this long after its
 # start: longer than any real match (Marv's longest from hero select to end screen: 17 min).
 LONGEST_MATCH_S = 25 * 60
@@ -65,6 +69,7 @@ class Status(NamedTuple):
     outcome: str | None = None  # 'victory' | 'defeat' | 'draw', once the end screen said so
     mode: str | None = None  # from hero select, e.g. "UNRANKED" (#268)
     ended_at: float | None = None
+    mode_guessed: bool = False  # the mode is the match before's: "probably ..." (#554)
 
 
 class MatchTracker:
@@ -90,6 +95,7 @@ class MatchTracker:
         self.match_started_at: float | None = None
         self.match_map: str | None = None
         self.match_mode: str | None = None
+        self.mode_guessed = False  # match_mode is the match before's, not read (#554)
         self.match_ended_at: float | None = None
         self.match_outcome: str | None = None
         self._match_source: str | None = None
@@ -164,8 +170,13 @@ class MatchTracker:
                 log.info("match %d: hero select (%s, %s) takes over its start (%s)",
                          self.match_id, mode, map_name, self._match_source)  # fmt: skip
                 by_hand = self._match_source == "hotkey"  # its start was a guess: hero select's
+                if mode is None and self.mode_guessed:  # nothing read: the guess stays (#554)
+                    mode = self.match_mode
+                else:
+                    self.mode_guessed = False
                 self._store.set_match_source(self.match_id, source, mode, map_name,
-                                             ts if by_hand else None)  # fmt: skip
+                                             ts if by_hand else None,
+                                             self.mode_guessed)  # fmt: skip
                 self._match_source, self.match_map = source, map_name
                 self.match_mode = mode
                 if by_hand:
@@ -183,11 +194,12 @@ class MatchTracker:
             return False
         if ts - self.match_started_at > ROUND_MATCH_S:
             return False
-        if mode and self.match_mode and mode != self.match_mode:
+        known = self._read_mode()
+        if mode and known and mode != known:
             return False  # another queue: a new match
         if map_name and self.match_map:
             return map_name == self.match_map
-        return competitive(mode or self.match_mode) and bool(
+        return competitive(mode or known) and bool(
             game_lists.map_type(self.match_map or map_name) & MIRROR_TYPES
         )
 
@@ -199,14 +211,19 @@ class MatchTracker:
         same_map = map_name is not None and map_name == self.match_map
         log.info("match %d: round %d (%s, no result yet)", self.match_id, self._round,
                  "same map" if same_map else "Competitive Escort/Hybrid")  # fmt: skip
-        new_mode, new_map = self.match_mode or mode, self.match_map or map_name
+        new_mode, new_map = self._read_mode() or mode, self.match_map or map_name
         types = game_lists.map_type(new_map)
         if new_mode is None and same_map and (not types or types & MIRROR_TYPES):
             new_mode = "COMPETITIVE"
             log.info("match %d: Competitive, from a mirror round", self.match_id)
+        if new_mode is None and self.mode_guessed:
+            new_mode = self.match_mode  # still nothing read: the guess stays a guess (#554)
+        else:
+            self.mode_guessed = False
         if (new_mode, new_map) != (self.match_mode, self.match_map):
             self.match_mode, self.match_map = new_mode, new_map
-            self._store.set_match_source(self.match_id, "heroselect", new_mode, new_map)
+            self._store.set_match_source(self.match_id, "heroselect", new_mode, new_map,
+                                         guessed=self.mode_guessed)  # fmt: skip
 
     def learn_info(self, mode: str | None, map_name: str | None) -> None:
         """Hero select's queue or map, read on a later look (#342): the running match gets
@@ -214,11 +231,14 @@ class MatchTracker:
         with self._lock:
             if not self.running or self._match_source != "heroselect":
                 return
+            if self.mode_guessed and mode:  # a read queue replaces the guess (#554)
+                self.match_mode, self.mode_guessed = None, False
             mode, map_name = self.match_mode or mode, self.match_map or map_name
             if (mode, map_name) == (self.match_mode, self.match_map):
                 return
             self.match_mode, self.match_map = mode, map_name
-            self._store.set_match_source(self.match_id, "heroselect", mode, map_name)
+            self._store.set_match_source(self.match_id, "heroselect", mode, map_name,
+                                         guessed=self.mode_guessed)  # fmt: skip
             log.info("match %d: hero select read again: %s, %s", self.match_id, mode, map_name)
 
     def end_map(self, map_name: str) -> bool:
@@ -304,7 +324,7 @@ class MatchTracker:
             return Status(self._store.session_number(self.session_id), match_no,
                           self.match_started_at, self.match_map,
                           self.match_ended_at is not None, self.match_outcome,
-                          self.match_mode, self.match_ended_at)  # fmt: skip
+                          self.match_mode, self.match_ended_at, self.mode_guessed)  # fmt: skip
 
     def _new_session(self, ts: float) -> None:
         if self.session_id is not None and self._last_alive is not None:
@@ -316,6 +336,7 @@ class MatchTracker:
         self.match_id = self.match_started_at = self.match_map = self._last_chat = None
         self.previous_match_id = self.match_mode = None
         self.match_ended_at = self.match_outcome = None
+        self.mode_guessed = False
 
     def _start_match(
         self, ts: float, source: str, mode: str | None = None, map_name: str | None = None
@@ -333,10 +354,16 @@ class MatchTracker:
         if source == "hotkey":
             self._before_hand = (self.match_id, self.previous_match_id, self.match_started_at,
                                  self.match_map, self.match_mode, self.match_ended_at,
-                                 self.match_outcome, self._match_source)  # fmt: skip
+                                 self.match_outcome, self._match_source,
+                                 self.mode_guessed)  # fmt: skip
+        guessed = mode is None and source != "hotkey" and self._guessable(ts)
+        if guessed:
+            mode = self.match_mode
         self.previous_match_id = self.match_id  # where lines still on screen belong (#179)
-        self.match_id = self._store.start_match(self.session_id, ts, source, mode, map_name)
-        log.info("match %d started (%s, %s, %s)", self.match_id, source, mode, map_name)
+        self.match_id = self._store.start_match(self.session_id, ts, source, mode, map_name,
+                                                guessed)  # fmt: skip
+        log.info("match %d started (%s, %s%s, %s)", self.match_id, source,
+                 "probably " if guessed else "", mode, map_name)  # fmt: skip
         if outside is not None:
             moved = self._store.move_lines(outside, self.match_id)
             self.previous_match_id = self.match_id  # its lines still on screen, too
@@ -344,6 +371,7 @@ class MatchTracker:
                      "%d line(s) go to match %d", outside, moved, self.match_id)  # fmt: skip
         self.match_started_at, self.match_map, self._match_source = ts, map_name, source
         self.match_mode, self.match_ended_at, self.match_outcome = mode, None, None
+        self.mode_guessed = guessed
         self._round = 1
         self._pause.next_match_started()
         self._on_match_start(self.match_id)
@@ -359,6 +387,21 @@ class MatchTracker:
             and not self._store.loved(self.match_id)
         )
 
+    def _read_mode(self) -> str | None:
+        """The running match's queue as read: a guess counts as none (#554)."""
+        return None if self.mode_guessed else self.match_mode
+
+    def _guessable(self, ts: float) -> bool:
+        """The match before (still in self.*) ended recently with a read, non-Competitive queue
+        (#554)."""
+        return (
+            self.match_mode is not None
+            and not self.mode_guessed
+            and not competitive(self.match_mode)
+            and self.match_ended_at is not None
+            and ts - self.match_ended_at <= GUESS_AFTER_S
+        )
+
     def _drop_hand_start(self) -> bool:
         """The running match was started by hand and never got a line: remove it and go back
         to where things were (#269). False for any other match, or one with lines."""
@@ -369,14 +412,14 @@ class MatchTracker:
         log.info("match %d dropped: started by hand, nothing in it", self.match_id)
         (self.match_id, self.previous_match_id, self.match_started_at, self.match_map,
          self.match_mode, self.match_ended_at, self.match_outcome,
-         self._match_source) = self._before_hand  # fmt: skip
+         self._match_source, self.mode_guessed) = self._before_hand  # fmt: skip
         return True
 
     def _resume(self, closed: tuple, ts: float) -> None:
         """The match YapTracker's own shutdown closed goes on after a quick restart (#275):
         before, the next chat started a second match inside the same game."""
         self.match_id, self.match_started_at, ended, self.match_map, self.match_mode = closed[:5]
-        self._match_source = closed[5]
+        self._match_source, self.mode_guessed = closed[5], closed[6] == GUESSED
         self._store.reopen_match(self.match_id)
         log.info("match %d goes on: YapTracker was away %d s", self.match_id, ts - ended)
 

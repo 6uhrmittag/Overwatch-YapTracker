@@ -16,7 +16,7 @@ from pathlib import Path
 
 from yaptracker import __version__, days, game_lists
 from yaptracker.lines import LinePictures
-from yaptracker.store.repo import Store
+from yaptracker.store.repo import GUESSED, Store
 from yaptracker.translate import language
 
 FORMAT_VERSION = 1
@@ -232,6 +232,8 @@ def day_markdown(day: days.Day, said: dict[int, list[dict]], gaps: list) -> str:
 def _match_markdown(match, number: int, said: list[dict], gaps: list) -> str:
     title = f"Match {number}" + (f" on {game_lists.display(match.map)}" if match.map else "")
     mode = game_lists.display(match.mode) if match.mode else None
+    if mode and match.queue_source == GUESSED:
+        mode = f"probably {mode}"  # the match before's queue (#554)
     extra = [w for w in (mode, _OUTCOME_WORDS.get(match.outcome)) if w] + (
         ["Loved"] if match.loved_at else []
     )  # hearted (#282)
@@ -354,7 +356,7 @@ def export_all(
             for session_id, started, ended in snapshot.all_sessions():
                 played = []
                 for number, row in enumerate(matches.get(session_id, []), start=1):
-                    mid, _, m_start, m_end, outcome, map_, mode, source, loved_at = row
+                    mid, _, m_start, m_end, outcome, map_, mode, source, loved_at, how = row
                     said = snapshot.messages(mid)
                     end = max(m_start, m_end or (said[-1].ts if said else m_start))  # days.end_of
                     gaps_of[mid] = _overlapping(gaps, m_start, end)
@@ -372,6 +374,7 @@ def export_all(
                             "outcome": outcome,
                             "map": map_,
                             "mode": mode,
+                            "mode_guessed": how == GUESSED,  # (#554)
                             "detected_by": source,
                             "incomplete": bool(gaps_of[mid]),
                             "loved_at": iso(loved_at),

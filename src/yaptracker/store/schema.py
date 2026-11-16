@@ -171,4 +171,10 @@ END;
 INSERT INTO chat_fts (chat_fts) VALUES ('rebuild');
 """
 
-MIGRATIONS = [V1, V2, V3, V4, V5, V6, V7, V8, V9]
+# How the queue is known (#554): 'read' from hero select, 'previous' a guess from the match just
+# before (shown as "probably Unranked", never Competitive); NULL: unknown, or read before v1.2.
+V10 = """
+ALTER TABLE matches ADD COLUMN queue_source TEXT CHECK (queue_source IN ('read', 'previous'));
+"""
+
+MIGRATIONS = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10]
