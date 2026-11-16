@@ -7,7 +7,9 @@ GAME", "VICTORY <MAP>" and the summary screen (top left) follow it as fallbacks.
 Screen reading only, like the chat: never game memory.
 """
 
+import logging
 import time
+from collections import deque
 from collections.abc import Callable
 
 import cv2
@@ -16,6 +18,8 @@ from rapidfuzz import fuzz
 
 from yaptracker import game_lists
 from yaptracker.capture.source import Region, RelativeRegion
+
+log = logging.getLogger(__name__)
 
 # Measured on real 2560x1440 hero-select screenshots (#93), kept as fractions of the window.
 HEROSELECT = RelativeRegion.from_pixels(Region(60, 330, 780, 60), 2560, 1440)
@@ -133,13 +137,24 @@ def has_bright_text(image: np.ndarray, min_pixels: int = 150, height_1440: int =
     return int((contrast > 40).sum()) >= enough
 
 
+# The VICTORY! letters' pale gold (OpenCV hue 15-45, a little saturation, bright) fills this much
+# of the banner crop: 0.13-0.28 on Marv's victory samples, under 0.08 on every defeat (#555).
+VICTORY_SHARE = 0.10
+LOOKS_KEPT_S = 30  # banner looks remembered for the log line of an end without a result (#555)
+
+
 def has_colour(image: np.ndarray, min_share: float = 0.08) -> bool:
     """Cheap check before reading the end banner: big, saturated letters fill a good part of it.
 
-    The banner's colour follows the friendly/enemy colour settings, so any hue counts.
-    """
+    DEFEAT follows the enemy colour setting, so any hue counts. VICTORY! is pale gold, too pale
+    for that: it only passed on a colourful scene, and on a calm one no victory was ever read
+    (#555: the outcome was unknown in up to half the matches). Its own colour counts too."""
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    return float(((hsv[:, :, 1] > 120) & (hsv[:, :, 2] > 170)).mean()) >= min_share
+    hue, sat, value = hsv[:, :, 0], hsv[:, :, 1], hsv[:, :, 2]
+    if float(((sat > 120) & (value > 170)).mean()) >= min_share:
+        return True
+    gold = (hue >= 15) & (hue <= 45) & (sat >= 25) & (value >= 200)
+    return float(gold.mean()) >= VICTORY_SHARE
 
 
 def _letters(text: str) -> str:
@@ -438,15 +453,19 @@ class EndScreen:
         self._outcome: str | None = None
         self._last_seen = 0.0
         self._title_read = float("-inf")
+        self._looks: deque[tuple[float, bool]] = deque()  # banner looks: (when, coloured?)
 
     def update(self, signals: dict[str, np.ndarray]) -> None:
         now = self._clock()
-        seen, outcome, map_name = False, None, None
+        seen, outcome, map_name, text = False, None, None, ""
         banner = signals.get("end_banner")
         # The banner is up for ~4 s: read it every second, unless the outcome is known already.
-        if banner is not None and self._outcome is None and has_colour(banner):
-            outcome = banner_outcome(self._read_line(banner))
-            seen = outcome is not None
+        if banner is not None and self._outcome is None:
+            coloured = has_colour(banner)
+            self._remember_look(now, coloured)
+            if coloured:
+                outcome = banner_outcome(self._read_line(banner))
+                seen = outcome is not None
         # The title screens stay for 10+ s each: every few seconds is plenty.
         title = signals.get("end_title")
         if not seen and title is not None and now - self._title_read >= self._title_every_s:
@@ -456,6 +475,8 @@ class EndScreen:
                 (seen, outcome), map_name = title_end(text), title_map(text)
         if seen:
             self._last_seen = now
+            if not self._active and outcome is None:
+                self._why_no_result(text)
             if not self._active or (outcome and not self._outcome):
                 self._active, self._outcome = True, self._outcome or outcome
                 self._on_end(outcome)
@@ -464,3 +485,18 @@ class EndScreen:
                 self._on_map(map_name)
         elif self._active and now - self._last_seen >= self._rearm_s:
             self._active, self._outcome, self._map_said = False, None, False
+
+    def _remember_look(self, now: float, coloured: bool) -> None:
+        self._looks.append((now, coloured))
+        while self._looks and now - self._looks[0][0] > LOOKS_KEPT_S:
+            self._looks.popleft()
+
+    def _why_no_result(self, title: str) -> None:
+        """The match is over by a later screen, the result never read: the log says why, so an
+        evening's misses can be told apart (#555) - the banner never looked at (no pictures),
+        never coloured enough to read, or read as something else. No read text: names."""
+        coloured = sum(c for _, c in self._looks)
+        screen = "PLAY OF THE GAME" if _letters(title).startswith("PL") else "the summary"
+        log.info("end screen: match over (%s), no result read: %d look(s) at the banner in "
+                 "the %d s before, %d coloured enough to read, none read as a result", screen,
+                 len(self._looks), LOOKS_KEPT_S, coloured)  # fmt: skip

@@ -1,0 +1,71 @@
+{
+ "source": "Marv's end samples 2026-11-16 (#555), 4K HDR: the centre banner crop at the end, 1/8 size (names unreadable), its RapidOCR read at full size, and the result checked by eye.",
+ "samples": {
+  "10-42-19": {
+   "banner_read": "DEFEAT",
+   "outcome": "defeat"
+  },
+  "10-53-46": {
+   "banner_read": "VICTORY!",
+   "outcome": "victory"
+  },
+  "11-07-45": {
+   "banner_read": "文",
+   "outcome": null,
+   "unknown_because": "no result on screen in this frame: the end came from a later screen (PLAY OF THE GAME), the banner before it was missed"
+  },
+  "11-17-59": {
+   "banner_read": "DL",
+   "outcome": null,
+   "unknown_because": "no result on screen in this frame: the end came from a later screen (PLAY OF THE GAME), the banner before it was missed"
+  },
+  "11-25-49": {
+   "banner_read": "DEFEAT",
+   "outcome": "defeat"
+  },
+  "19-59-05": {
+   "banner_read": "DEFEOT",
+   "outcome": "defeat"
+  },
+  "20-07-36": {
+   "banner_read": "VICTORY!",
+   "outcome": "victory"
+  },
+  "20-24-25": {
+   "banner_read": "129",
+   "outcome": null,
+   "unknown_because": "no result on screen in this frame: the end came from a later screen (PLAY OF THE GAME), the banner before it was missed"
+  },
+  "20-35-52": {
+   "banner_read": "H",
+   "outcome": null,
+   "unknown_because": "no result on screen in this frame: the end came from a later screen (PLAY OF THE GAME), the banner before it was missed"
+  },
+  "21-00-08": {
+   "banner_read": "DEFERT",
+   "outcome": "defeat"
+  },
+  "21-20-36": {
+   "banner_read": "DEFEAT",
+   "outcome": "defeat"
+  },
+  "21-45-22": {
+   "banner_read": "VICTORY",
+   "outcome": "victory"
+  },
+  "22-19-44": {
+   "banner_read": "DEFERT",
+   "outcome": "defeat"
+  },
+  "22-31-34": {
+   "banner_read": "",
+   "outcome": null,
+   "unknown_because": "no result on screen in this frame: the end came from a later screen (PLAY OF THE GAME), the banner before it was missed"
+  },
+  "22-40-51": {
+   "banner_read": "",
+   "outcome": null,
+   "unknown_because": "no result on screen in this frame: the end came from a later screen (PLAY OF THE GAME), the banner before it was missed"
+  }
+ }
+}
