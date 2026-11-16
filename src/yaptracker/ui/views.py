@@ -27,6 +27,7 @@ from yaptracker.ui.components import (
     button,
     callout_toggle,
     count,
+    queue_name,
     saved_chip,
     set_button_label,
     size_label,
@@ -116,7 +117,9 @@ def match_state(where, now: float) -> tuple[str, str]:
     if where is None or where.match is None:
         return "Between matches", BETWEEN
     if not where.ended:
-        place = " \u00b7 ".join(_name(p) for p in (where.map_name, where.mode) if p)
+        mode = queue_name(where.mode, where.mode_guessed) if where.mode else None  # (#554)
+        place = " \u00b7 ".join(p for p in (_name(where.map_name) if where.map_name else None,
+                                              mode) if p)  # fmt: skip
         return (
             "In a match",
             f"{place or f'Match {where.match}'} \u00b7 {_minutes(now - where.started_at)}",
@@ -491,7 +494,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         if where and where.map_name:
             title += f" on {_name(where.map_name)}"
         if where and where.mode:
-            title += f" \u00b7 {where.mode.title()}"
+            title += f" \u00b7 {queue_name(where.mode, where.mode_guessed)}"
         started = runtime.matches.match_started_at if runtime.matches else None
         day = days.title(days.day_of(started or time.time()), "%a %b %d, %Y")  # its day (#440)
         snap_dialog(chosen, f"{title} \u00b7 {day}", started)

@@ -354,7 +354,7 @@ def export_all(
             for session_id, started, ended in snapshot.all_sessions():
                 played = []
                 for number, row in enumerate(matches.get(session_id, []), start=1):
-                    mid, _, m_start, m_end, outcome, map_, mode, source, loved_at = row
+                    mid, _, m_start, m_end, outcome, map_, mode, source, loved_at, how = row
                     said = snapshot.messages(mid)
                     end = max(m_start, m_end or (said[-1].ts if said else m_start))  # days.end_of
                     gaps_of[mid] = _overlapping(gaps, m_start, end)
@@ -372,6 +372,7 @@ def export_all(
                             "outcome": outcome,
                             "map": map_,
                             "mode": mode,
+                            "mode_guessed": how == "previous",  # (#554)
                             "detected_by": source,
                             "incomplete": bool(gaps_of[mid]),
                             "loved_at": iso(loved_at),

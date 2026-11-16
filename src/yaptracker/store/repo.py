@@ -73,6 +73,7 @@ class MatchRow:
     loved_at: float | None = None  # hearted in Live or Sessions (#282)
     session_id: int | None = None
     day: str | None = None  # the day it was played (#440), from SQL like every day key
+    queue_source: str | None = None  # 'previous': the mode is a guess (#554)
 
 
 @dataclass(frozen=True)
@@ -183,11 +184,12 @@ class Store:
         source: str,
         mode: str | None = None,
         map_name: str | None = None,
+        guessed: bool = False,
     ) -> int:
         return self._write(
-            "INSERT INTO matches (session_id, started_at, source, mode, map) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (session_id, ts, source, mode, map_name),
+            "INSERT INTO matches (session_id, started_at, source, mode, map, queue_source) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (session_id, ts, source, mode, map_name, _queue_source(mode, guessed)),
         )
 
     def set_match_map(self, match_id: int, map_name: str) -> None:
@@ -201,13 +203,14 @@ class Store:
         mode: str | None,
         map_name: str | None,
         started_at: float | None = None,
+        guessed: bool = False,
     ) -> None:
         """A match started by chat turned out to be a hero-select start (#93). A start by
         hand also hands over its start time (#269)."""
         self._write(
-            "UPDATE matches SET source = ?, mode = ?, map = ?, "
+            "UPDATE matches SET source = ?, mode = ?, map = ?, queue_source = ?, "
             "started_at = COALESCE(?, started_at) WHERE id = ?",
-            (source, mode, map_name, started_at, match_id),
+            (source, mode, map_name, _queue_source(mode, guessed), started_at, match_id),
         )
 
     def drop_match(self, match_id: int) -> bool:
@@ -360,12 +363,12 @@ class Store:
         return [SessionRow(*row) for row in rows]
 
     def evening(self, session_id: int, low: float) -> tuple[list[tuple], tuple]:
-        """One evening's quality numbers (#379): its played matches (source, map, mode, outcome),
-        and its lines, deleted ones too: (count, average confidence, below `low`, with ◇,
-        fixed by hand: text, channel or deleted, read without a channel: "Chat", #403)."""
+        """One evening's quality numbers (#379): its played matches (source, map, mode, outcome,
+        queue_source), and its lines, deleted ones too: (count, average confidence, below `low`,
+        with ◇, fixed by hand: text, channel or deleted, read without a channel: "Chat", #403)."""
         played = self._read(
-            f"SELECT source, map, mode, outcome FROM matches m WHERE session_id = ? AND "
-            f"{_played('m')} ORDER BY started_at, id",
+            "SELECT source, map, mode, outcome, queue_source FROM matches m WHERE session_id = ? "
+            f"AND {_played('m')} ORDER BY started_at, id",
             (session_id,),
         )
         lines = self._read(
@@ -402,7 +405,7 @@ class Store:
         also = tuple(also)
         rows = self._read(
             "SELECT m.id, m.started_at, m.ended_at, m.outcome, m.map, m.mode, COUNT(c.id), "
-            f"MAX(c.ts), m.loved_at, m.session_id, {_day('m')} FROM matches m "
+            f"MAX(c.ts), m.loved_at, m.session_id, {_day('m')}, m.queue_source FROM matches m "
             f"LEFT JOIN live_messages c ON c.match_id = m.id {where}GROUP BY m.id "
             "HAVING COUNT(c.id) > 0 OR m.outcome IS NOT NULL "
             f"OR m.id IN ({', '.join('?' * len(also))}) ORDER BY m.started_at, m.id",
@@ -868,9 +871,11 @@ class Store:
         return self._read("SELECT id, started_at, ended_at FROM sessions ORDER BY id")
 
     def all_matches(self) -> list[tuple]:
-        """(id, session_id, started, ended, outcome, map, mode, source, loved_at), play order."""
+        """(id, session_id, started, ended, outcome, map, mode, source, loved_at, queue_source),
+        play order."""
         return self._read(
-            "SELECT id, session_id, started_at, ended_at, outcome, map, mode, source, loved_at "
+            "SELECT id, session_id, started_at, ended_at, outcome, map, mode, source, loved_at, "
+            "queue_source "
             f"FROM matches m WHERE {_played('m')} ORDER BY session_id, started_at, id"
         )
 
@@ -924,3 +929,8 @@ class Store:
             f"(SELECT COUNT(*) FROM matches m WHERE {_played('m')}), (SELECT COUNT(*) FROM players)"
         )
         return Stats(*row)
+
+
+def _queue_source(mode: str | None, guessed: bool) -> str | None:
+    """matches.queue_source (#554): how the mode is known."""
+    return None if mode is None else "previous" if guessed else "read"

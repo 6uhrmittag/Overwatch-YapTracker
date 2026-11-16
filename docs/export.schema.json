@@ -49,6 +49,7 @@
         "outcome": {"enum": ["victory", "defeat", "draw", null]},
         "map": {"type": ["string", "null"]},
         "mode": {"type": ["string", "null"]},
+        "mode_guessed": {"type": "boolean", "description": "mode is the queue of the match just before, not read (newer exports)"},
         "detected_by": {"enum": ["heroselect", "endscreen", "gap", "hotkey"]},
         "incomplete": {"type": "boolean", "description": "a capture gap overlaps the match"},
         "loved_at": {"type": ["string", "null"], "description": "when it was hearted (#282), null if not"},

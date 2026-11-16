@@ -7,7 +7,7 @@ from html import escape
 from nicegui import ui
 
 from yaptracker import runtime
-from yaptracker.evenings import percent
+from yaptracker.evenings import percent, queue_known
 
 COLUMNS = ("Evening", "Matches", "Map", "Queue", "Result", "Lines", "Unsure", "Chat", "Fixed",
            "CPU")  # fmt: skip
@@ -44,6 +44,6 @@ def evenings_table() -> None:
 
 def _cells(e: dict) -> tuple:
     day = time.strftime("%a %b %d", time.strptime(e["date"], "%Y-%m-%d")).replace(" 0", " ")
-    return (day, e["matches"], percent(e["map"]), percent(e["queue"]), percent(e["result"]),
+    return (day, e["matches"], percent(e["map"]), queue_known(e), percent(e["result"]),
             e["lines"], percent(e["low"]), percent(e.get("unknown")), e["fixed"],
             percent(e["cpu"]))  # fmt: skip

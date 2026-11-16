@@ -13,6 +13,7 @@ from yaptracker.ui.components import (
     button,
     count,
     place_name,
+    queue_name,
     saved_chip,
     spicy_mark,
     switch,
@@ -263,7 +264,9 @@ def _together(player_id: int) -> None:
             when_ = days.title(key, "%a, %b %d") + (f" \u00b7 Match {number}" if number else "")
             typed = sum(1 for m in said if not m.hero)
             what = [place_name(match.map) if match.map else None,
-                    place_name(match.mode) if match.mode else None,
+                    queue_name(match.mode, match.queue_source == "previous")
+                    if match.mode
+                    else None,
                     _OUTCOMES.get(match.outcome or "", None),
                     count(typed, "yap", "yaps") if typed else "callouts only"]  # fmt: skip
             row = ui.element("div").classes("yt-together-row").mark(f"together-{match.id}")

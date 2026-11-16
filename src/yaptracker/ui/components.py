@@ -175,6 +175,11 @@ def place_name(text: str) -> str:
     return game_lists.display(text)
 
 
+def queue_name(mode: str, guessed: bool = False) -> str:
+    """The queue in words; one taken from the match before says so: "probably Unranked" (#554)."""
+    return f"probably {place_name(mode)}" if guessed else place_name(mode)
+
+
 def when(ts: float | None, now: float | None = None) -> str:
     """'today', 'yesterday', 'Tuesday' within a week, else 'Sep 28'."""
     if ts is None:

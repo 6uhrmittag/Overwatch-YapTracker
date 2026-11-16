@@ -46,6 +46,7 @@
 | `started_at`, `ended_at` | `ended_at` is `null` if no end was seen |
 | `outcome` | `victory`, `defeat`, `draw` or `null` |
 | `map`, `mode` | as Overwatch shows them on the hero-select screen, e.g. `ESPERANÇA` and `UNRANKED` (the queue), or `null` |
+| `mode_guessed` | `true` if the queue couldn't be read and `mode` is the one of the match just before ("probably Unranked" in the app). Newer exports only; not required |
 | `detected_by` | how the start was found: `heroselect` (the "Assemble your team" screen), `endscreen` (first chat after the last match's end), `gap` (first chat after a long quiet), `hotkey` (Ctrl+Alt+M) |
 | `incomplete` | `true` if a capture gap overlaps the match: some chat may be missing |
 | `loved_at` | when you hearted the match in Live or Sessions, `null` if you didn't |
