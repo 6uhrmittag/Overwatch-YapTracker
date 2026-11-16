@@ -3,7 +3,7 @@
 import numpy as np
 
 from tests.test_signals import strip
-from yaptracker.signals import SameLook
+from yaptracker.signals import REUSES, SameLook
 
 
 class Counting:
@@ -50,4 +50,16 @@ def test_an_empty_read_is_tried_again():
     look(strip("VICTORY"))
     read.text = "VICTORY"
     assert look(strip("VICTORY")) == "VICTORY"
+    assert read.calls == 2
+
+
+def test_a_misread_of_a_still_screen_gets_another_chance():
+    """Glare on the first look: the still banner is read again after a few kept answers."""
+    read = Counting("ASSEM8LE Y0")
+    look = SameLook(read)
+    banner = strip("ASSEMBLE YOUR TEAM")
+    answers = [look(banner)]
+    read.text = "ASSEMBLE YOUR TEAM"
+    answers += [look(banner) for _ in range(REUSES + 1)]
+    assert answers[-1] == "ASSEMBLE YOUR TEAM"
     assert read.calls == 2

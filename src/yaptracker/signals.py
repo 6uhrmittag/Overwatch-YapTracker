@@ -54,6 +54,9 @@ INFO_TRIES = 5
 LOOK_BLOCK = 8  # px of a region per thumbnail pixel (#453)
 SAME_LOOK = 12  # grey levels: the most any thumbnail pixel may differ to count as the same look
 LOOKS_KEPT = 4  # per region size
+# A kept read answers this many looks, then the region is read again: a misread of a still
+# banner (glare, mid-animation) gets another chance, as do reads of an engine switched away from.
+REUSES = 3
 
 
 class SameLook:
@@ -63,25 +66,30 @@ class SameLook:
     same picture. Each read is kept with a tiny grey thumbnail (one pixel per 8x8 block); a
     region whose every block is within SAME_LOOK of a kept one gets that read's text back. Text
     that appears or changes moves its blocks far more, so hero select and the end screen see the
-    same text as before - only sooner. The weakest banner read in Marv's start and end samples
-    (washed out by HDR, 2026-11) still moves its blocks by 58 levels."""
+    same text as before - only sooner, and after REUSES kept answers a real read again. The
+    weakest banner read in Marv's start and end samples (washed out by HDR, 2026-11) still moves
+    its blocks by 58 levels."""
 
     def __init__(self, read_line: Callable[[np.ndarray], str]) -> None:
         self._read_line = read_line
-        self._kept: dict[tuple[int, ...], list[tuple[np.ndarray, str]]] = {}
+        self._kept: dict[tuple[int, ...], list[list]] = {}  # [thumbnail, text, looks left]
         self.reused = 0  # looks answered from what was kept (tools/signals_cost.py)
 
     def __call__(self, image: np.ndarray) -> str:
         thumb = _thumb(image)
         kept = self._kept.setdefault(image.shape, [])  # each region has its own size
-        for i, (old, text) in enumerate(kept):
-            if int(np.abs(old - thumb).max()) <= SAME_LOOK:
-                kept.insert(0, kept.pop(i))
-                self.reused += 1
-                return text
+        for i, entry in enumerate(kept):
+            if int(np.abs(entry[0] - thumb).max()) <= SAME_LOOK:
+                kept.pop(i)
+                if entry[2]:
+                    entry[2] -= 1
+                    kept.insert(0, entry)
+                    self.reused += 1
+                    return entry[1]
+                break  # used up: read afresh, below
         text = self._read_line(image)
         if text:  # an empty read isn't kept: the OCR model may still be loading (#219)
-            kept.insert(0, (thumb, text))
+            kept.insert(0, [thumb, text, REUSES])
             del kept[LOOKS_KEPT:]
         return text
 

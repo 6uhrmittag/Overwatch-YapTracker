@@ -30,9 +30,13 @@ T0 = 1_000_000.0
 
 def replay(recording: str, ocr: RapidOcrEngine, gate: bool) -> None:
     root = FRAMES / recording
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        _replay(root, Store.open(Path(tmp) / "yaptracker.db", Path(tmp) / "backups"), ocr, gate)
+
+
+def _replay(root: Path, store: Store, ocr: RapidOcrEngine, gate: bool) -> None:
+    recording = root.name
     full = sorted(os.listdir(root / "full"), key=lambda name: int(name[:-4]))
-    tmp = Path(tempfile.mkdtemp())
-    store = Store.open(tmp / "yaptracker.db", tmp / "backups")
     now = {"t": T0}
     tracker = MatchTracker(store, Pause(), clock=lambda: now["t"])
     reads = {"n": 0}
@@ -43,7 +47,7 @@ def replay(recording: str, ocr: RapidOcrEngine, gate: bool) -> None:
 
     def read_lines(image):
         reads["n"] += 1
-        return [line.text for line in ocr.read(image)]
+        return [line.text for line in ocr.read(image, accents=True)]  # like the app
 
     if gate:  # like the app since #453
         read_line = sig.SameLook(read_line)
