@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-16 · Queue found on bright maps too (#554)
+- Unranked is recognized even when the big white title is washed out by snow or glare: YapTracker reads just the title, and keeps looking while hero select is up.
+
 ### 2026-11-16 · Notes on names in the brief (#549)
 - Behind the scenes: the project brief says how to write about a player whose name is a common word, and that Void uses they/them.
 
