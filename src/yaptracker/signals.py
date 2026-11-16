@@ -296,8 +296,8 @@ class HeroSelect:
         read_band: Callable[[np.ndarray], str] | None = None,
     ) -> None:
         self._read_line, self._read_lines, self._on_info = read_line, read_lines, on_info
-        # the title band wants a fresh read of a still picture, never a kept one (#453, #554)
-        self._read_band = read_band or read_line
+        # the title band alone, read afresh, never a kept read (#453, #554); None: not read
+        self._read_band = read_band
         self._info_left = 0  # later full looks at the info corner while it's unread (#342)
         self._known: tuple[str | None, str | None] = (None, None)
         self._match_running, self._adoptable = match_running, adoptable
@@ -368,7 +368,7 @@ class HeroSelect:
         if self._info_left:
             self._info_left -= 1
             mode, map_name = read_info(self._read_lines, info, self._read_band)
-        else:
+        elif self._read_band is not None:
             mode = read_title(self._read_band, info)
         known = (self._known[0] or mode, self._known[1] or map_name)
         if known != self._known:

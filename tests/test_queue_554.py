@@ -44,7 +44,7 @@ def test_a_title_that_kept_its_start_counts(read):
 
 OTHER_TEXT = ["", "DTKED", "MNE.", "COMBAT", "COMPLETE", "COMMUNICATION", "GENRAL COMBAT NEREAE",
               "HERCE CNS AAS", "PLAY DF THE GAME", "VICTORY MARHME :", "HUNTER", "JUNGLE",
-              "ATTACK", "DEFEND"]  # fmt: skip
+              "ATTACK", "DEFEND", "NRG", "UNREAL", "HUNGER", "INGERIA"]  # fmt: skip
 
 
 @pytest.mark.parametrize("read", OTHER_TEXT)

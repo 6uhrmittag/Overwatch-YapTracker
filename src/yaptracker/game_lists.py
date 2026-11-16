@@ -81,22 +81,24 @@ def loose_queue(text: str | None) -> str | None:
     return None
 
 
+# The queues that start with a U, by what follows the U: "nr" + A (read as H too), "ngew" (#554)
+AFTER_U = {"UNRANKED": re.compile(r"nr[ah]"), "UNGEWERTET": re.compile(r"ngew")}
+
+
 def title_queue(text: str | None) -> str | None:
     """The queue from a read of the title band alone (#554). On a bright map the big white title
     loses its middle and end ("UNRODIAEE", "IINrh EOED", "INRHINR EIL") but keeps its start.
     Overwatch's italic U reads as "II", "JI", "HI", "I" or nothing ("NRHINKEU"): what follows it
     is enough, as no other text at that spot starts so (Marv's 272 samples; a general first-three-
-    letters rule would turn "COMPLETE" or "COMBAT" into Competitive)."""
+    letters rule would turn "COMPLETE" or "COMBAT" into Competitive, and so would loose_queue's
+    fragment match here: it's only for the top line of a full look)."""
     if found := queue(text):
         return found
     letters = _fold(text or "")
     if len(letters) < 3:
         return None
     after_u = letters.lstrip("ijhu")
-    return next((name for stem, name in AFTER_U.items() if after_u.startswith(stem)), None)
-
-
-AFTER_U = {"nr": "UNRANKED", "nge": "UNGEWERTET"}  # the queues that start with a U
+    return next((name for name, stem in AFTER_U.items() if stem.match(after_u)), None)
 
 
 def map_name(text: str | None) -> str | None:
