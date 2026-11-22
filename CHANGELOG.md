@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-22 · No more "black picture" banner all evening (#560)
+- Overwatch's black window while it starts no longer switches me to reading the screen for the whole evening: I wait out the first minute, and only switch after 20 seconds of black.
+- When I do read from the screen, I try the window again at every match start and every few minutes between matches, and go back as soon as it shows a picture.
+- Reading from the screen is no longer an orange banner: Live says it quietly next to the fps. The "another window covers the chat box" warning only shows while one really does.
+
 ### 2026-11-16 · Victories are recognized again (#555)
 - The VICTORY! banner counts on calm scenes too: its pale gold letters were too pale for the check before reading, so many wins ended as "result unknown".
 - When a match ends without a result, the log says why.
