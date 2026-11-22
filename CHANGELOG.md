@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-22 · Translate chat catches the lines it missed (#567)
+- Translate automatically now sends every line from others that isn't clearly in a language you read, so short French or Spanish lines get their translation without a click. gg and the like, your own and your crew's lines stay here.
+- A line DeepL calls English or German shows no translation and is never sent again.
+
 ### 2026-11-22 · Which model for what (#575)
 - Behind the scenes: the working rules now say which AI model does which kind of task.
 
