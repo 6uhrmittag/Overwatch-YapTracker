@@ -6,6 +6,10 @@ Exported 2026-10-01 22:00 by YapTracker 0.4.example.
 - From 2026-10-01 to 2026-10-01
 - Names are as read from chat: think before you share this.
 
+## Loved matches
+
+- [Thursday, Oct 1, 2026](days/2026-10-01.md): Match 1 on Esperança
+
 ## What's inside
 
 - `yaptracker-export.json`: everything, for scripts. The format is described at https://github.com/6uhrmittag/Overwatch-YapTracker/blob/main/docs/export-format.md
