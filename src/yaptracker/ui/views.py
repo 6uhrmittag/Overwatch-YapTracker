@@ -2,6 +2,7 @@
 
 import html
 import time
+from types import SimpleNamespace
 
 import numpy as np
 from nicegui import run, ui
@@ -377,7 +378,7 @@ def live() -> None:
         setup_wizard(on_done=done)
 
 
-def _live() -> None:  # noqa: C901 - split up after v1 (#311)
+def _live() -> None:
     watcher = runtime.watcher
     with ui.element("header").classes("yt-header"):
         ui.label("Live").classes("yt-h1")
@@ -488,14 +489,8 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
 
     def open_snap(chosen: list) -> None:
         where = runtime.matches.status() if runtime.matches else None
-        title = f"Match {where.match}" if where and where.match else "Live"
-        if where and where.map_name:
-            title += f" on {_name(where.map_name)}"
-        if where and where.mode:
-            title += f" \u00b7 {queue_name(where.mode, where.mode_guessed)}"
         started = runtime.matches.match_started_at if runtime.matches else None
-        day = days.title(days.day_of(started or time.time()), "%a %b %d, %Y")  # its day (#440)
-        snap_dialog(chosen, f"{title} \u00b7 {day}", started)
+        snap_dialog(chosen, snap_title(where, started, time.time()), started)
 
     def selected(e) -> None:
         """Lines selected with the mouse (#325): 2 or more offer "Snap these"."""
@@ -511,66 +506,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             show_picture(message, chat["rows"].get(message.id))
 
     def refresh_chat() -> None:
-        match_id = runtime.matches.match_id if runtime.matches else None
-        tidied = runtime.reader.tidied if runtime.reader is not None else None
-        if tidied != chat.get("tidied"):  # found lines go in between: built again (#336)
-            chat.update(match=None, tidied=tidied)
-        if match_id != chat["match"]:  # a new match starts with an empty feed
-            chat.update(match=match_id, rows={}, last=None, dom={})
-            lines.clear()
-            picker.clear_rows()
-            if picker.on:
-                picker.pick(False)
-        if match_id is None or runtime.store is None:
-            yap_count.set_text("0 yaps")
-            count_callouts(0)
-            return
-        messages = runtime.store.messages(match_id)
-        count_callouts(sum(1 for m in messages if m.hero))
-        marks = live_marks(match_id, messages)
-        for message in messages:
-            if message.id in chat["rows"]:
-                row = chat["rows"][message.id]
-                fill_line(row, message)  # a better reading came in
-                if row.get("translated"):  # translated by itself meanwhile (#469, #470)
-                    row["translated"](message)
-                continue
-            last = chat["last"]
-            if last and same_callout(last[0], message):
-                repeat(last[1], message.id)  # the same callout again: counted, not repeated (#185)
-                chat["rows"][message.id] = last[1]
-                picker.add(message, last[1]["line"])
-            else:
-                pick = lambda shift, m=message: clicked(m, shift)  # noqa: E731
-                with lines:
-                    row = chat_line(message, runtime.matches.match_started_at, on_click=pick,
-                                    marks=marks)  # fmt: skip
-                chat["rows"][message.id] = row
-                chat["last"] = (message, row)
-                chat["dom"][f"c{row['line'].id}"] = message
-                picker.add(message, row["line"])
-        typed = [m for m in messages if not m.hero]  # callouts aren't yaps (#182)
-        yappers = {m.speaker_raw for m in typed if m.channel != "system" and m.speaker_raw}
-        yaps, people = count(len(typed), "yap", "yaps"), count(len(yappers), "yapper", "yappers")
-        yap_count.set_text(f"{yaps} \u00b7 {people}")
-
-    def live_marks(match_id: int, messages: list) -> NameMarks | None:
-        """Who's known in this match's lines (#519): read again at most every FRESH_S, and
-        only when a line arrived; a verdict set meanwhile updates the marks already shown."""
-        marks = chat.get("marks")
-        new = any(m.id not in chat["rows"] for m in messages)
-        fresh = (
-            marks
-            and marks.match_id == match_id
-            and (not new or time.monotonic() - marks.read_at < FRESH_S)
-        )
-        if fresh:
-            return marks
-        marks = chat["marks"] = NameMarks(match_id, messages, before=marks)
-        for row in {id(r): r for r in chat["rows"].values()}.values():
-            if row.get("mark"):
-                set_kind(row["mark"], marks.kind(row["mark"]["pid"]))
-        return marks
+        _refresh_chat(chat, lines, picker, yap_count, count_callouts, clicked)
 
     def toggle_pause() -> None:
         runtime.pause.toggle()
@@ -607,6 +543,33 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         """Familiar faces (#26, #518), newest first; the quiet hint when there are none."""
         strip.show(runtime.familiar.active() if runtime.familiar else [])
 
+    w = SimpleNamespace(
+        pill=pill,
+        status=status,
+        meta=meta,
+        hint=hint,
+        match_info=match_info,
+        peek=peek,
+        pause_button=pause_button,
+        match_button=match_button,
+        card_title=card_title,
+        heart=heart,
+        health_banner=health_banner,
+        health_text=health_text,
+        black_hint=black_hint,
+        disk_hint=disk_hint,
+        failing_hint=failing_hint,
+        broken_hint=broken_hint,
+        name_hint=name_hint,
+        size_hint=size_hint,
+        size_text=size_text,
+        preview=preview,
+        picture=picture,
+        picture_info=picture_info,
+        shown=shown,
+        peeking=peeking,
+    )  # the parts refresh() fills in (#311: module-level steps below _live)
+
     def refresh() -> None:
         timing.lap("layout")  # only in the first one, while Live is being built (#562)
         refresh_chat()
@@ -614,128 +577,242 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         refresh_faces()
         timing.lap("familiar faces")
         paused = runtime.pause.paused
-        capturing = watcher is not None and watcher.state == "capturing"
-        gap = runtime.health.gap if runtime.health else None
-        lost = runtime.health.state() if runtime.health else None  # the game runs, capture not
-        covered = getattr(watcher, "covered", None)
-        if covered and lost:  # a window in the way isn't Windows reconnecting (#497)
-            lost = "lost"
+        capturing, covered, gap, lost = _capture_now(watcher)
         broken = lost == "lost" and gap is not None  # banner only after 10 s (#506)
-        state = (
-            "paused" if paused
-            else "trouble" if broken
-            else "reconnecting" if lost == "reconnecting"
-            else "listening" if capturing
-            else "waiting"
-        )  # fmt: skip
-        pill.classes(
-            add=f"yt-pill--{_PILLS[state]}",
-            remove=" ".join(f"yt-pill--{p}" for p in set(_PILLS.values()) if p != _PILLS[state]),
-        )
+        state = live_state(paused, broken, lost, capturing)
         where = runtime.matches.status() if runtime.matches else None
         said, line = match_state(where, time.time())  # the match in words (#268)
-        status.set_text(
-            {
-                "paused": "Paused",
-                "trouble": "Not recording",
-                "reconnecting": "Reconnecting to Overwatch\u2026",
-                "listening": said if runtime.matches else "Listening for yaps",
-                "waiting": "Waiting for Overwatch",
-            }[state]
-        )
-        if paused:
-            minutes = max(1, round(runtime.pause.remaining_s() / 60))
-            meta.set_text(f"until next match, {minutes} min at most")
-        elif capturing:
-            skipped = f", {runtime.changes.skipped_share:.0%} skipped" if runtime.changes else ""
-            # reading from the screen is a normal way to work: said quietly, no banner (#560)
-            screen = "" if CAPTURE.how == "WGC" else ", reading from the screen"
-            meta.set_text(f"{meter():.1f} fps{skipped}{screen}")
-        else:
-            meta.set_text("")  # the banner says what's wrong and what to do; details are in the log
-        # In a narrow window the fps line is hidden: the pill's tooltip still has it (#226).
-        if meta.text:
-            pill.props(f'title="{meta.text}"')
-        else:
-            pill.props(remove="title")
-        waiting = backlog.now()  # kept chat read now, also from the last session (#474, #501)
-        hint.set_text(
-            backlog.live(waiting)
-            if waiting and not waiting.deferring and state in ("listening", "waiting")
-            else {
-                "paused": "Ears covered. Nothing is being saved.",
-                "trouble": "Overwatch is running, but I can't see it right now. Trying again.",
-                "reconnecting": "Windows dropped the game window for a moment. I'm picking "
-                "it up again, nothing to do.",
-                "listening": _listening(waiting),
-                "waiting": "Waiting for Overwatch. I'll be right here.",
-            }[state]
-        )
-        set_button_label(pause_button, "Resume" if paused else "Pause")
-        running = runtime.matches is not None and runtime.matches.running
-        set_button_label(match_button, "End match" if running else "Start match")
-        match_info.set_text(
-            line if runtime.matches and state in ("listening", "paused", "reconnecting") else ""
-        )
-        match_info.props(f'title="{html.escape(match_info.text)}"')  # cut short when narrow
-        ended = where is not None and where.ended
-        result = _RESULTS.get(where.outcome) if ended else None
-        title = "Last match" if ended else "This match"  # its lines stay until the next (#268)
-        card_title.set_text(f"{title} \u00b7 {result}" if result else title)
-        match_id = runtime.matches.match_id if runtime.matches else None
-        if match_id != heart.match_id:  # the current match, or the last one until the next
-            heart.show(match_id)
-        if covered:  # read from the screen, another window is in the way (#497)
-            health_text.set_text(COVERED_SAY.format(what=covered[:60]))
-            health_banner.classes(remove="yt-hidden")
-        elif broken:  # paused has its own pill (#20)
-            since = time.strftime("%H:%M", time.localtime(gap.since))
-            error = watcher.last_error if watcher is not None else None
-            said = f" Windows says: \u201c{error.strip()[:160]}\u201d" if error else ""  # (#216)
-            health_text.set_text(
-                f"Not recording since {since} ({_WHY[gap.reason]}).{said} {_TODO[gap.reason]}"
-            )
-            health_banner.classes(remove="yt-hidden")
-        else:
-            health_banner.classes(add="yt-hidden")
-        black = runtime.black is not None and runtime.black.black
-        black_hint.classes(**{"remove" if black else "add": "yt-hidden"})
-        disk_low = runtime.debug is not None and config.debug_samples() and runtime.debug.disk_low()
-        disk_hint.classes(**{"remove" if disk_low else "add": "yt-hidden"})
-        failing = runtime.reader is not None and getattr(runtime.reader, "failing", 0) >= FAIL_LIMIT
-        failing_hint.classes(**{"remove" if failing else "add": "yt-hidden"})
-        broken_hint.classes(**{"add" if config.broken is None else "remove": "yt-hidden"})
-        # no own name: your own lines would greet you with "Look who's back!" (#168)
-        name_hint.classes(**{"add" if config.identity().me else "remove": "yt-hidden"})
-        size = runtime.window_size
-        check_size = bool(capturing and size and config.size_needs_check(*size))
-        if check_size:
-            size_text.set_text(
-                f"Overwatch runs at {size[0]}\u00d7{size[1]} now. I rescaled the chat box to fit; "
-                "a 10-second look in Settings \u2192 Calibrate won't hurt."
-            )
-            size_hint.classes(remove="yt-hidden")
-        else:
-            size_hint.classes(add="yt-hidden")
+        _show_status(w, state, paused, capturing, meter, said)
+        _show_match(w, state, where, line)
+        error = watcher.last_error if watcher is not None else None
+        check_size = _show_banners(w, health_words(covered, broken, gap, error), capturing)
         update_refresh()
-        frame = watcher.last_frame if watcher else None
-        wanted = config.show_what_i_see() or (check_size and not peeking["closed"])
-        set_button_label(peek, "Hide what I see" if config.show_what_i_see() else "Show what I see")
-        if state == "listening" and frame is not None and wanted:  # hidden: no pictures sent
-            preview.classes(remove="yt-hidden")
-            if frame is not shown["frame"]:
-                shown["frame"] = frame
-                picture.set_source(Image.fromarray(np.ascontiguousarray(frame.image[:, :, ::-1])))
-                height, width = frame.image.shape[:2]
-                picture_info.set_text(
-                    f"Chat box {width} \u00d7 {height} px, {watcher.frames} frames"
-                )
-        else:
-            preview.classes(add="yt-hidden")
+        _show_preview(w, watcher, state, check_size)
 
     ui.timer(1.0, refresh)
     refresh()
     timing.lap("status and banners")
+
+
+def _refresh_chat(chat: dict, lines, picker, yap_count, count_callouts, clicked) -> None:
+    """The match's lines into Live's feed: new ones added, better readings filled in (#311: out
+    of _live)."""
+    match_id = runtime.matches.match_id if runtime.matches else None
+    tidied = runtime.reader.tidied if runtime.reader is not None else None
+    if tidied != chat.get("tidied"):  # found lines go in between: built again (#336)
+        chat.update(match=None, tidied=tidied)
+    if match_id != chat["match"]:  # a new match starts with an empty feed
+        chat.update(match=match_id, rows={}, last=None, dom={})
+        lines.clear()
+        picker.clear_rows()
+        if picker.on:
+            picker.pick(False)
+    if match_id is None or runtime.store is None:
+        yap_count.set_text("0 yaps")
+        count_callouts(0)
+        return
+    messages = runtime.store.messages(match_id)
+    count_callouts(sum(1 for m in messages if m.hero))
+    marks = _live_marks(chat, match_id, messages)
+    for message in messages:
+        if message.id in chat["rows"]:
+            row = chat["rows"][message.id]
+            fill_line(row, message)  # a better reading came in
+            if row.get("translated"):  # translated by itself meanwhile (#469, #470)
+                row["translated"](message)
+            continue
+        last = chat["last"]
+        if last and same_callout(last[0], message):
+            repeat(last[1], message.id)  # the same callout again: counted, not repeated (#185)
+            chat["rows"][message.id] = last[1]
+            picker.add(message, last[1]["line"])
+        else:
+            pick = lambda shift, m=message: clicked(m, shift)  # noqa: E731
+            with lines:
+                row = chat_line(message, runtime.matches.match_started_at, on_click=pick,
+                                marks=marks)  # fmt: skip
+            chat["rows"][message.id] = row
+            chat["last"] = (message, row)
+            chat["dom"][f"c{row['line'].id}"] = message
+            picker.add(message, row["line"])
+    typed = [m for m in messages if not m.hero]  # callouts aren't yaps (#182)
+    yappers = {m.speaker_raw for m in typed if m.channel != "system" and m.speaker_raw}
+    yaps, people = count(len(typed), "yap", "yaps"), count(len(yappers), "yapper", "yappers")
+    yap_count.set_text(f"{yaps} \u00b7 {people}")
+
+
+def _live_marks(chat: dict, match_id: int, messages: list) -> NameMarks:
+    """Who's known in this match's lines (#519): read again at most every FRESH_S, and
+    only when a line arrived; a verdict set meanwhile updates the marks already shown."""
+    marks = chat.get("marks")
+    new = any(m.id not in chat["rows"] for m in messages)
+    fresh = (
+        marks
+        and marks.match_id == match_id
+        and (not new or time.monotonic() - marks.read_at < FRESH_S)
+    )
+    if fresh:
+        return marks
+    marks = chat["marks"] = NameMarks(match_id, messages, before=marks)
+    for row in {id(r): r for r in chat["rows"].values()}.values():
+        if row.get("mark"):
+            set_kind(row["mark"], marks.kind(row["mark"]["pid"]))
+    return marks
+
+
+def snap_title(where, started: float | None, now: float) -> str:
+    """A snap from Live (#325): "Match 3 on Ilios · Unranked · Sun Nov 22, 2026" (its day, #440)."""
+    title = f"Match {where.match}" if where and where.match else "Live"
+    if where and where.map_name:
+        title += f" on {_name(where.map_name)}"
+    if where and where.mode:
+        title += f" \u00b7 {queue_name(where.mode, where.mode_guessed)}"
+    return f"{title} \u00b7 {days.title(days.day_of(started or now), '%a %b %d, %Y')}"
+
+
+def _capture_now(watcher) -> tuple[bool, str | None, object, str | None]:
+    """(capturing, what covers the chat box, the open gap, lost): lost is None, "reconnecting" or
+    "lost"; a window in the way isn't Windows reconnecting (#497)."""
+    capturing = watcher is not None and watcher.state == "capturing"
+    gap = runtime.health.gap if runtime.health else None
+    lost = runtime.health.state() if runtime.health else None  # the game runs, capture not
+    covered = getattr(watcher, "covered", None)
+    if covered and lost:
+        lost = "lost"
+    return capturing, covered, gap, lost
+
+
+def live_state(paused: bool, broken: bool, lost: str | None, capturing: bool) -> str:
+    """The Live pill's state: paused, trouble, reconnecting, listening or waiting."""
+    if paused:
+        return "paused"
+    if broken:
+        return "trouble"
+    if lost == "reconnecting":
+        return "reconnecting"
+    return "listening" if capturing else "waiting"
+
+
+def health_words(covered: str | None, broken: bool, gap, error: str | None) -> str | None:
+    """The orange banner's text, or None: no banner. A window over the chat box (#497) first;
+    paused has its own pill (#20)."""
+    if covered:  # read from the screen, another window is in the way
+        return COVERED_SAY.format(what=covered[:60])
+    if not broken:
+        return None
+    since = time.strftime("%H:%M", time.localtime(gap.since))
+    error = (error or "").strip()
+    said = f" Windows says: \u201c{error[:160]}\u201d" if error else ""  # (#216)
+    return f"Not recording since {since} ({_WHY[gap.reason]}).{said} {_TODO[gap.reason]}"
+
+
+def size_words(size: tuple[int, int]) -> str:
+    return (f"Overwatch runs at {size[0]}\u00d7{size[1]} now. I rescaled the chat box to fit; "
+            "a 10-second look in Settings \u2192 Calibrate won't hurt.")  # fmt: skip
+
+
+def _shown(element: ui.element, on: bool) -> None:
+    element.classes(**{"remove" if on else "add": "yt-hidden"})
+
+
+_STATUS = {
+    "paused": "Paused",
+    "trouble": "Not recording",
+    "reconnecting": "Reconnecting to Overwatch\u2026",
+    "waiting": "Waiting for Overwatch",
+}
+_HINTS = {
+    "paused": "Ears covered. Nothing is being saved.",
+    "trouble": "Overwatch is running, but I can't see it right now. Trying again.",
+    "reconnecting": "Windows dropped the game window for a moment. I'm picking it up again, "
+    "nothing to do.",
+    "waiting": "Waiting for Overwatch. I'll be right here.",
+}  # fmt: skip
+
+
+def _show_status(w, state: str, paused: bool, capturing: bool, meter, said: str) -> None:
+    """The pill, the line under it and the chat card's hint."""
+    w.pill.classes(
+        add=f"yt-pill--{_PILLS[state]}",
+        remove=" ".join(f"yt-pill--{p}" for p in set(_PILLS.values()) if p != _PILLS[state]),
+    )
+    listening = said if runtime.matches else "Listening for yaps"
+    w.status.set_text(listening if state == "listening" else _STATUS[state])
+    if paused:
+        minutes = max(1, round(runtime.pause.remaining_s() / 60))
+        w.meta.set_text(f"until next match, {minutes} min at most")
+    elif capturing:
+        skipped = f", {runtime.changes.skipped_share:.0%} skipped" if runtime.changes else ""
+        # reading from the screen is a normal way to work: said quietly, no banner (#560)
+        screen = "" if CAPTURE.how == "WGC" else ", reading from the screen"
+        w.meta.set_text(f"{meter():.1f} fps{skipped}{screen}")
+    else:
+        w.meta.set_text("")  # the banner says what's wrong and what to do; details are in the log
+    # In a narrow window the fps line is hidden: the pill's tooltip still has it (#226).
+    if w.meta.text:
+        w.pill.props(f'title="{html.escape(w.meta.text)}"')
+    else:
+        w.pill.props(remove="title")
+    waiting = backlog.now()  # kept chat read now, also from the last session (#474, #501)
+    if waiting and not waiting.deferring and state in ("listening", "waiting"):
+        w.hint.set_text(backlog.live(waiting))
+    else:
+        w.hint.set_text(_listening(waiting) if state == "listening" else _HINTS[state])
+    set_button_label(w.pause_button, "Resume" if paused else "Pause")
+
+
+def _show_match(w, state: str, where, line: str) -> None:
+    """The match line in the header, the button, and the chat card's title and heart."""
+    running = runtime.matches is not None and runtime.matches.running
+    set_button_label(w.match_button, "End match" if running else "Start match")
+    w.match_info.set_text(
+        line if runtime.matches and state in ("listening", "paused", "reconnecting") else ""
+    )
+    w.match_info.props(f'title="{html.escape(w.match_info.text)}"')  # cut short when narrow
+    ended = where is not None and where.ended
+    result = _RESULTS.get(where.outcome) if ended else None
+    title = "Last match" if ended else "This match"  # its lines stay until the next (#268)
+    w.card_title.set_text(f"{title} \u00b7 {result}" if result else title)
+    match_id = runtime.matches.match_id if runtime.matches else None
+    if match_id != w.heart.match_id:  # the current match, or the last one until the next
+        w.heart.show(match_id)
+
+
+def _show_banners(w, health: str | None, capturing: bool) -> bool:
+    """Every banner shown or hidden; True when the window size wants a look (#84)."""
+    if health is not None:
+        w.health_text.set_text(health)
+    _shown(w.health_banner, health is not None)
+    _shown(w.black_hint, runtime.black is not None and runtime.black.black)
+    _shown(w.disk_hint, runtime.debug is not None and config.debug_samples()
+           and runtime.debug.disk_low())  # fmt: skip
+    _shown(w.failing_hint, runtime.reader is not None
+           and getattr(runtime.reader, "failing", 0) >= FAIL_LIMIT)  # fmt: skip
+    _shown(w.broken_hint, config.broken is not None)
+    # no own name: your own lines would greet you with "Look who's back!" (#168)
+    _shown(w.name_hint, not config.identity().me)
+    size = runtime.window_size
+    check_size = bool(capturing and size and config.size_needs_check(*size))
+    if check_size:
+        w.size_text.set_text(size_words(size))
+    _shown(w.size_hint, check_size)
+    return check_size
+
+
+def _show_preview(w, watcher, state: str, check_size: bool) -> None:
+    """The "What I see" picture (#163): only while wanted; hidden, no pictures are sent."""
+    frame = watcher.last_frame if watcher else None
+    wanted = config.show_what_i_see() or (check_size and not w.peeking["closed"])
+    set_button_label(w.peek, "Hide what I see" if config.show_what_i_see() else "Show what I see")
+    if state == "listening" and frame is not None and wanted:
+        w.preview.classes(remove="yt-hidden")
+        if frame is not w.shown["frame"]:
+            w.shown["frame"] = frame
+            w.picture.set_source(Image.fromarray(np.ascontiguousarray(frame.image[:, :, ::-1])))
+            height, width = frame.image.shape[:2]
+            w.picture_info.set_text(f"Chat box {width} \u00d7 {height} px, {watcher.frames} frames")
+    else:
+        w.preview.classes(add="yt-hidden")
 
 
 def _listening(waiting) -> str:
