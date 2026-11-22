@@ -77,7 +77,8 @@ def translate_card() -> None:
                 "DeepL and gets its translation within a second or two, no click needed. "
                 "Yours and your crew's, gg and the like stay here.",
             ).mark("translate-auto-switch")
-            used = ui.label(NO_USAGE).classes("yt-hint").mark("deepl-usage")
+            known = runtime.translator.usage(ask=False) if runtime.translator else None
+            used = ui.label(usage_words(known)).classes("yt-hint").mark("deepl-usage")
             with ui.element("div").classes("yt-row yt-filters"):
                 ui.label("I read").classes("yt-setting-name")
                 read = ui.element("div").classes("yt-seg yt-seg--wrap").mark("read-languages")
