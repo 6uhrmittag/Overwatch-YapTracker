@@ -10,6 +10,7 @@ Shapes seen on real 2560x1440 screenshots (brackets wrap the name, not the chann
   [Name] started playing Overwatch.     system (bracketed name, no colon; a few known phrases)
   [Name] text                           any other phrase: typed chat, OCR lost the colon
   You have joined a group!              system without a name (_NAMELESS_SYSTEM)
+  Name switched to Ashe (was Sierra).   system: a hero switch (#262, hero_switches)
   [Match] ...                           input line of the open chat box -> ignored
 Long messages wrap onto a closer-spaced line without icon; those are joined.
 """
@@ -19,7 +20,7 @@ import statistics
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 
-from yaptracker import callouts, game_lists
+from yaptracker import callouts, game_lists, hero_switches
 from yaptracker.capture.source import Region
 from yaptracker.glyphs import GLYPH
 from yaptracker.ocr.engine import OcrLine
@@ -104,7 +105,8 @@ class ChatLine:
 
 def _starts_line(text: str) -> bool:
     return any(p.match(text) for p in (_TYPED, _TYPED_NO_BRACKET, _TYPED_MISREAD, _COMMS_START,
-                                       _SYSTEM_NAMED, _SYSTEM_PLAIN, _INPUT))  # fmt: skip
+                                       _SYSTEM_NAMED, _SYSTEM_PLAIN, _INPUT,
+                                       hero_switches.STARTS))  # fmt: skip
 
 
 # The channel icon read as a word: empty (" Name (Hero): Hello!") or a mark or digit
@@ -181,6 +183,11 @@ def _classify(text: str, confidence: float, box: Region) -> ChatLine:
             text = _TRAILING_GLYPH.sub("", text)
             return replace(line, kind="system", channel="system", speaker=m["name"], text=text)
         return replace(line, kind="message", speaker=m["name"], text=m["text"].strip())
+    if hero_switches.STARTS.match(text):
+        # "Name switched to Ashe (was Sierra)." (#262): its own line, not a wrap of the yap above
+        text = _TRAILING_GLYPH.sub("", text)
+        if switch := hero_switches.find(text):
+            return replace(line, kind="system", channel="system", speaker=switch.name, text=text)
     if _SYSTEM_PLAIN.match(text):
         return replace(line, kind="system", channel="system", text=_TRAILING_GLYPH.sub("", text))
     return line
