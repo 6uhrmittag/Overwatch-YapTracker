@@ -37,7 +37,7 @@ _COPY = (
 )
 
 
-def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> None:  # noqa: C901 - split up after v1 (#311)
+def snap_dialog(messages: list, footer: str, started_at: float | None = 0.0) -> None:  # noqa: C901 - a page builder: its handlers need the page's elements (#311)
     state = {"hide": False, "crew": False, "image": None,
              "style": remembered(config.snap_style(), chat_colours.current())}  # fmt: skip
     with ui.dialog() as dialog, ui.element("section").classes("yt-card yt-snap"):
