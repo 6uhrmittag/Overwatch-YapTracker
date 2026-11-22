@@ -121,8 +121,9 @@ class AutoTranslate:
             log.debug("translate: %d line(s) not sent: %d of %d characters used this month",
                       len(foreign), usage.used, usage.limit)  # fmt: skip
             return 0
+        target = self._target()  # before the request: what it was translated into (#470)
         foreign, done, sent = self._send(store, translator, foreign)
-        translated = self._keep(store, foreign, done, read)
+        translated = self._keep(store, foreign, done, read, target)
         if sent:  # the evening line counts these (#567, evenings._EVENTS)
             log.info("translate: auto: %d translated of %d line(s) sent", translated, sent)
         return len(foreign)
@@ -167,10 +168,10 @@ class AutoTranslate:
             done += found
         return ordered, done, sent
 
-    def _keep(self, store, foreign: list, done: list, read: set[str]) -> int:
+    def _keep(self, store, foreign: list, done: list, read: set[str], target: str) -> int:
         """Each answer stored with its line or remembered as nothing to translate; what's worth
         a word under a line is shown. Returns how many were translated."""
-        translated, target = 0, self._target()
+        translated = 0
         for message, translation in zip(foreign, done, strict=True):
             if translation.error:  # said under the line only when it's clearly foreign
                 show = languages.foreign(unnamed(message.text), read) is not None

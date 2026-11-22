@@ -4,12 +4,13 @@ a fake DeepL answers, no network."""
 
 import json
 import time
+from types import SimpleNamespace
 
 import pytest
 from nicegui.testing import User, user_simulation
 
 from yaptracker import config, runtime, translate
-from yaptracker.auto_translate import AutoTranslate
+from yaptracker.auto_translate import AutoTranslate, _to_send
 from yaptracker.languages import foreign
 from yaptracker.matches import MatchTracker
 from yaptracker.pause import Pause
@@ -253,3 +254,36 @@ def test_a_translation_from_the_background_is_stored_with_the_line(store):
     assert store.message(said).translation_to == "EN"
     assert store.message(looks).translation is None
     assert [m.id for m in store.search("buenas")] == [said]
+
+
+def test_only_lines_worth_a_look_go_to_the_translator():
+    def line(text, **more):
+        fields = {"channel": "match", "hero": None, "role": None, "translation": None,
+                  "translation_from": None, "text": text} | more  # fmt: skip
+        return SimpleNamespace(**fields)
+
+    lines = [line("que pasa con el tanque"), line("gg ez"), line("merci", role="me"),
+             line("Zappy started playing Overwatch.", channel="system"),
+             line("que tal amigos", translation_from="ES")]  # fmt: skip
+    assert _to_send(lines, {"EN", "DE"}) == [lines[0]]
+
+
+def test_the_target_language_is_the_one_asked_for_not_the_one_set_meanwhile(store):
+    """A request can take seconds (#568): switching English -> German meanwhile doesn't relabel
+    what came back (#311 review)."""
+    target = {"now": "EN"}
+
+    class SlowSwitch(FakeDeepL):
+        def __call__(self, request):
+            if request.data is None:  # DeepL's usage, asked before anything is sent
+                return {"character_count": 0, "character_limit": 500_000}
+            target["now"] = "DE"  # switched in Settings while the request was out
+            return super().__call__(request)
+
+    deepl = DeepL(lambda: KEY, lambda: "EN", send=SlowSwitch())
+    auto = AutoTranslate(lambda: store, lambda: deepl, lambda: True, lambda: READ,
+                         target=lambda: target["now"])  # fmt: skip
+    auto.step()
+    line = say(store, "gg buenas curas")
+    auto.step()
+    assert store.message(line).translation_to == "EN"

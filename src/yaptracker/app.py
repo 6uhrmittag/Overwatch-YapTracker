@@ -250,7 +250,7 @@ def _start_reader() -> None:
 
 
 def _start_read_again() -> None:
-    """ "Read again, best quality" (#333)."""
+    """The 'Read again, best quality' worker (#333)."""
     from yaptracker.ocr import engine as ocr
     from yaptracker.read_again import ReadAgain
 
@@ -288,11 +288,12 @@ def _clean_up_once() -> None:
 
 
 def _close_store() -> None:
-    """In this order: nothing writes to the store after it closes."""
+    """In this order: nothing writes to the store after it closes. The reader stops after
+    capture has: its last frame is stored first."""
     for part in (runtime.backups, runtime.reader, runtime.read_again, runtime.health,
                  runtime.matches):  # fmt: skip
         if part is not None:
-            part.stop()  # the reader: capture has stopped; the last frame is stored first
+            part.stop()
     if runtime.store is not None:
         runtime.store.close()
 
