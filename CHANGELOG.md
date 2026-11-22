@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-22 · Which model for what (#575)
+- Behind the scenes: the working rules now say which AI model does which kind of task.
+
 ### 2026-11-22 · Icons get their names back (#121)
 - The icon after "Thanks!", "I need healing!", "Group up!" and "Fall back!" is no longer just a ◇: the line now reads `Thanks! [icon:thumbs-up]`, `[icon:heal]`, `[icon:group-up]` or `[icon:fall-back]`.
 - Lines you already have get their icon names too, once, from their saved pictures, while no match runs.
