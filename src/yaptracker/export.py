@@ -116,8 +116,10 @@ def _message(m) -> dict:
         "flagged": m.flagged,  # overwatch ([Report] link) / manual / null (#77)
         "has_glyphs": bool(m.has_glyphs),  # an emoji or icon OCR couldn't spell, as \u25c7 (#128)
         "translation": m.translation,  # DeepL's (#470), or null
-        "translation_from": m.translation_from,  # the line's language as DeepL saw it, e.g. "ES"
-        "translation_to": m.translation_to,  # "EN" or "DE"
+        # the line's language as DeepL saw it, e.g. "ES", and "EN" or "DE"; only with a
+        # translation: a line DeepL found nothing to translate in has neither (#567)
+        "translation_from": m.translation_from if m.translation else None,
+        "translation_to": m.translation_to if m.translation else None,
     }
 
 

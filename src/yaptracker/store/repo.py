@@ -743,6 +743,16 @@ class Store:
             (text, source, target, message_id),
         )
 
+    def set_not_foreign(self, message_id: int, source: str, target: str) -> None:
+        """DeepL looked and there's nothing to translate (#567): the line is in `source`, a
+        language you read, or came back as it went. Remembered in the translation's own columns
+        with no translation, so it's never sent again; a line that has one keeps it."""
+        self._write(
+            "UPDATE chat_messages SET translation_from = ?, translation_to = ? "
+            "WHERE id = ? AND translation IS NULL",
+            (source, target, message_id),
+        )
+
     def message(self, message_id: int) -> Message | None:
         rows = self._read(f"SELECT {_MESSAGE_COLUMNS} FROM chat_messages WHERE id = ?",
                           (message_id,))  # fmt: skip

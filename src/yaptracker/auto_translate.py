@@ -1,14 +1,17 @@
 """Foreign lines translate themselves (#469): a background thread looks at the lines stored since
-its last look, once a second, and sends those confidently in a language you don't read to DeepL,
-together in one request. Never on the capture or OCR path: it only reads the database and waits
-for the network, and its CPU shows as "translate" in the per-thread CPU line (#302).
+its last look, once a second, and sends every line that isn't clearly in a language you read to
+DeepL (#567: the local check missed most real ones), together in one request. Never on the
+capture or OCR path: it only reads the database and waits for the network, and its CPU shows as
+"translate" in the per-thread CPU line (#302).
 
 Only other players' typed lines: not your own or your crew's (#74), not system lines or
-callouts (the game's own words). DeepL's detected language has the last word: a line it calls
-English (or another language you read) stays untranslated. Each text is sent once a run; when
-DeepL fails (quota, key, offline) the lines show why, and new ones wait a while instead of
-asking again and again. A translation is stored with its line (#470). DeepL gets the text of
-the few lines before as context (#538): one request per match.
+callouts (the game's own words), not shorthand or single short words (`why_not`). DeepL's
+detected language has the last word: a line it calls English (or another language you read), or
+gives back as it was, stays untranslated and is remembered as looked at. Each text is sent once
+a run; when DeepL fails (quota, key, offline) the clearly foreign lines show why, and new ones
+wait a while instead of asking again and again. Near the month's free limit nothing is sent by
+itself any more: what's left is for clicks. A translation is stored with its line (#470). DeepL
+gets the text of the few lines before as context (#538): one request per match.
 """
 
 import logging
@@ -25,7 +28,6 @@ from yaptracker.translate import (
     TOO_MANY,
     WRONG_KEY,
     Translation,
-    only_shorthand,
 )
 
 log = logging.getLogger(__name__)
@@ -96,10 +98,23 @@ class AutoTranslate:
             return 0
         self._last = lines[-1].id
         read = self._read()
-        foreign = [m for m in lines if _theirs(m) and not only_shorthand(m.text)
-                   and languages.foreign(m.text, read)]  # fmt: skip
+        foreign = []
+        for message in lines:  # one debug line per decision: lengths and reasons only (#567)
+            why = why_not(message, read)
+            if why is None:
+                foreign.append(message)
+            else:
+                log.debug("translate: a line of %d characters not sent: %s",
+                          len(message.text), why)  # fmt: skip
         if not foreign:
             return 0
+        usage = translator.usage()
+        if usage is not None and usage.near:  # the rest of the month is for clicks
+            log.debug("translate: %d line(s) not sent: %d of %d characters used this month",
+                      len(foreign), usage.used, usage.limit)  # fmt: skip
+            return 0
+        for message in foreign:
+            log.debug("translate: a line of %d characters sent", len(message.text))
         groups: dict = {}  # one request per match: DeepL takes one context per request (#538)
         for message in foreign:
             groups.setdefault(message.match_id, []).append(message)
@@ -117,15 +132,22 @@ class AutoTranslate:
                 if errors else None
             )  # fmt: skip
             done += found
-        with self._lock:
-            for message, translation in zip(foreign, done, strict=True):
-                if translation.error or translation.code not in read:
-                    self._found[message.id] = translation
+        translated = 0
         for message, translation in zip(foreign, done, strict=True):
-            if not translation.error and translation.code not in read:
+            if translation.error:  # said under the line only when it's clearly foreign
+                show = languages.foreign(message.text, read) is not None
+            elif translation.code in read or _same(message.text, translation.text):
+                show = False  # nothing to translate: remembered, never sent again (#567)
+                if translation.code:
+                    store.set_not_foreign(message.id, translation.code, target)
+            else:
+                show, translated = True, translated + 1
                 store.set_translation(message.id, translation.text, translation.code, target)
-        log.info("translate: %d line(s) to DeepL, %d translated", len(foreign),
-                 sum(1 for d in done if not d.error and d.code not in read))  # fmt: skip
+            if show:
+                with self._lock:
+                    self._found[message.id] = translation
+        # the evening line counts these (#567, evenings._EVENTS)
+        log.info("translate: auto: %d translated of %d line(s) sent", translated, len(foreign))
         return len(foreign)
 
     def start(self) -> None:
@@ -142,11 +164,23 @@ class AutoTranslate:
                 log.exception("translate: looking at new lines failed")
 
 
+def why_not(message, read: set[str]) -> str | None:
+    """Why a line isn't sent by itself, or None: send it (#567). Who said it, whether it was
+    looked at before, and the language check: nothing here knows which engine translates."""
+    if message.channel == "system" or message.hero:
+        return "the game's own words"
+    if message.role in ("me", "crew"):
+        return "yours or your crew's"
+    if message.translation or message.translation_from:
+        return "looked at before"
+    return languages.skip(message.text, read)
+
+
+def _same(text: str, translation: str | None) -> bool:
+    """DeepL gave the line back as it was (a hero's name, a misread word): no translation."""
+    return _clean(text).casefold() == _clean(translation or "").casefold()
+
+
 def _theirs_or_mine(message) -> bool:
     """Typed by a player: the game's own lines (system, comms wheel) never go as context."""
     return message.channel != "system" and not message.hero
-
-
-def _theirs(message) -> bool:
-    """Typed by someone else: not you or your crew, not the game's own words."""
-    return message.channel != "system" and not message.hero and message.role not in ("me", "crew")
