@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-22 · Translate chat shows the DeepL characters you used (#567)
+- Settings → Translate chat says how many of the month's free DeepL characters are used, and pauses Translate automatically near the limit: what's left is for the lines you click.
+- Behind the scenes: the evening line in the log counts translations (by themselves and clicked).
+
 ### 2026-11-22 · Translate chat catches the lines it missed (#567)
 - Translate automatically now sends every line from others that isn't clearly in a language you read, so short French or Spanish lines get their translation without a click. gg and the like, your own and your crew's lines stay here.
 - A line DeepL calls English or German shows no translation and is never sent again.
