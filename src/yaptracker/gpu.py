@@ -1,8 +1,7 @@
-"""Which graphics card may OCR use? (#208) The dedicated one: the hardware adapter with the most
-video memory of its own. Integrated GPUs share system memory and were no help (#126); software
-adapters are skipped. Windows only (DXGI); elsewhere there is none.
-
-DirectML's device_id is the adapter's index in this same DXGI order.
+"""The PC's graphics cards, for the system line in the log (system_info). Windows only (DXGI);
+elsewhere there is none. `dedicated()`: the hardware adapter with the most video memory of its
+own (integrated GPUs share system memory, #126; software adapters are skipped). OCR used it to
+pick a card until the GPU path was removed (#219, #311).
 """
 
 import ctypes

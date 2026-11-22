@@ -4,6 +4,14 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-23 · Code health: the unused graphics-card reading is gone (#311)
+- Behind the scenes: the code for reading chat on the graphics card, switched off before v1 and never in a release (it made Overwatch stutter), is removed. Nothing changes in how YapTracker reads.
+
+### 2026-11-23 · Translate chat with an AI model (#568)
+- Settings → Translate chat → **Translated by: DeepL / AI (OpenRouter)**. With your own OpenRouter key, an AI model translates instead of DeepL: it gets gamer slang, typos and jokes far better.
+- You pick the model and a monthly limit in dollars; Settings shows what this month's translations cost, and the AI stops by itself at the limit.
+- If the AI can't answer (offline, slow, the limit), DeepL steps in when you have a DeepL key too. The AI gets only the text of the lines, never names.
+
 ### 2026-11-22 · Translate chat shows the DeepL characters you used (#567)
 - Settings → Translate chat says how many of the month's free DeepL characters are used, and pauses Translate automatically near the limit: what's left is for the lines you click.
 - Behind the scenes: the evening line in the log counts translations (by themselves and clicked).
