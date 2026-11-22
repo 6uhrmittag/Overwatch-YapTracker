@@ -185,8 +185,8 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
         out.classes(remove="yt-line-translation--error")
         store = runtime.store
         now = (store.message(message.id) if store is not None else None) or message  # (#227)
-        kept = stored(now, target)
-        if kept is not None:  # translated before: never sent again (#470)
+        kept = stored(now, target) or looked_at(now, target)
+        if kept is not None:  # translated or looked at before: never sent again (#470, #567)
             show(kept)
             return
         text = " ".join(now.text.replace(GLYPH, " ").split())
@@ -228,7 +228,10 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
 
 def _translate(store, message, text: str) -> Translation:
     """The line with the text of the lines before it as DeepL's context (#538)."""
-    return runtime.translator.translate(text, context_for(store, message))
+    done = runtime.translator.translate(text, context_for(store, message))
+    if not done.error:
+        log.info("translate: clicked: 1 translated")  # the evening line counts these (#567)
+    return done
 
 
 def _original(label: ui.element, message) -> None:
@@ -238,12 +241,16 @@ def _original(label: ui.element, message) -> None:
 
 async def _keep(message_id: int, done: Translation, target: str) -> None:
     """Kept with the line (#470), off the UI thread; not when DeepL says it's a language you
-    read anyway. A failure only means it's asked again after a restart."""
+    read anyway: the one you translate into is remembered as nothing to translate (#567). A
+    failure only means it's asked again after a restart."""
     store = runtime.store
-    if done.error or store is None or done.code in config.read_languages():
+    if done.error or store is None or not done.code:
         return
     try:
-        await run.io_bound(store.set_translation, message_id, done.text, done.code, target)
+        if done.code == target:
+            await run.io_bound(store.set_not_foreign, message_id, done.code, target)
+        elif done.code not in config.read_languages():
+            await run.io_bound(store.set_translation, message_id, done.text, done.code, target)
     except Exception:
         log.exception("translate: keeping a translation failed")
 
@@ -261,6 +268,20 @@ def said_as(done: Translation) -> str:
     """↳ “gg, nice heals” (from Spanish)"""
     source = f" (from {done.source})" if done.source else ""
     return f"\u21b3 \u201c{done.text}\u201d{source}"
+
+
+def looked_at(message, target: str) -> Translation | None:
+    """DeepL looked at this line before and found nothing to translate (#567): said in words,
+    not asked again; None: ask it. A line in another language you read (English, into German)
+    is still your call."""
+    code = getattr(message, "translation_from", None)
+    if message.translation or not code or message.translation_to != target:
+        return None
+    if code == target:
+        return Translation(error=f"DeepL reads this as {language(code)}: nothing to translate.")
+    if code in config.read_languages():
+        return None
+    return Translation(error="DeepL has no other words for this line.")
 
 
 def stored(message, target: str | None = None) -> Translation | None:

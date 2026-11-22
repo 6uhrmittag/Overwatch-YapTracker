@@ -1,18 +1,36 @@
 """Settings -> Translate chat (#468): off by default, the user's own DeepL API Free key, English
-or German. Lines in a language you don't read translate themselves (#469). Only a line's text
-goes to DeepL."""
+or German. Lines that aren't clearly in a language you read translate themselves (#469, #567),
+and the card says how much of the month's free characters is used. Only a line's text goes to
+DeepL."""
 
-from nicegui import ui
+from nicegui import run, ui
 
-from yaptracker import config
+from yaptracker import config, runtime
 from yaptracker.languages import NAMES
 from yaptracker.translate import TARGETS
 from yaptracker.ui.components import saved_chip, switch
 
 PRIVACY = (
-    "Only the text of a line goes to DeepL, with your own key: one you translate, or one in a "
-    "language you don't read. Never names, pictures or ids."
+    "Only the text of a line goes to DeepL, with your own key: one you translate, or (with "
+    "Translate automatically) every line from others that isn't clearly in a language you "
+    "read, plus the text of a few lines before it so DeepL gets the meaning. Never names, "
+    "pictures or ids."
 )
+NO_USAGE = "DeepL: the characters you used this month show here once your key works."
+PAUSED = (
+    " Translate automatically is paused until DeepL's month starts over: what's left is for "
+    "the lines you click."
+)
+
+
+def usage_words(usage) -> str:
+    """ "DeepL: 41,250 of 500,000 characters used this month." (#567)"""
+    if usage is None:
+        return NO_USAGE
+    said = f"DeepL: {usage.used:,} of {usage.limit:,} characters used this month."
+    return said + (PAUSED if usage.near else "")
+
+
 SCRIPTS = (
     "Reads Latin-script languages (Spanish, French, Polish, ...). Cyrillic, Greek and Asian "
     "scripts aren't read from the screen at all yet."
@@ -55,9 +73,11 @@ def translate_card() -> None:
                 "Translate automatically",
                 config.translate_auto(),
                 config.save_translate_auto,
-                hint="Lines in a language you don't read get their translation within a second "
-                "or two, no click needed. Yours and your crew's are left alone.",
+                hint="Every line from others that isn't clearly in a language you read goes to "
+                "DeepL and gets its translation within a second or two, no click needed. "
+                "Yours and your crew's, gg and the like stay here.",
             ).mark("translate-auto-switch")
+            used = ui.label(NO_USAGE).classes("yt-hint").mark("deepl-usage")
             with ui.element("div").classes("yt-row yt-filters"):
                 ui.label("I read").classes("yt-setting-name")
                 read = ui.element("div").classes("yt-seg yt-seg--wrap").mark("read-languages")
@@ -69,11 +89,24 @@ def translate_card() -> None:
         with status:
             saved_chip()
 
+    async def show_usage() -> None:
+        """DeepL's own count, asked off the UI thread (at most every 10 minutes)."""
+        translator = runtime.translator
+        if translator is None:
+            return
+        try:
+            usage = await run.io_bound(translator.usage)
+        except Exception:  # the hint stays
+            return
+        if not used.is_deleted:
+            used.set_text(usage_words(usage))
+
     def save_key() -> None:
         value = (key.value or "").strip()
         if value != config.deepl_key():
             config.save_deepl_key(value)
             saved()
+            ui.timer(0.1, show_usage, once=True)  # the new key's count
 
     key.on("blur", save_key)
     key.on("keydown.enter", save_key)
@@ -121,3 +154,4 @@ def translate_card() -> None:
 
     show_targets()
     show_read()
+    ui.timer(0.1, show_usage, once=True)
