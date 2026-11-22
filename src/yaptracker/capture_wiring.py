@@ -11,6 +11,7 @@ import logging
 import sys
 import threading
 import time
+from collections.abc import Callable
 
 from nicegui import app
 
@@ -20,6 +21,25 @@ from yaptracker.capture.watcher import MATCH_STALL_S, STALL_S, CaptureWatcher
 from yaptracker.cpu_parts import CPU
 
 log = logging.getLogger(__name__)
+
+
+def capture_region(box, height: int, match_running: bool):
+    """The calibrated chat box during a match; outside one (menu after a match, map vote,
+    before the first match) the strip from it down to the window's bottom edge, where
+    Overwatch shows the chat then (#176). Dedup knows lines by their text, not their place."""
+    return box if match_running else box.down_to(height)
+
+
+def start_watcher(note_a_late_start: Callable[[], None], make_watcher: Callable):
+    """The capture watcher always starts (#457): checking whether the game was there before us
+    (#99) writes a gap, and that may fail."""
+    try:
+        note_a_late_start()
+    except Exception:
+        log.exception("couldn't check whether Overwatch started before YapTracker")
+    watcher = make_watcher()
+    watcher.start()
+    return watcher
 
 
 def in_match(matches) -> bool:
@@ -160,7 +180,7 @@ class CaptureWiring:
                 runtime.debug.match_event("end")
 
     def end_map(self, map_name: str) -> None:
-        """ "VICTORY <MAP>": for a match without one (#383)."""
+        """For a match without a map: the "VICTORY <MAP>" banner (#383)."""
         taken = runtime.matches is not None and runtime.matches.end_map(map_name)
         if taken and runtime.debug is not None:  # proof for the next evening's check
             runtime.debug.match_event("end-map")
@@ -249,8 +269,6 @@ class CaptureWiring:
                               quiet=self.chat_quiet)  # fmt: skip
 
     def region_for(self, width: int, height: int):
-        from yaptracker.app import capture_region
-
         if self.found["hwnd"] is not None:
             hwnd, self.found["hwnd"] = self.found["hwnd"], None
             system_info.game_found(hwnd, width, height)
@@ -331,8 +349,6 @@ class CaptureWiring:
 
     def start_capture(self) -> None:
         """After the store is open: gaps and matches need it."""
-        from yaptracker.app import start_watcher
-
         if runtime.store is None:
             return  # no database (a newer one, #352): nothing to record into
         late = self.note_a_late_start if not self.dev and runtime.health is not None else None

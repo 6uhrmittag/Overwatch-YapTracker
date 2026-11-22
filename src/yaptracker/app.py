@@ -13,6 +13,7 @@ from nicegui.run import io_bound
 
 from yaptracker import autostart as start_with_windows
 from yaptracker import config, demo, paths, runtime, system_info
+from yaptracker.capture_wiring import capture_region, start_watcher  # noqa: F401 (#311)
 from yaptracker.cpu_parts import CPU
 from yaptracker.ui import shell
 
@@ -30,13 +31,6 @@ LATER_NOTE = "unread-chat.json"  # the span of chat frames waiting to be read (#
 AI_SPEND = "ai_spend.json"  # what the AI translations cost this month (#568)
 UNREAD_DIR = "unread"  # chat frames a normal quit kept for the next start (#349)
 log = logging.getLogger(__name__)
-
-
-def capture_region(box, height: int, match_running: bool):
-    """The calibrated chat box during a match; outside one (menu after a match, map vote,
-    before the first match) the strip from it down to the window's bottom edge, where
-    Overwatch shows the chat then (#176). Dedup knows lines by their text, not their place."""
-    return box if match_running else box.down_to(height)
 
 
 def _check_ocr() -> bool:
@@ -95,18 +89,6 @@ def _watch_for_overwatch(dev: bool) -> None:
         log.warning("Use GPU for OCR was on: it's gone in v1 (#219), reading on the CPU")
     ocr.warm_up(config.ocr_engine())  # loaded in the background: nobody waits for it (#219)
     CaptureWiring(dev).install()
-
-
-def start_watcher(note_a_late_start: Callable[[], None], make_watcher: Callable):
-    """The capture watcher always starts (#457): checking whether the game was there before us
-    (#99) writes a gap, and that may fail."""
-    try:
-        note_a_late_start()
-    except Exception:
-        log.exception("couldn't check whether Overwatch started before YapTracker")
-    watcher = make_watcher()
-    watcher.start()
-    return watcher
 
 
 def debug_part(chat_read: Callable, *read) -> None:

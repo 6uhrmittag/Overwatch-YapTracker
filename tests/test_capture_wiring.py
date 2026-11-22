@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from yaptracker import capture_wiring, runtime, system_info
-from yaptracker.capture import gdi, wgc
+from yaptracker.capture import gdi, stats, wgc
 from yaptracker.capture.source import Frame, Region
 from yaptracker.capture.watcher import MATCH_STALL_S, STALL_S
 from yaptracker.capture_wiring import (
@@ -86,6 +86,7 @@ def wiring(monkeypatch):
         monkeypatch.setattr(runtime, name, getattr(runtime, name, None))  # restored afterwards
     monkeypatch.setattr(runtime, "matches", None)
     monkeypatch.setattr(runtime, "debug", None)
+    monkeypatch.setattr(stats.CAPTURE, "how", stats.CAPTURE.how)  # open_source sets it
     w = CaptureWiring(dev=False)
     monkeypatch.setattr(wgc, "WgcFrameSource", FakeSource)
     monkeypatch.setattr(gdi, "GdiFrameSource", FakeSource)
@@ -155,3 +156,52 @@ def test_dev_mode_plays_the_demo(monkeypatch):
     watcher = CaptureWiring(dev=True).make_watcher()
     assert runtime.window_size == (2560, 1440) and watcher.state == "waiting"
     assert capture_wiring.CaptureWatcher is type(watcher)
+
+
+class FakeReader:
+    def __init__(self, reread=False):
+        self.offered, self.kept, self.reread = [], [], reread
+
+    def offer(self, image, mode):
+        self.offered.append(mode)
+
+    def wants_reread(self):
+        return self.reread
+
+    def keep_for_tidy(self, image):
+        self.kept.append(1)
+
+
+@pytest.mark.parametrize(
+    ("mode", "changed", "reread", "offered", "kept"),
+    [
+        ("after", True, False, ["after"], 0),  # read after the match: changed frames wait
+        ("after", False, True, [], 0),  # ... and nothing is read again now
+        ("best", False, False, [], 0),  # nothing new: nothing to read
+        ("best", False, True, ["best"], 0),  # weak lines on screen: read again (#195)
+        ("light", True, False, ["light"], 1),  # light now, the best later when idle (#336)
+    ],
+)
+def test_the_chat_path_by_reading_mode(wiring, monkeypatch, mode, changed, reread, offered, kept):
+    reader = FakeReader(reread)
+    monkeypatch.setattr(runtime, "reader", reader)
+    monkeypatch.setattr(runtime, "reading", SimpleNamespace(now=lambda: mode, light_problem=None))
+    monkeypatch.setattr(wiring.changes, "update", lambda image, scale: changed)
+    wiring.on_frame(Frame(0.0, np.zeros((4, 4, 3), np.uint8)))
+    assert reader.offered == offered and len(reader.kept) == kept
+
+
+def test_dev_mode_starts_capture_without_hotkeys(monkeypatch):
+    from nicegui import app
+
+    for name in ("changes", "black", "screen"):
+        monkeypatch.setattr(runtime, name, getattr(runtime, name, None))
+    started, stopped = [], []
+    monkeypatch.setattr(app, "on_startup", started.append)
+    monkeypatch.setattr(app, "on_shutdown", stopped.append)
+    monkeypatch.setattr(capture_wiring, "install_hotkeys", lambda: started.append("hotkeys"))
+    monkeypatch.setattr(capture_wiring.CPU, "state", capture_wiring.CPU.state)  # restored
+    wiring = CaptureWiring(dev=True)
+    wiring.install()
+    assert wiring.start_capture in started and wiring.stop_capture in stopped
+    assert "hotkeys" not in started and capture_wiring.CPU.state == wiring.cpu_state
