@@ -377,7 +377,6 @@ ENGINES: dict[str, Callable[[], OcrEngine]] = {
 }
 LABELS = {RapidOcrEngine.name: RapidOcrEngine.label, WindowsOcrEngine.name: WindowsOcrEngine.label}
 DEFAULT = RapidOcrEngine.name
-_RAPID = RapidOcrEngine.name  # the engine that can run on the graphics card (#208)
 
 
 def available() -> list[str]:

@@ -19,14 +19,11 @@ def _fresh(monkeypatch):
 
 
 class FakeEngine:
-    def __init__(self, label, fail=False, slow_s=0.0):
+    def __init__(self, label, slow_s=0.0):
         time.sleep(slow_s)
-        self.label, self.fail, self.reads = label, fail, 0
+        self.label = label
 
     def read(self, image, accents=False, scale=2.0):
-        self.reads += 1
-        if self.fail:
-            raise RuntimeError("device removed")
         return [self.label]
 
     def read_line(self, image):
@@ -38,10 +35,8 @@ def test_a_gpu_setting_left_on_is_dropped_and_reading_stays_on_the_cpu(monkeypat
     paths.config_file().write_text('{"ocr_gpu": true, "read_every_s": 3.0}', encoding="utf-8")
     assert config.drop_ocr_gpu() is True
     assert config.drop_ocr_gpu() is False and config.read_every_s() == 3.0  # the rest stays
-    card = gpu.Adapter(0, "NVIDIA GeForce RTX 4090", 24 * 1024**3)
-    monkeypatch.setattr(gpu, "dedicated", lambda: card)
     monkeypatch.setitem(ocr.ENGINES, "rapidocr", lambda: FakeEngine("cpu"))
-    assert ocr.get("rapidocr").read(None) == ["cpu"]  # a card is there; the CPU reads anyway
+    assert ocr.get("rapidocr").read(None) == ["cpu"]
 
 
 def test_a_model_loading_never_blocks_the_capture_thread(monkeypatch):
