@@ -21,6 +21,11 @@ from yaptracker.ui import shell
 
 TITLE = "YapTracker"
 WINDOW_SIZE = (1280, 800)
+# How long the window's page is kept when its connection drops (#562). NiceGUI's 3 s (a ping
+# unanswered for 2 s drops it) is less than YapTracker sometimes has to wait for a core in a
+# match: the page was thrown away and built again every few minutes, each time while waiting.
+# Kept, it just catches up. Pings follow from it: every 240 s, 120 s to answer.
+RECONNECT_S = 300.0
 DEV_HOST = "0.0.0.0"
 DEV_PORT = 8080
 SMOKE_TEST_TIMEOUT_S = 90
@@ -692,6 +697,7 @@ def run(
         "favicon": shell.STATIC_DIR / "yaptracker.ico",
         "dark": True,
         "reload": False,
+        "reconnect_timeout": RECONNECT_S,
         "show_welcome_message": dev,
     }
     if dev:

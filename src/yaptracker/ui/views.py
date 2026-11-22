@@ -425,6 +425,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         size_text = ui.label().classes("yt-grow")
         button("Got it", lambda: size_checked(), "quiet").mark("size-ok")
     update_refresh = update_banner()  # a newer YapTracker is out (#46)
+    timing.lap("header and banners")  # parts for the "ui: live took" line (#562)
     if config.setup_state() == "skipped":  # once, after skipping setup (#76)
         with ui.element("div").classes("yt-banner").mark("setup-hint") as setup_hint:
             ui.label(
@@ -607,8 +608,11 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         strip.show(runtime.familiar.active() if runtime.familiar else [])
 
     def refresh() -> None:
+        timing.lap("layout")  # only in the first one, while Live is being built (#562)
         refresh_chat()
+        timing.lap("chat lines")
         refresh_faces()
+        timing.lap("familiar faces")
         paused = runtime.pause.paused
         capturing = watcher is not None and watcher.state == "capturing"
         gap = runtime.health.gap if runtime.health else None
@@ -731,6 +735,7 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
 
     ui.timer(1.0, refresh)
     refresh()
+    timing.lap("status and banners")
 
 
 def _listening(waiting) -> str:

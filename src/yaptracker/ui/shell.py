@@ -1,5 +1,6 @@
 """App frame: logo, icon rail on the left, one content area."""
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -63,8 +64,15 @@ def _too_new(why: str) -> None:
                 ui.label(why).classes("yt-meta")
 
 
+log = logging.getLogger(__name__)
+_loads = {"n": 0}
+
+
 def root() -> None:
     """Build the whole window for one client."""
+    # Once per start; more often, the window lost its page and loaded it again (#562).
+    _loads["n"] += 1
+    log.info("ui: page loaded (%d since the start)", _loads["n"])
     ui.add_head_html(f'<link rel="stylesheet" href="{STATIC_URL}/theme.css">')
     ui.add_css(chat_colours.css(chat_colours.current()))  # your chat colours (#401)
     ui.add_head_html(f'<script defer src="{STATIC_URL}/follow.js"></script>')  # Live follows (#166)
