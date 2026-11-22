@@ -119,7 +119,7 @@ def test_what_deepl_calls_english_is_not_shown_and_not_sent_again(store):
     assert store.message(names).translation is None
     # remembered with the line, so also after a restart: not by itself, not with a click
     assert why_not(kept, READ) == "looked at before"
-    assert looked_at(kept, "EN").error == "DeepL reads this as English: nothing to translate."
+    assert looked_at(kept, "EN").error == "Read as English before: nothing to translate."
     assert looked_at(kept, "DE") is None  # into German is another question
     assert why_not(store.message(names), READ) == "looked at before"
     assert looked_at(store.message(names), "EN") is None  # read better since, maybe: a click asks
@@ -213,5 +213,5 @@ async def test_a_click_on_a_line_deepl_called_english_says_so_without_asking(
     await user.should_see("nice ult")
     await user.should_not_see("nothing to translate")
     user.find(marker="translate-line").click()
-    await user.should_see("DeepL reads this as English: nothing to translate.")
+    await user.should_see("Read as English before: nothing to translate.")
     assert fake.sent == []

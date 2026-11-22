@@ -1,20 +1,21 @@
-"""Settings -> Translate chat (#468): off by default, the user's own DeepL API Free key, English
-or German. Lines that aren't clearly in a language you read translate themselves (#469, #567),
-and the card says how much of the month's free characters is used. Only a line's text goes to
-DeepL."""
+"""Settings -> Translate chat (#468): off by default, the user's own DeepL API Free key (or an
+AI model via OpenRouter with theirs, #568), English or German. Lines that aren't clearly in a
+language you read translate themselves (#469, #567), and the card says how much of the month's
+free characters is used. Only a line's text goes to DeepL or the AI."""
 
 from nicegui import run, ui
 
 from yaptracker import config, runtime
 from yaptracker.languages import NAMES
 from yaptracker.translate import TARGETS
+from yaptracker.ui.ai_settings import ai_settings
 from yaptracker.ui.components import saved_chip, switch
 
 PRIVACY = (
-    "Only the text of a line goes to DeepL, with your own key: one you translate, or (with "
-    "Translate automatically) every line from others that isn't clearly in a language you "
-    "read, plus the text of a few lines before it so DeepL gets the meaning. Never names, "
-    "pictures or ids."
+    "Only the text of a line goes to DeepL or the AI, with your own key: one you translate, or "
+    "(with Translate automatically) every line from others that isn't clearly in a language "
+    "you read, plus the text of a few lines before it so the meaning comes across. Never "
+    "names, pictures or ids."
 )
 NO_USAGE = "DeepL: the characters you used this month show here once your key works."
 PAUSED = (
@@ -49,6 +50,7 @@ def translate_card() -> None:
                 config.save_translate_chat,
                 hint="Adds Translate to every chat line in Live, matches and profiles.",
             ).mark("translate-switch")
+            ai_settings(lambda: saved())  # DeepL or AI (#568)
             with ui.element("div").classes("yt-row yt-filters"):
                 ui.label("DeepL key").classes("yt-setting-name")
                 key = (
@@ -74,10 +76,12 @@ def translate_card() -> None:
                 config.translate_auto(),
                 config.save_translate_auto,
                 hint="Every line from others that isn't clearly in a language you read goes to "
-                "DeepL and gets its translation within a second or two, no click needed. "
+                "DeepL or the AI and gets its translation within a second or two, no click "
+                "needed. "
                 "Yours and your crew's, gg and the like stay here.",
             ).mark("translate-auto-switch")
-            known = runtime.translator.usage(ask=False) if runtime.translator else None
+            deepl = getattr(runtime.translator, "deepl", runtime.translator)  # also with AI
+            known = deepl.usage(ask=False) if deepl else None
             used = ui.label(usage_words(known)).classes("yt-hint").mark("deepl-usage")
             with ui.element("div").classes("yt-row yt-filters"):
                 ui.label("I read").classes("yt-setting-name")
@@ -92,7 +96,7 @@ def translate_card() -> None:
 
     async def show_usage() -> None:
         """DeepL's own count, asked off the UI thread (at most every 10 minutes)."""
-        translator = runtime.translator
+        translator = getattr(runtime.translator, "deepl", runtime.translator)  # also with AI
         if translator is None or not config.translate_chat():  # switched off: DeepL isn't asked
             return
         try:

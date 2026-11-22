@@ -121,7 +121,7 @@ async def test_settings_switch_key_and_language(user: User):
     config.save_setup_state("done")
     await user.open("/")
     user.find(marker="nav-settings").click()
-    await user.should_see("Only the text of a line goes to DeepL, with your own key")
+    await user.should_see("Only the text of a line goes to DeepL or the AI, with your own key")
     user.find(marker="translate-switch").click()
     assert config.translate_chat() is True
     user.find(marker="deepl-key").type(KEY).trigger("blur")
