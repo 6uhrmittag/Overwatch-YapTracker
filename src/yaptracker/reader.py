@@ -18,7 +18,7 @@ from dataclasses import replace
 
 import numpy as np
 
-from yaptracker import channels, glyphs, priority, side_work
+from yaptracker import channels, glyphs, icons, priority, side_work
 from yaptracker.cpu_parts import CPU
 from yaptracker.dedup import (
     FADE_S,
@@ -33,6 +33,7 @@ from yaptracker.dedup import (
 from yaptracker.identity import Identity
 from yaptracker.input_row import without_input
 from yaptracker.later import PER_PICTURE_S, Backlog, Kept, LaterFrames
+from yaptracker.lines import row
 from yaptracker.ocr.engine import OcrLine
 from yaptracker.parser import ChatLine, parse
 from yaptracker.reading_mode import AFTER, BEST
@@ -70,6 +71,10 @@ def _fields(line: ChatLine) -> dict:
         "role": line.role,
         "has_glyphs": glyphs.has_glyphs(line.text),
     }
+
+
+def _marked(yap: Yap) -> bool:
+    return glyphs.GLYPH in yap.best.text
 
 
 class ChatReader:
@@ -342,16 +347,17 @@ class ChatReader:
                 above = self._store.message(self._stored[yap.after])
                 match_id = above.match_id if above is not None else match_id
             self._stored[yap.id] = self._store.add_message(
-                ts=yap.first_seen, match_id=match_id, player_id=player, **_fields(yap.best)
+                ts=yap.first_seen, match_id=match_id, player_id=player, **self._named(yap, image)
             )
             self._keep_picture(yap, image)
             if yap.best.channel != "system":  # "[x] started playing" is a friend online, not here
                 self._on_player(player, match_id, kept is not None and kept.mode == AFTER)
         for yap in improved:
             if yap.id in self._stored:
+                stored = self._store.message(self._stored[yap.id]) if _marked(yap) else None
                 self._store.update_message(
-                    self._stored[yap.id], player_id=self._player(yap, ts), **_fields(yap.best)
-                )
+                    self._stored[yap.id], player_id=self._player(yap, ts),
+                    **self._named(yap, image, stored))  # fmt: skip
                 if yap.best is yap.last:  # read better in this very frame: its picture, too
                     self._keep_picture(yap, image)
         self._count(time.thread_time() - started)
@@ -433,7 +439,7 @@ class ChatReader:
                 player = self._link(yap)
                 tidy.links[yap.id] = message_id = self._store.add_message(
                     ts=yap.first_seen, match_id=kept.match_id, player_id=player,
-                    **_fields(yap.best))  # fmt: skip
+                    **self._named(yap, kept.image))  # fmt: skip
                 self._save_picture(message_id, yap.first_seen, kept.image, yap.last.box)
                 tidy.found += 1
                 if yap.best.channel != "system":
@@ -450,7 +456,7 @@ class ChatReader:
             self._tidied()
 
     def _tidy_fix(self, yap: Yap, message, kept: Kept) -> None:
-        fields = _fields(yap.best)
+        fields = self._named(yap, kept.image, message)
         if message is None or self._tidy.links.get(yap.id) is None or not differs(message, fields):
             return
         self._store.update_message(message.id, player_id=self._link(yap), **fields)
@@ -526,6 +532,22 @@ class ChatReader:
         pid = self._players.link(speaker, ts, yap.best.confidence) if self._players else None
         self._speakers[yap.id] = (speaker, pid)
         return pid
+
+    def _named(self, yap: Yap, image: np.ndarray, stored=None) -> dict:
+        """The yap's fields to store, its "◇" named where the row shows a known icon (#121).
+        A name the stored line already has stays when this frame doesn't show the icon as well
+        (a bright map behind it)."""
+        fields = _fields(yap.best)
+        if fields["has_glyphs"]:
+            try:
+                text = icons.name(fields["text"], row(image, yap.last.box))
+            except Exception as error:  # a line without its icon's name is still a line
+                side_work.failed("naming an icon", error)
+                text = fields["text"]
+            if stored is not None and glyphs.unnamed(stored.text) == text:
+                text = stored.text
+            fields["text"] = text
+        return fields
 
     def _keep_picture(self, yap: Yap, image: np.ndarray) -> None:
         self._save_picture(self._stored[yap.id], yap.first_seen, image, yap.last.box)

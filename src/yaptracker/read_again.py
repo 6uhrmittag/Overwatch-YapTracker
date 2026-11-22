@@ -12,11 +12,11 @@ import re
 import threading
 import unicodedata
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
-from yaptracker import glyphs, images, priority
+from yaptracker import glyphs, icons, images, priority
 from yaptracker.dedup import YAP_KINDS
 from yaptracker.identity import Identity
 from yaptracker.ocr.engine import OcrLine
@@ -38,7 +38,7 @@ def better(message, line: ChatLine) -> bool:
         return False
     return line.confidence > (message.ocr_confidence or 0.0) or letters(
         line.speaker, line.text
-    ) > letters(message.speaker_raw, message.text)
+    ) > letters(message.speaker_raw, glyphs.unnamed(message.text))
 
 
 def check_marks_once(again: "ReadAgain", store, checked: Callable[[], bool],
@@ -53,6 +53,18 @@ def check_marks_once(again: "ReadAgain", store, checked: Callable[[], bool],
         save()
 
 
+def name_icons_once(again: "ReadAgain", store, named: Callable[[], int],
+                    save: Callable[[int], object]) -> None:  # fmt: skip
+    """Once per icon library (#121): the "◇" of stored lines, named from their pictures."""
+    if named() >= icons.LIBRARY:
+        return
+    marked = store.lines_with_a_mark()
+    if marked:
+        again.name_icons(marked, on_done=lambda: save(icons.LIBRARY))
+    else:
+        save(icons.LIBRARY)
+
+
 @dataclass
 class Job:
     """One "read again": a match's lines or one line, and how far it got."""
@@ -62,6 +74,7 @@ class Job:
     done: int = 0
     better: list[int] = field(default_factory=list)
     marks: bool = False  # only check the "◇" at the end (#402)
+    names: bool = False  # only name the "◇" icons.py knows (#121): no reading
     on_done: Callable[[], object] | None = None
 
     @property
@@ -106,6 +119,10 @@ class ReadAgain:
         the stricter look; where nothing is there, the mark goes. Pictures stay as they are."""
         return self._add(Job(None, ids, marks=True, on_done=on_done))
 
+    def name_icons(self, ids: list[int], on_done: Callable[[], object]) -> Job:
+        """Lines stored with a "◇": named where their picture shows an icon icons.py knows."""
+        return self._add(Job(None, ids, names=True, on_done=on_done))
+
     def job(self, match_id: int | None) -> Job | None:
         """The newest job of that match, finished or not (for its progress line)."""
         with self._lock:
@@ -119,9 +136,8 @@ class ReadAgain:
             return False
         message_id = job.ids[job.done] if job.ids else None
         try:
-            improved = message_id is not None and (self._marks if job.marks else self._again)(
-                message_id
-            )
+            step = self._marks if job.marks else self._names if job.names else self._again
+            improved = message_id is not None and step(message_id)
         except Exception:
             log.exception("reading line %d again failed", message_id)
             improved = False
@@ -132,6 +148,9 @@ class ReadAgain:
         if job.finished and job.marks:
             log.info("checked the \u25c7 of %d line(s) once: %d had no icon after the text, "
                      "mark removed (#402)", len(job.ids), len(job.better))  # fmt: skip
+        elif job.finished and job.names:
+            log.info("named the icons of %d of %d stored line(s) with a \u25c7 (#121)",
+                     len(job.better), len(job.ids))  # fmt: skip
         elif job.finished:
             log.info("read %d line(s) again (match %s): %d better", len(job.ids), job.match_id,
                      len(job.better))  # fmt: skip
@@ -182,6 +201,17 @@ class ReadAgain:
         self._store.drop_trailing_mark(message.id, text, glyphs.has_glyphs(text))
         return True
 
+    def _names(self, message_id: int) -> bool:
+        """One stored line's "◇", named from its picture; the text is otherwise untouched."""
+        message = self._store.message(message_id)
+        if message is None or message.edited_at is not None or glyphs.GLYPH not in message.text:
+            return False
+        text = icons.name(message.text, images.read(self._pictures.path(message.id, message.ts)))
+        if text == message.text:
+            return False
+        self._store.drop_trailing_mark(message.id, text, True)
+        return True
+
     def _again(self, message_id: int) -> bool:
         message = self._store.message(message_id)
         if message is None or message.edited_at is not None:  # fixed by hand in the meantime
@@ -191,6 +221,10 @@ class ReadAgain:
             return False
         lines = parse(glyphs.mark(image, self._read(image)))
         lines = [line for line in self._identity().apply(lines) if line.kind in YAP_KINDS]
+        if len(lines) == 1:  # its icons named as the stored line's are (#121)
+            text = icons.name(lines[0].text, image)
+            text = message.text if glyphs.unnamed(message.text) == text else text
+            lines = [replace(lines[0], text=text)]
         if len(lines) != 1 or not better(message, lines[0]):
             return False  # nothing, or more than one line: can't tell which is this one
         line = lines[0]

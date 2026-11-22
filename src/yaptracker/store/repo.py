@@ -687,8 +687,18 @@ class Store:
         )
         return [row[0] for row in rows]
 
+    def lines_with_a_mark(self) -> list[int]:
+        """Lines with a "◇" anywhere, not fixed by hand (#121): to name their icons."""
+        rows = self._read(
+            "SELECT id FROM chat_messages WHERE edited_at IS NULL AND deleted_at IS NULL AND "
+            "text LIKE ? ORDER BY id",
+            ("%\u25c7%",),
+        )
+        return [row[0] for row in rows]
+
     def drop_trailing_mark(self, message_id: int, text: str, has_glyphs: bool) -> None:
-        """The line without the "◇" the map behind it made (#402); nothing else changes."""
+        """The line without the "◇" the map behind it made (#402), or with its icons named
+        (#121); nothing else changes."""
         self._write(
             "UPDATE chat_messages SET text = ?, has_glyphs = ? WHERE id = ? AND edited_at IS NULL",
             (text, int(has_glyphs), message_id),
