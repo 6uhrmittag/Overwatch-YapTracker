@@ -17,7 +17,7 @@ import time
 from collections.abc import Callable
 
 from yaptracker import languages
-from yaptracker.glyphs import GLYPH
+from yaptracker.glyphs import GLYPH, unnamed
 from yaptracker.translate import (
     NO_KEY,
     NOT_FREE,
@@ -53,7 +53,7 @@ def context_for(store, message) -> str | None:
 
 
 def _clean(text: str) -> str:
-    return " ".join((text or "").replace(GLYPH, " ").split())
+    return " ".join(unnamed(text or "").replace(GLYPH, " ").split())
 
 
 class AutoTranslate:

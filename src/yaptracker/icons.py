@@ -21,9 +21,9 @@ from yaptracker.glyphs import GLYPH, tag
 log = logging.getLogger(__name__)
 FOLDER = Path(__file__).parent / "data" / "icons"
 LIBRARY = 1  # one up with every new template: stored lines are then named again, once
-# How alike (0-1) a spot must be. On Marv's lines (2026-11-22, 1440p): real icons mostly score
-# 0.85+, the best wrong spot of any row scored below 0.6.
-ALIKE = 0.8
+# How alike (0-1) a spot must be. On 1026 of Marv's line pictures (2026-11-22, 1440p): 497 of
+# 568 real icons scored 0.9+, the best wrong spot of any row 0.78.
+ALIKE = 0.85
 CONTRAST = 40  # how much whiter than what's around it (0-255): a pattern in a wall isn't one
 EDGE = 6  # px
 # The templates are 1440p; chat grows with the window: 1080p, 1200p, 1440p, 1600p, 4K.

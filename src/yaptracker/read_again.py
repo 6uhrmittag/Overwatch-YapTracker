@@ -37,8 +37,8 @@ def better(message, line: ChatLine) -> bool:
     if (line.speaker, line.text, line.hero) == (message.speaker_raw, message.text, message.hero):
         return False
     return line.confidence > (message.ocr_confidence or 0.0) or letters(
-        line.speaker, line.text
-    ) > letters(message.speaker_raw, glyphs.unnamed(message.text))
+        line.speaker, glyphs.unnamed(line.text)
+    ) > letters(message.speaker_raw, glyphs.unnamed(message.text))  # a name's letters don't count
 
 
 def check_marks_once(again: "ReadAgain", store, checked: Callable[[], bool],
