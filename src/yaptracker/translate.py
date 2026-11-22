@@ -7,10 +7,6 @@ picture, an id or anything else. Gamer shorthand alone (gg, ez...) is never sent
 it's marked for DeepL to leave as it is. Off by default; the key lives only in the local
 config.json. Errors come back as words for the line, never as a retry loop. Each text is sent
 once a run; translations are stored with their line (#470).
-
-How much of the month's free characters is used (#567) is DeepL's own count: a GET to /v2/usage
-on the same host with the same key, at most every 10 minutes and only while lines are sent or
-Settings is open. It carries no chat at all.
 """
 
 import html
@@ -19,7 +15,6 @@ import json
 import logging
 import re
 import threading
-import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -28,10 +23,6 @@ from dataclasses import dataclass
 log = logging.getLogger(__name__)
 
 URL = "https://api-free.deepl.com/v2/translate"
-USAGE_URL = "https://api-free.deepl.com/v2/usage"
-FREE_LIMIT = 500_000  # DeepL API Free: characters a month
-NEAR = 0.95  # of the limit: from here nothing translates by itself, the rest is for clicks
-USAGE_AGE_S = 600.0  # DeepL is asked for its count this often at most
 TIMEOUT_S = 10
 TARGETS = {"EN": "English", "DE": "German"}  # what Settings offers
 _TARGET_CODES = {"EN": "EN-US", "DE": "DE"}  # DeepL wants a variant for English
@@ -64,18 +55,6 @@ TOO_MANY = "DeepL says too many requests. Try again in a minute."
 OFFLINE = "Can't reach DeepL right now (offline?)."
 FAILED = "DeepL couldn't translate this line."
 SHORT = "Gamer shorthand: nothing to translate."
-
-
-@dataclass(frozen=True)
-class Usage:
-    """DeepL's count of the month's characters (#567)."""
-
-    used: int
-    limit: int = FREE_LIMIT
-
-    @property
-    def near(self) -> bool:
-        return self.used >= NEAR * self.limit
 
 
 @dataclass(frozen=True)
@@ -140,14 +119,6 @@ def request(key: str, texts: list[str], target: str,
     )
 
 
-def usage_request(key: str) -> urllib.request.Request:
-    """How many characters the key used this month (#567): the key and nothing else."""
-    return urllib.request.Request(
-        USAGE_URL,
-        headers={"Authorization": f"DeepL-Auth-Key {key}", "User-Agent": "YapTracker"},
-    )
-
-
 def _open(req: urllib.request.Request) -> dict:
     with urllib.request.urlopen(req, timeout=TIMEOUT_S) as response:
         return json.load(response)
@@ -160,50 +131,11 @@ class DeepL:
     """Translates on the caller's thread (the UI hands it to a worker). Each text once a run."""
 
     def __init__(self, key: Callable[[], str], target: Callable[[], str],
-                 send: Callable[[urllib.request.Request], dict] = _open,
-                 clock: Callable[[], float] = time.monotonic) -> None:  # fmt: skip
-        self._key, self._target, self._send, self._clock = key, target, send, clock
+                 send: Callable[[urllib.request.Request], dict] = _open) -> None:  # fmt: skip
+        self._key, self._target, self._send = key, target, send
         self._lock = threading.Lock()
         self._done: dict[tuple[str, str], Translation] = {}
         self._context = True  # until DeepL turns it down once (#538)
-        self._usage: tuple[str, Usage | None, float] | None = None  # key, count, asked when
-        self._asking = threading.Lock()  # one question about the count at a time
-
-    def _known(self, key: str) -> tuple[str, Usage | None, float] | None:
-        with self._lock:
-            return self._usage if self._usage is not None and self._usage[0] == key else None
-
-    def usage(self, ask: bool = True) -> Usage | None:
-        """The month's characters as DeepL counts them, with what was sent since; None: not
-        known (no key, offline). Asks DeepL at most every 10 minutes, so never call it on the
-        UI thread; `ask=False` is the last known count."""
-        key = (self._key() or "").strip()
-        if not ask or not key.endswith(":fx"):
-            known = self._known(key)
-            return known[1] if known else None
-        with self._asking:
-            known = self._known(key)  # the other thread may just have asked
-            if known is not None and self._clock() - known[2] < USAGE_AGE_S:
-                return known[1]
-            count = known[1] if known else None
-            try:
-                answer = self._send(usage_request(key))
-                count = Usage(int(answer["character_count"]),
-                              int(answer.get("character_limit") or FREE_LIMIT))  # fmt: skip
-            except Exception as error:  # not known is fine: nothing pauses on a guess
-                log.info("translate: DeepL's usage not read (%s)", type(error).__name__)
-            with self._lock:
-                self._usage = (key, count, self._clock())
-        return count
-
-    def _count(self, key: str, sent: int | None) -> None:
-        """Between two looks at DeepL's count: what was just sent; None: DeepL says the
-        month is used up (456)."""
-        with self._lock:
-            if self._usage is not None and self._usage[0] == key and self._usage[1] is not None:
-                was = self._usage[1]
-                now = Usage(was.limit if sent is None else was.used + sent, was.limit)
-                self._usage = (key, now, self._usage[2])
 
     def translate(self, text: str, context: str | None = None) -> Translation:
         return self.translate_many([text], context)[0]
@@ -239,11 +171,8 @@ class DeepL:
                         for found in answer]  # fmt: skip
                 if len(done) != len(new):
                     raise ValueError(f"{len(done)} answers for {len(new)} lines")
-                self._count(key, sum(len(_marked(t)) if xml else len(t) for t in new))
             except urllib.error.HTTPError as error:
                 log.info("translate: DeepL said %s", error.code)
-                if error.code == 456:
-                    self._count(key, None)
                 return [Translation(error=_HTTP.get(error.code, FAILED))] * len(texts)
             except (
                 urllib.error.URLError,
@@ -270,16 +199,9 @@ def _code(code: str | None) -> str | None:
 class FakeTranslator:
     """--dev and tests: no key, no network (#468)."""
 
-    def __init__(self, used: int = 41_250) -> None:
-        self._sent = used  # a made-up count for Settings (#567)
-
-    def usage(self, ask: bool = True) -> Usage | None:
-        return Usage(self._sent)
-
     def translate(self, text: str, context: str | None = None) -> Translation:
         if only_shorthand(text):
             return Translation(error=SHORT)
-        self._sent += len(text)
         return Translation(f"(made-up translation of) {text}", "Spanish", code="ES")
 
     def translate_many(self, texts: list[str], context: str | None = None) -> list[Translation]:

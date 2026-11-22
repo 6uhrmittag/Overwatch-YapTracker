@@ -51,13 +51,6 @@ _EVENTS = {
     "familiar_after": re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d),\d+ INFO "
                                  r"yaptracker\.familiar: familiar face: player #\d+ \([^)]*\), "
                                  r"after the match", re.MULTILINE),
-    # translations (#567): by themselves, and asked for with a click
-    "translated_auto": re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d),\d+ INFO "
-                                  r"yaptracker\.auto_translate: translate: auto: (\d+) translated",
-                                  re.MULTILINE),
-    "translated_clicked": re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d),\d+ INFO "
-                                     r"yaptracker\.ui\.line_actions: translate: clicked: (\d+) "
-                                     r"translated", re.MULTILINE),
 }  # fmt: skip
 _CLOCK = "%Y-%m-%d %H:%M:%S"
 
@@ -142,16 +135,12 @@ def summarize(store: Store, session: SessionRow, logged: list[tuple],
         "familiar": counted["familiar"] + counted["familiar_after"],
         "familiar_after": counted["familiar_after"],  # cards from lines read after the match
         "notes": notes,
-        "translated_auto": counted["translated_auto"],  # (#567)
-        "translated_clicked": counted["translated_clicked"],
     }
 
 
 def line(e: dict) -> str:
     """The log line: `evening 2026-10-10: 7 matches (hero select 6, gap 1, hand 0) · ...`."""
     modes = ", ".join(f"{k} {n}" for k, n in e["modes"].items()) if e["modes"] else "-"
-    auto, clicked = e.get("translated_auto"), e.get("translated_clicked")
-    translated = "-" if auto is None else f"{auto + clicked} (auto {auto}, clicked {clicked})"
     confidence = "-" if e["confidence"] is None else f"{e['confidence']:.2f}"
     return (
         f"evening {e['date']}: {e['matches']} matches (hero select {e['heroselect']}, "
@@ -164,7 +153,7 @@ def line(e: dict) -> str:
         f"{e.get('unstored', '-')} · competitive {e.get('competitive', '-')} (rounds merged "
         f"{e.get('rounds', '-')}) · familiar faces {e.get('familiar', '-')} (after the match "
         f"{e.get('familiar_after', '-')}) · players with notes "
-        f"{'-' if e.get('notes') is None else e['notes']} · translated {translated}"
+        f"{'-' if e.get('notes') is None else e['notes']}"
     )
 
 

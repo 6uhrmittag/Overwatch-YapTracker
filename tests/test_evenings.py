@@ -86,19 +86,13 @@ def test_the_end_of_an_evening_writes_its_line(store, log_file, tmp_path, caplog
                   f"result yet)\n{clock(T0 + 220)} INFO yaptracker.familiar: familiar face: "
                   "player #7 (last met 2026-10-09)\n"
                   f"{clock(T0 + 230)} INFO yaptracker.familiar: familiar face: player #8 (last "
-                  "met 2026-10-08), after the match\n"
-                  # translations (#567): by themselves (3 + 0), and one asked for with a click
-                  f"{clock(T0 + 240)} INFO yaptracker.auto_translate: translate: auto: 3 "
-                  f"translated of 12 line(s) sent\n{clock(T0 + 250)} INFO "
-                  "yaptracker.auto_translate: translate: auto: 0 translated of 4 line(s) sent\n"
-                  f"{clock(T0 + 260)} INFO yaptracker.ui.line_actions: translate: clicked: 1 "
-                  "translated\n")  # fmt: skip
+                  "met 2026-10-08), after the match\n")  # fmt: skip
     pip = store.add_player("Pip", T0)
     store.set_notes(pip, "nice Ana")
     tracker.stop()  # YapTracker quits
     assert "· whole app 15 % of a core · seen but not stored 2" in caplog.text
     assert ("· competitive 0 (rounds merged 1) · familiar faces 2 (after the match 1) · players "
-            "with notes 1 · translated 4 (auto 3, clicked 1)" in caplog.text)  # fmt: skip
+            "with notes 1" in caplog.text)  # (#437)  # fmt: skip
     assert (
         "evening 2026-10-10: 2 matches (hero select 1, gap 1, hand 0) · map known 100 % · queue "
         "known 100 % · result 50 % · missed ends 1 · lines 5 (avg confidence 0.89, "
@@ -179,9 +173,6 @@ def test_without_matches_or_log_lines_nothing_is_made_up(store, tmp_path):
     (e,) = evenings.last()
     assert (e["map"], e["queue"], e["modes"], e["cpu"]) == (None, None, None, None)
     assert "map known - · queue known -" in line(e) and "whole app - of a core" in line(e)
-    assert line(e).endswith("· translated 0 (auto 0, clicked 0)")
-    del e["translated_auto"]  # an evening saved before #567
-    assert line(e).endswith("· translated -")
 
 
 @pytest.fixture
