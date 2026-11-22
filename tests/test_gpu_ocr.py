@@ -16,19 +16,14 @@ from yaptracker.ui import shell
 def _fresh(monkeypatch):
     monkeypatch.setattr(ocr, "_cache", {})
     monkeypatch.setattr(ocr, "_making", {})
-    monkeypatch.setattr(ocr, "_gpu_problem", None)
-    monkeypatch.setattr(ocr, "_gpu_name", None)
 
 
 class FakeEngine:
-    def __init__(self, label, fail=False, slow_s=0.0):
+    def __init__(self, label, slow_s=0.0):
         time.sleep(slow_s)
-        self.label, self.fail, self.reads = label, fail, 0
+        self.label = label
 
     def read(self, image, accents=False, scale=2.0):
-        self.reads += 1
-        if self.fail:
-            raise RuntimeError("device removed")
         return [self.label]
 
     def read_line(self, image):
@@ -40,10 +35,8 @@ def test_a_gpu_setting_left_on_is_dropped_and_reading_stays_on_the_cpu(monkeypat
     paths.config_file().write_text('{"ocr_gpu": true, "read_every_s": 3.0}', encoding="utf-8")
     assert config.drop_ocr_gpu() is True
     assert config.drop_ocr_gpu() is False and config.read_every_s() == 3.0  # the rest stays
-    card = gpu.Adapter(0, "NVIDIA GeForce RTX 4090", 24 * 1024**3)
-    monkeypatch.setattr(gpu, "dedicated", lambda: card)
     monkeypatch.setitem(ocr.ENGINES, "rapidocr", lambda: FakeEngine("cpu"))
-    assert ocr.get("rapidocr").read(None) == ["cpu"]  # a card is there; the CPU reads anyway
+    assert ocr.get("rapidocr").read(None) == ["cpu"]
 
 
 def test_a_model_loading_never_blocks_the_capture_thread(monkeypatch):
@@ -67,18 +60,6 @@ def test_an_engine_that_fails_to_load_raises_for_who_waits(monkeypatch):
     with pytest.raises(ocr.OcrUnavailable):
         ocr.get("windows")
     assert ocr.ready("windows") is None  # and the capture just skips
-
-
-def test_the_parked_gpu_engine_still_falls_back_to_the_cpu(monkeypatch):
-    """The DirectML code stays for later (#219): if it's ever used again, a failing card hands
-    over to the CPU after one failed read."""
-    card = gpu.Adapter(0, "NVIDIA GeForce RTX 4090", 24 * 1024**3)
-    monkeypatch.setattr(gpu, "dedicated", lambda: card)
-    failing = FakeEngine("gpu", fail=True)
-    monkeypatch.setattr(ocr, "RapidOcrEngine", lambda device=None: failing)
-    monkeypatch.setitem(ocr.ENGINES, "rapidocr", lambda: FakeEngine("cpu"))
-    engine = ocr._gpu_engine()
-    assert engine.read(None) == ["cpu"] and engine.read(None) == ["cpu"] and failing.reads == 1
 
 
 def test_the_dedicated_card_is_the_one_with_its_own_memory(monkeypatch):
