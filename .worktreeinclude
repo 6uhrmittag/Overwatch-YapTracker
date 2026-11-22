@@ -1,0 +1,5 @@
+# Gitignored files Claude Code copies into every new worktree (parallel agents, v1.3).
+# Both stay private: real samples with other players' names, and the DeepL test key.
+# Never commit them.
+fixtures/private/
+.env
