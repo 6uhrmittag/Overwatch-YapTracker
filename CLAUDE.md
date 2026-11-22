@@ -168,6 +168,17 @@ Comments from the planning chat end with _(planning chat)_.
 Closes #
 ```
 
+### Which model for what
+Marv, 2026-11-22:
+- The main session runs on Opus (Marv sets it with `/model`). Don't ask him to switch.
+- Delegate to a subagent and pass its model per task:
+  - `fable`: open-ended investigations where the cause is unknown (capture drops, OCR misreads,
+    performance profiling, a bug that survived one fix). Hand it the issue + evidence; it reports
+    findings and a fix plan, the main session (or an `opus` agent) implements.
+  - `sonnet`: docs-only, small UI tweaks, quick-wins with a clear spec, test-only changes.
+  - `opus` (or inherit): everything else, incl. migrations, threads, update/release pipeline.
+- Say in the PR under "Decisions I made" which model did the work.
+
 ---
 
 ## Scope

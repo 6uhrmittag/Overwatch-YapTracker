@@ -4,6 +4,14 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-22 · Which model for what (#575)
+- Behind the scenes: the working rules now say which AI model does which kind of task.
+
+### 2026-11-22 · Icons get their names back (#121)
+- The icon after "Thanks!", "I need healing!", "Group up!" and "Fall back!" is no longer just a ◇: the line now reads `Thanks! [icon:thumbs-up]`, `[icon:heal]`, `[icon:group-up]` or `[icon:fall-back]`.
+- Lines you already have get their icon names too, once, from their saved pictures, while no match runs.
+- An icon YapTracker doesn't know yet, or can't tell over a bright map, stays a ◇; its picture is still there.
+
 ### 2026-11-22 · Profiles know which heroes someone switched between (#262)
 - A yapper's profile now shows what they played in a match ("Played Sierra → Vendetta"), read from Overwatch's "switched to" lines in chat. Old evenings have it too.
 - "Seen as" lists those heroes as well, not only the ones from callouts.
