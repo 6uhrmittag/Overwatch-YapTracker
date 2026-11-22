@@ -565,7 +565,7 @@ def change_detector(path: Path | None = None) -> ChangeDetector:
 
 
 def translate_chat(path: Path | None = None) -> bool:
-    """Translate chat lines with DeepL (#468): off unless switched on."""
+    """Translate chat lines (#468; DeepL or AI, #568): off unless switched on."""
     return bool(_load(path or paths.config_file()).get("translate_chat", False))
 
 
@@ -610,6 +610,62 @@ def save_translate_auto(on: bool, path: Path | None = None) -> None:
     path = path or paths.config_file()
     data = _load(path)
     data["translate_auto"] = on
+    _save(path, data)
+
+
+def translate_engine(path: Path | None = None) -> str:
+    """Who translates (#568): "deepl" (the default) or "ai" (OpenRouter, the user's own key)."""
+    engine = _load(path or paths.config_file()).get("translate_engine", "deepl")
+    return engine if engine in ("deepl", "ai") else "deepl"
+
+
+def save_translate_engine(engine: str, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["translate_engine"] = engine
+    _save(path, data)
+
+
+def openrouter_key(path: Path | None = None) -> str:
+    """The user's own OpenRouter key (#568): only here, never logged or sent elsewhere."""
+    return str(_load(path or paths.config_file()).get("openrouter_key", ""))
+
+
+def save_openrouter_key(key: str, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["openrouter_key"] = key.strip()
+    _save(path, data)
+
+
+def ai_model(path: Path | None = None) -> str:
+    """The OpenRouter model that translates (#568); its default is in ai_translate."""
+    from yaptracker.ai_translate import DEFAULT_MODEL
+
+    return str(_load(path or paths.config_file()).get("ai_model") or DEFAULT_MODEL)
+
+
+def save_ai_model(model: str, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["ai_model"] = model.strip()
+    _save(path, data)
+
+
+def ai_cap(path: Path | None = None) -> float:
+    """What the AI may cost a month, in US dollars (#568)."""
+    from yaptracker.ai_translate import DEFAULT_CAP
+
+    try:
+        return max(0.0, float(_load(path or paths.config_file()).get("ai_cap", DEFAULT_CAP)))
+    except (TypeError, ValueError):
+        return DEFAULT_CAP
+
+
+def save_ai_cap(usd: float, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["ai_cap"] = max(0.0, float(usd))
     _save(path, data)
 
 

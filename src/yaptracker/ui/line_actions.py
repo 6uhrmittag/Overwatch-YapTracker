@@ -11,8 +11,8 @@ from collections.abc import Callable
 from nicegui import run, ui
 
 from yaptracker import config, runtime
-from yaptracker.auto_translate import context_for, unchanged
-from yaptracker.glyphs import GLYPH, unnamed
+from yaptracker.auto_translate import context_for, outgoing, unchanged
+from yaptracker.glyphs import GLYPH
 from yaptracker.translate import FAILED, Translation, language
 from yaptracker.ui.quick_verdict import OWN_CLICK
 
@@ -146,7 +146,8 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
         return None
     with line:
         b = ui.element("button").classes("yt-line-act").mark("translate-line")
-        b.props('type="button" title="What does it mean? Asks DeepL with your key"')
+        who = "the AI" if config.translate_engine() == "ai" else "DeepL"  # (#568)
+        b.props(f'type="button" title="What does it mean? Asks {who} with your key"')
         with b:
             ui.label("Translate")
     shown: dict = {"out": None, "busy": False, "done": None}  # its one label
@@ -189,7 +190,7 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
         if kept is not None:  # translated or looked at before: never sent again (#470, #567)
             show(kept)
             return
-        text = " ".join(unnamed(now.text).replace(GLYPH, " ").split())
+        text = outgoing(now.text)  # no icons, no glued system row with a name (#568)
         shown["busy"] = True
         try:
             done = await run.io_bound(_translate, store, now, text)
@@ -227,7 +228,9 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
 
 
 def _translate(store, message, text: str) -> Translation:
-    """The line with the text of the lines before it as DeepL's context (#538)."""
+    """The line with the text of the lines before it as context (#538, #568)."""
+    if not text:  # all of it was a glued system row (outgoing)
+        return Translation(error="Nothing to translate in this line.")
     return runtime.translator.translate(text, context_for(store, message))
 
 
@@ -277,7 +280,7 @@ def looked_at(message, target: str) -> Translation | None:
     code = getattr(message, "translation_from", None)
     if message.translation or code != target or message.translation_to != target:
         return None
-    return Translation(error=f"DeepL reads this as {language(code)}: nothing to translate.")
+    return Translation(error=f"Read as {language(code)} before: nothing to translate.")
 
 
 def stored(message, target: str | None = None) -> Translation | None:

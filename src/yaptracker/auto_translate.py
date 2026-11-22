@@ -15,11 +15,12 @@ gets the text of the few lines before as context (#538): one request per match.
 """
 
 import logging
+import re
 import threading
 import time
 from collections.abc import Callable
 
-from yaptracker import languages
+from yaptracker import ai_translate, hero_switches, languages
 from yaptracker.glyphs import GLYPH, unnamed
 from yaptracker.translate import (
     NO_KEY,
@@ -36,7 +37,17 @@ POLL_S = 1.0  # how often it looks for new lines: the translation is there withi
 BATCH = 25  # lines in one request at most
 # After a failed request, new lines wait instead of asking again: a minute (a fixed key works a
 # minute later), 10 for the rest (quota). No key yet sent nothing, so nothing waits.
-WAIT_S = {OFFLINE: 60.0, TOO_MANY: 60.0, WRONG_KEY: 60.0, NO_KEY: 0.0, NOT_FREE: 0.0}
+WAIT_S = {OFFLINE: 60.0, TOO_MANY: 60.0, WRONG_KEY: 60.0, NO_KEY: 0.0, NOT_FREE: 0.0,
+          ai_translate.OFFLINE: 60.0, ai_translate.BUSY: 60.0, ai_translate.WRONG_KEY: 60.0,
+          ai_translate.NO_KEY: 0.0}  # fmt: skip
+# The game's own rows that OCR sometimes glues onto the end of a typed line, names in them
+# ("gg You endorsed Name!", "Name switched to Ana (was Mercy)."): cut before anything is sent.
+# Only the game's own shapes at the very end: "he endorsed me lol" is somebody talking.
+_SYSTEM_TAIL = re.compile(
+    r"\s*(?:\S+\s+endorsed[\s-]+\S+!"  # "You endorsed Name!" (also misread "endorsed-Name!")
+    r"|\S+\s+started playing Overwatch\.?)\s*$",
+    re.IGNORECASE,
+)
 WAIT_OTHER_S = 600.0
 CONTEXT_LINES = 5  # lines before as DeepL's context (#538): the same channel's first
 CONTEXT_SAME = 3  # fewer of those than this: the match's lines of any channel
@@ -55,7 +66,17 @@ def context_for(store, message) -> str | None:
 
 
 def _clean(text: str) -> str:
-    return " ".join(unnamed(text or "").replace(GLYPH, " ").split())
+    return outgoing(text)
+
+
+def outgoing(text: str) -> str:
+    """A line's text as a translator gets it (#568): icons out, a glued system row with a name
+    cut off (_SYSTEM_TAIL)."""
+    plain = " ".join(unnamed(text or "").replace(GLYPH, " ").split())
+    if hero_switches.find(plain):  # "Name switched to Ana (was Mercy).": two real heroes (#262)
+        before = plain[: plain.rfind(" switched to ")]  # ends with the switcher's name
+        plain = before.rsplit(" ", 1)[0] if " " in before else ""
+    return _SYSTEM_TAIL.sub("", plain)
 
 
 class AutoTranslate:
@@ -122,12 +143,13 @@ class AutoTranslate:
             failed = self._failed
             if failed is not None and self._clock() < failed[0]:
                 done += [failed[1]] * len(group)  # still failing: say so, don't ask again yet
-                log.debug("translate: %d line(s) not sent: DeepL failed a moment ago", len(group))
+                log.debug("translate: %d line(s) not sent: %s failed a moment ago", len(group),
+                          getattr(translator, "name", "DeepL"))  # fmt: skip
                 continue
             for message in group:
                 log.debug("translate: a line of %d characters sent", len(message.text))
             sent += len(group)
-            found = translator.translate_many([unnamed(m.text) for m in group],
+            found = translator.translate_many([outgoing(m.text) for m in group],
                                               context_for(store, group[0]))  # fmt: skip
             errors = [d for d in found if d.error]
             self._failed = (
@@ -176,7 +198,7 @@ def why_not(message, read: set[str]) -> str | None:
         return "yours or your crew's"
     if message.translation or message.translation_from:
         return "looked at before"
-    return languages.skip(unnamed(message.text), read)
+    return languages.skip(outgoing(message.text), read)  # what would be sent (#568)
 
 
 def unchanged(text: str, translation: str | None) -> bool:
