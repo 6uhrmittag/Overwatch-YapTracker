@@ -1,11 +1,12 @@
 """App frame: logo, icon rail on the left, one content area."""
 
+import contextlib
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from nicegui import app, ui
+from nicegui import Client, app, ui
 
 from yaptracker import chat_colours, runtime
 from yaptracker.ui import icons, search, sessions, timing, views, yappers
@@ -68,11 +69,31 @@ log = logging.getLogger(__name__)
 _loads = {"n": 0}
 
 
+def _connected(page: Client) -> None:
+    """A page (re)connected. Pages that lost their window go now: kept for app.RECONNECT_S so a
+    stall doesn't cost the page (#562), a page the window has replaced would otherwise run its
+    timers (Live's refresh, What's new) for minutes with nobody looking."""
+    page.yt_connected = True
+    for other in list(Client.instances.values()):
+        stale = getattr(other, "yt_connected", False) and not other.has_socket_connection
+        if other is page or not stale:
+            continue
+        waiting = getattr(other, "_delete_tasks", {})  # NiceGUI's own, later delete: not twice
+        for task in list(waiting.values()):
+            task.cancel()
+        waiting.clear()
+        with contextlib.suppress(KeyError):  # gone already
+            other.delete()
+
+
 def root() -> None:
     """Build the whole window for one client."""
-    # Once per start; more often, the window lost its page and loaded it again (#562).
+    # Once per start in the app's window; more often, it lost its page and loaded it again
+    # (#562). (--dev: every browser tab counts.)
     _loads["n"] += 1
     log.info("ui: page loaded (%d since the start)", _loads["n"])
+    page = ui.context.client
+    page.on_connect(lambda: _connected(page))
     ui.add_head_html(f'<link rel="stylesheet" href="{STATIC_URL}/theme.css">')
     ui.add_css(chat_colours.css(chat_colours.current()))  # your chat colours (#401)
     ui.add_head_html(f'<script defer src="{STATIC_URL}/follow.js"></script>')  # Live follows (#166)

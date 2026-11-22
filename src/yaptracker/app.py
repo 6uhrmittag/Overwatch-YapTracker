@@ -670,6 +670,19 @@ def _translator(dev: bool) -> None:
     app.on_shutdown(runtime.auto_translate.stop)
 
 
+def run_options(dev: bool) -> dict:
+    """What ui.run gets in the window and in --dev alike."""
+    return {
+        "title": TITLE,
+        # .ico because the native window loads it with LoadImage; browsers take it too.
+        "favicon": shell.STATIC_DIR / "yaptracker.ico",
+        "dark": True,
+        "reload": False,
+        "reconnect_timeout": RECONNECT_S,  # the page survives a stall (#562)
+        "show_welcome_message": dev,
+    }
+
+
 def run(
     *,
     dev: bool = False,
@@ -691,15 +704,7 @@ def run(
     app.on_shutdown(close_store)
     if smoke_test:
         _arm_smoke_test()
-    common = {
-        "title": TITLE,
-        # .ico because the native window loads it with LoadImage; browsers take it too.
-        "favicon": shell.STATIC_DIR / "yaptracker.ico",
-        "dark": True,
-        "reload": False,
-        "reconnect_timeout": RECONNECT_S,
-        "show_welcome_message": dev,
-    }
+    common = run_options(dev)
     if dev:
         ui.run(shell.root, host=DEV_HOST, port=DEV_PORT, show=False, **common)
     else:
