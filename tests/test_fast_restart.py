@@ -116,7 +116,7 @@ def failing_restarts(in_front: bool, store) -> list[int]:
     opened, open_source = opener(sources)
     watcher = CaptureWatcher(lambda: 42, open_source, health=CaptureHealth(store), retry_s=0.01,
                              in_front=lambda w: in_front, on_failing=switched.append,
-                             poll_s=10)  # fmt: skip
+                             poll_s=10, startup_s=0)  # fmt: skip
     watcher.start()
     try:
         wait_for(lambda: len(opened) >= FAST_TRIES + 2)
@@ -139,7 +139,7 @@ def test_sessions_that_die_after_their_first_picture_count_as_failed_restarts(st
     opened, open_source = opener([FakeWgc(1, "ended") for _ in range(FAST_TRIES + 3)])
     watcher = CaptureWatcher(lambda: 42, open_source, health=CaptureHealth(store), retry_s=0.01,
                              in_front=lambda w: True, on_failing=switched.append,
-                             poll_s=10)  # fmt: skip
+                             poll_s=10, startup_s=0)  # fmt: skip
     watcher.start()
     try:
         wait_for(lambda: switched)
@@ -180,11 +180,10 @@ def test_a_late_watchdog_tick_is_logged(caplog):
 
 
 def test_the_screen_after_failed_restarts_lasts_until_overwatch_closes():
-    saved = []
-    screen = ScreenFallback(BlackPicture(lambda: True), False, saved.append)
+    screen = ScreenFallback(BlackPicture(lambda: True))
     assert screen.say == SCREEN_SAY
     screen.stalled()
-    assert screen.screen and screen.say == STALLED_SAY and saved == []  # not remembered per PC
+    assert screen.screen and screen.say == STALLED_SAY
     screen.game_closed()
     assert not screen.screen and screen.why is None
 

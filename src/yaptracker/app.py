@@ -234,9 +234,15 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
 
     from yaptracker.capture.black import BlackPicture, ScreenFallback
 
-    runtime.black = BlackPicture(overwatch_in_front)  # exclusive Fullscreen, said in words (#217)
-    runtime.screen = ScreenFallback(runtime.black, config.screen_capture(),
-                                    config.save_screen_capture)  # fmt: skip
+    ran_before = {"s": 0.0}  # Overwatch already ran this long when YapTracker started
+
+    def window_age() -> float | None:  # a starting Overwatch shows black for a while (#560)
+        return runtime.watcher.window_age() if runtime.watcher is not None else None
+
+    # exclusive Fullscreen, said in words (#217)
+    runtime.black = BlackPicture(overwatch_in_front, window_age=window_age)
+    runtime.screen = ScreenFallback(runtime.black, remembered=config.screen_capture(),
+                                    remember=config.save_screen_capture)  # fmt: skip
 
     def crops_for(width: int, height: int) -> dict:
         return {**signal_regions(width, height), **overlay_regions(width, height)}
@@ -251,8 +257,11 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
             if runtime.window_size is not None:
                 fps_meter.update(frame.signals, runtime.window_size[1])
             runtime.black.update(frame.signals.get("overview"))
-        if runtime.screen.check(found["window_capture"]) and runtime.watcher is not None:
-            runtime.watcher.reopen()  # black window: the screen it's on instead (#236)
+        matches = runtime.matches
+        match = matches.match_id if matches is not None and matches.running else None
+        if runtime.screen.check(found["window_capture"], match) and runtime.watcher is not None:
+            # black window: the screen it's on instead (#236); or the window, tried again (#560)
+            runtime.watcher.reopen()
 
     found = {"hwnd": None, "window_capture": False}  # the display line follows (#214)
     from yaptracker.capture.wgc import CaptureRate
@@ -267,13 +276,16 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
     rate = CaptureRate(match_running, reopen)  # 2 frames a second, in and between (#350, #115)
 
     def open_source(hwnd: int):
+        from yaptracker.capture.stats import CAPTURE
         from yaptracker.capture.wgc import WgcFrameSource, has_rate_setting, windows_build
 
         found["hwnd"] = hwnd
         build = windows_build()
+        runtime.screen.opening()
         found["window_capture"] = has_rate_setting(build) and not runtime.screen.screen
         rate.fps = None
         if found["window_capture"]:
+            CAPTURE.how = "WGC"  # after a stretch on the screen (#560)
             return WgcFrameSource(hwnd, region_for, signals_for=crops_for, fps=rate.opened())
         from yaptracker.capture.gdi import GdiFrameSource
 
@@ -319,6 +331,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
             runtime.debug.match_event("capture-back")  # the first picture after (#506)
 
     def evening_over() -> None:  # Overwatch closed: maybe for tonight (#379)
+        ran_before["s"] = 0.0
         runtime.screen.game_closed()  # the next start tries the window again (#506)
         if runtime.evenings is not None and runtime.matches is not None:
             runtime.evenings.record(runtime.matches.session_id)
@@ -339,6 +352,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         return CaptureWatcher(find_overwatch, open_source, on_frame, stall_s=stall_s,
                               in_front=in_front, on_failing=capture_failing,
                               on_ended=capture_ended, on_back=capture_back,
+                              ran_before=lambda: ran_before["s"],
                               **common)  # fmt: skip
 
     if not dev and sys.platform != "win32":
@@ -350,7 +364,10 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
 
         if find_overwatch() is not None:
             last = runtime.store.latest_session() if runtime.store else None
-            runtime.health.started_late(process.started_at(), last[1] if last else None)
+            started = process.started_at()
+            if started is not None:  # not a starting game: black means black (#560)
+                ran_before["s"] = max(0.0, time.time() - started)
+            runtime.health.started_late(started, last[1] if last else None)
 
     def start_capture() -> None:  # after the store is open: gaps and matches need it
         if runtime.store is None:

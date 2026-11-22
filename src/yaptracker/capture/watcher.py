@@ -6,6 +6,7 @@ import time
 from collections.abc import Callable
 
 from yaptracker import side_work
+from yaptracker.capture.black import STARTUP_S
 from yaptracker.capture.health import CaptureHealth
 from yaptracker.capture.source import CaptureStalled, Frame, FrameSource
 
@@ -48,6 +49,8 @@ class CaptureWatcher:
         on_failing: Callable[[int], None] = lambda window: None,
         on_ended: Callable[[int, str], None] = lambda window, why: None,
         on_back: Callable[[], None] = lambda: None,
+        startup_s: float = STARTUP_S,
+        ran_before: Callable[[], float] = lambda: 0.0,
     ) -> None:
         self._find_window = find_window
         self._open_source = open_source
@@ -64,6 +67,10 @@ class CaptureWatcher:
         self._on_failing = on_failing  # restarts keep failing: read the screen instead (#506)
         self._front_failures = 0  # failed restarts in a row with Overwatch in front
         self._opened_at = 0.0
+        self._window_since: float | None = None  # when Overwatch's window appeared (#560)
+        self._startup_s = startup_s
+        self._ran_before = ran_before  # Overwatch ran this long before we first saw it
+        self._captured = False  # since Overwatch appeared: its closing is said (#560)
         self._stalled: tuple[FrameSource, str] | None = None  # set by the watchdog
         # Diagnostics (#506): what the window did when a capture ended, once per lost stretch.
         self._on_ended, self._on_back = on_ended, on_back
@@ -127,14 +134,18 @@ class CaptureWatcher:
         while not self._stop.is_set():
             window = self._find_window()
             if window is None:
-                if self._failures:  # it broke and then the game went: no more loss
+                # it broke, or was being reopened, and then the game went: no more loss
+                if self._failures or self._captured:
                     self._game_closed()
                 self.state, self._failures, self._front_failures = "waiting", 0, 0
+                self._captured = False
                 self.last_error = self._stretch = None  # the next launch starts afresh
                 self._focus_window = self._in_focus = None
-                self._focus_lost_at = self._focus_back_at = None
+                self._focus_lost_at = self._focus_back_at = self._window_since = None
                 self._stop.wait(self._poll_s)
                 continue
+            if self._window_since is None:
+                self._window_since = self._clock()
             try:
                 self._capture(window)
                 if self._stop.is_set():
@@ -152,6 +163,7 @@ class CaptureWatcher:
             self.state, self.window = "waiting", None
             if reason is None:
                 self._game_closed()
+                self._captured = False
                 self._failures = self._front_failures = 0
                 continue
             self._health_call("lost", reason)
@@ -172,12 +184,22 @@ class CaptureWatcher:
             return self._retry_s
         return min(60.0, self._poll_s * 2 ** (self._failures - FAST_TRIES - 2))
 
+    def window_age(self) -> float | None:
+        """Seconds since Overwatch's window appeared; None: no window."""
+        since = self._window_since
+        return None if since is None else self._clock() - since + self._ran_before()
+
     def _failing(self, window: int, lived: float = HEALTHY_S) -> None:
         """A restart that brought no picture, or only a few seconds of them, with Overwatch in
         front: FAST_TRIES of them in a row read the screen instead (#506). Minimised or
-        alt-tabbed doesn't count."""
+        alt-tabbed doesn't count; nor does the game's first minute, when it's still starting and
+        its window may show nothing new for a while (#560)."""
         if self._failures < 2 and lived >= HEALTHY_S:
             return  # the first loss after a session that worked isn't a failed restart
+        if (self.window_age() or 0.0) < self._startup_s:
+            self._front_failures = 0
+            self._failures = min(self._failures, FAST_TRIES + 1)  # no long waits from these
+            return
         if not self._in_front(window):
             self._front_failures = 0
             return
@@ -290,7 +312,7 @@ class CaptureWatcher:
                 side_work.failed(f"recording '{method}'", error, then="the capture goes on")
 
     def _capture(self, window: int) -> None:
-        self._stalled, self._opened_at = None, self._clock()
+        self._stalled, self._opened_at, self._captured = None, self._clock(), True
         self._focus_window = window
         self._source = source = self._open_source(window)
         log.info("capturing window %s", window)

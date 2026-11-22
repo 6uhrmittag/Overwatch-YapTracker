@@ -10,7 +10,6 @@ from PIL import Image
 from yaptracker import __version__, config, days, game_lists, logs, paths, runtime, system_info
 from yaptracker import reading_mode as modes
 from yaptracker.capture.black import SAY as BLACK_SAY
-from yaptracker.capture.black import SCREEN_SAY
 from yaptracker.capture.stats import CAPTURE
 from yaptracker.capture.watcher import fps
 from yaptracker.debug import DISK_LOW_SAY
@@ -402,8 +401,6 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
         health_text = ui.label().classes("yt-grow")
     with ui.element("div").classes("yt-banner yt-hidden").mark("black-picture") as black_hint:
         ui.label(BLACK_SAY).classes("yt-grow")  # (#217)
-    with ui.element("div").classes("yt-banner yt-hidden").mark("screen-capture") as screen_hint:
-        screen_text = ui.label(SCREEN_SAY).classes("yt-grow")  # (#236, #506)
     with ui.element("div").classes("yt-banner yt-hidden").mark("reads-failing") as failing_hint:
         ui.label(
             "Reading the chat keeps failing. I keep trying; what went wrong is in the log "
@@ -647,7 +644,9 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             meta.set_text(f"until next match, {minutes} min at most")
         elif capturing:
             skipped = f", {runtime.changes.skipped_share:.0%} skipped" if runtime.changes else ""
-            meta.set_text(f"{meter():.1f} fps{skipped}")
+            # reading from the screen is a normal way to work: said quietly, no banner (#560)
+            screen = "" if CAPTURE.how == "WGC" else ", reading from the screen"
+            meta.set_text(f"{meter():.1f} fps{skipped}{screen}")
         else:
             meta.set_text("")  # the banner says what's wrong and what to do; details are in the log
         # In a narrow window the fps line is hidden: the pill's tooltip still has it (#226).
@@ -697,10 +696,6 @@ def _live() -> None:  # noqa: C901 - split up after v1 (#311)
             health_banner.classes(add="yt-hidden")
         black = runtime.black is not None and runtime.black.black
         black_hint.classes(**{"remove" if black else "add": "yt-hidden"})
-        screen = runtime.screen is not None and runtime.screen.screen and not black
-        screen_hint.classes(**{"remove" if screen and capturing else "add": "yt-hidden"})
-        if screen:
-            screen_text.set_text(runtime.screen.say)
         disk_low = runtime.debug is not None and config.debug_samples() and runtime.debug.disk_low()
         disk_hint.classes(**{"remove" if disk_low else "add": "yt-hidden"})
         failing = runtime.reader is not None and getattr(runtime.reader, "failing", 0) >= FAIL_LIMIT

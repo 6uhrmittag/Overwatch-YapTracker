@@ -1,6 +1,7 @@
 """A black picture from Windows (#217): exclusive Fullscreen is said in words, in Live, in setup
 and in calibration, and a black snapshot is never the picture to draw on. Fakes, no game."""
 
+import asyncio
 import logging
 import time
 
@@ -33,20 +34,22 @@ def test_black_only_when_windows_sends_nothing_but_black():
     assert not is_black(dark_scene)
 
 
-def test_said_after_a_few_seconds_in_front_logged_once(caplog):
+def test_said_after_twenty_seconds_in_front_logged_once(caplog):
     clock, front = Clock(), {"on": True}
     black = BlackPicture(lambda: front["on"], clock)
     with caplog.at_level(logging.WARNING, logger="yaptracker.capture.black"):
-        black.update(BLACK)
-        assert not black.black  # a fade between screens isn't it
-        for _ in range(3):
-            clock.now += 5
+        for _ in range(4):  # 0, 5, 10, 15 s: a fade or a loading screen isn't it
             black.update(BLACK)
+            assert not black.black
+            clock.now += 5
+        black.update(BLACK)
         assert black.black
+        clock.now += 5
+        black.update(BLACK)
         black.update(GAME)
         assert not black.black
         front["on"] = False  # alt-tabbed: not a fair test
-        for _ in range(3):
+        for _ in range(6):
             clock.now += 5
             black.update(BLACK)
         assert not black.black
@@ -109,41 +112,26 @@ async def test_calibration_without_the_game_explains_itself(user: User):
     await user.should_see("Pick a screenshot file")
 
 
-def test_a_black_window_switches_to_the_screen_once_and_is_remembered(caplog):
-    clock, saved = Clock(), []
+def test_a_black_window_switches_to_the_screen_once(caplog):
+    clock = Clock()
     black = BlackPicture(lambda: True, clock)
-    fallback = ScreenFallback(black, remembered=False, remember=saved.append)
+    fallback = ScreenFallback(black, clock)
     black.update(GAME)
     assert not fallback.check(window_capture=True)
     black.update(BLACK)
-    assert not fallback.check(window_capture=True)  # a fade between screens isn't it
-    clock.now += 5
+    assert not fallback.check(window_capture=True)  # a single black frame never switches (#560)
+    clock.now += 20
     black.update(BLACK)
     with caplog.at_level(logging.WARNING, logger="yaptracker.capture.black"):
         assert fallback.check(window_capture=True) and fallback.screen
-    assert saved == [True] and "reading the screen" in caplog.text
+    assert "reading the screen" in caplog.text
     assert not fallback.check(window_capture=False)  # once: the screen is read now
 
 
 def test_screen_capture_is_never_a_reason_to_switch():
     black = BlackPicture(lambda: True, Clock())
     black.black = True  # GDI on Windows 10 (#248) is the screen already: Fullscreen, then
-    assert not ScreenFallback(black, False, lambda on: None).check(window_capture=False)
-
-
-def test_remembered_switches_at_the_first_black_picture_and_forgets_a_working_window():
-    saved = []
-    black = BlackPicture(lambda: True, Clock())
-    fallback = ScreenFallback(black, remembered=True, remember=saved.append)
-    black.update(BLACK)
-    assert fallback.check(window_capture=True) and saved == []  # remembered already
-
-    black = BlackPicture(lambda: True, Clock())  # the next start: the window works again
-    fallback = ScreenFallback(black, remembered=True, remember=saved.append)
-    black.update(GAME)
-    assert not fallback.check(window_capture=True) and saved == [False]
-    black.update(BLACK)
-    assert not fallback.check(window_capture=True)  # back to waiting a few seconds
+    assert not ScreenFallback(black).check(window_capture=False)
 
 
 def test_reopen_closes_the_capture_and_opens_it_again_without_a_gap():
@@ -185,18 +173,46 @@ def test_reopen_closes_the_capture_and_opens_it_again_without_a_gap():
     assert len(sources) == 2 and sources[0].closed and "lost" not in reopened
 
 
-async def test_live_and_about_say_the_screen_is_read(user: User, monkeypatch):
+async def test_live_says_it_quietly_and_about_says_why(user: User, monkeypatch):
+    """Reading from the screen is a normal way to work (#560): no orange banner for it."""
+    from yaptracker.capture.stats import CAPTURE
+
     capturing(monkeypatch)
     black = BlackPicture(lambda: True)
-    fallback = ScreenFallback(black, False, lambda on: None)
-    fallback.screen = True
+    fallback = ScreenFallback(black)
+    fallback.screen, fallback.why = True, "black"
     monkeypatch.setattr(runtime, "black", black)
     monkeypatch.setattr(runtime, "screen", fallback)
+    monkeypatch.setattr(CAPTURE, "how", "GDI, chat box only")
     config.save_setup_state("done")
     await user.open("/")
     await user.should_see("Listening for yaps")
-    (banner,) = user.find(marker="screen-capture").elements
-    (black_banner,) = user.find(marker="black-picture").elements
-    assert "yt-hidden" not in banner.classes and "yt-hidden" in black_banner.classes
+    await user.should_see("reading from the screen", marker="status-meta")
+    await user.should_not_see(marker="screen-capture")
+    await user.should_not_see("Keep other windows off")
+    for marker in ("health", "black-picture"):
+        (banner,) = user.find(marker=marker).elements
+        assert "yt-hidden" in banner.classes, marker
     user.find(marker="nav-settings").click()
     await user.should_see(marker="capture-screen")
+    await user.should_see("I try the window again at every match start")
+
+
+async def test_the_cover_warning_only_while_something_covers_the_chat_box(user: User, monkeypatch):
+    from yaptracker.capture.stats import CAPTURE
+
+    watcher = capturing(monkeypatch)
+    monkeypatch.setattr(CAPTURE, "how", "GDI, chat box only")
+    config.save_setup_state("done")
+    watcher.covered = "File Explorer"
+    await user.open("/")
+    await user.should_see("Another window covers Overwatch's chat box (File Explorer)", retries=30)
+    (banner,) = user.find(marker="health").elements
+    assert "yt-hidden" not in banner.classes
+    watcher.covered = None  # gone: so is the warning, the quiet line stays
+    for _ in range(50):
+        if "yt-hidden" in banner.classes:
+            break
+        await asyncio.sleep(0.1)
+    assert "yt-hidden" in banner.classes
+    await user.should_see("reading from the screen", marker="status-meta")
