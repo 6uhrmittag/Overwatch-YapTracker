@@ -301,6 +301,9 @@ of view, like OBS or the Snipping Tool.
   (`api-free.deepl.com/v2/translate`, `translate.py`) with the user's own key (only in local
   `config.json`), off by default, sending only the text of a line to translate: never names,
   pictures or ids. Tests use a fake client; no real DeepL calls in tests or CI.
+  Since #567: auto-translate sends every line from others that isn't clearly in a language the
+  user reads (DeepL's detection decides), and `api-free.deepl.com/v2/usage` is asked (key only, no
+  chat data, at most every 10 min while Translate chat is on) for the month's character count.
   Decided for later: the **OpenRouter bridge** (#326, parked): vision + text models with the user's own key,
   off by default, never in the live path (after the match only), names hidden before sending,
   zero-data-retention providers only, monthly spend cap. The app must work identically without it.

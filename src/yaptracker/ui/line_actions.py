@@ -249,6 +249,7 @@ async def _keep(message_id: int, done: Translation, target: str, text: str) -> N
             await run.io_bound(store.set_not_foreign, message_id, done.code, target)
         elif done.code not in config.read_languages() and not unchanged(text, done.text):
             await run.io_bound(store.set_translation, message_id, done.text, done.code, target)
+            log.info("translate: clicked: 1 translated")  # the evening line counts these
     except Exception:
         log.exception("translate: keeping a translation failed")
 

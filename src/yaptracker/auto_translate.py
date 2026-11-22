@@ -9,8 +9,9 @@ callouts (the game's own words), not shorthand or single short words (`why_not`)
 detected language has the last word: a line it calls English (or another language you read), or
 gives back as it was, stays untranslated and is remembered as looked at. Each text is sent once
 a run; when DeepL fails (quota, key, offline) the clearly foreign lines show why, and new ones
-wait a while instead of asking again and again. A translation is stored with its line (#470).
-DeepL gets the text of the few lines before as context (#538): one request per match.
+wait a while instead of asking again and again. Near the month's free limit nothing is sent by
+itself any more: what's left is for clicks. A translation is stored with its line (#470). DeepL
+gets the text of the few lines before as context (#538): one request per match.
 """
 
 import logging
@@ -107,6 +108,11 @@ class AutoTranslate:
                           len(message.text), why)  # fmt: skip
         if not foreign:
             return 0
+        usage = translator.usage()
+        if usage is not None and usage.near:  # the rest of the month is for clicks
+            log.debug("translate: %d line(s) not sent: %d of %d characters used this month",
+                      len(foreign), usage.used, usage.limit)  # fmt: skip
+            return 0
         groups: dict = {}  # one request per match: DeepL takes one context per request (#538)
         for message in foreign:
             groups.setdefault(message.match_id, []).append(message)
@@ -143,7 +149,7 @@ class AutoTranslate:
             if show:
                 with self._lock:
                     self._found[message.id] = translation
-        if sent:
+        if sent:  # the evening line counts these (#567, evenings._EVENTS)
             log.info("translate: auto: %d translated of %d line(s) sent", translated, sent)
         return len(foreign)
 
