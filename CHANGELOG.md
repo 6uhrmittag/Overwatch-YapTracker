@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-22 · Profiles know which heroes someone switched between (#262)
+- A yapper's profile now shows what they played in a match ("Played Sierra → Vendetta"), read from Overwatch's "switched to" lines in chat. Old evenings have it too.
+- "Seen as" lists those heroes as well, not only the ones from callouts.
+- A hero switch is now its own system line instead of sticking to the end of the yap above it.
+
 ### 2026-11-22 · Sessions: Loved only, and loved matches up front in the export (#286)
 - Sessions has a new **Loved only** switch next to **Every match**: only the days and matches you hearted, each match with its usual number. It stays on while you go through days and matches.
 - Nothing hearted yet? Sessions says how: click the heart on a match, in Live or at the top of its transcript.
