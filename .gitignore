@@ -32,3 +32,5 @@ Thumbs.db
 
 # --- Claude Code local settings (per machine) ---
 .claude/settings.local.json
+# worktrees of parallel agents (v1.3): each a full checkout
+.claude/worktrees/
