@@ -96,8 +96,8 @@ class AutoTranslate:
             return 0
         self._last = lines[-1].id
         read = self._read()
-        foreign = [m for m in lines if _theirs(m) and not only_shorthand(m.text)
-                   and languages.foreign(m.text, read)]  # fmt: skip
+        foreign = [m for m in lines if _theirs(m) and not only_shorthand(unnamed(m.text))
+                   and languages.foreign(unnamed(m.text), read)]  # fmt: skip
         if not foreign:
             return 0
         groups: dict = {}  # one request per match: DeepL takes one context per request (#538)
@@ -109,7 +109,7 @@ class AutoTranslate:
             if failed is not None and self._clock() < failed[0]:
                 done += [failed[1]] * len(group)  # still failing: say so, don't ask again yet
                 continue
-            found = translator.translate_many([m.text for m in group],
+            found = translator.translate_many([unnamed(m.text) for m in group],
                                               context_for(store, group[0]))  # fmt: skip
             errors = [d for d in found if d.error]
             self._failed = (

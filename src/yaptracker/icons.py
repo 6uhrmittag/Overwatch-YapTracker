@@ -26,7 +26,9 @@ LIBRARY = 1  # one up with every new template: stored lines are then named again
 ALIKE = 0.85
 CONTRAST = 40  # how much whiter than what's around it (0-255): a pattern in a wall isn't one
 EDGE = 6  # px
-# The templates are 1440p; chat grows with the window: 1080p, 1200p, 1440p, 1600p, 4K.
+# The templates are 1440p; chat grows with the window: 1080p, 1200p, 1440p, 1600p, 4K. Only
+# 1440p is measured on real lines; the others on those pictures resized. A size in between
+# mostly stays "◇" (group-up first: its thin rings don't survive a wrong size).
 SCALES = (0.75, 0.83, 1.0, 1.11, 1.5)
 
 
@@ -72,9 +74,16 @@ def find(picture: np.ndarray) -> list[str]:
         _, x, y, w, h, _ = spot
         if all(abs(x - k[1]) >= min(w, k[3]) or abs(y - k[2]) >= min(h, k[4]) for k in kept):
             kept.append(spot)
-    # Reading order: a wrapped line's second row comes after its first.
-    row = max((k[4] for k in kept), default=1)
-    return [k[5] for k in sorted(kept, key=lambda k: ((k[2] + k[4] / 2) // (1.2 * row), k[1]))]
+    # Reading order: a wrapped line's second row comes after its first. Icons whose middles are
+    # less than half an icon apart share a row.
+    rows: list[list[tuple]] = []
+    for spot in sorted(kept, key=lambda k: k[2] + k[4] / 2):
+        middle = spot[2] + spot[4] / 2
+        if rows and middle - (rows[-1][0][2] + rows[-1][0][4] / 2) < spot[4] / 2:
+            rows[-1].append(spot)
+        else:
+            rows.append([spot])
+    return [k[5] for row in rows for k in sorted(row, key=lambda k: k[1])]
 
 
 def name(text: str, picture: np.ndarray | None) -> str:

@@ -76,6 +76,8 @@ def test_two_icons_are_named_in_reading_order_also_on_a_wrapped_line():
     wrapped = frame(("heal", 100, 76), ("fall-back", 500, 34), height=130)
     assert icons.name("a ◇ b ◇", one_row) == "a [icon:fall-back] b [icon:heal]"
     assert icons.name("a ◇ b ◇", wrapped) == "a [icon:fall-back] b [icon:heal]"
+    uneven = frame(("heal", 100, 21), ("fall-back", 300, 25), height=70)  # a few px apart
+    assert icons.find(uneven) == ["heal", "fall-back"]
 
 
 def test_a_named_icon_still_counts_as_a_mark_everywhere_else():
