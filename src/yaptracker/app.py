@@ -30,6 +30,7 @@ DEV_HOST = "0.0.0.0"
 DEV_PORT = 8080
 SMOKE_TEST_TIMEOUT_S = 90
 LATER_NOTE = "unread-chat.json"  # the span of chat frames waiting to be read (#335)
+AI_SPEND = "ai_spend.json"  # what the AI translations cost this month (#568)
 UNREAD_DIR = "unread"  # chat frames a normal quit kept for the next start (#349)
 log = logging.getLogger(__name__)
 
@@ -652,15 +653,21 @@ def _whats_new_after_update(installed: str) -> None:
 
 
 def _translator(dev: bool) -> None:
-    """DeepL with the user's own key (#468); --dev translates with a fake, never online. Foreign
-    lines translate themselves on their own thread (#469)."""
-    from yaptracker import translate
+    """DeepL with the user's own key (#468), or an AI model via OpenRouter with theirs (#568);
+    --dev translates with a fake, never online. Foreign lines translate themselves on their own
+    thread (#469)."""
+    from yaptracker import ai_translate, translate
     from yaptracker.auto_translate import AutoTranslate
 
     if dev:
         runtime.translator = translate.FakeTranslator()
     else:
-        runtime.translator = translate.DeepL(config.deepl_key, config.translate_to)
+        ai = ai_translate.OpenRouter(config.openrouter_key, config.translate_to,
+                                     config.ai_model, config.ai_cap,
+                                     ai_translate.Spend(paths.data_dir() / AI_SPEND))  # fmt: skip
+        runtime.translator = ai_translate.Engines(
+            translate.DeepL(config.deepl_key, config.translate_to), ai,
+            config.translate_engine, lambda: bool(config.deepl_key().strip()))  # fmt: skip
     runtime.auto_translate = AutoTranslate(
         lambda: runtime.store,
         lambda: runtime.translator,

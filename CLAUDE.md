@@ -304,9 +304,18 @@ of view, like OBS or the Snipping Tool.
   Since #567: auto-translate sends every line from others that isn't clearly in a language the
   user reads (DeepL's detection decides), and `api-free.deepl.com/v2/usage` is asked (key only, no
   chat data, at most every 10 min while Translate chat is on) for the month's character count.
-  Decided for later: the **OpenRouter bridge** (#326, parked): vision + text models with the user's own key,
-  off by default, never in the live path (after the match only), names hidden before sending,
-  zero-data-retention providers only, monthly spend cap. The app must work identically without it.
+  Built exception (#568, v1.3): **optional AI translation via OpenRouter**
+  (`openrouter.ai/api/v1/chat/completions`, `ai_translate.py`) with the user's own key (only in
+  local `config.json`), off by default (Settings → Translate chat → DeepL / AI). The same data as
+  DeepL and nothing more: the text of the lines to translate plus the text of up to 5 lines before
+  as context; never names, pictures or ids, and a system row OCR glued onto a line (it has names)
+  is cut first (`auto_translate.outgoing`). Live is allowed (only a network call, no CPU/GPU work
+  here). Only zero-data-retention providers that don't collect data
+  (`provider: {zdr: true, data_collection: deny}`); a monthly spend cap in US dollars stops it in
+  words (spend kept in `data/ai_spend.json`); on error, timeout or cap DeepL takes over when its key
+  is set. Tests use a fake client; no real OpenRouter calls in tests or CI.
+  Decided for later: the rest of the **OpenRouter bridge** (#326, parked): vision models on line
+  pictures, after the match only, under the same rules. The app must work identically without it.
 - **The repo is public.** Never commit screenshots or real chat logs — they
   contain other players' names. Real samples live in `fixtures/private/`
   (gitignored). Committed test fixtures are OCR-output JSON with names replaced.
