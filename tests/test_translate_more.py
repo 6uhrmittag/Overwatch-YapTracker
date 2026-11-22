@@ -125,8 +125,9 @@ def test_what_deepl_calls_english_is_not_shown_and_not_sent_again(store):
     # remembered with the line, so also after a restart: not by itself, not with a click
     assert why_not(kept, READ) == "looked at before"
     assert looked_at(kept, "EN").error == "DeepL reads this as English: nothing to translate."
-    assert looked_at(store.message(names), "EN").error == "DeepL has no other words for this line."
     assert looked_at(kept, "DE") is None  # into German is another question
+    assert why_not(store.message(names), READ) == "looked at before"
+    assert looked_at(store.message(names), "EN") is None  # read better since, maybe: a click asks
     # nowhere a translation: search, and the export keeps its documented shape
     assert [m.id for m in store.search("nice")] == [english]
     record = export._message(kept)

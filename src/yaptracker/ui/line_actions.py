@@ -272,16 +272,13 @@ def said_as(done: Translation) -> str:
 
 def looked_at(message, target: str) -> Translation | None:
     """DeepL looked at this line before and found nothing to translate (#567): said in words,
-    not asked again; None: ask it. A line in another language you read (English, into German)
-    is still your call."""
+    not asked again; None: ask it. Only when it's in the language you translate into: another
+    language you read (English, into German) is your call, and a line DeepL gave back as it
+    was may have been read better since."""
     code = getattr(message, "translation_from", None)
-    if message.translation or not code or message.translation_to != target:
+    if message.translation or code != target or message.translation_to != target:
         return None
-    if code == target:
-        return Translation(error=f"DeepL reads this as {language(code)}: nothing to translate.")
-    if code in config.read_languages():
-        return None
-    return Translation(error="DeepL has no other words for this line.")
+    return Translation(error=f"DeepL reads this as {language(code)}: nothing to translate.")
 
 
 def stored(message, target: str | None = None) -> Translation | None:
