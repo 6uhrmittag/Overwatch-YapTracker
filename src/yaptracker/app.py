@@ -237,12 +237,12 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
     ran_before = {"s": 0.0}  # Overwatch already ran this long when YapTracker started
 
     def window_age() -> float | None:  # a starting Overwatch shows black for a while (#560)
-        age = runtime.watcher.window_age() if runtime.watcher is not None else None
-        return None if age is None else age + ran_before["s"]
+        return runtime.watcher.window_age() if runtime.watcher is not None else None
 
     # exclusive Fullscreen, said in words (#217)
     runtime.black = BlackPicture(overwatch_in_front, window_age=window_age)
-    runtime.screen = ScreenFallback(runtime.black)
+    runtime.screen = ScreenFallback(runtime.black, remembered=config.screen_capture(),
+                                    remember=config.save_screen_capture)  # fmt: skip
 
     def crops_for(width: int, height: int) -> dict:
         return {**signal_regions(width, height), **overlay_regions(width, height)}
@@ -257,8 +257,9 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
             if runtime.window_size is not None:
                 fps_meter.update(frame.signals, runtime.window_size[1])
             runtime.black.update(frame.signals.get("overview"))
-        if (runtime.screen.check(found["window_capture"], match_running())
-                and runtime.watcher is not None):  # fmt: skip
+        matches = runtime.matches
+        match = matches.match_id if matches is not None and matches.running else None
+        if runtime.screen.check(found["window_capture"], match) and runtime.watcher is not None:
             # black window: the screen it's on instead (#236); or the window, tried again (#560)
             runtime.watcher.reopen()
 
@@ -351,6 +352,7 @@ def _watch_for_overwatch(dev: bool) -> None:  # noqa: C901 - split up after v1 (
         return CaptureWatcher(find_overwatch, open_source, on_frame, stall_s=stall_s,
                               in_front=in_front, on_failing=capture_failing,
                               on_ended=capture_ended, on_back=capture_back,
+                              ran_before=lambda: ran_before["s"],
                               **common)  # fmt: skip
 
     if not dev and sys.platform != "win32":
