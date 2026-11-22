@@ -488,6 +488,15 @@ class Store:
         )
         return [hero for (hero,) in rows]
 
+    def switch_lines(self) -> list[tuple[int | None, float, str]]:
+        """(match, time, text) of every line that may hold a hero switch (#262): the system line
+        itself, or the yap it was read into - as first read, if a fix by hand took it out."""
+        like = "LIKE '%switched to %(was %'"
+        return self._read(
+            f"SELECT match_id, ts, CASE WHEN text {like} THEN text ELSE original_text END "
+            f"FROM live_messages WHERE text {like} OR original_text {like} ORDER BY ts, id"
+        )
+
     def met_before(
         self, player_id: int, match_id: int | None
     ) -> tuple[int, int, float | None, int]:

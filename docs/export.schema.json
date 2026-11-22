@@ -12,6 +12,7 @@
     "exported_at": {"$ref": "#/$defs/time"},
     "app_version": {"type": "string"},
     "anonymized": {"type": "boolean"},
+    "loved_matches": {"type": "array", "items": {"type": "integer"}, "description": "ids of the hearted matches (loved_at set), oldest first; the matches themselves are in sessions (newer exports)"},
     "sessions": {"type": "array", "items": {"$ref": "#/$defs/session"}},
     "messages_outside_matches": {"type": "array", "items": {"$ref": "#/$defs/message"}},
     "players": {"type": "array", "items": {"$ref": "#/$defs/player"}},
