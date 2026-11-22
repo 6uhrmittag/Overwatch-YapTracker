@@ -2,15 +2,19 @@
 chat, with made-up names."""
 
 import time
+from dataclasses import replace
+from types import SimpleNamespace
 
 import pytest
 from nicegui.testing import User, user_simulation
 
-from yaptracker import config, runtime
+from tests.test_channels import GREEN, frame
+from yaptracker import channels, config, runtime
 from yaptracker.capture.source import Region
 from yaptracker.hero_switches import Switch, find, heroes, of_player, played
 from yaptracker.ocr.engine import OcrLine
 from yaptracker.parser import parse
+from yaptracker.snaps import snap_lines
 from yaptracker.store.repo import Store
 from yaptracker.ui import shell
 
@@ -49,17 +53,21 @@ def test_talk_about_switching_is_no_switch(text):
 
 def test_one_players_history_by_name_whoever_the_line_belongs_to():
     rows = [
-        (2, 30.0, "lol NoodleBonkl switched to Ashe (was Vendetta)"),  # an OCR slip of the name
+        (2, 900.0, "lol NoodleBonkl switched to Ashe (was Vendetta)"),  # an OCR slip of the name
         (1, 10.0, "NoodleBonk switched to Vendetta (was Sierra)."),
         (1, 11.0, "hi NoodleBonk switched to Vendetta (was Sierra)."),  # stored twice
         (1, 20.0, "gg Noodle switched to Mei (was Ana)."),  # somebody else
         (1, 25.0, "NoodleBonk switched to Mercy (was Ashe)."),  # the switch to Ashe wasn't read
+        (1, 90.0, "NoodleBonk switched to Ashe (was Mercy)."),  # ... and back and forth
+        (1, 150.0, "NoodleBonk switched to Mercy (was Ashe)."),
     ]
     switches = of_player(rows, ["NoodleBonk"])
     assert [(s.match_id, s.ts, s.to) for s in switches] == [
-        (1, 10.0, "Vendetta"), (1, 25.0, "Mercy"), (2, 30.0, "Ashe")]  # fmt: skip
+        (1, 10.0, "Vendetta"), (1, 25.0, "Mercy"), (1, 90.0, "Ashe"), (1, 150.0, "Mercy"),
+        (2, 900.0, "Ashe")]  # fmt: skip
     assert played(switches) == {
-        1: "Sierra → Vendetta → Ashe → Mercy", 2: "Vendetta → Ashe"}  # fmt: skip
+        1: "Sierra → Vendetta → Ashe → Mercy → Ashe → Mercy",
+        2: "Vendetta → Ashe"}  # fmt: skip
     assert heroes(switches) == ["Ashe", "Vendetta", "Mercy", "Sierra"]
     assert of_player(rows, ["tortillaTank"]) == []
 
@@ -69,16 +77,30 @@ def _line(text, y):
 
 
 def test_the_parser_keeps_a_switch_as_its_own_system_line():
-    """It sits as close under a yap as a wrapped row and was joined to it."""
-    lines = [_line("[Bapricot]: glhf", 10), _line("MoonPebble switched to Ashe (was Sierra).", 39),
-             _line("* MoonPebble switched to Mei (was Ashe). ◇", 68),
-             _line("i switched to tank (was bored)", 97)]  # fmt: skip
-    assert [(p.kind, p.channel, p.speaker, p.text) for p in parse(lines)] == [
-        ("message", "unknown", "Bapricot", "glhf"),
+    """It sits as close under a yap as a wrapped row and was joined to it. Talk that wraps
+    ("i switched to ...") still is."""
+    lines = [_line("[Bapricot]: honestly", 10), _line("i switched to tank (was bored)", 39),
+             _line("MoonPebble switched to Ashe (was Sierra).", 68),
+             _line("* MoonPebble switched to Mei (was Ashe). ◇", 97),
+             _line("*MoonPebble switched to Ana (was Mei)", 126)]  # fmt: skip
+    parsed = parse(lines)
+    assert [(p.kind, p.channel, p.speaker, p.text) for p in parsed] == [
+        ("message", "unknown", "Bapricot", "honestly i switched to tank (was bored)"),
         ("system", "system", "MoonPebble", "MoonPebble switched to Ashe (was Sierra)."),
         ("system", "system", "MoonPebble", "MoonPebble switched to Mei (was Ashe)."),
-        ("unknown", "unknown", None, "i switched to tank (was bored)"),
+        ("system", "system", "MoonPebble", "MoonPebble switched to Ana (was Mei)"),
     ]
+    # Overwatch draws it in the team's colour: it teaches nothing about the system colour
+    image, boxes = frame([("MoonPebble switched to Ashe (was Sierra).", GREEN)])
+    switch = replace(parsed[1], box=boxes[0], head=boxes[0])
+    assert channels.learn([switch], image) == {}
+    assert "system" in channels.learn([replace(switch, text="[Bo] left the game.")], image)
+
+
+def test_a_snap_with_hidden_names_hides_the_switchers_name():
+    line = SimpleNamespace(channel="system", speaker_raw="MoonPebble", role=None,
+                           text="MoonPebble switched to Ashe (was Sierra).")  # fmt: skip
+    assert snap_lines([line], hide_names=True)[0].text == "Player 1 switched to Ashe (was Sierra)."
 
 
 @pytest.fixture

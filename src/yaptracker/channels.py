@@ -15,6 +15,7 @@ from dataclasses import dataclass, replace
 import cv2
 import numpy as np
 
+from yaptracker import hero_switches
 from yaptracker.capture.source import Region
 from yaptracker.ocr.engine import OcrLine
 from yaptracker.parser import ChatLine
@@ -262,6 +263,8 @@ def learn(lines: list[ChatLine], image: np.ndarray) -> dict[str, float]:
         channel = {"comms": "team", "system": "system"}.get(line.kind)
         if line.kind == "system" and _GROUP_SYSTEM.match(line.text):
             channel = "group"
+        if line.kind == "system" and hero_switches.line(line.text):
+            channel = None  # a hero switch is drawn in the team's colour, not the system's (#262)
         if line.kind == "input" and (prompt := _PROMPT.match(line.text)):
             channel = prompt[1].lower()
         hue = text_hue(image, line.box)

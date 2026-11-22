@@ -16,7 +16,8 @@ _SWITCH = re.compile(
     r"(?:^|\s)[^\w\s]*(?P<name>\S+) switched to (?P<to>[^()]+?)\s*"
     r"\(was (?P<was>[^()]+?)(?:\)\.?\s*\S{0,2})?\s*$"
 )
-STARTS = re.compile(r"^\S+ switched to [^()]+\(was ")  # the row on its own (parser)
+_STARTS = re.compile(r"^\S+ switched to [^()]+\(was ")
+SAME_S = 20.0  # one switch read into two stored lines; later, they switched back and forth
 
 
 @dataclass(frozen=True)
@@ -38,20 +39,27 @@ def find(text: str) -> Switch | None:
     return Switch(m["name"], to, was) if to and was and to != was else None
 
 
+def line(text: str) -> Switch | None:
+    """The switch a chat row is, on its own (parser): then it's no wrap of the yap above."""
+    return find(text) if _STARTS.match(text) else None
+
+
 def of_player(rows: list[tuple[int | None, float, str]], names: list[str]) -> list[Switch]:
     """One player's switches, oldest first. rows: (match, time, text) of the lines that may hold
     one; names: their name and its other spellings, matched as speakers are (#23)."""
     from yaptracker.identity import MATCH, clean  # identity imports the parser, which imports us
     from yaptracker.players import similarity
 
-    found: dict[tuple, Switch] = {}
+    found: list[Switch] = []
+    last: dict[tuple, float] = {}
     for match_id, ts, text in sorted(rows, key=lambda row: row[1]):
         switch = find(text)
         if switch and any(similarity(clean(switch.name), clean(n)) >= MATCH for n in names):
-            # the same switch read into two stored lines counts once
-            found.setdefault((match_id, switch.to, switch.was),
-                             Switch(switch.name, switch.to, switch.was, match_id, ts))  # fmt: skip
-    return list(found.values())
+            key = (match_id, switch.to, switch.was)
+            if ts - last.get(key, float("-inf")) > SAME_S:
+                found.append(Switch(switch.name, switch.to, switch.was, match_id, ts))
+            last[key] = ts
+    return found
 
 
 def heroes(switches: list[Switch]) -> list[str]:

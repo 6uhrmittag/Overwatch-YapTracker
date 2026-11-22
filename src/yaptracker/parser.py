@@ -104,9 +104,10 @@ class ChatLine:
 
 
 def _starts_line(text: str) -> bool:
+    if hero_switches.line(text):  # "Name switched to Ashe (was Sierra)." (#262)
+        return True
     return any(p.match(text) for p in (_TYPED, _TYPED_NO_BRACKET, _TYPED_MISREAD, _COMMS_START,
-                                       _SYSTEM_NAMED, _SYSTEM_PLAIN, _INPUT,
-                                       hero_switches.STARTS))  # fmt: skip
+                                       _SYSTEM_NAMED, _SYSTEM_PLAIN, _INPUT))  # fmt: skip
 
 
 # The channel icon read as a word: empty (" Name (Hero): Hello!") or a mark or digit
@@ -183,11 +184,11 @@ def _classify(text: str, confidence: float, box: Region) -> ChatLine:
             text = _TRAILING_GLYPH.sub("", text)
             return replace(line, kind="system", channel="system", speaker=m["name"], text=text)
         return replace(line, kind="message", speaker=m["name"], text=m["text"].strip())
-    if hero_switches.STARTS.match(text):
-        # "Name switched to Ashe (was Sierra)." (#262): its own line, not a wrap of the yap above
-        text = _TRAILING_GLYPH.sub("", text)
-        if switch := hero_switches.find(text):
-            return replace(line, kind="system", channel="system", speaker=switch.name, text=text)
+    if switch := hero_switches.line(text):
+        # A hero switch (#262): its own line, not a wrap of the yap above. Overwatch shows it
+        # with the team's icon and colour; it's kept as a system line, as nobody said it.
+        text = _TRAILING_GLYPH.sub("", text[text.index(switch.name) :])  # "*Name": the icon
+        return replace(line, kind="system", channel="system", speaker=switch.name, text=text)
     if _SYSTEM_PLAIN.match(text):
         return replace(line, kind="system", channel="system", text=_TRAILING_GLYPH.sub("", text))
     return line
@@ -219,7 +220,8 @@ def parse(
         # (Only the lower half of a cut line is visible, so its wrap sits even closer.)
         low = 0 if top_is_cut and len(groups) == 1 else 0.95 * height
         if (previous and not _starts_line(line.text) and low <= gap < 1.4 * height
-                and not has_icon(line.box)):  # fmt: skip
+                and not has_icon(line.box)
+                and not hero_switches.line(previous.text)):  # one row, never wraps  # fmt: skip
             groups[-1].append(line)
         else:
             groups.append([line])
