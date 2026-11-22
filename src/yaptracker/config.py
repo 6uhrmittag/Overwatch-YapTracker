@@ -363,6 +363,18 @@ def save_marks_checked(path: Path | None = None) -> None:
     _save(path, data)
 
 
+def icons_named(path: Path | None = None) -> int:
+    """The icon library (icons.LIBRARY) stored lines' "◇" were last named with (#121); 0: never."""
+    return int(_load(path or paths.config_file()).get("icons_named", 0))
+
+
+def save_icons_named(library: int, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["icons_named"] = library
+    _save(path, data)
+
+
 def chat_colours(path: Path | None = None) -> dict[str, str]:
     """The chat colours picked in Settings (#401), e.g. {"team": "#00c1ff"}; the rest default."""
     return _load(path or paths.config_file()).get("chat_colours", {})
