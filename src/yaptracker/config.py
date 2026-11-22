@@ -431,18 +431,6 @@ def save_show_what_i_see(on: bool, path: Path | None = None) -> None:
     _save(path, data)
 
 
-def screen_capture(path: Path | None = None) -> bool:
-    """This PC's window capture gave a black picture: switch to the screen sooner (#236)."""
-    return _load(path or paths.config_file()).get("screen_capture", False)
-
-
-def save_screen_capture(on: bool, path: Path | None = None) -> None:
-    path = path or paths.config_file()
-    data = _load(path)
-    data["screen_capture"] = on
-    _save(path, data)
-
-
 def window_place(path: Path | None = None) -> dict | None:
     """Where the app window was (#253): window_place.Place as a dict, or None."""
     return _load(path or paths.config_file()).get("window")
