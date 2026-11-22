@@ -4,6 +4,12 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-23 · Code health: the Live view refresh in named steps (#311)
+- Behind the scenes: the Live view's once-a-second refresh is split into small named steps with their own tests. Nothing changes on screen.
+
+### 2026-11-23 · Code health: capture start-up in named steps (#311)
+- Behind the scenes: the code that starts and follows the capture is split into small named steps with their own tests. Nothing changes in what it does.
+
 ### 2026-11-23 · Code health: the unused graphics-card reading is gone (#311)
 - Behind the scenes: the code for reading chat on the graphics card, switched off before v1 and never in a release (it made Overwatch stutter), is removed. Nothing changes in how YapTracker reads.
 
