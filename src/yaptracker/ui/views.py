@@ -831,7 +831,7 @@ def _listening(waiting) -> str:
     return "Ears open. No new yaps right now."
 
 
-def settings() -> None:  # noqa: C901 - split up after v1 (#311)
+def settings() -> None:  # noqa: C901 - a page builder: its handlers need the page's elements (#311)
     body = ui.element("div").classes("yt-view")
 
     def overview(saved: bool = False) -> None:

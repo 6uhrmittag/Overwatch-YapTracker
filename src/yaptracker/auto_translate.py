@@ -104,29 +104,16 @@ class AutoTranslate:
             return self._found.get(message_id)
 
     def step(self) -> int:
-        """One look: the new lines, the foreign ones translated. Returns how many were sent."""
+        """One look: the new lines, the foreign ones translated. Returns how many were sent.
+        In named steps since #311."""
         store, translator = self._store(), self._translator()
         if store is None or translator is None:
             return 0
-        if not self._on():
-            self._last = None  # switched off: what was said meanwhile stays as it is
-            return 0
-        lines = store.messages_after(self._last, BATCH)
-        if self._last is None:  # just switched on: from now on
-            self._last = lines[-1].id if lines else 0
-            return 0
+        lines = self._new_lines(store)
         if not lines:
             return 0
-        self._last = lines[-1].id
         read = self._read()
-        foreign = []
-        for message in lines:  # one debug line per decision: lengths and reasons only (#567)
-            why = why_not(message, read)
-            if why is None:
-                foreign.append(message)
-            else:
-                log.debug("translate: a line of %d characters not sent: %s",
-                          len(message.text), why)  # fmt: skip
+        foreign = _to_send(lines, read)
         if not foreign:
             return 0
         usage = translator.usage()
@@ -134,11 +121,33 @@ class AutoTranslate:
             log.debug("translate: %d line(s) not sent: %d of %d characters used this month",
                       len(foreign), usage.used, usage.limit)  # fmt: skip
             return 0
-        groups: dict = {}  # one request per match: DeepL takes one context per request (#538)
+        target = self._target()  # before the request: what it was translated into (#470)
+        foreign, done, sent = self._send(store, translator, foreign)
+        translated = self._keep(store, foreign, done, read, target)
+        if sent:  # the evening line counts these (#567, evenings._EVENTS)
+            log.info("translate: auto: %d translated of %d line(s) sent", translated, sent)
+        return len(foreign)
+
+    def _new_lines(self, store) -> list:
+        """The lines stored since the last look; none just after switching on (from now on)."""
+        if not self._on():
+            self._last = None  # switched off: what was said meanwhile stays as it is
+            return []
+        lines = store.messages_after(self._last, BATCH)
+        if self._last is None:  # just switched on: from now on
+            self._last = lines[-1].id if lines else 0
+            return []
+        if lines:
+            self._last = lines[-1].id
+        return lines
+
+    def _send(self, store, translator, foreign: list) -> tuple[list, list, int]:
+        """One request per match: DeepL takes one context per request (#538). Returns the lines
+        in the order of the answers, the answers, and how many were really sent."""
+        groups: dict = {}
         for message in foreign:
             groups.setdefault(message.match_id, []).append(message)
-        foreign, done, target = [m for g in groups.values() for m in g], [], self._target()
-        sent = 0
+        ordered, done, sent = [m for g in groups.values() for m in g], [], 0
         for group in groups.values():
             failed = self._failed
             if failed is not None and self._clock() < failed[0]:
@@ -157,6 +166,11 @@ class AutoTranslate:
                 if errors else None
             )  # fmt: skip
             done += found
+        return ordered, done, sent
+
+    def _keep(self, store, foreign: list, done: list, read: set[str], target: str) -> int:
+        """Each answer stored with its line or remembered as nothing to translate; what's worth
+        a word under a line is shown. Returns how many were translated."""
         translated = 0
         for message, translation in zip(foreign, done, strict=True):
             if translation.error:  # said under the line only when it's clearly foreign
@@ -171,9 +185,7 @@ class AutoTranslate:
             if show:
                 with self._lock:
                     self._found[message.id] = translation
-        if sent:  # the evening line counts these (#567, evenings._EVENTS)
-            log.info("translate: auto: %d translated of %d line(s) sent", translated, sent)
-        return len(foreign)
+        return translated
 
     def start(self) -> None:
         threading.Thread(target=self._run, name="translate", daemon=True).start()
@@ -187,6 +199,19 @@ class AutoTranslate:
                 self.step()
             except Exception:  # never takes the app down; tried again in a second
                 log.exception("translate: looking at new lines failed")
+
+
+def _to_send(lines: list, read: set[str]) -> list:
+    """The lines worth a translator's look; one debug line per decision: lengths and reasons
+    only (#567)."""
+    foreign = []
+    for message in lines:
+        why = why_not(message, read)
+        if why is None:
+            foreign.append(message)
+        else:
+            log.debug("translate: a line of %d characters not sent: %s", len(message.text), why)
+    return foreign
 
 
 def why_not(message, read: set[str]) -> str | None:
