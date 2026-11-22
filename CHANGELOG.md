@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-23 · Code health: start-up and auto-translate in named steps (#311)
+- Behind the scenes: opening the database at start and the automatic translation loop are split into small named steps with tests. Nothing changes in what they do.
+
 ### 2026-11-23 · Code health: the Live view refresh in named steps (#311)
 - Behind the scenes: the Live view's once-a-second refresh is split into small named steps with their own tests. Nothing changes on screen.
 
