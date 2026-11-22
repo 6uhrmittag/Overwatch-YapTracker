@@ -149,7 +149,8 @@ def snap_lines(
     for m in messages:  # in order, so Player 1 is whoever shows up first
         channel = m.channel if m.channel in _CHANNELS else "chat"
         if channel == "system":  # "[gremlin.exe] started playing Overwatch."
-            for name in _BRACKETED.findall(m.text):
+            # "Name switched to Ashe (was Sierra).": the name stands without brackets (#262)
+            for name in _BRACKETED.findall(m.text) + [n for n in [m.speaker_raw] if n]:
                 alias(name)
         who = "" if channel == "system" else alias(m.speaker_raw or "?", m.role)
         rows.append((channel, who, m.text, _when(getattr(m, "ts", None), started_at),

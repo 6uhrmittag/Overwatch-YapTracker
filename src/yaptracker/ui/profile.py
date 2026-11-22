@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from nicegui import ui
 
-from yaptracker import days, runtime
+from yaptracker import days, hero_switches, runtime
 from yaptracker.ui import backlog, icons
 from yaptracker.ui.components import (
     VERDICTS,
@@ -51,6 +51,11 @@ def profile(player_id: int, on_back: Callable[[], None]) -> None:
             button("\u2190 All yappers", on_back, "quiet").mark("back-to-yappers")
             ui.label(player.display_name).classes("yt-profile-name")
             aliases, heroes = store.aliases(player_id), store.player_heroes(player_id)
+            # the heroes they switched between in chat's system lines, after the callouts' (#262)
+            switches = hero_switches.of_player(
+                store.switch_lines(), [player.display_name, *aliases]
+            )
+            heroes += [h for h in hero_switches.heroes(switches) if h not in heroes]
             with ui.element("div").classes("yt-row"):
                 if heroes:
                     ui.label("Seen as " + ", ".join(heroes)).classes("yt-hint").mark("seen-as")
@@ -109,7 +114,7 @@ def profile(player_id: int, on_back: Callable[[], None]) -> None:
                 "yt-hint"
             )
             ui.label("Matches together").classes("yt-h2")
-            _together(player_id)
+            _together(player_id, hero_switches.played(switches))
         with ui.element("aside").classes("yt-card yt-profile-yaps"):
             with ui.element("div").classes("yt-card-body"):
                 with ui.element("div").classes("yt-row"):
@@ -239,9 +244,10 @@ def _match_link(heading: ui.element, match_id: int, said: list) -> None:
     _opens_match(heading, match_id, _first_line(said).id)
 
 
-def _together(player_id: int) -> None:
+def _together(player_id: int, played: dict[int | None, str]) -> None:
     """Every match they wrote in, newest first, one click to each (#388, Void's idea): day and
-    number as in Sessions, map, queue, result, the heart, how much they wrote."""
+    number as in Sessions, map, queue, result, the heart, how much they wrote, and the heroes
+    they switched between ("Played Sierra → Vendetta", #262)."""
     from yaptracker.ui.views import _OUTCOMES  # views imports this module
 
     store = runtime.store
@@ -266,7 +272,8 @@ def _together(player_id: int) -> None:
             what = [place_name(match.map) if match.map else None,
                     match_queue(match),
                     _OUTCOMES.get(match.outcome or "", None),
-                    count(typed, "yap", "yaps") if typed else "callouts only"]  # fmt: skip
+                    count(typed, "yap", "yaps") if typed else "callouts only",
+                    f"Played {played[match.id]}" if match.id in played else None]  # fmt: skip
             row = ui.element("div").classes("yt-together-row").mark(f"together-{match.id}")
             with row:
                 ui.label(when_).classes("yt-together-when")
