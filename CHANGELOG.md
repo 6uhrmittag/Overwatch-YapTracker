@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-22 · Sessions: Loved only, and loved matches up front in the export (#286)
+- Sessions has a new **Loved only** switch next to **Every match**: only the days and matches you hearted, each match with its usual number. It stays on while you go through days and matches.
+- Nothing hearted yet? Sessions says how: click the heart on a match, in Live or at the top of its transcript.
+- Export everything lists your loved matches first: a "Loved matches" list at the top of the export's README, and `loved_matches` in the JSON. Everything else in the export stays where it was.
+
 ### 2026-11-22 · Live no longer rebuilds itself during matches (#562)
 - The Live view kept being built from scratch in the middle of matches, taking seconds each time. It now stays as it is and just catches up when YapTracker had to wait for the game.
 - Behind the scenes: a slow view's log line now says how much of the time was work and how much was waiting, and names its three biggest parts.
