@@ -101,155 +101,200 @@ def _open_store() -> Callable[[], None]:
     """The database opens with the app (the smoke test too: it proves SQLite + FTS5 in the exe).
 
     Returns the close function; run() registers it last, after capture has stopped writing.
+    In named steps since #311, in the order they always ran.
     """
+
+    def open_store() -> None:
+        _open_files()
+        if not _open_database():
+            return  # a newer database (#352): touch nothing
+        _tidy_matches()
+        _start_bookkeeping()
+        _start_reader()
+        _start_read_again()
+        _clean_up_once()
+
+    app.on_startup(open_store)
+    return _close_store
+
+
+def _open_files() -> None:
+    """Debug samples and line pictures: counted once in the background, then kept in bounds."""
+    from yaptracker.debug import DebugSamples
+    from yaptracker.lines import LinePictures
+
+    runtime.debug = DebugSamples(paths.debug_dir(), config.debug_samples)
+    runtime.debug.start()  # counted once, then 14 days / 1 GB, also after a long break
+    runtime.pictures = LinePictures(paths.lines_dir(), config.line_pictures,
+                                    config.picture_cap_mb() * 1_000_000)  # fmt: skip
+    runtime.pictures.start()  # counted once in the background (#387), then 2 GB at most
+
+
+def _open_database() -> bool:
+    """The store; False when it's from a newer YapTracker: said, nothing touched (#352)."""
+    from yaptracker.store.db import NewerDatabaseError
+    from yaptracker.store.repo import Store
+
+    try:
+        runtime.store = Store.open()
+    except NewerDatabaseError as error:  # an older build: say so, touch nothing (#352)
+        log.error("%s", error)
+        runtime.data_too_new = str(error)
+        return False
+    return True
+
+
+def _tidy_matches() -> None:
+    from yaptracker import later
+    from yaptracker.cleanups import close_open_gaps
+    from yaptracker.matches import merge_split_matches
+    from yaptracker.store.backups import before_merge
+
+    close_open_gaps(runtime.store)  # killed while paused: it overlapped every match (#463)
+    try:  # one match per real match, also for matches split before (#371, #377)
+        merge_split_matches(
+            runtime.store,
+            later.unread_matches(paths.data_dir() / UNREAD_DIR),
+            lambda: before_merge(runtime.store.backup_to, paths.backup_dir()),
+        )
+    except Exception:
+        log.exception("merging split matches failed; the matches stay as they are")
+
+
+def _missed_end() -> None:
+    if runtime.debug is not None:
+        runtime.debug.match_event("missed-end")
+
+
+def _missed_start(source: str) -> None:
+    """The minutes before: was a hero select there? (#170)"""
+    if runtime.debug is not None:
+        runtime.debug.match_event(f"missed-start-{source}")
+
+
+def _capturing() -> bool:
+    return runtime.watcher is not None and runtime.watcher.state == "capturing"
+
+
+def _start_bookkeeping() -> None:
+    """Backups, evenings, familiar faces, matches, capture health, players, reading mode."""
     from yaptracker import later
     from yaptracker.capture.health import CaptureHealth
+    from yaptracker.evenings import Evenings
+    from yaptracker.familiar import FamiliarFaces
+    from yaptracker.matches import MatchTracker
+    from yaptracker.players import PlayerMatcher
+    from yaptracker.reading_mode import ReadingMode
+    from yaptracker.store.backups import DailyBackup
+
+    runtime.backups = DailyBackup(runtime.store.backup_to, paths.backup_dir(), busy=_capturing)
+    runtime.backups.start()  # now (first start of the day), or once Overwatch is closed
+    runtime.evenings = Evenings(paths.data_dir() / "evenings.json", runtime.store)
+    try:  # the evenings since 2026-10-01 as a baseline, once (#379)
+        runtime.evenings.backfill()
+    except Exception:
+        log.exception("filling in the evenings failed")
+    runtime.familiar = FamiliarFaces(runtime.store, config.identity)
+    runtime.matches = MatchTracker(runtime.store, runtime.pause, on_missed_end=_missed_end,
+                                   on_missed_start=_missed_start,
+                                   on_session_end=runtime.evenings.record,
+                                   on_match_start=runtime.familiar.match_started)  # fmt: skip
+    runtime.health = CaptureHealth(runtime.store)
+    runtime.players = PlayerMatcher(
+        runtime.store,
+        config.identity,
+        on_shaky=lambda name: runtime.debug.save_chat("new-player"),
+    )
+    runtime.reading = ReadingMode(
+        lambda: runtime.matches,
+        lambda: config.reading("competitive"),
+        lambda: config.reading("other"),
+        config.ocr_engine,
+    )
+    note = paths.data_dir() / LATER_NOTE
+    if (lost := later.lost_span(note)) is not None:  # the app crashed or was killed (#335)
+        log.warning("chat frames kept for after the match were lost: a gap record")
+        runtime.store.close_gap(runtime.store.open_gap(lost[0], "deferred_lost"), lost[1])
+
+
+def _start_reader() -> None:
+    from yaptracker import later
+    from yaptracker.reader import ChatReader
+    from yaptracker.reading_mode import AFTER
+
+    note = paths.data_dir() / LATER_NOTE
+    runtime.reader = ChatReader(
+        lambda image: runtime.reading.read(image, runtime.ocr_scale()),
+        runtime.store,
+        runtime.matches,
+        identity=config.identity,
+        colours=config.channel_colours,
+        save_colours=config.save_channel_colours,
+        paused=lambda: runtime.pause.paused,
+        on_read=lambda *read: debug_part(runtime.debug.chat_read, *read),
+        pictures=runtime.pictures,
+        players=runtime.players,
+        on_player=runtime.familiar.heard,
+        min_gap_s=config.read_every_s(),
+        modes=runtime.reading.take_counts,
+        later=later.LaterFrames(
+            lambda: runtime.reader.min_gap_s, note, unread=paths.data_dir() / UNREAD_DIR
+        ),  # fmt: skip
+        read_kept=lambda image, mode: runtime.reading.read(image, runtime.ocr_scale(), mode),
+        deferring=lambda: _capturing() and runtime.reading.now() == AFTER,
+        idle=lambda: not _capturing() or not runtime.matches.running,
+    )
+    if (stale := runtime.reader.later.restore()) is not None:  # kept at the last quit (#349)
+        runtime.store.close_gap(runtime.store.open_gap(stale[0], "deferred_lost"), stale[1])
+    runtime.reader.start()
+
+
+def _start_read_again() -> None:
+    """ "Read again, best quality" (#333)."""
+    from yaptracker.ocr import engine as ocr
+    from yaptracker.read_again import ReadAgain
+
+    runtime.read_again = ReadAgain(
+        runtime.store,
+        runtime.pictures,
+        lambda image: ocr.get(config.ocr_engine()).read(image, scale=runtime.ocr_scale()),
+        idle=lambda: not runtime.matches.running,
+        identity=config.identity,
+        link=lambda name, ts, conf: runtime.players.link(name, ts, conf),
+    )
+    runtime.read_again.start()
+
+
+def _clean_up_once() -> None:
+    """The one-time jobs over stored data; then the players they removed are gone (#458)."""
     from yaptracker.cleanups import (
-        close_open_gaps,
         normalise_places_once,
         remove_empty_lines_once,
         remove_input_hints_once,
     )
-    from yaptracker.debug import DebugSamples
-    from yaptracker.evenings import Evenings
-    from yaptracker.familiar import FamiliarFaces
-    from yaptracker.lines import LinePictures
-    from yaptracker.matches import MatchTracker, merge_split_matches
-    from yaptracker.ocr import engine as ocr
-    from yaptracker.players import PlayerMatcher
-    from yaptracker.read_again import ReadAgain, check_marks_once, name_icons_once
-    from yaptracker.reader import ChatReader
-    from yaptracker.reading_mode import AFTER, ReadingMode
-    from yaptracker.store.backups import DailyBackup, before_merge
-    from yaptracker.store.db import NewerDatabaseError
-    from yaptracker.store.repo import Store
+    from yaptracker.read_again import check_marks_once, name_icons_once
 
-    def missed_end() -> None:
-        if runtime.debug is not None:
-            runtime.debug.match_event("missed-end")
+    check_marks_once(runtime.read_again, runtime.store, config.marks_checked,
+                     config.save_marks_checked)  # fmt: skip
+    name_icons_once(runtime.read_again, runtime.store, config.icons_named,
+                    config.save_icons_named)  # fmt: skip
+    remove_input_hints_once(runtime.store, paths.backup_dir(), config.hints_removed,
+                            config.save_hints_removed)  # fmt: skip
+    remove_empty_lines_once(runtime.store, paths.backup_dir(), config.empty_removed,
+                            config.save_empty_removed)  # fmt: skip
+    normalise_places_once(runtime.store, paths.backup_dir(), config.places_normalised,
+                          config.save_places_normalised)  # fmt: skip
+    runtime.players.reload()  # players the clean-ups removed are gone for the matcher (#458)
 
-    def missed_start(source: str) -> None:  # the minutes before: was a hero select there? (#170)
-        if runtime.debug is not None:
-            runtime.debug.match_event(f"missed-start-{source}")
 
-    def open_store() -> None:
-        runtime.debug = DebugSamples(paths.debug_dir(), config.debug_samples)
-        runtime.debug.start()  # counted once, then 14 days / 1 GB, also after a long break
-        runtime.pictures = LinePictures(paths.lines_dir(), config.line_pictures,
-                                        config.picture_cap_mb() * 1_000_000)  # fmt: skip
-        runtime.pictures.start()  # counted once in the background (#387), then 2 GB at most
-        try:
-            runtime.store = Store.open()
-        except NewerDatabaseError as error:  # an older build: say so, touch nothing (#352)
-            log.error("%s", error)
-            runtime.data_too_new = str(error)
-            return
-        close_open_gaps(runtime.store)  # killed while paused: it overlapped every match (#463)
-        try:  # one match per real match, also for matches split before (#371, #377)
-            merge_split_matches(
-                runtime.store,
-                later.unread_matches(paths.data_dir() / UNREAD_DIR),
-                lambda: before_merge(runtime.store.backup_to, paths.backup_dir()),
-            )
-        except Exception:
-            log.exception("merging split matches failed; the matches stay as they are")
-        runtime.backups = DailyBackup(
-            runtime.store.backup_to,
-            paths.backup_dir(),
-            busy=lambda: runtime.watcher is not None and runtime.watcher.state == "capturing",
-        )
-        runtime.backups.start()  # now (first start of the day), or once Overwatch is closed
-        runtime.evenings = Evenings(paths.data_dir() / "evenings.json", runtime.store)
-        try:  # the evenings since 2026-10-01 as a baseline, once (#379)
-            runtime.evenings.backfill()
-        except Exception:
-            log.exception("filling in the evenings failed")
-        runtime.familiar = FamiliarFaces(runtime.store, config.identity)
-        runtime.matches = MatchTracker(runtime.store, runtime.pause, on_missed_end=missed_end,
-                                       on_missed_start=missed_start,
-                                       on_session_end=runtime.evenings.record,
-                                       on_match_start=runtime.familiar.match_started)  # fmt: skip
-        runtime.health = CaptureHealth(runtime.store)
-        runtime.players = PlayerMatcher(
-            runtime.store,
-            config.identity,
-            on_shaky=lambda name: runtime.debug.save_chat("new-player"),
-        )
-        runtime.reading = ReadingMode(
-            lambda: runtime.matches,
-            lambda: config.reading("competitive"),
-            lambda: config.reading("other"),
-            config.ocr_engine,
-        )
-        note = paths.data_dir() / LATER_NOTE
-        if (lost := later.lost_span(note)) is not None:  # the app crashed or was killed (#335)
-            log.warning("chat frames kept for after the match were lost: a gap record")
-            runtime.store.close_gap(runtime.store.open_gap(lost[0], "deferred_lost"), lost[1])
-
-        def capturing() -> bool:
-            return runtime.watcher is not None and runtime.watcher.state == "capturing"
-
-        runtime.reader = ChatReader(
-            lambda image: runtime.reading.read(image, runtime.ocr_scale()),
-            runtime.store,
-            runtime.matches,
-            identity=config.identity,
-            colours=config.channel_colours,
-            save_colours=config.save_channel_colours,
-            paused=lambda: runtime.pause.paused,
-            on_read=lambda *read: debug_part(runtime.debug.chat_read, *read),
-            pictures=runtime.pictures,
-            players=runtime.players,
-            on_player=runtime.familiar.heard,
-            min_gap_s=config.read_every_s(),
-            modes=runtime.reading.take_counts,
-            later=later.LaterFrames(
-                lambda: runtime.reader.min_gap_s, note, unread=paths.data_dir() / UNREAD_DIR
-            ),  # fmt: skip
-            read_kept=lambda image, mode: runtime.reading.read(image, runtime.ocr_scale(), mode),
-            deferring=lambda: capturing() and runtime.reading.now() == AFTER,
-            idle=lambda: not capturing() or not runtime.matches.running,
-        )
-        if (stale := runtime.reader.later.restore()) is not None:  # kept at the last quit (#349)
-            runtime.store.close_gap(runtime.store.open_gap(stale[0], "deferred_lost"), stale[1])
-        runtime.reader.start()
-        runtime.read_again = ReadAgain(  # "Read again, best quality" (#333)
-            runtime.store,
-            runtime.pictures,
-            lambda image: ocr.get(config.ocr_engine()).read(image, scale=runtime.ocr_scale()),
-            idle=lambda: not runtime.matches.running,
-            identity=config.identity,
-            link=lambda name, ts, conf: runtime.players.link(name, ts, conf),
-        )
-        runtime.read_again.start()
-        check_marks_once(runtime.read_again, runtime.store, config.marks_checked,
-                         config.save_marks_checked)  # fmt: skip
-        name_icons_once(runtime.read_again, runtime.store, config.icons_named,
-                        config.save_icons_named)  # fmt: skip
-        remove_input_hints_once(runtime.store, paths.backup_dir(), config.hints_removed,
-                                config.save_hints_removed)  # fmt: skip
-        remove_empty_lines_once(runtime.store, paths.backup_dir(), config.empty_removed,
-                                config.save_empty_removed)  # fmt: skip
-        normalise_places_once(runtime.store, paths.backup_dir(), config.places_normalised,
-                              config.save_places_normalised)  # fmt: skip
-        runtime.players.reload()  # players the clean-ups removed are gone for the matcher (#458)
-
-    def close_store() -> None:
-        if runtime.backups is not None:
-            runtime.backups.stop()
-        if runtime.reader is not None:
-            runtime.reader.stop()  # capture has stopped; the last frame is stored first
-        if runtime.read_again is not None:
-            runtime.read_again.stop()
-        if runtime.health is not None:
-            runtime.health.stop()
-        if runtime.matches is not None:
-            runtime.matches.stop()
-        if runtime.store is not None:
-            runtime.store.close()
-
-    app.on_startup(open_store)
-    return close_store
+def _close_store() -> None:
+    """In this order: nothing writes to the store after it closes."""
+    for part in (runtime.backups, runtime.reader, runtime.read_again, runtime.health,
+                 runtime.matches):  # fmt: skip
+        if part is not None:
+            part.stop()  # the reader: capture has stopped; the last frame is stored first
+    if runtime.store is not None:
+        runtime.store.close()
 
 
 def _keep_window_place(background: bool) -> None:
