@@ -21,7 +21,7 @@ import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
-from yaptracker.translate import TARGETS, Translation, Usage, language, only_shorthand
+from yaptracker.translate import SHORT, TARGETS, Translation, Usage, language, only_shorthand
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +31,9 @@ URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "google/gemini-3.1-flash-lite"
 DEFAULT_CAP = 1.0  # US dollars a month
 TIMEOUT_S, TIMEOUT_MAX_S = 3.0, 6.0  # a few lines answer in under a second; a batch gets more
+THINKING_TIMEOUT_S = 15.0  # a model that must think first takes seconds (#568)
+# A request that timed out is still billed: counted as the last cost per line seen, or this.
+UNKNOWN_COST = 0.001  # US dollars, a generous guess for a small model
 
 NO_KEY = "Add your OpenRouter key in Settings → Translate chat first."
 WRONG_KEY = "OpenRouter didn't accept the key. Check it in Settings → Translate chat."
@@ -99,13 +102,17 @@ def request(key: str, model: str, texts: list[str], target: str, context: str | 
 def parse(content: str, texts: list[str], target: str) -> list[Translation]:
     """The model's JSON (also inside a code fence) as one Translation per line. "=": already in
     the target language, given back unchanged so it's remembered as nothing to translate."""
+    if not isinstance(content, str):  # no text at all (cut off while thinking, a list of parts)
+        raise ValueError("no text in the answer")
     start, end = content.find("{"), content.rfind("}")
     found = json.loads(content[start : end + 1])["t"]
-    if len(found) != len(texts):
-        raise ValueError(f"{len(found)} answers for {len(texts)} lines")
+    if not isinstance(found, list) or len(found) != len(texts):
+        raise ValueError(f"answers for {len(texts)} lines: {found!r:.80}")
     out = []
     for text, item in zip(texts, found, strict=True):
-        said, code = str(item["x"]).strip(), (str(item.get("l") or "").upper()[:2] or None)
+        if not isinstance(item.get("x"), str):  # null or a number: never stored as a translation
+            raise ValueError("an answer without text")
+        said, code = item["x"].strip(), (str(item.get("l") or "").upper()[:2] or None)
         if said in ("=", "") or said == text:
             out.append(Translation(text, language(target), code=target))
         else:
@@ -162,7 +169,11 @@ class OpenRouter:
         self.spend, self._send = spend, send
         self._lock = threading.Lock()
         self._done: dict[tuple[str, str], Translation] = {}
+        # One request at a time, the cap checked and the spend counted inside: the auto thread
+        # and a click can't both slip under the limit (#568). Also guards _thinks and _per_line.
+        self._sending = threading.Lock()
         self._thinks: set[str] = set()  # models that can't answer without thinking first
+        self._per_line: float | None = None  # what a line cost last time, for a lost answer
 
     def _ask(self, key: str, model: str, texts: list[str], target: str, context: str | None,
              timeout: float) -> dict:  # fmt: skip
@@ -176,7 +187,8 @@ class OpenRouter:
                     raise
                 log.info("translate: the AI model has to think first: asked again with a little")
                 self._thinks.add(model)
-        return self._send(request(key, model, texts, target, context, LITTLE_THINKING), timeout)
+        thinking = request(key, model, texts, target, context, LITTLE_THINKING)
+        return self._send(thinking, max(timeout, THINKING_TIMEOUT_S))
 
     def usage(self, ask: bool = True) -> Usage | None:
         return None  # DeepL's characters: nothing to pause here, the spend cap does that
@@ -192,33 +204,51 @@ class OpenRouter:
             new = list(dict.fromkeys(t for t in texts if (t, target) not in self._done
                                      and not only_shorthand(t)))  # fmt: skip
         if new:
-            cap = self._cap()
-            if self.spend.used() >= cap:
-                return [Translation(error=capped(cap))] * len(texts)
-            timeout = min(TIMEOUT_MAX_S, TIMEOUT_S + 0.1 * len(new))
-            try:
-                answer = self._ask(key, self._model(), new, target, context, timeout)
-                self.spend.add(float((answer.get("usage") or {}).get("cost") or 0.0))
-                done = parse(answer["choices"][0]["message"]["content"], new, target)
-            except urllib.error.HTTPError as error:
-                log.info("translate: OpenRouter said %s", error.code)
-                return [Translation(error=_HTTP.get(error.code, FAILED))] * len(texts)
-            except (urllib.error.URLError, TimeoutError, OSError,
-                    http.client.HTTPException) as error:  # fmt: skip
-                log.info("translate: OpenRouter not reached (%s)", type(error).__name__)
-                return [Translation(error=OFFLINE)] * len(texts)
-            except (ValueError, KeyError, IndexError, TypeError) as error:
-                log.info("translate: odd answer from the AI (%s)", type(error).__name__)
-                return [Translation(error=FAILED)] * len(texts)
-            with self._lock:
-                self._done.update(((t, target), d) for t, d in zip(new, done, strict=True))
+            with self._sending:
+                failed = self._translate_new(key, target, new, context)
+            if failed is not None:
+                return [Translation(error=SHORT) if only_shorthand(t) else failed for t in texts]
         with self._lock:
-            return [self._done.get((t, target)) or Translation(error=FAILED) for t in texts]
+            return [Translation(error=SHORT) if only_shorthand(t)
+                    else self._done.get((t, target)) or Translation(error=FAILED)
+                    for t in texts]  # fmt: skip
+
+    def _translate_new(self, key: str, target: str, new: list[str],
+                       context: str | None) -> Translation | None:  # fmt: skip
+        """One request for `new`; None when it worked, else what went wrong (for each line)."""
+        cap = self._cap()
+        if self.spend.used() >= cap:
+            return Translation(error=capped(cap))
+        timeout = min(TIMEOUT_MAX_S, TIMEOUT_S + 0.1 * len(new))
+        try:
+            answer = self._ask(key, self._model(), new, target, context, timeout)
+            cost = float((answer.get("usage") or {}).get("cost") or 0.0)
+            self.spend.add(cost)
+            self._per_line = cost / len(new) if cost else self._per_line
+            done = parse(answer["choices"][0]["message"]["content"], new, target)
+        except urllib.error.HTTPError as error:
+            log.info("translate: OpenRouter said %s", error.code)
+            return Translation(error=_HTTP.get(error.code, FAILED))
+        except (urllib.error.URLError, TimeoutError, OSError,
+                http.client.HTTPException) as error:  # fmt: skip
+            log.info("translate: OpenRouter not reached (%s)", type(error).__name__)
+            if isinstance(error, TimeoutError) or "timed out" in str(error):  # billed anyway
+                guess = self._per_line * len(new) if self._per_line else UNKNOWN_COST
+                self.spend.add(guess)
+            return Translation(error=OFFLINE)
+        except (ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
+            log.info("translate: odd answer from the AI (%s)", type(error).__name__)
+            return Translation(error=FAILED)
+        with self._lock:
+            self._done.update(((t, target), d) for t, d in zip(new, done, strict=True))
+        return None
 
 
 class Engines:
     """Settings -> Translate chat -> DeepL / AI (#568). With AI, what it can't do (no key, the
-    cap, offline, a slow answer) goes to DeepL when a DeepL key is there."""
+    cap, offline, a slow answer) goes to DeepL when a DeepL API Free key is there, and DeepL's
+    month isn't near its limit (#567: what's left of it is for clicks). When DeepL can't either,
+    the AI's own reason stays under the line."""
 
     def __init__(self, deepl, ai: OpenRouter, engine: Callable[[], str],
                  has_deepl: Callable[[], bool]) -> None:  # fmt: skip
@@ -242,9 +272,13 @@ class Engines:
         failed = [i for i, t in enumerate(found) if t.error and not only_shorthand(texts[i])]
         if not failed or not self._has_deepl():
             return found
+        usage = self.deepl.usage(ask=False)
+        if usage is not None and usage.near:
+            return found
         log.info("translate: AI failed (%s): %d line(s) to DeepL instead", found[failed[0]].error,
                  len(failed))  # fmt: skip
         again = self.deepl.translate_many([texts[i] for i in failed], context)
         for i, translation in zip(failed, again, strict=True):
-            found[i] = translation
+            if not translation.error:  # DeepL failing too: the AI's reason is the one to see
+                found[i] = translation
         return found

@@ -20,7 +20,7 @@ import threading
 import time
 from collections.abc import Callable
 
-from yaptracker import ai_translate, languages
+from yaptracker import ai_translate, hero_switches, languages
 from yaptracker.glyphs import GLYPH, unnamed
 from yaptracker.translate import (
     NO_KEY,
@@ -42,8 +42,10 @@ WAIT_S = {OFFLINE: 60.0, TOO_MANY: 60.0, WRONG_KEY: 60.0, NO_KEY: 0.0, NOT_FREE:
           ai_translate.NO_KEY: 0.0}  # fmt: skip
 # The game's own rows that OCR sometimes glues onto the end of a typed line, names in them
 # ("gg You endorsed Name!", "Name switched to Ana (was Mercy)."): cut before anything is sent.
+# Only the game's own shapes at the very end: "he endorsed me lol" is somebody talking.
 _SYSTEM_TAIL = re.compile(
-    r"\s*(?:\S+\s+endorsed\b|\S+\s+switched to\b.*\(was\b|\S+\s+started playing\b).*$",
+    r"\s*(?:\S+\s+endorsed[\s-]+\S+!"  # "You endorsed Name!" (also misread "endorsed-Name!")
+    r"|\S+\s+started playing Overwatch\.?)\s*$",
     re.IGNORECASE,
 )
 WAIT_OTHER_S = 600.0
@@ -71,6 +73,9 @@ def outgoing(text: str) -> str:
     """A line's text as a translator gets it (#568): icons out, a glued system row with a name
     cut off (_SYSTEM_TAIL)."""
     plain = " ".join(unnamed(text or "").replace(GLYPH, " ").split())
+    if hero_switches.find(plain):  # "Name switched to Ana (was Mercy).": two real heroes (#262)
+        before = plain[: plain.rfind(" switched to ")]  # ends with the switcher's name
+        plain = before.rsplit(" ", 1)[0] if " " in before else ""
     return _SYSTEM_TAIL.sub("", plain)
 
 
@@ -138,7 +143,8 @@ class AutoTranslate:
             failed = self._failed
             if failed is not None and self._clock() < failed[0]:
                 done += [failed[1]] * len(group)  # still failing: say so, don't ask again yet
-                log.debug("translate: %d line(s) not sent: DeepL failed a moment ago", len(group))
+                log.debug("translate: %d line(s) not sent: %s failed a moment ago", len(group),
+                          getattr(translator, "name", "DeepL"))  # fmt: skip
                 continue
             for message in group:
                 log.debug("translate: a line of %d characters sent", len(message.text))

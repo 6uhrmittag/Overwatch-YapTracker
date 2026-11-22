@@ -665,9 +665,10 @@ def _translator(dev: bool) -> None:
         ai = ai_translate.OpenRouter(config.openrouter_key, config.translate_to,
                                      config.ai_model, config.ai_cap,
                                      ai_translate.Spend(paths.data_dir() / AI_SPEND))  # fmt: skip
+        free_deepl = lambda: config.deepl_key().strip().endswith(":fx")  # noqa: E731
         runtime.translator = ai_translate.Engines(
-            translate.DeepL(config.deepl_key, config.translate_to), ai,
-            config.translate_engine, lambda: bool(config.deepl_key().strip()))  # fmt: skip
+            translate.DeepL(config.deepl_key, config.translate_to), ai, config.translate_engine,
+            free_deepl)  # fmt: skip
     runtime.auto_translate = AutoTranslate(
         lambda: runtime.store,
         lambda: runtime.translator,

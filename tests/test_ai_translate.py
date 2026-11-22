@@ -15,7 +15,7 @@ from yaptracker import ai_translate, config, runtime
 from yaptracker.ai_translate import Engines, OpenRouter, Spend, parse
 from yaptracker.auto_translate import AutoTranslate, context_for, outgoing
 from yaptracker.store.repo import Store
-from yaptracker.translate import DeepL, Translation
+from yaptracker.translate import SHORT, DeepL, Translation, Usage
 from yaptracker.ui import shell
 from yaptracker.ui.ai_settings import spend_words
 
@@ -103,7 +103,11 @@ def test_a_system_row_glued_onto_a_line_is_cut_before_it_is_sent():
     assert outgoing("gg wp Zappy endorsed Kettle!") == "gg wp"
     assert outgoing("glhf Kettle switched to Ana (was Mercy).") == "glhf"
     assert outgoing("merci pour les soins") == "merci pour les soins"
-    assert outgoing("he endorsed nothing") == ""  # better too little than a name
+    assert outgoing("ggwp Zappy endorsed-Kettle!") == "ggwp"  # OCR's misread of the row
+    assert outgoing("Kettle started playing Overwatch.") == ""
+    for talk in ("he endorsed me lol", "nosotros started playing tarde jaja",
+                 "i switched to tank (was bored)"):  # fmt: skip
+        assert outgoing(talk) == talk  # somebody talking: kept whole
 
 
 def test_already_in_the_target_language_is_nothing_to_translate(store, tmp_path):
@@ -241,3 +245,85 @@ def test_by_default_the_model_answers_without_thinking(tmp_path):
     fake = FakeOpenRouter()
     ai(tmp_path, fake).translate("merci pour les soins")
     assert fake.sent[0]["reasoning"] == {"enabled": False}
+
+
+@pytest.mark.parametrize("content", [None, [{"type": "text"}], '{"t": [{"l": "es", "x": null}]}',
+                                     '{"t": "nope"}'])  # fmt: skip
+def test_an_answer_without_usable_text_is_a_failed_line_and_deepl_takes_it(tmp_path, content):
+    class Empty(FakeOpenRouter):
+        def __call__(self, request, timeout):
+            super().__call__(request, timeout)
+            return {"choices": [{"message": {"content": content}}], "usage": {"cost": 0.0001}}
+
+    alone = ai(tmp_path, Empty())
+    assert alone.translate("gracias por las curas").error == ai_translate.FAILED
+    both = engines(tmp_path, Empty(), FakeDeepL())
+    assert both.translate("gracias por las curas").text == "<gracias por las curas> by DeepL"
+
+
+def test_a_timed_out_request_still_counts_against_the_limit(tmp_path):
+    fake = FakeOpenRouter(cost=0.0004)
+    router = ai(tmp_path, fake)
+    router.translate("merci pour les soins")  # 0.0004 for one line
+    fake.error = TimeoutError()
+    router.translate_many(["merci beaucoup", "gracias amigos"])
+    assert router.spend.used() == pytest.approx(0.0004 + 2 * 0.0004)  # billed anyway: guessed
+
+
+def test_a_thinking_model_gets_more_time(tmp_path):
+    class Thinker(FakeOpenRouter):
+        def __call__(self, request, timeout):
+            if json.loads(request.data)["reasoning"] == ai_translate.NO_THINKING:
+                body = b'{"error": {"message": "Reasoning is mandatory"}}'
+                raise urllib.error.HTTPError(ai_translate.URL, 400, "no", {}, io.BytesIO(body))
+            return super().__call__(request, timeout)
+
+    fake = Thinker()
+    ai(tmp_path, fake).translate("merci pour les soins")
+    assert fake.timeouts == [ai_translate.THINKING_TIMEOUT_S]
+
+
+def test_shorthand_says_so_with_the_ai_too(tmp_path):
+    fake = FakeOpenRouter()
+    assert ai(tmp_path, fake).translate("gg ez wp").error == SHORT and not fake.sent
+
+
+def test_deepl_near_its_limit_or_failing_too_leaves_the_ais_reason(tmp_path):
+    class NearDeepL(DeepL):
+        def usage(self, ask=True):
+            return Usage(490_000)
+
+    fake_deepl = FakeDeepL()
+    near = Engines(NearDeepL(lambda: DEEPL_KEY, lambda: "EN", send=fake_deepl),
+                   ai(tmp_path, FakeOpenRouter(error=TimeoutError())), lambda: "ai",
+                   lambda: True)  # fmt: skip
+    assert near.translate("merci pour").error == ai_translate.OFFLINE and not fake_deepl.sent
+
+    class Broken(FakeDeepL):
+        def __call__(self, request):
+            raise urllib.error.URLError("down too")
+
+    both = engines(tmp_path, FakeOpenRouter(error=TimeoutError()), Broken())
+    assert both.translate("merci pour").error == ai_translate.OFFLINE  # not DeepL's message
+
+
+def test_the_auto_thread_and_a_click_cant_both_slip_under_the_limit(tmp_path):
+    import threading
+
+    gate = threading.Event()
+
+    class Slow(FakeOpenRouter):
+        def __call__(self, request, timeout):
+            gate.wait(1)
+            return super().__call__(request, timeout)
+
+    fake = Slow(cost=0.6)
+    router = ai(tmp_path, fake, cap=1.0)
+    router.spend.add(0.5)
+    first = threading.Thread(target=router.translate, args=("merci pour les soins",))
+    first.start()
+    time.sleep(0.05)
+    gate.set()
+    second = router.translate("gracias por las curas")  # waits for the first, then sees the cap
+    first.join()
+    assert len(fake.sent) == 1 and second.error == ai_translate.capped(1.0)
