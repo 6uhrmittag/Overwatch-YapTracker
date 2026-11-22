@@ -113,17 +113,20 @@ class AutoTranslate:
             log.debug("translate: %d line(s) not sent: %d of %d characters used this month",
                       len(foreign), usage.used, usage.limit)  # fmt: skip
             return 0
-        for message in foreign:
-            log.debug("translate: a line of %d characters sent", len(message.text))
         groups: dict = {}  # one request per match: DeepL takes one context per request (#538)
         for message in foreign:
             groups.setdefault(message.match_id, []).append(message)
         foreign, done, target = [m for g in groups.values() for m in g], [], self._target()
+        sent = 0
         for group in groups.values():
             failed = self._failed
             if failed is not None and self._clock() < failed[0]:
                 done += [failed[1]] * len(group)  # still failing: say so, don't ask again yet
+                log.debug("translate: %d line(s) not sent: DeepL failed a moment ago", len(group))
                 continue
+            for message in group:
+                log.debug("translate: a line of %d characters sent", len(message.text))
+            sent += len(group)
             found = translator.translate_many([unnamed(m.text) for m in group],
                                               context_for(store, group[0]))  # fmt: skip
             errors = [d for d in found if d.error]
@@ -136,7 +139,7 @@ class AutoTranslate:
         for message, translation in zip(foreign, done, strict=True):
             if translation.error:  # said under the line only when it's clearly foreign
                 show = languages.foreign(unnamed(message.text), read) is not None
-            elif translation.code in read or _same(message.text, translation.text):
+            elif translation.code in read or unchanged(message.text, translation.text):
                 show = False  # nothing to translate: remembered, never sent again (#567)
                 if translation.code:
                     store.set_not_foreign(message.id, translation.code, target)
@@ -146,8 +149,8 @@ class AutoTranslate:
             if show:
                 with self._lock:
                     self._found[message.id] = translation
-        # the evening line counts these (#567, evenings._EVENTS)
-        log.info("translate: auto: %d translated of %d line(s) sent", translated, len(foreign))
+        if sent:  # the evening line counts these (#567, evenings._EVENTS)
+            log.info("translate: auto: %d translated of %d line(s) sent", translated, sent)
         return len(foreign)
 
     def start(self) -> None:
@@ -176,9 +179,14 @@ def why_not(message, read: set[str]) -> str | None:
     return languages.skip(unnamed(message.text), read)
 
 
-def _same(text: str, translation: str | None) -> bool:
-    """DeepL gave the line back as it was (a hero's name, a misread word): no translation."""
-    return _clean(text).casefold() == _clean(translation or "").casefold()
+def unchanged(text: str, translation: str | None) -> bool:
+    """DeepL gave the line back as it was (a hero's name, a misread word, English taken for
+    Dutch), but for capitals and signs: no translation."""
+    return _letters(_clean(text)) == _letters(translation or "")
+
+
+def _letters(text: str) -> str:
+    return "".join(ch for ch in text.casefold() if ch.isalnum())
 
 
 def _theirs_or_mine(message) -> bool:

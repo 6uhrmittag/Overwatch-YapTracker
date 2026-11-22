@@ -117,4 +117,10 @@ async def test_settings_show_the_months_characters(user: User, monkeypatch):
     monkeypatch.setattr(runtime, "translator", DeepL(config.deepl_key, lambda: "EN", send=fake))
     await user.open("/")
     user.find(marker="nav-settings").click()
+    await user.should_see("DeepL: the characters you used this month show here")
+    assert fake.asked == 0  # Translate chat is off: DeepL isn't asked
+    config.save_translate_chat(True)
+    monkeypatch.setattr(runtime, "translator", DeepL(config.deepl_key, lambda: "EN", send=fake))
+    await user.open("/")
+    user.find(marker="nav-settings").click()
     await user.should_see("DeepL: 41,250 of 500,000 characters used this month.")

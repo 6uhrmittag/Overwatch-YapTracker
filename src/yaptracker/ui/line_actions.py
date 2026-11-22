@@ -11,7 +11,7 @@ from collections.abc import Callable
 from nicegui import run, ui
 
 from yaptracker import config, runtime
-from yaptracker.auto_translate import context_for
+from yaptracker.auto_translate import context_for, unchanged
 from yaptracker.glyphs import GLYPH, unnamed
 from yaptracker.translate import FAILED, Translation, language
 from yaptracker.ui.quick_verdict import OWN_CLICK
@@ -198,7 +198,7 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
             done = Translation(error=FAILED)
         finally:
             shown["busy"] = False
-        await _keep(message.id, done, target)
+        await _keep(message.id, done, target, text)
         if not out.is_deleted:
             show(done)
 
@@ -228,10 +228,7 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
 
 def _translate(store, message, text: str) -> Translation:
     """The line with the text of the lines before it as DeepL's context (#538)."""
-    done = runtime.translator.translate(text, context_for(store, message))
-    if not done.error:
-        log.info("translate: clicked: 1 translated")  # the evening line counts these (#567)
-    return done
+    return runtime.translator.translate(text, context_for(store, message))
 
 
 def _original(label: ui.element, message) -> None:
@@ -239,18 +236,20 @@ def _original(label: ui.element, message) -> None:
     label.tooltip(f"Said: {message.text}")
 
 
-async def _keep(message_id: int, done: Translation, target: str) -> None:
+async def _keep(message_id: int, done: Translation, target: str, text: str) -> None:
     """Kept with the line (#470), off the UI thread; not when DeepL says it's a language you
-    read anyway: the one you translate into is remembered as nothing to translate (#567). A
-    failure only means it's asked again after a restart."""
+    read anyway, or gives the line back as it was: the language you translate into is
+    remembered as nothing to translate (#567). A failure only means it's asked again after a
+    restart."""
     store = runtime.store
-    if done.error or store is None or not done.code:
+    if done.error or store is None:
         return
     try:
         if done.code == target:
             await run.io_bound(store.set_not_foreign, message_id, done.code, target)
-        elif done.code not in config.read_languages():
+        elif done.code not in config.read_languages() and not unchanged(text, done.text):
             await run.io_bound(store.set_translation, message_id, done.text, done.code, target)
+            log.info("translate: clicked: 1 translated")  # the evening line counts these
     except Exception:
         log.exception("translate: keeping a translation failed")
 

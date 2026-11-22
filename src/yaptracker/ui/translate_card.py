@@ -93,7 +93,7 @@ def translate_card() -> None:
     async def show_usage() -> None:
         """DeepL's own count, asked off the UI thread (at most every 10 minutes)."""
         translator = runtime.translator
-        if translator is None:
+        if translator is None or not config.translate_chat():  # switched off: DeepL isn't asked
             return
         try:
             usage = await run.io_bound(translator.usage)

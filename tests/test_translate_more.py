@@ -41,6 +41,7 @@ class FakeDeepL:
         return {"translations": [
             {"detected_source_language": "FR", "text": FOREIGN[t]} if t in FOREIGN
             else {"detected_source_language": "FR", "text": t} if t == "Zarya Winston"
+            else {"detected_source_language": "NL", "text": "Mercy rez me."} if "rez" in t
             else {"detected_source_language": "EN", "text": t.upper()} for t in texts]}  # fmt: skip
 
 
@@ -109,8 +110,10 @@ def test_what_deepl_calls_english_is_not_shown_and_not_sent_again(store):
     translator, _ = auto(store, fake)
     english = say(store, "nice ult")
     names = say(store, "Zarya Winston")  # comes back as it went: nothing to show either
-    assert translator.step() == 2
+    dutch = say(store, "mercy rez me")  # "Dutch", back with a capital and a full stop
+    assert translator.step() == 3
     assert translator.known(english) is None and translator.known(names) is None
+    assert translator.known(dutch) is None and store.message(dutch).translation is None
     kept = store.message(english)
     assert (kept.translation, kept.translation_from, kept.translation_to) == (None, "EN", "EN")
     assert store.message(names).translation is None
@@ -125,6 +128,22 @@ def test_what_deepl_calls_english_is_not_shown_and_not_sent_again(store):
     record = export._message(kept)
     assert (record["translation"], record["translation_from"], record["translation_to"]) == (
         None, None, None)  # fmt: skip
+
+
+def test_a_better_reading_drops_nothing_to_translate_but_keeps_a_translation(store):
+    """The first reading was half the line: what DeepL said of it doesn't hold for the rest."""
+    half = say(store, "ana nano")
+    whole = say(store, "que pasa")
+    store.set_not_foreign(half, "EN", "EN")
+    store.set_translation(whole, "what's up", "ES", "EN")
+    store.update_message(half, channel="match", text="ana nano", speaker_raw="Kettle")
+    assert store.message(half).translation_from == "EN"  # the same text: still looked at
+    store.update_message(half, channel="match", text="ana nano me por favor", speaker_raw="Kettle")
+    store.update_message(whole, channel="match", text="que pasa!", speaker_raw="Kettle")
+    assert looked_at(store.message(half), "EN") is None
+    assert (store.message(half).translation_from, store.message(half).translation_to) == (
+        None, None)  # fmt: skip
+    assert store.message(whole).translation_from == "ES"
 
 
 def test_a_translation_is_never_replaced_by_nothing_to_translate(store):
@@ -145,6 +164,9 @@ def test_the_decisions_are_logged_without_the_line_or_a_name(store, caplog):
     assert "a line of 22 characters not sent: a language you read" in caplog.text
     assert "a line of 5 characters not sent: shorthand" in caplog.text
     assert "translate: auto: 1 translated of 1 line(s) sent" in caplog.text
+    say(store, "gg wp")
+    translator.step()
+    assert caplog.text.count("translate: auto:") == 1  # nothing sent: no line for the evening
     for private in ("majeur", "group", "Kettle", "Pickle"):
         assert private not in caplog.text
 
