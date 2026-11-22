@@ -1,6 +1,8 @@
-"""Which language is a chat line in? (#469) A cheap local check before anything goes to DeepL:
-only a line that is confidently in a language you don't read is sent, and DeepL's own
-detected language has the last word (a line it calls English stays untranslated).
+"""Which language is a chat line in? (#469, #567) A cheap local check before anything goes to a
+translator: a line is sent unless it is confidently in a language you read (`skip`), and the
+translator's own detected language has the last word (a line it calls English stays
+untranslated). `foreign` is the stricter question, "confidently a language you don't read": it
+only decides whether a failed request is worth a word under the line.
 
 No library: lingua is 70-170 MB (the whole app is ~150 MB), and a guess is enough here. A
 language counts by its common little words and its own letters (ñ, ç, ą, ß ...); two pieces of
@@ -15,6 +17,7 @@ NAMES = {
     "PT": "Portuguese", "IT": "Italian", "NL": "Dutch",
 }  # fmt: skip
 MIN_CHARS = 8  # shorter lines ("hola", "merci") aren't worth a guess; Translate is one click
+MIN_WORDS = 2  # ... unless they have two words ("que pasa") (#567)
 EVIDENCE = 2  # words or letters of a language before it counts
 
 # Common short words of each language. Words that are English too ("no", "me", "a", "on", "die",
@@ -84,3 +87,24 @@ def foreign(text: str, read: set[str]) -> str | None:
     if max((found[code] for code in read if code in found), default=0) >= found[best]:
         return None
     return best
+
+
+def skip(text: str, read: set[str]) -> str | None:
+    """Why a typed line isn't worth a translator's look, or None: send it (#567). Any engine's
+    rule: it knows nothing of DeepL. Sent is every line with two words or eight letters that
+    isn't only shorthand, unless a language you read shows at least as much as any other."""
+    from yaptracker.translate import only_shorthand  # the shared shorthand list (#538)
+
+    tokens = _tokens(text)
+    if only_shorthand(text):
+        return "shorthand"
+    if not tokens:
+        return "no words"
+    if len(tokens) < MIN_WORDS and sum(map(len, tokens)) < MIN_CHARS:
+        return "short"
+    found = scores(text, tokens)
+    mine = max((found[code] for code in read if code in found), default=0)
+    if mine >= EVIDENCE and mine >= max((n for code, n in found.items() if code not in read),
+                                        default=0):  # fmt: skip
+        return "a language you read"
+    return None

@@ -70,7 +70,7 @@ class FakeDeepL:
             raise self.error
         return {"translations": [
             {"detected_source_language": "ES" if "curas" in t else "FR" if "merci" in t
-             else "EN", "text": f"<{t}>"} for t in texts]}  # fmt: skip
+             else "EN", "text": f"<{t}> in English"} for t in texts]}  # fmt: skip
 
 
 @pytest.fixture
@@ -105,8 +105,8 @@ def test_new_foreign_lines_of_others_go_together_and_each_once(store):
     assert translator.step() == 2
     # one request; the shorthand marked for DeepL to keep (#538)
     assert fake.sent == [["<x>gg</x> buenas curas amigos", "merci pour les soins"]]
-    assert translator.known(spanish) == Translation("<gg buenas curas amigos>", "Spanish",
-                                                    code="ES")  # fmt: skip
+    assert translator.known(spanish) == Translation(
+        "<gg buenas curas amigos> in English", "Spanish", code="ES")  # fmt: skip
     assert translator.known(french).source == "French"
     for left in (before, english, mine, crew, system, callout):
         assert translator.known(left) is None
@@ -249,7 +249,7 @@ def test_a_translation_from_the_background_is_stored_with_the_line(store):
     said = say(store, "gg buenas curas")
     looks = say(store, "que pasa con el tank")  # DeepL: English after all, nothing stored
     translator.step()
-    assert store.message(said).translation == "<gg buenas curas>"
+    assert store.message(said).translation == "<gg buenas curas> in English"
     assert store.message(said).translation_to == "EN"
     assert store.message(looks).translation is None
     assert [m.id for m in store.search("buenas")] == [said]

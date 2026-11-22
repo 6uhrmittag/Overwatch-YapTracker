@@ -730,18 +730,22 @@ class Store:
         """A better reading of a stored line (#18); the full-text index follows by trigger.
         A line fixed by hand keeps its text (#227) and its channel (#283); a line marked spicy
         by hand keeps its mark, and Overwatch's [Report] mark stays when a reading missed the
-        link (#460)."""
+        link (#460). "Nothing to translate" (#567) was said of the old text: a new one drops
+        it (SET sees the old row), a translation stays (the same line, the same meaning)."""
         self._write(
             "UPDATE chat_messages SET "
-            "channel = CASE WHEN channel_ocr IS NULL THEN ? ELSE channel END, "  # by hand (#283)
+            + "".join(f"{column} = CASE WHEN translation IS NULL AND edited_at IS NULL "
+                      f"AND text IS NOT ? THEN NULL ELSE {column} END, "
+                      for column in ("translation_from", "translation_to"))
+            + "channel = CASE WHEN channel_ocr IS NULL THEN ? ELSE channel END, "  # by hand (#283)
             "speaker_raw = ?, hero = ?, "
             "text = CASE WHEN edited_at IS NULL THEN ? ELSE text END, "
             "ocr_confidence = ?, "
             "flagged = CASE WHEN flagged = 'manual' THEN flagged ELSE COALESCE(?, flagged) END, "
             "role = ?, has_glyphs = ?, player_id = ? "
             "WHERE id = ?",
-            (channel, speaker_raw, hero, text, ocr_confidence, flagged, role, int(has_glyphs),
-             player_id, message_id),
+            (text, text, channel, speaker_raw, hero, text, ocr_confidence, flagged, role,
+             int(has_glyphs), player_id, message_id),
         )  # fmt: skip
 
     def set_translation(self, message_id: int, text: str, source: str | None,
@@ -751,6 +755,16 @@ class Store:
             "UPDATE chat_messages SET translation = ?, translation_from = ?, translation_to = ? "
             "WHERE id = ?",
             (text, source, target, message_id),
+        )
+
+    def set_not_foreign(self, message_id: int, source: str, target: str) -> None:
+        """DeepL looked and there's nothing to translate (#567): the line is in `source`, a
+        language you read, or came back as it went. Remembered in the translation's own columns
+        with no translation, so it's never sent again; a line that has one keeps it."""
+        self._write(
+            "UPDATE chat_messages SET translation_from = ?, translation_to = ? "
+            "WHERE id = ? AND translation IS NULL",
+            (source, target, message_id),
         )
 
     def message(self, message_id: int) -> Message | None:

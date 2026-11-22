@@ -11,7 +11,7 @@ from collections.abc import Callable
 from nicegui import run, ui
 
 from yaptracker import config, runtime
-from yaptracker.auto_translate import context_for
+from yaptracker.auto_translate import context_for, unchanged
 from yaptracker.glyphs import GLYPH, unnamed
 from yaptracker.translate import FAILED, Translation, language
 from yaptracker.ui.quick_verdict import OWN_CLICK
@@ -185,8 +185,8 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
         out.classes(remove="yt-line-translation--error")
         store = runtime.store
         now = (store.message(message.id) if store is not None else None) or message  # (#227)
-        kept = stored(now, target)
-        if kept is not None:  # translated before: never sent again (#470)
+        kept = stored(now, target) or looked_at(now, target)
+        if kept is not None:  # translated or looked at before: never sent again (#470, #567)
             show(kept)
             return
         text = " ".join(unnamed(now.text).replace(GLYPH, " ").split())
@@ -198,7 +198,7 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
             done = Translation(error=FAILED)
         finally:
             shown["busy"] = False
-        await _keep(message.id, done, target)
+        await _keep(message.id, done, target, text)
         if not out.is_deleted:
             show(done)
 
@@ -236,14 +236,19 @@ def _original(label: ui.element, message) -> None:
     label.tooltip(f"Said: {message.text}")
 
 
-async def _keep(message_id: int, done: Translation, target: str) -> None:
+async def _keep(message_id: int, done: Translation, target: str, text: str) -> None:
     """Kept with the line (#470), off the UI thread; not when DeepL says it's a language you
-    read anyway. A failure only means it's asked again after a restart."""
+    read anyway, or gives the line back as it was: the language you translate into is
+    remembered as nothing to translate (#567). A failure only means it's asked again after a
+    restart."""
     store = runtime.store
-    if done.error or store is None or done.code in config.read_languages():
+    if done.error or store is None:
         return
     try:
-        await run.io_bound(store.set_translation, message_id, done.text, done.code, target)
+        if done.code == target:
+            await run.io_bound(store.set_not_foreign, message_id, done.code, target)
+        elif done.code not in config.read_languages() and not unchanged(text, done.text):
+            await run.io_bound(store.set_translation, message_id, done.text, done.code, target)
     except Exception:
         log.exception("translate: keeping a translation failed")
 
@@ -261,6 +266,17 @@ def said_as(done: Translation) -> str:
     """↳ “gg, nice heals” (from Spanish)"""
     source = f" (from {done.source})" if done.source else ""
     return f"\u21b3 \u201c{done.text}\u201d{source}"
+
+
+def looked_at(message, target: str) -> Translation | None:
+    """DeepL looked at this line before and found nothing to translate (#567): said in words,
+    not asked again; None: ask it. Only when it's in the language you translate into: another
+    language you read (English, into German) is your call, and a line DeepL gave back as it
+    was may have been read better since."""
+    code = getattr(message, "translation_from", None)
+    if message.translation or code != target or message.translation_to != target:
+        return None
+    return Translation(error=f"DeepL reads this as {language(code)}: nothing to translate.")
 
 
 def stored(message, target: str | None = None) -> Translation | None:

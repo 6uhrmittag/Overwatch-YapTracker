@@ -1,6 +1,6 @@
 """Settings -> Translate chat (#468): off by default, the user's own DeepL API Free key, English
-or German. Lines in a language you don't read translate themselves (#469). Only a line's text
-goes to DeepL."""
+or German. Lines that aren't clearly in a language you read translate themselves (#469, #567).
+Only a line's text goes to DeepL."""
 
 from nicegui import ui
 
@@ -10,8 +10,10 @@ from yaptracker.translate import TARGETS
 from yaptracker.ui.components import saved_chip, switch
 
 PRIVACY = (
-    "Only the text of a line goes to DeepL, with your own key: one you translate, or one in a "
-    "language you don't read. Never names, pictures or ids."
+    "Only the text of a line goes to DeepL, with your own key: one you translate, or (with "
+    "Translate automatically) every line from others that isn't clearly in a language you "
+    "read, plus the text of a few lines before it so DeepL gets the meaning. Never names, "
+    "pictures or ids."
 )
 SCRIPTS = (
     "Reads Latin-script languages (Spanish, French, Polish, ...). Cyrillic, Greek and Asian "
@@ -55,8 +57,9 @@ def translate_card() -> None:
                 "Translate automatically",
                 config.translate_auto(),
                 config.save_translate_auto,
-                hint="Lines in a language you don't read get their translation within a second "
-                "or two, no click needed. Yours and your crew's are left alone.",
+                hint="Every line from others that isn't clearly in a language you read goes to "
+                "DeepL and gets its translation within a second or two, no click needed. "
+                "Yours and your crew's, gg and the like stay here.",
             ).mark("translate-auto-switch")
             with ui.element("div").classes("yt-row yt-filters"):
                 ui.label("I read").classes("yt-setting-name")
