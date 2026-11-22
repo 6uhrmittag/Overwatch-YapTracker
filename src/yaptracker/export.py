@@ -280,8 +280,27 @@ def write_days(snapshot: Store, folder: Path, names, played_days: list, gaps: li
         )
 
 
+def _loved_lines(played_days: list) -> list[str]:
+    """The README's "Loved matches" (#286): the hearted ones up front, newest day first as in
+    Sessions, each pointing at its day file and its number there."""
+    out = []
+    for day in played_days:
+        for number, match in enumerate(day.matches, start=1):
+            if match.loved_at:
+                place = f" on {game_lists.display(match.map)}" if match.map else ""
+                out.append(f"- [{days.title(day.key, '%A, %b %d, %Y')}](days/{day.key}.md): "
+                           f"{_md(f'Match {number}{place}')}")  # fmt: skip
+    return ["\n## Loved matches\n", *out] if out else []
+
+
 def _readme(
-    counts: dict, first: str | None, last: str | None, anonymized: bool, pictures: bool, now: float
+    counts: dict,
+    first: str | None,
+    last: str | None,
+    anonymized: bool,
+    pictures: bool,
+    now: float,
+    loved: Iterable[str] = (),
 ) -> str:
     files = [
         "- `yaptracker-export.json`: everything, for scripts. The format is described at "
@@ -304,8 +323,9 @@ def _readme(
             f"- {_count(counts['days'], 'day')}, {_count(counts['matches'], 'match')}, "
             f"{_count(counts['yaps'], 'yap')}, {_count(counts['players'], 'yapper')}",
             f"- {span}",
-            f"- {names}\n",
-            "## What's inside\n",
+            f"- {names}",
+            *loved,
+            "\n## What's inside\n",
             *files,
             "\nYour data is yours. The format is free to use (MIT).\n",
         ]
@@ -415,6 +435,8 @@ def export_all(
             }
             for key, value in header.items():
                 out.write(f'  "{key}": {json.dumps(value)},\n')
+            hearted = sorted((r[2], r[0]) for rows in matches.values() for r in rows if r[8])
+            out.write(f'  "loved_matches": {json.dumps([mid for _, mid in hearted])},\n')  # #286
             _write_list(out, "sessions", sessions())
             outside = snapshot.messages_outside_matches()
             _write_list(out, "messages_outside_matches", names.messages(outside))
@@ -434,7 +456,9 @@ def export_all(
                 players_markdown(players, now), encoding="utf-8", newline="\n"
             )
             (folder / "README.md").write_text(
-                _readme(counts, *span, anonymize, pictures is not None, now),
+                _readme(
+                    counts, *span, anonymize, pictures is not None, now, _loved_lines(played_days)
+                ),  # fmt: skip
                 encoding="utf-8",
                 newline="\n",
             )

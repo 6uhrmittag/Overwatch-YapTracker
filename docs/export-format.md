@@ -23,6 +23,7 @@
 | `exported_at` | when the export was made |
 | `app_version` | the YapTracker that made it, e.g. `0.4.160` |
 | `anonymized` | `false`: names are as read. `true`: every name is a pseudonym like `Player-7f3a` (the same in every file of this export, random per export), also inside the text (as whole words, the names read in the same match); your notes and the other spellings are left out |
+| `loved_matches` | the `id`s of the matches you hearted (`loved_at` set), oldest first: the ones you wanted to find again, up front. The matches themselves stay where they are in `sessions`. Newer exports only; not required |
 | `sessions` | evenings of play, oldest first, each with its `matches` and their `messages` |
 | `messages_outside_matches` | chat read while no match was running (rare) |
 | `players` | everyone you met: verdict, notes, spellings, counts |
@@ -93,6 +94,6 @@
 
 ## The other files
 
-With **Markdown too** (on by default), the folder also has `README.md` (what's inside, counts, date range), `days/<date>.md` (one file per day you played, like the Sessions tab: a day runs until 05:00; every match numbered in its day with its chat, breaks between play blocks, and where nothing was recorded) and `players.md` (your yappers). With **Line pictures**, `line-images/<message id>.webp` holds each line as it looked; they're never included in an anonymized export, because they show the names.
+With **Markdown too** (on by default), the folder also has `README.md` (what's inside, counts, date range, and your loved matches up front with their day and number), `days/<date>.md` (one file per day you played, like the Sessions tab: a day runs until 05:00; every match numbered in its day with its chat, breaks between play blocks, and where nothing was recorded) and `players.md` (your yappers). With **Line pictures**, `line-images/<message id>.webp` holds each line as it looked; they're never included in an anonymized export, because they show the names.
 
 `players.json` from **Export yappers** holds the same `players` records with `format: "yaptracker-players"`.

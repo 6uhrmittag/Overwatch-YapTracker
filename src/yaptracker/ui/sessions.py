@@ -3,6 +3,7 @@
 The list groups by day (#440), a day runs until 05:00; the sessions table stays behind the scenes.
 Matches with a capture gap are marked incomplete, and the gap shows at its place in the
 transcript ("Not recorded 21:04-21:10"), never as a silent hole (#75).
+"Loved only" (#286) narrows days and matches to the hearted ones; numbers stay the day's.
 """
 
 import time
@@ -42,6 +43,7 @@ _GAP_WHY = {
     "app_not_running": "YapTracker wasn't running",
     "deferred_lost": "kept to read after the match, lost when YapTracker closed",
 }
+_SHOW = {False: "All matches", True: "Loved only"}  # (#286)
 
 
 def _clock(ts: float) -> str:
@@ -56,18 +58,20 @@ def sessions(match_id: int | None = None, line_id: int | None = None) -> None:
     """The days list; with a match (a search result, #30) its transcript in its day right away,
     with a line (a profile's match heading, #388) scrolled to it."""
     view = ui.element("div").classes("yt-view")
+    state = {"loved": False}  # "Loved only" (#286): kept while you go through days and matches
 
     def show_days() -> None:
         sub_page(None)
         view.clear()
         with view:
-            _day_list(show_day)
+            _day_list(show_day, state, show_days)
 
     def show_day(key: str) -> None:
         sub_page(show_days)  # the Sessions icon goes back to the list (#404)
         view.clear()
         with view:
-            _match_list(key, show_days, lambda m, n: show_match(key, m, n))
+            _match_list(key, show_days, lambda m, n: show_match(key, m, n), state,
+                        lambda: show_day(key))  # fmt: skip
 
     def show_match(key: str, match, number: int, line: int | None = None) -> None:
         sub_page(show_days)
@@ -91,7 +95,26 @@ def _reading() -> list[int]:
     return [m for m in waiting.matches if m is not None] if waiting else []
 
 
-def _day_list(open_day) -> None:
+def _loved_filter(state: dict, redraw) -> None:
+    """All matches / Loved only (#286): the segments of Yappers and Search."""
+
+    def choose(on: bool) -> None:
+        state["loved"] = on
+        redraw()
+
+    with ui.element("div").classes("yt-row yt-filters"):
+        with ui.element("div").classes("yt-seg").mark("loved-filter"):
+            for on, label in _SHOW.items():
+                item = ui.element("button").classes("yt-seg-item").props('type="button"')
+                item.mark("show-loved" if on else "show-all")
+                if state["loved"] == on:
+                    item.classes(add="is-active").props('aria-pressed="true"')
+                with item:
+                    ui.label(label)
+                item.on("click", lambda on=on: choose(on))
+
+
+def _day_list(open_day, state: dict, redraw) -> None:
     with ui.element("header").classes("yt-header"):
         ui.label("Sessions").classes("yt-h1")
     ui.label(
@@ -99,6 +122,9 @@ def _day_list(open_day) -> None:
     ).classes("yt-hint").mark("days-hint")
     store = runtime.store
     rows = days.group(store.played_matches(also=_reading())) if store else []
+    if rows:  # nothing to narrow before the first session
+        _loved_filter(state, redraw)
+    loved = {day.key: sum(1 for m in day.matches if m.loved_at) for day in rows}
     badges = {}
     with ui.element("section").classes("yt-card yt-card--list"):
         with ui.element("div").classes("yt-card-body").mark("sessions"):
@@ -106,7 +132,16 @@ def _day_list(open_day) -> None:
                 ui.label("No sessions yet").classes("yt-h2")
                 ui.label("Every day you play lands here, match by match.").classes("yt-hint")
                 return
+            if state["loved"] and not any(loved.values()):
+                ui.label("No loved matches yet").classes("yt-h2")
+                ui.label(
+                    "Click the heart on a match, in Live or at the top of its transcript, "
+                    "and its day shows up here."
+                ).classes("yt-hint").mark("no-loved")
+                return
             for day in rows:
+                if state["loved"] and not loved[day.key]:
+                    continue
                 row = ui.element("div").classes("yt-yapper").mark(f"day day-{day.key}")
                 row.on("click", lambda k=day.key: open_day(k))
                 with row:
@@ -115,10 +150,13 @@ def _day_list(open_day) -> None:
                     badges[tuple(m.id for m in day.matches)] = _badge()
                     ui.element("div").classes("yt-grow")
                     span = f"{_clock(day.started_at)}\u2013{_clock(day.ended_at)}"
+                    matches = count(len(day.matches), "match", "matches")
+                    if state["loved"]:  # the day's numbers would look like the loved ones'
+                        ui.label(f"{loved[day.key]} loved of {matches}").classes("yt-meta")
+                        continue
                     ui.label(
                         f"{span} \u00b7 {_length(0, day.played_s)} played \u00b7 "
-                        f"{count(len(day.matches), 'match', 'matches')} \u00b7 "
-                        f"{count(day.yaps, 'yap', 'yaps')}"
+                        f"{matches} \u00b7 {count(day.yaps, 'yap', 'yaps')}"
                     ).classes("yt-meta")
     backlog.follow(badges, backlog.day_badge)
 
@@ -128,7 +166,7 @@ def _badge() -> ui.label:
     return backlog.badge_label()
 
 
-def _match_list(key: str, back, open_match) -> None:
+def _match_list(key: str, back, open_match, state: dict, redraw) -> None:
     store = runtime.store
     with ui.element("header").classes("yt-header"):
         button("\u2190 All days", back, "quiet").mark("back-to-sessions")
@@ -137,6 +175,9 @@ def _match_list(key: str, back, open_match) -> None:
         "matches-hint"
     )  # snaps are in the match, in Search and in Live (#325)
     blocks = days.blocks(store.played_matches(key, _reading()))
+    only = state["loved"]
+    if blocks:
+        _loved_filter(state, redraw)
     badges = {}
     with ui.element("section").classes("yt-card yt-card--list"):
         with ui.element("div").classes("yt-card-body").mark("matches"):
@@ -144,14 +185,20 @@ def _match_list(key: str, back, open_match) -> None:
                 ui.label(
                     "No match left on this day: a match shows here once it has a yap or a result."
                 ).classes("yt-hint")
+            elif only and not any(m.loved_at for _, block in blocks for m in block):
+                ui.label("No loved match on this day. All matches shows the others.").classes(
+                    "yt-hint"
+                ).mark("no-loved")
             number = 0
             for i, (pause, block) in enumerate(blocks):
-                if i:  # a quiet divider between play blocks (#440)
+                if i and not only:  # a quiet divider between play blocks (#440)
                     ui.label(f"Break, {_length(0, pause)}").classes("yt-break-line").mark(
                         "break-line"
                     )
                 for match in block:
-                    number += 1
+                    number += 1  # the day's number, also with Loved only (#286)
+                    if only and not match.loved_at:
+                        continue
                     badges[match.id] = _match_row(match, number, open_match)
     backlog.follow(badges, backlog.badge)
 
