@@ -25,6 +25,7 @@ def test_the_banner_says_what_covers_the_chat_box_before_anything_else():
     said = health_words(None, True, gap, "  device lost  ")
     assert said.startswith("Not recording since 20:05 (capture stopped). Windows says:")
     assert "“device lost”" in said and said.endswith("shows why.")
+    assert "Windows says" not in health_words(None, True, gap, "   ")  # nothing to quote
 
 
 def test_a_covering_window_makes_a_short_loss_a_real_one(monkeypatch):

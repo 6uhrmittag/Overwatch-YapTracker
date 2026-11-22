@@ -641,7 +641,7 @@ def _refresh_chat(chat: dict, lines, picker, yap_count, count_callouts, clicked)
     yap_count.set_text(f"{yaps} \u00b7 {people}")
 
 
-def _live_marks(chat: dict, match_id: int, messages: list) -> NameMarks | None:
+def _live_marks(chat: dict, match_id: int, messages: list) -> NameMarks:
     """Who's known in this match's lines (#519): read again at most every FRESH_S, and
     only when a line arrived; a verdict set meanwhile updates the marks already shown."""
     marks = chat.get("marks")
@@ -701,7 +701,8 @@ def health_words(covered: str | None, broken: bool, gap, error: str | None) -> s
     if not broken:
         return None
     since = time.strftime("%H:%M", time.localtime(gap.since))
-    said = f" Windows says: \u201c{error.strip()[:160]}\u201d" if error else ""  # (#216)
+    error = (error or "").strip()
+    said = f" Windows says: \u201c{error[:160]}\u201d" if error else ""  # (#216)
     return f"Not recording since {since} ({_WHY[gap.reason]}).{said} {_TODO[gap.reason]}"
 
 
@@ -749,7 +750,7 @@ def _show_status(w, state: str, paused: bool, capturing: bool, meter, said: str)
         w.meta.set_text("")  # the banner says what's wrong and what to do; details are in the log
     # In a narrow window the fps line is hidden: the pill's tooltip still has it (#226).
     if w.meta.text:
-        w.pill.props(f'title="{w.meta.text}"')
+        w.pill.props(f'title="{html.escape(w.meta.text)}"')
     else:
         w.pill.props(remove="title")
     waiting = backlog.now()  # kept chat read now, also from the last session (#474, #501)
