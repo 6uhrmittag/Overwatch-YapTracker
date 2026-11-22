@@ -24,6 +24,13 @@ CAP_BYTES = 2_000_000_000
 PAD = 2  # px above and below the line's box, so outlines stay whole
 
 
+def row(image: np.ndarray, box: Region) -> np.ndarray:
+    """A line's picture: the whole row across the chat box (#259). One OCR box can stop short
+    of the channel icon, the first letters of a name or a trailing icon the text marks."""
+    y0, y1 = max(0, box.y - PAD), min(image.shape[0], box.y + box.height + PAD)
+    return image[y0:y1, :]
+
+
 def pictures_in(folder: Path) -> list[tuple[Path, int]]:
     """Every picture and its size: the one walk, at start (#387)."""
     if not folder.exists():
@@ -61,11 +68,7 @@ class LinePictures:
         """The line's picture; a better reading later saves over it."""
         if not self._enabled():
             return None
-        h, w = image.shape[:2]
-        # The whole row across the chat box (#259): one OCR box can stop short of the channel
-        # icon, the first letters of a name or a trailing icon the text marks with "◇".
-        y0, y1 = max(0, box.y - PAD), min(h, box.y + box.height + PAD)
-        crop = image[y0:y1, :]
+        crop = row(image, box)
         if crop.size == 0:
             return None
         target = self.path(message_id, ts)

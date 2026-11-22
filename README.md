@@ -111,7 +111,7 @@ Nothing else is sent. Yap snaps can hide names with one switch, and exports can 
 - **Windows 10 / older CPUs:** if you notice stutter, use **After the match** (Settings → Reading; already the default for Competitive) for all matches. Between matches YapTracker can use about 20–25 % of one core while you're in the menus.
 - **A black picture from the game window** (e.g. the game on the other graphics card): when it stays black (about 20 seconds; the game's own black start doesn't count), YapTracker reads the screen Overwatch is on instead, the same way, and says so quietly next to the fps in Live. It tries the window again at every match start and every few minutes between matches. In exclusive Fullscreen the screen is black too: switch to Borderless Windowed.
 - **Languages:** English and German chat are measured (umlauts and ß included). Other languages aren't tested; chat in other scripts (Cyrillic, Korean…) may come out wrong.
-- **Emoji and game icons** show as `◇` in the text; click a line to see its picture.
+- **Emoji and game icons** show as `◇` in the text, the ones YapTracker knows by name (`[icon:thumbs-up]`); click a line to see its picture.
 - **Lines can be missed** when chat scrolls or fades faster than it's read (it's read every 1.5 s), e.g. a burst of many lines at once, or a very bright background behind the chat.
 - **Group chat** gets its own channel once YapTracker has seen the `[Group]` chat box open once; until then those lines say "Chat".
 - **Matches** start at hero select and end at VICTORY / DEFEAT. If one is missed, a quiet gap starts the next one; **Start match** / **End match** fixes the rest. Pressing it twice, or before a long queue, leaves no empty match.

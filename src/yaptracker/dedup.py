@@ -20,7 +20,7 @@ from dataclasses import dataclass, field, replace
 
 from rapidfuzz import fuzz
 
-from yaptracker.glyphs import GLYPH
+from yaptracker.glyphs import GLYPH, unnamed
 from yaptracker.identity import clean
 from yaptracker.parser import ChatLine
 from yaptracker.quality import GOOD
@@ -54,7 +54,7 @@ _ACCENTS = re.compile(r"[äöüÄÖÜßéèêáàíóúñçÉÈ]")
 def _fold(text: str) -> str:
     """For matching only (#293): umlauts and accents to their base letters, ß as the B OCR
     confuses it with, no ◇, punctuation and emoticon noise gone (">:3" vs ".3")."""
-    plain = unicodedata.normalize("NFKD", text.replace("ß", "b").replace(GLYPH, " "))
+    plain = unicodedata.normalize("NFKD", unnamed(text).replace("ß", "b").replace(GLYPH, " "))
     plain = "".join(ch for ch in plain if not unicodedata.combining(ch))
     return re.sub(r"[^\w\s]", " ", plain)
 

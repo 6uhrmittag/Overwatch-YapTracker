@@ -9,6 +9,7 @@ Checked by eye on real frames (#128): 38 of 40 marked lines had a real icon; the
 scenery behind short lines. The line picture (#120) keeps what the icon really was.
 """
 
+import re
 from dataclasses import replace
 
 import cv2
@@ -17,6 +18,17 @@ import numpy as np
 from yaptracker.ocr.engine import OcrLine
 
 GLYPH = "\u25c7"  # ◇
+_NAMED = re.compile(r"\[icon:[a-z0-9-]+\]")  # a "◇" icons.py knew (#121)
+
+
+def tag(name: str) -> str:
+    """How a known icon is written in a line's text: "[icon:thumbs-up]" (#121)."""
+    return f"[icon:{name}]"
+
+
+def unnamed(text: str) -> str:
+    """The text as it was read, every named icon a "◇" again: to compare readings (#121)."""
+    return _NAMED.sub(GLYPH, text)
 
 
 BRIGHT_MAP = 170  # brightness (0-255) of what's around the blob: above it, the map is bright
@@ -82,4 +94,4 @@ def mark(image: np.ndarray, lines: list[OcrLine]) -> list[OcrLine]:
 
 
 def has_glyphs(text: str) -> bool:
-    return GLYPH in text
+    return GLYPH in text or _NAMED.search(text) is not None

@@ -12,7 +12,7 @@ from nicegui import run, ui
 
 from yaptracker import config, runtime
 from yaptracker.auto_translate import context_for
-from yaptracker.glyphs import GLYPH
+from yaptracker.glyphs import GLYPH, unnamed
 from yaptracker.translate import FAILED, Translation, language
 from yaptracker.ui.quick_verdict import OWN_CLICK
 
@@ -189,7 +189,7 @@ def translate_button(line: ui.element, message, under: ui.element) -> Callable[.
         if kept is not None:  # translated or looked at before: never sent again (#470, #567)
             show(kept)
             return
-        text = " ".join(now.text.replace(GLYPH, " ").split())
+        text = " ".join(unnamed(now.text).replace(GLYPH, " ").split())
         shown["busy"] = True
         try:
             done = await run.io_bound(_translate, store, now, text)

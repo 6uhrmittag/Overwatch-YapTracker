@@ -20,7 +20,7 @@ import time
 from collections.abc import Callable
 
 from yaptracker import languages
-from yaptracker.glyphs import GLYPH
+from yaptracker.glyphs import GLYPH, unnamed
 from yaptracker.translate import (
     NO_KEY,
     NOT_FREE,
@@ -55,7 +55,7 @@ def context_for(store, message) -> str | None:
 
 
 def _clean(text: str) -> str:
-    return " ".join((text or "").replace(GLYPH, " ").split())
+    return " ".join(unnamed(text or "").replace(GLYPH, " ").split())
 
 
 class AutoTranslate:
@@ -124,7 +124,7 @@ class AutoTranslate:
             if failed is not None and self._clock() < failed[0]:
                 done += [failed[1]] * len(group)  # still failing: say so, don't ask again yet
                 continue
-            found = translator.translate_many([m.text for m in group],
+            found = translator.translate_many([unnamed(m.text) for m in group],
                                               context_for(store, group[0]))  # fmt: skip
             errors = [d for d in found if d.error]
             self._failed = (
@@ -135,7 +135,7 @@ class AutoTranslate:
         translated = 0
         for message, translation in zip(foreign, done, strict=True):
             if translation.error:  # said under the line only when it's clearly foreign
-                show = languages.foreign(message.text, read) is not None
+                show = languages.foreign(unnamed(message.text), read) is not None
             elif translation.code in read or _same(message.text, translation.text):
                 show = False  # nothing to translate: remembered, never sent again (#567)
                 if translation.code:
@@ -173,7 +173,7 @@ def why_not(message, read: set[str]) -> str | None:
         return "yours or your crew's"
     if message.translation or message.translation_from:
         return "looked at before"
-    return languages.skip(message.text, read)
+    return languages.skip(unnamed(message.text), read)
 
 
 def _same(text: str, translation: str | None) -> bool:

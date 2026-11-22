@@ -458,7 +458,7 @@ def _open_store() -> Callable[[], None]:
     from yaptracker.matches import MatchTracker, merge_split_matches
     from yaptracker.ocr import engine as ocr
     from yaptracker.players import PlayerMatcher
-    from yaptracker.read_again import ReadAgain, check_marks_once
+    from yaptracker.read_again import ReadAgain, check_marks_once, name_icons_once
     from yaptracker.reader import ChatReader
     from yaptracker.reading_mode import AFTER, ReadingMode
     from yaptracker.store.backups import DailyBackup, before_merge
@@ -565,6 +565,8 @@ def _open_store() -> Callable[[], None]:
         runtime.read_again.start()
         check_marks_once(runtime.read_again, runtime.store, config.marks_checked,
                          config.save_marks_checked)  # fmt: skip
+        name_icons_once(runtime.read_again, runtime.store, config.icons_named,
+                        config.save_icons_named)  # fmt: skip
         remove_input_hints_once(runtime.store, paths.backup_dir(), config.hints_removed,
                                 config.save_hints_removed)  # fmt: skip
         remove_empty_lines_once(runtime.store, paths.backup_dir(), config.empty_removed,
