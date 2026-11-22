@@ -43,7 +43,7 @@ _GAP_WHY = {
     "app_not_running": "YapTracker wasn't running",
     "deferred_lost": "kept to read after the match, lost when YapTracker closed",
 }
-_SHOW = {False: "All matches", True: "Loved only"}  # (#286)
+_SHOW = {False: "Every match", True: "Loved only"}  # (#286); "All matches" is the way back
 
 
 def _clock(ts: float) -> str:
@@ -59,14 +59,22 @@ def sessions(match_id: int | None = None, line_id: int | None = None) -> None:
     with a line (a profile's match heading, #388) scrolled to it."""
     view = ui.element("div").classes("yt-view")
     state = {"loved": False}  # "Loved only" (#286): kept while you go through days and matches
+    listed = {"again": None}  # draws the list that's showing again; None in a transcript
+
+    def hearted() -> None:
+        """An Undo clicked after leaving the transcript: the list behind it is up to date."""
+        if listed["again"] is not None:
+            listed["again"]()
 
     def show_days() -> None:
+        listed["again"] = show_days
         sub_page(None)
         view.clear()
         with view:
             _day_list(show_day, state, show_days)
 
     def show_day(key: str) -> None:
+        listed["again"] = lambda: show_day(key)
         sub_page(show_days)  # the Sessions icon goes back to the list (#404)
         view.clear()
         with view:
@@ -74,10 +82,11 @@ def sessions(match_id: int | None = None, line_id: int | None = None) -> None:
                         lambda: show_day(key))  # fmt: skip
 
     def show_match(key: str, match, number: int, line: int | None = None) -> None:
+        listed["again"] = None
         sub_page(show_days)
         view.clear()
         with view:
-            _transcript(match, number, lambda: show_day(key), line)
+            _transcript(match, number, lambda: show_day(key), line, hearted)
 
     store = runtime.store
     key = store.match_day(match_id) if store and match_id is not None else None
@@ -96,7 +105,7 @@ def _reading() -> list[int]:
 
 
 def _loved_filter(state: dict, redraw) -> None:
-    """All matches / Loved only (#286): the segments of Yappers and Search."""
+    """Every match / Loved only (#286): the segments of Yappers and Search."""
 
     def choose(on: bool) -> None:
         state["loved"] = on
@@ -186,7 +195,7 @@ def _match_list(key: str, back, open_match, state: dict, redraw) -> None:
                     "No match left on this day: a match shows here once it has a yap or a result."
                 ).classes("yt-hint")
             elif only and not any(m.loved_at for _, block in blocks for m in block):
-                ui.label("No loved match on this day. All matches shows the others.").classes(
+                ui.label("No loved match on this day. Every match shows the others.").classes(
                     "yt-hint"
                 ).mark("no-loved")
             number = 0
@@ -285,7 +294,8 @@ def _read_again(match_id: int, rows: dict[int, dict], button):
     return start
 
 
-def _transcript(match, number: int, back, line_id: int | None = None) -> None:
+def _transcript(match, number: int, back, line_id: int | None = None,
+                hearted=lambda: None) -> None:  # fmt: skip
     store = runtime.store
 
     def open_snap(chosen: list) -> None:
@@ -301,7 +311,7 @@ def _transcript(match, number: int, back, line_id: int | None = None) -> None:
             ui.label(_OUTCOMES.get(match.outcome, match.outcome)).classes(
                 f"yt-outcome yt-outcome--{match.outcome}"
             )
-        Heart(lambda _: _title(match, number)).show(match.id)  # love it afterwards (#282)
+        Heart(lambda _: _title(match, number), hearted).show(match.id)  # love it afterwards (#282)
         ui.element("div").classes("yt-grow")
         toggle_slot = ui.element("div")  # the Callouts switch (#289)
         again = button("Read again, best quality", lambda: read_again(), "quiet")

@@ -82,10 +82,13 @@ async def test_loved_only_says_in_words_when_there_is_nothing_to_show(
     user.find(marker="show-loved").click()
     user.find(marker="day").click()
     user.find(marker=f"match-{first}").click()
-    await user.should_see("All matches")  # the transcript's way back
+    await user.should_see("gl hf")  # its transcript
     user.find(marker="heart").click()  # taken back in the transcript
     user.find(marker="back-to-matches").click()
     await user.should_see("No loved match on this day")
+    user.find(marker="undo").click()  # the Undo of the heart, clicked from the list
+    await user.should_see("Match 1 on Esperanca")
+    await user.should_not_see("No loved match on this day")
 
 
 def test_the_export_lists_the_loved_matches_up_front_and_keeps_its_order(store, tmp_path):
