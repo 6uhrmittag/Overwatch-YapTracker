@@ -165,10 +165,14 @@ class ChatReader:
         the CPU goal, unless the match is read live with best (#249, #588)."""
         return max(self.min_gap_s, BUSY_GAP_S) if self.busy and self._gated() else self.min_gap_s
 
+    def _kept_gap_s(self) -> float:
+        gap = self._keep_gap()
+        return max(gap, BUSY_GAP_S) if self.busy else gap
+
     def _gap_words(self) -> str:
         """For the log line (#588): which gap the reads used and why."""
         chosen = "as fast as it can" if not self.min_gap_s else f"every {self.min_gap_s:g} s"
-        if not self.busy:
+        if not self.busy or self.gap_s() == self.min_gap_s and self._gated():
             return f"reading {chosen} (chosen)"
         if not self._gated():
             return f"reading {chosen} (chosen; above the CPU goal, but best live isn't held back)"
@@ -233,7 +237,9 @@ class ChatReader:
                     return
                 # Too soon after the last read: wait, newer frames replace the pending one.
                 # Kept frames go one after the other while the game is idle (#335).
-                gap = self.gap_s()
+                # Kept frames in a live match: one per kept gap and always gated, whatever the
+                # live pace (#588): a backlog never goes through back to back while playing.
+                gap = self.gap_s() if self._pending is not None else self._kept_gap_s()
                 if self.menu:
                     gap = max(gap, MENU_GAP_S)
                 fast = self._pending is None and self._idle()

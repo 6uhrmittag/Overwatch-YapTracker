@@ -74,8 +74,9 @@ class ReadingMode:
         return mode
 
     def chosen(self) -> str:
-        """The mode the running match reads with, like now() but without a log line; between
-        matches "between", which is no user's choice (#588)."""
+        """The mode the user chose for the running match, like now() but without a log line;
+        between matches "between", which is no user's choice. Light that falls back to best
+        (no Windows OCR) stays light here: the busy gate follows the choice (#588)."""
         tracker = self._matches()
         return self._policy()[0] if tracker is not None and tracker.running else "between"
 

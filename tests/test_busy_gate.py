@@ -93,3 +93,30 @@ def test_the_gate_follows_the_running_match_mode():
     assert reading.chosen() == LIGHT
     tracker["t"] = None
     assert reading.chosen() == "between"  # between matches the defaults' gate applies
+
+
+def test_kept_frames_in_a_live_match_keep_their_pace_and_the_gate(tmp_path):
+    """Review of #588: a backlog from an after-the-match match isn't read back to back."""
+    from yaptracker.matches import MatchTracker
+    from yaptracker.pause import Pause
+    from yaptracker.store.repo import Store
+
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    try:
+        r = reader_module.ChatReader(lambda image: [], store, MatchTracker(store, Pause()),
+                                     min_gap_s=0.0, gated=lambda: False,
+                                     keep_gap_s=lambda: 1.5)  # fmt: skip
+        assert r._kept_gap_s() == 1.5 and r.gap_s() == 0.0
+        r.busy = True
+        assert r._kept_gap_s() == 3.0 and r.gap_s() == 0.0
+    finally:
+        store.close()
+
+
+def test_chosen_every_3_s_says_chosen_also_above_the_goal(tmp_path):
+    r, store = reader_at(tmp_path, {"on": True}, min_gap_s=3.0)
+    try:
+        r.busy = True
+        assert r._gap_words() == "reading every 3 s (chosen)"
+    finally:
+        store.close()

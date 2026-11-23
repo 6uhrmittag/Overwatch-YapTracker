@@ -249,6 +249,8 @@ READ_GAPS = (1.5, 3.0, 0.0)
 
 def read_every_s(path: Path | None = None) -> float:
     chosen = _load(path or paths.config_file()).get("read_every_s", READ_GAPS[0])
+    if isinstance(chosen, bool) or not isinstance(chosen, int | float):  # false == 0 (#588)
+        return READ_GAPS[0]
     return chosen if chosen in READ_GAPS else READ_GAPS[0]
 
 

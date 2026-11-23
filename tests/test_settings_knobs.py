@@ -20,6 +20,8 @@ def test_read_gap_persists_and_only_known_values_count():
     assert config.read_every_s() == 0.0
     config.save_read_every_s(0.1)  # a hand-edited config.json can't make it hammer the CPU
     assert config.read_every_s() == 1.5
+    config.save_read_every_s(False)  # false == 0 in Python: still not "as fast as it can"
+    assert config.read_every_s() == 1.5
 
 
 def test_back_up_now_even_during_a_match_and_again_the_same_day(tmp_path):
