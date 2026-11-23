@@ -311,9 +311,10 @@ of view, like OBS or the Snipping Tool.
   as context; never names, pictures or ids, and a system row OCR glued onto a line (it has names)
   is cut first (`auto_translate.outgoing`). Live is allowed (only a network call, no CPU/GPU work
   here). Only zero-data-retention providers that don't collect data
-  (`provider: {zdr: true, data_collection: deny}`); a monthly spend cap in US dollars stops it in
-  words (spend kept in `data/ai_spend.json`); on error, timeout or cap DeepL takes over when its key
-  is set. Tests use a fake client; no real OpenRouter calls in tests or CI.
+  (`provider: {zdr: true, data_collection: deny}`), and never endpoints with Google's "Safety
+  Retention" (`ignore: ["google-vertex"]`, the only provider with them, #583); a monthly spend cap
+  in US dollars stops it in words (spend kept in `data/ai_spend.json`); on error, timeout or cap
+  DeepL takes over when its key is set. Tests use a fake client; no real OpenRouter calls in tests or CI.
   Decided for later: the rest of the **OpenRouter bridge** (#326, parked): vision models on line
   pictures, after the match only, under the same rules. The app must work identically without it.
 - **The repo is public.** Never commit screenshots or real chat logs — they
