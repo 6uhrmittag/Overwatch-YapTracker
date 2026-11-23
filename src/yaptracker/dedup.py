@@ -137,6 +137,7 @@ class Yap:
     match_keys: set[str] = field(default_factory=set)
     after: int | None = None  # read between known lines: the yap right above it (#423)
     last: ChatLine | None = None  # the reading from the newest frame (its box is on that frame)
+    whole: str | None = None  # key of a longer reading that completed a cut one (#587)
 
     @property
     def best(self) -> ChatLine:
@@ -153,7 +154,7 @@ class Yap:
         start, read = _folded(best.text), self.readings[key(best)]
         # read at least as often: map text glued once to the end ("gg TOURING EM") stays out
         longer = [line for k, line in self.lines.items()
-                  if line.quality >= GOOD and self.readings[k] >= read
+                  if line.quality >= GOOD and (self.readings[k] >= read or k == self.whole)
                   and _folded(line.text).startswith(start)
                   and len(_folded(line.text)) > len(start)]  # fmt: skip
         if longer:  # light OCR read the beginning first ("so please n"): the whole line (#432)
@@ -227,12 +228,14 @@ class Dedup:
         missed = self._between(ts, lines, pairs)
         last = pairs[-1][0] if pairs else -1
         new = []
+        on_screen = {self.recent[j].id for _, j in pairs}
         for line in lines[last + 1 :]:
-            whole = self._part_of(line)
+            whole = self._part_of(line, ts, on_screen)
             if whole is not None:  # the beginning of a known line, or that line read whole
-                if whole.total() <= 2 and len(_folded(line.text)) > len(_folded(whole.best.text)):
+                if len(_folded(line.text)) > len(_folded(whole.best.text)):
                     before = _stored(whole.best)
                     whole.add(line)
+                    whole.whole = key(line)  # wins however often the cut one was read (#587)
                     if _stored(whole.best) != before and whole not in improved:
                         improved.append(whole)
                 continue
@@ -264,9 +267,13 @@ class Dedup:
                 report.append(line)
         return report
 
-    def _part_of(self, line: ChatLine) -> "Yap | None":
+    def _part_of(self, line: ChatLine, ts: float | None = None,
+                 on_screen: set[int] = frozenset()) -> "Yap | None":  # fmt: skip
         """A recent line this row is the beginning of, or whose beginning it is, said by a
-        similar name (#432): light OCR read "so please n" and "were in the" off longer lines."""
+        similar name (#432): light OCR read "so please n" and "were in the" off longer lines.
+        A longer row completes a known line read at most twice, or one read often but still
+        fresh and not on screen next to it (#587): a callout's wrapped second row ("charging!
+        42%") came into the box seconds after "My ultimate (EMP) is" was read again and again."""
         text = _folded(line.text)
         if len(text) < PART_MIN:
             return None
@@ -277,7 +284,11 @@ class Dedup:
             other = _folded(said.text)
             if len(other) < PART_MIN or other == text:
                 continue
-            if other.startswith(text) or (text.startswith(other) and yap.total() <= 2):
+            if other.startswith(text):
+                return yap
+            fresh = (ts is not None and ts - yap.first_seen <= FADE_S
+                     and yap.id not in on_screen)  # fmt: skip
+            if text.startswith(other) and (yap.total() <= 2 or fresh):
                 return yap
         return None
 

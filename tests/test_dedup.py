@@ -283,3 +283,35 @@ def test_short_lines_that_start_alike_stay_two_lines():
     dedup.update(100.0, _rows("[Pip]: gg"))
     new, _ = dedup.update(101.0, _rows("[Pip]: gg", "[Pip]: gg wp"))
     assert [y.best.text for y in new] == ["gg wp"]
+
+
+def test_a_callout_read_cut_again_and_again_is_completed_not_stored_twice():
+    """#587: "My ultimate (EMP) is" read for seconds, then its wrapped "charging! 42%" row: the
+    longer reading replaces it. Also cut right after the hero name."""
+    for cut in ("Kettle (Sombra): My ultimate (EMP) is", "Kettle (Sombra): My ultimate (EMP)"):
+        dedup = Dedup()
+        (_, first), _ = dedup.update(100.0, _rows("[Pip]: hello", cut))
+        for t in (101.5, 103.0, 104.5, 106.0):
+            assert dedup.update(t, _rows("[Pip]: hello", cut)) == ([], [])
+        new, improved = dedup.update(108.0, _rows(
+            "[Pip]: hello", "Kettle (Sombra): My ultimate (EMP) is charging! 42%"))  # fmt: skip
+        assert new == [] and improved == [first]
+        assert first.best.text == "My ultimate (EMP) is charging! 42%"
+        assert dedup.update(109.5, _rows("[Pip]: hello", cut)) == ([], [])  # cut again: stays
+
+
+def test_a_longer_line_below_the_short_one_on_screen_is_a_line_of_its_own():
+    """Both on screen at once: two lines, even when one starts like the other (#587)."""
+    dedup = Dedup()
+    for t in (100.0, 101.5, 103.0):
+        dedup.update(t, _rows("[Pip]: push the cart"))
+    new, _ = dedup.update(104.5, _rows("[Pip]: push the cart", "[Pip]: push the cart pls"))
+    assert [y.best.text for y in new] == ["push the cart pls"]
+
+
+def test_long_after_it_faded_a_longer_line_is_new():
+    dedup = Dedup()
+    for t in (100.0, 101.5, 103.0):
+        dedup.update(t, _rows("[Pip]: push the cart"))
+    new, _ = dedup.update(130.0, _rows("[Pip]: push the cart pls"))
+    assert [y.best.text for y in new] == ["push the cart pls"]
