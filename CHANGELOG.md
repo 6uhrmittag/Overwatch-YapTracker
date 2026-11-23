@@ -4,6 +4,13 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-23 · Callout icons named by their words (#121)
+- "Thanks!", "I need healing!", "Group up!" and "Fall back!" now always show their icon's name, also over a bright map and on old lines: on a copy of Marv's lines, 222 more of the 350 still-unnamed icons get their name.
+
+### 2026-11-23 · AI translation: only models that keep nothing to pick from (#584)
+- Settings → Translate chat → Model is now a list of the models a provider that keeps nothing offers, each with a one-line hint. A model you saved or typed that can't be used is explained in words right there (it stays saved).
+- For that, YapTracker asks OpenRouter for its public model list once a day while AI translation is on (no key, nothing of yours sent, never during a match).
+
 ### 2026-11-23 · Hero switches back and forth are each kept (#571)
 - When someone switches heroes and back ("to Ashe (was Sierra)", then "to Sierra (was Ashe)"), both switches are now kept, so the profile's "Played ..." doesn't miss one.
 
