@@ -66,8 +66,8 @@ def test_what_isnt_surely_a_known_icon_stays_a_mark():
     bright = row(frame(("heal", 400, BOX.y), ground=235))  # a white map: can't tell
     assert icons.name("gg ◇", nothing) == "gg ◇"
     assert icons.name("My ◇ is ◇ ready", one) == "My ◇ is ◇ ready"  # which of the two?
-    assert icons.name("I need healing! ◇", bright) == "I need healing! ◇"
-    assert icons.name("I need healing! ◇", None) == "I need healing! ◇"  # no picture kept
+    assert icons.name("love u ◇", bright) == "love u ◇"
+    assert icons.name("love u ◇", None) == "love u ◇"  # no picture kept
     assert icons.name("no mark", one) == "no mark"
 
 
@@ -107,7 +107,7 @@ def test_a_new_line_is_stored_with_its_icon_named_and_keeps_the_name(store):
     assert yap.best.text == "Thanks! ◇"  # readings are compared as they were read
     # a better reading of it (live or the tidy-up) from a frame that doesn't show the icon
     assert reader._named(yap, bright, message)["text"] == "Thanks! [icon:thumbs-up]"
-    assert reader._named(yap, bright)["text"] == "Thanks! ◇"  # a new line there: no name
+    assert reader._named(yap, bright)["text"] == "Thanks! [icon:thumbs-up]"  # by its words
 
 
 def test_stored_lines_get_their_icons_named_once_from_their_pictures(store, tmp_path):
@@ -135,7 +135,7 @@ def test_stored_lines_get_their_icons_named_once_from_their_pictures(store, tmp_
     assert texts[healing] == ("I need healing! [icon:heal]", True)
     assert texts[unknown] == ("love u ◇", True)
     assert texts[by_hand] == ("Fall back!! ◇", True)  # fixed by hand: never touched
-    assert texts[gone] == ("Group up! ◇", True)
+    assert texts[gone] == ("Group up! [icon:group-up]", True)  # no picture: by its words
     assert done == [icons.LIBRARY]
     name_icons_once(again, store, lambda: max(done, default=0), done.append)
     assert done == [icons.LIBRARY] and not again.run_once()  # not again with the same library
@@ -156,3 +156,27 @@ def test_read_again_keeps_a_name_and_names_what_it_reads(store, tmp_path):
     job = again.line(message)  # once more: the same reading isn't "better" for its name's letters
     again.run_once()
     assert job.better == [] and store.message(message).text == "I need healing! [icon:heal]"
+
+
+def test_the_four_callouts_are_named_by_their_words_whatever_the_picture_shows():
+    """#121, second slice: a bright map behind the icon or an old picture cut at the text."""
+    from yaptracker.parser import ICON_CALLOUTS
+
+    assert set(icons.BY_TEXT) == ICON_CALLOUTS  # the same four the parser marks (#259)
+    bright = row(frame(ground=235))
+    assert icons.name("Thanks! ◇", bright) == "Thanks! [icon:thumbs-up]"
+    assert icons.name("I need healing! ◇", None) == "I need healing! [icon:heal]"
+    assert icons.name("Group up! ◇", row(frame())) == "Group up! [icon:group-up]"
+    assert icons.name("Fall back! ◇", None) == "Fall back! [icon:fall-back]"
+    assert icons.by_text("thanks! ◇") == "thanks! [icon:thumbs-up]"  # the words as they are
+    for other in ("Thanks!", "Thanks! ◇ ◇", "Thanks! ◇ gg", "Hello! ◇", "Fall back! ◇ I'm "
+                  "waiting to respawn! (12s)", "Thanks! [icon:thumbs-up]"):  # fmt: skip
+        assert icons.by_text(other) is None, other
+
+
+def test_a_callout_parsed_from_ocr_is_stored_named_without_its_picture(store):
+    from yaptracker.parser import parse
+
+    (line,) = parse([OcrLine("Pickle (Moira): I need healing!", 0.95, BOX)])
+    assert line.text == "I need healing! ◇"
+    assert icons.name(line.text, None) == "I need healing! [icon:heal]"

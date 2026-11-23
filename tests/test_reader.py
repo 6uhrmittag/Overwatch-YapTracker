@@ -55,7 +55,7 @@ def test_four_real_minutes_end_up_in_the_database_once_with_who_said_it(store):
     assert len(stored) == 14
     assert [(m.speaker_raw, m.text, m.role) for m in stored[:4]] == [
         ("NoodleBonk", "Hello!", "crew"),
-        ("tortillaTank", "Thanks! ◇", "me"),  # its icon (#259)
+        ("tortillaTank", "Thanks! [icon:thumbs-up]", "me"),  # its icon (#259), named (#121)
         ("MaybeMaybe", "Enemy Tracer!", None),
         ("tortillaTank", "tracer come heereee I have cookies", "me"),
     ]

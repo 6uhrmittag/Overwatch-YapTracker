@@ -206,7 +206,9 @@ class ReadAgain:
         message = self._store.message(message_id)
         if message is None or message.edited_at is not None or glyphs.GLYPH not in message.text:
             return False
-        text = icons.name(message.text, images.read(self._pictures.path(message.id, message.ts)))
+        text = icons.by_text(message.text) or icons.name(  # by its words: no picture needed
+            message.text, images.read(self._pictures.path(message.id, message.ts))
+        )
         if text == message.text:
             return False
         self._store.drop_trailing_mark(message.id, text, True)

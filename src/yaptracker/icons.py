@@ -6,6 +6,10 @@ the line's picture (#120): the whole row, as it's saved, so new lines and stored
 named from the same pixels. Only the "whiteness" (the darkest of blue, green, red) is compared:
 chat text is coloured, the icons are not. A "◇" becomes "[icon:thumbs-up]" only when exactly as
 many icons are found as the text has marks; everything else stays "◇", and the picture stays.
+
+The four callouts that always end with their icon (the parser marks them, #259) are named by
+their words first: a bright map behind the icon or an old picture cut at the text doesn't
+matter then.
 """
 
 import logging
@@ -20,7 +24,7 @@ from yaptracker.glyphs import GLYPH, tag
 
 log = logging.getLogger(__name__)
 FOLDER = Path(__file__).parent / "data" / "icons"
-LIBRARY = 1  # one up with every new template: stored lines are then named again, once
+LIBRARY = 2  # one up with every new template or table: stored lines are named again, once
 # How alike (0-1) a spot must be. On 1026 of Marv's line pictures (2026-11-22, 1440p): 497 of
 # 568 real icons scored 0.9+, the best wrong spot of any row 0.78.
 ALIKE = 0.85
@@ -86,8 +90,30 @@ def find(picture: np.ndarray) -> list[str]:
     return [k[5] for row in rows for k in sorted(row, key=lambda k: k[1])]
 
 
+# The callout -> its icon (#121). The same four the parser gives a "◇" (parser.ICON_CALLOUTS).
+BY_TEXT = {
+    "thanks!": "thumbs-up",
+    "i need healing!": "heal",
+    "group up!": "group-up",
+    "fall back!": "fall-back",
+}
+
+
+def by_text(text: str) -> str | None:
+    """ "Thanks! ◇" -> "Thanks! [icon:thumbs-up]": one of the four callouts and its one mark,
+    nothing else in the line. None for any other text."""
+    if text.count(GLYPH) != 1 or not text.rstrip().endswith(GLYPH):
+        return None
+    said = text.rstrip()[: -len(GLYPH)].strip()
+    icon = BY_TEXT.get(said.lower())
+    return f"{said} {tag(icon)}" if icon else None
+
+
 def name(text: str, picture: np.ndarray | None) -> str:
-    """The text with its "◇" named, when the picture shows exactly that many known icons."""
+    """The text with its "◇" named: by the callout's words, else when the picture shows
+    exactly that many known icons."""
+    if (named := by_text(text)) is not None:
+        return named
     marks = text.count(GLYPH)
     if not marks or picture is None or picture.ndim != 3:
         return text
