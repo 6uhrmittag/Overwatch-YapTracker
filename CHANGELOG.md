@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-23 · AI translation: a model that keeps nothing (#583)
+- AI translation now uses Claude Haiku 5.5 by default, with DeepSeek V4 Flash stepping in when it's busy: both picked in a test on real Overwatch slang.
+- Google's endpoints are never asked any more: they keep prompts their filters flag, which isn't "keeps nothing".
+
 ### 2026-11-23 · Code health: start-up and auto-translate in named steps (#311)
 - Behind the scenes: opening the database at start and the automatic translation loop are split into small named steps with tests. Nothing changes in what they do.
 
