@@ -81,9 +81,10 @@ Comments from the planning chat end with _(planning chat)_.
 5. **Push and merge yourself, unattended (hard rule).** Before you push, review the branch's
    diff and fix what it finds, so CI runs once per PR:
    - docs-only PRs (`*.md`, `docs/**`): no review
-   - quick-win, UI-only, tests-only, small fixes: `/code-review low`
-   - anything touching capture, reader/dedup/parser, storage/migrations, threads, update/release
-     pipeline: full `/code-review`
+   - full `/code-review` only for capture, threads/concurrency, storage migrations/schema and the
+     update/release pipeline, and for any PR over ~400 changed lines
+   - everything else (reader, dedup, parser, UI, translation included): `/code-review low`
+     (Marv, 2026-11-23, #592)
 
    Fix every high-confidence finding before pushing; anything bigger becomes a `bug` issue in the
    current milestone. Note the review level and result in the PR under "Decisions I made".
@@ -93,14 +94,18 @@ Comments from the planning chat end with _(planning chat)_.
    `gh pr merge <PR> --squash --delete-branch`.
    Don't hand the merge back to Marv and don't wait for his review: he reviews the
    pre-release. Never force-push.
-6. **Don't idle while CI runs.** While a PR waits for CI (~2-3 min), start the next issue on
-   a fresh branch from `main`. Merge strictly in order. Before merging a later PR, check
-   whether `main` moved under it into the PR's own files (#494):
+6. **Don't idle while CI runs; up to two lanes.** While a PR waits for CI (~2-3 min), start the
+   next issue on a fresh branch from `main`. You may run **two issues at once**, each in its own
+   worktree, if they touch different files (check with `git diff --name-only`); never two PRs
+   touching the same file at once (#592). Each lane merges as soon as its own CI is green.
+   Before merging, check whether `main` moved under the PR into its own files (#494):
    `b=$(git merge-base HEAD origin/main); comm -12 <(git diff --name-only $b HEAD | sort) <(git diff --name-only $b origin/main | sort)`.
    Nothing printed: squash-merge right away, no new CI run (`main`'s own push CI still runs on
-   the result; a red `main` stops the pre-release). Shared files: merge `origin/main` into the
-   branch (never rebase), push, and wait for its CI to go green again. At most one PR waiting
-   at a time; this is overlap, not parallel lanes.
+   the result; a red `main` stops the pre-release). Shared files (or `main` moved under the
+   second lane): merge `origin/main` into the branch (never rebase), push, and wait for its CI
+   to go green again.
+7. **Effort:** routine steps (changelog, checklists, closing comments) need no deep thinking;
+   keep reasoning short there and save it for the code (#592).
 
 **Closing an issue — required, every time (Marv tracks progress in the issues):**
 1. **Before merging**, go through the issue's "Done when" checklist and **tick every
