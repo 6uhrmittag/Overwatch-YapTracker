@@ -4,6 +4,12 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-23 · Working rules: lighter reviews, two lanes (#592)
+- Behind the scenes: lighter code reviews outside capture, threads, storage and the release pipeline, and up to two issues worked on at once, so fixes land sooner.
+
+### 2026-11-23 · Cut-off callouts are completed, not stored twice (#587)
+- A callout read cut off for a few seconds ("My ultimate (EMP) is") is now replaced by its whole reading ("... is charging! 42%") once that shows up, instead of both being stored.
+
 ### 2026-11-23 · Read the chat faster on strong PCs (#588)
 - Settings → Reading → Read the chat: new "As fast as it can (strong PCs)": I read the next picture as soon as the last one is done, so fewer lines slip by. It costs about a CPU core while chat is busy; the default stays every 1.5 s.
 - A match you read live with the best quality is no longer slowed down to every 3 s when I use more CPU than planned: that's your choice. Light and after-the-match reading still are.
