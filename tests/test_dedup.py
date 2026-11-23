@@ -342,3 +342,18 @@ def test_a_weak_completing_reading_doesnt_win_but_a_good_one_does():
     assert first.best.text == "My ultimate (EMP) is"
     dedup.update(107.5, _rows("Kettle (Sombra): My ultimate (EMP) is charging! 42%"))
     assert first.best.text == "My ultimate (EMP) is charging! 42%"
+
+
+def test_two_hero_switches_of_one_player_are_two_lines():
+    """#571: switching back ("to Sierra (was Ashe)" after "to Ashe (was Sierra)") scores 86 >= 85;
+    with the first read once and gone, the second was taken for a better reading of it."""
+    dedup = Dedup()
+    (first,), _ = dedup.update(100.0, _rows("Bubbles switched to Ashe (was Sierra)."))
+    assert first.best.kind == "system"
+    new, improved = dedup.update(104.0, _rows("Bubbles switched to Sierra (was Ashe)."))
+    assert [y.best.text for y in new] == ["Bubbles switched to Sierra (was Ashe)."]
+    assert improved == [] and first.best.text == "Bubbles switched to Ashe (was Sierra)."
+    # a misread of the same switch is still the same line
+    new, _ = dedup.update(105.0, _rows("Bubbles switched to Ashe (was Sierra).",
+                                       "Bubbles switched to Sierra (was Ashe"))  # fmt: skip
+    assert new == []

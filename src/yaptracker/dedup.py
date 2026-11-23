@@ -21,6 +21,7 @@ from dataclasses import dataclass, field, replace
 
 from rapidfuzz import fuzz
 
+from yaptracker import game_lists
 from yaptracker.glyphs import GLYPH, unnamed
 from yaptracker.identity import clean
 from yaptracker.parser import ChatLine
@@ -81,11 +82,35 @@ def text_key(who: str | None, text: str) -> str:
     return " ".join(key.split()).lower()
 
 
+# A hero switch as match_key() has it: "name switched to ashe was sierra" (#262).
+_SWITCH_KEY = re.compile(r"\bswitched to (.+?) was (.+?)$")
+
+
+def _switch(k: str) -> tuple[str, str] | None:
+    """The two heroes of a hero switch key, as real hero names; None if it isn't one."""
+    m = _SWITCH_KEY.search(k)
+    if m is None:
+        return None
+    to, was = game_lists.hero(m[1]), game_lists.hero(m[2])
+    return (to, was) if to and was else None
+
+
+def _similar(a: str, b: str) -> float:
+    """Fuzzy ratio of two keys; two hero switches with other heroes are never one line (#571):
+    "Bo switched to Ana (was Mercy)" and "Bo switched to Kiriko (was Ana)" score ~90."""
+    ratio = fuzz.ratio(a, b)
+    if ratio >= SAME and "switched to" in a and "switched to" in b:
+        one, other = _switch(a), _switch(b)
+        if one and other and one != other:
+            return 0.0
+    return ratio
+
+
 def stored_as(k: str, keys: list[str], prefix: bool = False) -> bool:
     """A reading's match_key() is one of these keys (#504): alike as in dedup, or, with
     `prefix`, the start of one with junk glued on ("You endorsed X! NEXT TIER: 4071/50000").
     The caller allows that for three words of text at least, so "Bo: gg" isn't "Bo: gg wp"."""
-    return any(fuzz.ratio(k, s) >= SAME or (prefix and s.startswith(k + " ")) for s in keys)
+    return any(_similar(k, s) >= SAME or (prefix and s.startswith(k + " ")) for s in keys)
 
 
 NEAR_NAME = 70  # a callout's speaker this close to its hero's recent speaker is a misreading
@@ -199,7 +224,7 @@ class Yap:
         self.last = line
 
     def similarity(self, k: str) -> float:
-        return max(fuzz.ratio(k, known) for known in self.match_keys)
+        return max(_similar(k, known) for known in self.match_keys)
 
 
 class Dedup:
