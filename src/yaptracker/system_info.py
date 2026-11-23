@@ -229,8 +229,10 @@ def game_line(display: Display | None, width: int, height: int, mode: str) -> st
 def settings_line() -> str:
     engine = ocr.LABELS.get(config.ocr_engine(), config.ocr_engine())
     on = {True: "on", False: "off"}
+    gap = config.read_every_s()
+    pace = f"read every {gap:g} s" if gap else "read as fast as it can"  # (#588)
     return (f"settings: OCR {engine}, Competitive {config.reading('competitive')}, other "
-            f"{config.reading('other')}, read every {config.read_every_s():g} s, debug samples "
+            f"{config.reading('other')}, {pace}, debug samples "
             f"{on[config.debug_samples()]}, update check {on[config.update_check()]}")  # fmt: skip
 
 
