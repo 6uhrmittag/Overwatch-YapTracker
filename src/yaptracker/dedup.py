@@ -16,6 +16,7 @@ Matching, checked on real frames (#18):
 import re
 import unicodedata
 from collections import Counter
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field, replace
 
 from rapidfuzz import fuzz
@@ -137,7 +138,7 @@ class Yap:
     match_keys: set[str] = field(default_factory=set)
     after: int | None = None  # read between known lines: the yap right above it (#423)
     last: ChatLine | None = None  # the reading from the newest frame (its box is on that frame)
-    whole: str | None = None  # key of a longer reading that completed a cut one (#587)
+    cut: str | None = None  # folded text of a cut reading a longer one completed (#587)
 
     @property
     def best(self) -> ChatLine:
@@ -154,7 +155,7 @@ class Yap:
         start, read = _folded(best.text), self.readings[key(best)]
         # read at least as often: map text glued once to the end ("gg TOURING EM") stays out
         longer = [line for k, line in self.lines.items()
-                  if line.quality >= GOOD and (self.readings[k] >= read or k == self.whole)
+                  if line.quality >= GOOD and (self.readings[k] >= read or self._completes(line))
                   and _folded(line.text).startswith(start)
                   and len(_folded(line.text)) > len(start)]  # fmt: skip
         if longer:  # light OCR read the beginning first ("so please n"): the whole line (#432)
@@ -172,6 +173,13 @@ class Yap:
                 return best
             return replace(best, text=self.lines[marked[0]].text)
         return replace(best, text=plain) if GLYPH in best.text else best
+
+    def _completes(self, line: ChatLine) -> bool:
+        """A reading that goes on where the cut one stopped (#587): wins however often the cut
+        one was read. Glued map capitals don't make a reading longer."""
+        return self.cut is not None and _folded(_GLUED.sub("", line.text)).startswith(
+            self.cut + " "
+        )
 
     def total(self) -> int:
         """How often this line was read, all readings together."""
@@ -225,17 +233,19 @@ class Dedup:
             yap.add(lines[i])
             if _stored(yap.best) != before:
                 improved.append(yap)
+        on_screen = {self.recent[j].id for _, j in pairs}  # before _between moves the indexes
         missed = self._between(ts, lines, pairs)
         last = pairs[-1][0] if pairs else -1
         new = []
-        on_screen = {self.recent[j].id for _, j in pairs}
         for line in lines[last + 1 :]:
             whole = self._part_of(line, ts, on_screen)
             if whole is not None:  # the beginning of a known line, or that line read whole
                 if len(_folded(line.text)) > len(_folded(whole.best.text)):
                     before = _stored(whole.best)
+                    cut = _folded(whole.best.text)
                     whole.add(line)
-                    whole.whole = key(line)  # wins however often the cut one was read (#587)
+                    if whole.total() > 3:  # read cut again and again: any good whole reading
+                        whole.cut = cut
                     if _stored(whole.best) != before and whole not in improved:
                         improved.append(whole)
                 continue
@@ -268,12 +278,14 @@ class Dedup:
         return report
 
     def _part_of(self, line: ChatLine, ts: float | None = None,
-                 on_screen: set[int] = frozenset()) -> "Yap | None":  # fmt: skip
+                 on_screen: AbstractSet[int] = frozenset()) -> "Yap | None":  # fmt: skip
         """A recent line this row is the beginning of, or whose beginning it is, said by a
         similar name (#432): light OCR read "so please n" and "were in the" off longer lines.
-        A longer row completes a known line read at most twice, or one read often but still
-        fresh and not on screen next to it (#587): a callout's wrapped second row ("charging!
-        42%") came into the box seconds after "My ultimate (EMP) is" was read again and again."""
+        A longer row completes a known line read at most twice, or a callout read often but
+        still fresh and not on screen next to it (#587): its wrapped second row ("charging!
+        42%") came into the box seconds after "My ultimate (EMP) is" was read again and again.
+        Only callouts: their texts are fixed, so one that starts another is a cut reading; a
+        typed "nice" and then "nice shot" are two lines. Glued map text doesn't count."""
         text = _folded(line.text)
         if len(text) < PART_MIN:
             return None
@@ -286,8 +298,9 @@ class Dedup:
                 continue
             if other.startswith(text):
                 return yap
-            fresh = (ts is not None and ts - yap.first_seen <= FADE_S
-                     and yap.id not in on_screen)  # fmt: skip
+            fresh = (line.kind == "comms" and ts is not None and ts - yap.first_seen <= FADE_S
+                     and yap.id not in on_screen
+                     and _folded(_GLUED.sub("", line.text)).startswith(other + " "))  # fmt: skip
             if text.startswith(other) and (yap.total() <= 2 or fresh):
                 return yap
         return None

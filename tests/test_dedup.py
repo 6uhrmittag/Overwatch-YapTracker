@@ -315,3 +315,30 @@ def test_long_after_it_faded_a_longer_line_is_new():
         dedup.update(t, _rows("[Pip]: push the cart"))
     new, _ = dedup.update(130.0, _rows("[Pip]: push the cart pls"))
     assert [y.best.text for y in new] == ["push the cart pls"]
+
+
+def test_a_typed_line_and_a_longer_one_soon_after_stay_two_lines():
+    """Review of #587: "nice" read often and then "nice shot" with "nice" scrolled away are
+    two messages; only callouts, whose texts are fixed, get completed."""
+    dedup = Dedup()
+    for t in (100.0, 101.5, 103.0):
+        dedup.update(t, _rows("[Pip]: nice play"))
+    new, improved = dedup.update(105.0, _rows("[Pip]: nice play mate"))
+    assert [y.best.text for y in new] == ["nice play mate"] and improved == []
+
+
+def test_a_weak_completing_reading_doesnt_win_but_a_good_one_does():
+    from yaptracker.capture.source import Region
+    from yaptracker.parser import parse
+
+    cut = "Kettle (Sombra): My ultimate (EMP) is"
+    dedup = Dedup()
+    (first,), _ = dedup.update(100.0, _rows(cut))
+    for t in (101.5, 103.0, 104.5):
+        dedup.update(t, _rows(cut))
+    weak = parse([OcrLine("Kettle (Sombra): My ultimate (EMP) is charging! 4~", 0.3,
+                          Region(64, 10, 400, 24))])  # fmt: skip
+    dedup.update(106.0, weak)
+    assert first.best.text == "My ultimate (EMP) is"
+    dedup.update(107.5, _rows("Kettle (Sombra): My ultimate (EMP) is charging! 42%"))
+    assert first.best.text == "My ultimate (EMP) is charging! 42%"
