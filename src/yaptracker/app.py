@@ -219,10 +219,11 @@ def _start_bookkeeping() -> None:
 
 def _start_reader() -> None:
     from yaptracker import later
-    from yaptracker.reader import ChatReader
-    from yaptracker.reading_mode import AFTER
+    from yaptracker.reader import MIN_GAP_S, ChatReader
+    from yaptracker.reading_mode import AFTER, BEST
 
     note = paths.data_dir() / LATER_NOTE
+    kept_gap = lambda: max(runtime.reader.min_gap_s, MIN_GAP_S)  # noqa: E731 (#588)
     runtime.reader = ChatReader(
         lambda image: runtime.reading.read(image, runtime.ocr_scale()),
         runtime.store,
@@ -237,12 +238,12 @@ def _start_reader() -> None:
         on_player=runtime.familiar.heard,
         min_gap_s=config.read_every_s(),
         modes=runtime.reading.take_counts,
-        later=later.LaterFrames(
-            lambda: runtime.reader.min_gap_s, note, unread=paths.data_dir() / UNREAD_DIR
-        ),  # fmt: skip
+        later=later.LaterFrames(kept_gap, note, unread=paths.data_dir() / UNREAD_DIR),
+        keep_gap_s=kept_gap,
         read_kept=lambda image, mode: runtime.reading.read(image, runtime.ocr_scale(), mode),
         deferring=lambda: _capturing() and runtime.reading.now() == AFTER,
         idle=lambda: not _capturing() or not runtime.matches.running,
+        gated=lambda: runtime.reading.chosen() != BEST,  # best live: no busy gate (#588)
     )
     if (stale := runtime.reader.later.restore()) is not None:  # kept at the last quit (#349)
         runtime.store.close_gap(runtime.store.open_gap(stale[0], "deferred_lost"), stale[1])

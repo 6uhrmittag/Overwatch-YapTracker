@@ -73,6 +73,13 @@ class ReadingMode:
             log.info("reading: %s (%s)", mode, why)  # which mode ran, for Void's FPS check
         return mode
 
+    def chosen(self) -> str:
+        """The mode the user chose for the running match, like now() but without a log line;
+        between matches "between", which is no user's choice. Light that falls back to best
+        (no Windows OCR) stays light here: the busy gate follows the choice (#588)."""
+        tracker = self._matches()
+        return self._policy()[0] if tracker is not None and tracker.running else "between"
+
     def _policy(self) -> tuple[str, str]:
         tracker = self._matches()
         if tracker is None or not tracker.running:

@@ -6,7 +6,7 @@ from nicegui import ui
 from yaptracker import config, runtime
 from yaptracker import reading_mode as modes
 
-_GAPS = {1.5: "Every 1.5 s", 3.0: "Every 3 s"}
+_GAPS = {1.5: "Every 1.5 s", 3.0: "Every 3 s", 0.0: "As fast as it can (strong PCs)"}
 _MODES = {
     modes.AFTER: "After the match",
     modes.LIGHT: "Live, light",
@@ -44,7 +44,12 @@ def reading_card() -> None:
                 gaps = ui.element("div").classes("yt-seg").mark("reading-gaps")
             ui.label(
                 "Every 3 s is lighter on the CPU, but a fast burst of chat can push a line out "
-                "of the box before I read it."
+                "of the box before I read it. As fast as it can catches the most lines, but "
+                "costs about a whole CPU core while chat is busy: only for strong PCs."
+            ).classes("yt-hint")
+            ui.label(
+                "When I use more CPU than planned, I read every 3 s for a minute, unless a match "
+                "is read live with the best quality: that's your choice."
             ).classes("yt-hint")
 
     def segment(container, options: dict, chosen, choose, key: str, disabled=()) -> None:

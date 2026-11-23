@@ -98,6 +98,8 @@ class ChatReader:
         read_kept: Callable[[np.ndarray, str], list[OcrLine]] | None = None,
         deferring: Callable[[], bool] = lambda: False,
         idle: Callable[[], bool] = lambda: True,
+        gated: Callable[[], bool] = lambda: True,
+        keep_gap_s: Callable[[], float] | None = None,
     ) -> None:
         self._read, self._store, self._matches = read, store, matches
         self._identity, self._colours, self._paused, self._clock = (
@@ -120,16 +122,22 @@ class ChatReader:
         # Frames read after the match (#335): kept while deferring, read when idle (fast) or
         # in a live match (at the live pace), each with the mode it was seen with.
         # "is not None": an empty buffer is falsy (it has a length), and the app passes one empty
-        self.later = later if later is not None else LaterFrames(lambda: self.min_gap_s, None)
+        # One frame per this is kept to read later (#335, #336); the app keeps it at 1.5 s even
+        # "as fast as it can" (#588): kept frames would pile up at the capture's 2 a second.
+        self._keep_gap = keep_gap_s or (lambda: self.min_gap_s)
+        self.later = later if later is not None else LaterFrames(self._keep_gap, None)
         self._read_kept = read_kept or (lambda image, mode: read(image))
         self._deferring, self._idle = deferring, idle
+        # The busy gate (#249) is for the default choices; a match read live with best is the
+        # user's trade of CPU for quality, and keeps its chosen gap (#588).
+        self._gated = gated
         self._batch: tuple[float, int] | None = None  # (started, frames) of reading kept ones
         # Time between two kept frames read through, as the UI's time left (#501): in a live
         # match they only go between live reads, so this beats the OCR time alone.
         self.per_picture_s, self._paced = PER_PICTURE_S, False
         self._kept_at: float | None = None
         # Light matches (#336): their changed frames, read again with the best quality when idle
-        self.tidy_frames = LaterFrames(lambda: self.min_gap_s, None)
+        self.tidy_frames = LaterFrames(self._keep_gap, None)
         self._tidy: TidyMatch | None = None
         self._tidy_paused = False  # said once in the log (#432)
         self.tidied: tuple[int, int, int] | None = None  # (match, fixed, found) of the last one
@@ -151,6 +159,25 @@ class ChatReader:
         self.failing = 0  # reads in a row that failed (#457); Live says so from FAIL_LIMIT on
         self._failing_since = 0.0
         self._failing_gap: int | None = None
+
+    def gap_s(self) -> float:
+        """Seconds between two live reads: the chosen one, or 3 s for a minute after one above
+        the CPU goal, unless the match is read live with best (#249, #588)."""
+        return max(self.min_gap_s, BUSY_GAP_S) if self.busy and self._gated() else self.min_gap_s
+
+    def _kept_gap_s(self) -> float:
+        gap = self._keep_gap()
+        return max(gap, BUSY_GAP_S) if self.busy else gap
+
+    def _gap_words(self) -> str:
+        """For the log line (#588): which gap the reads used and why."""
+        chosen = "as fast as it can" if not self.min_gap_s else f"every {self.min_gap_s:g} s"
+        if not self.busy or self.gap_s() == self.min_gap_s and self._gated():
+            return f"reading {chosen} (chosen)"
+        if not self._gated():
+            return f"reading {chosen} (chosen; above the CPU goal, but best live isn't held back)"
+        gap = self.gap_s()
+        return f"reading every {gap:g} s for a minute (above the CPU goal; chosen {chosen})"
 
     def offer(self, image: np.ndarray, mode: str | None = None) -> None:
         """From the capture thread: a chat frame with new text. Never blocks. mode: how it's
@@ -210,7 +237,9 @@ class ChatReader:
                     return
                 # Too soon after the last read: wait, newer frames replace the pending one.
                 # Kept frames go one after the other while the game is idle (#335).
-                gap = max(self.min_gap_s, BUSY_GAP_S) if self.busy else self.min_gap_s
+                # Kept frames in a live match: one per kept gap and always gated, whatever the
+                # live pace (#588): a backlog never goes through back to back while playing.
+                gap = self.gap_s() if self._pending is not None else self._kept_gap_s()
                 if self.menu:
                     gap = max(gap, MENU_GAP_S)
                 fast = self._pending is None and self._idle()
@@ -574,10 +603,9 @@ class ChatReader:
             # Above the goal: read every 3 s for a minute (chat stays ~9 s on screen, #249).
             self.busy = whole > CPU_GOAL
             modes = self._modes()
-            log.info("chat reading: %d frames, %.0f ms CPU each%s; whole app: %.1f %% of a core%s",
-                     self._load_frames, 1000 * self._load_busy / self._load_frames,
-                     f" ({modes})" if modes else "", whole,
-                     "; reading every 3 s for a minute" if self.busy else "")  # fmt: skip
+            log.info("chat reading: %d frames, %.0f ms CPU each%s; whole app: %.1f %% of a core;"
+                     " %s", self._load_frames, 1000 * self._load_busy / self._load_frames,
+                     f" ({modes})" if modes else "", whole, self._gap_words())  # fmt: skip
             if self.menu:  # how often the menu "changed" without chat: the goal is <= 6/min (#350)
                 log.info("chat reading: no chat in the box between matches, reading every %g s;"
                          " %d changed frames in %.0f s", MENU_GAP_S, self._offered,

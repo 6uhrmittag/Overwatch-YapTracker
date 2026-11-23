@@ -16,7 +16,11 @@ def test_read_gap_persists_and_only_known_values_count():
     assert config.read_every_s() == 1.5
     config.save_read_every_s(3.0)
     assert config.read_every_s() == 3.0
+    config.save_read_every_s(0.0)  # as fast as it can (#588), per PC
+    assert config.read_every_s() == 0.0
     config.save_read_every_s(0.1)  # a hand-edited config.json can't make it hammer the CPU
+    assert config.read_every_s() == 1.5
+    config.save_read_every_s(False)  # false == 0 in Python: still not "as fast as it can"
     assert config.read_every_s() == 1.5
 
 
@@ -61,6 +65,9 @@ async def test_reading_card_changes_apply_at_once(user: User, monkeypatch):
     await user.should_see("Read the chat")
     user.find(marker="gap-3.0").click()
     assert reader.min_gap_s == 3.0 and config.read_every_s() == 3.0
+    await user.should_see("As fast as it can (strong PCs)")
+    user.find(marker="gap-0.0").click()
+    assert reader.min_gap_s == 0.0 and config.read_every_s() == 0.0
     await user.should_see("Other matches")
     user.find(marker="competitive-best").click()
     assert config.reading("competitive") == "best"
