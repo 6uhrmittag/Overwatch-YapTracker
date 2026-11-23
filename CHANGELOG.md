@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-23 · Read the chat faster on strong PCs (#588)
+- Settings → Reading → Read the chat: new "As fast as it can (strong PCs)": I read the next picture as soon as the last one is done, so fewer lines slip by. It costs about a CPU core while chat is busy; the default stays every 1.5 s.
+- A match you read live with the best quality is no longer slowed down to every 3 s when I use more CPU than planned: that's your choice. Light and after-the-match reading still are.
+
 ### 2026-11-23 · AI translation: a model that keeps nothing (#583)
 - AI translation now uses Claude Haiku 5.5 by default, with DeepSeek V4 Flash stepping in when it's busy: both picked in a test on real Overwatch slang.
 - Google's endpoints are never asked any more: they keep prompts their filters flag, which isn't "keeps nothing".
