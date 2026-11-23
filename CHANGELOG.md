@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-23 · Hero switches back and forth are each kept (#571)
+- When someone switches heroes and back ("to Ashe (was Sierra)", then "to Sierra (was Ashe)"), both switches are now kept, so the profile's "Played ..." doesn't miss one.
+
 ### 2026-11-23 · Working rules: lighter reviews, two lanes (#592)
 - Behind the scenes: lighter code reviews outside capture, threads, storage and the release pipeline, and up to two issues worked on at once, so fixes land sooner.
 
