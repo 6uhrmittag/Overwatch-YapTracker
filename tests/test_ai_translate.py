@@ -91,8 +91,10 @@ def test_only_text_goes_out_with_the_lines_before_and_only_to_providers_that_kee
     found = ai(tmp_path, fake).translate(outgoing(line.text), context_for(store, line))
     assert found == Translation("[majeur et vacine] in English", "French", code="FR")
     (body,) = fake.sent
-    assert body["provider"] == {"zdr": True, "data_collection": "deny"}
+    assert body["provider"] == ai_translate.PROVIDER == {
+        "zdr": True, "data_collection": "deny", "ignore": ["google-vertex"]}  # fmt: skip
     assert body["model"] == ai_translate.DEFAULT_MODEL and body["usage"] == {"include": True}
+    assert body["models"] == [ai_translate.DEFAULT_MODEL, ai_translate.FALLBACK_MODEL]
     sent = json.dumps(body["messages"])
     assert "push the cart" in sent and "majeur et vacine" in sent
     assert "Zappy" not in sent and "Kettle" not in sent  # names never go out
@@ -169,6 +171,12 @@ def test_the_spend_is_kept_and_a_new_month_starts_at_zero(tmp_path):
     assert spend.used() == 0.0
     spend.add(0.1)
     assert spend.used() == pytest.approx(0.1)
+
+
+def test_only_the_default_model_has_a_fallback():
+    picked = json.loads(ai_translate.request(KEY, "mistralai/some-model", ["merci"], "EN").data)
+    assert "models" not in picked  # a model the user chose fails in words, never swapped
+    assert picked["provider"]["ignore"] == ["google-vertex"]
 
 
 def test_wrong_key_and_no_zdr_provider_say_so(tmp_path):

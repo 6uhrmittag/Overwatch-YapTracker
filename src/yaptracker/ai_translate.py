@@ -4,8 +4,9 @@ OpenRouter key, off by default (Settings -> Translate chat -> AI).
 
 What goes out is what DeepL gets (CLAUDE.md, Local-only): the text of the lines to translate and
 the text of the few lines before as context; never names, ids or pictures. Only providers that
-keep nothing (OpenRouter's zero-data-retention routing, `zdr`) are asked, and none that train on
-it. Live is fine: it's a network call, no work on this PC. A monthly spend cap (in US dollars,
+keep nothing (OpenRouter's zero-data-retention routing, `zdr`) are asked, none that train on it,
+and not Google Vertex, whose endpoints keep flagged prompts ("Safety Retention", #583).
+Live is fine: it's a network call, no work on this PC. A monthly spend cap (in US dollars,
 OpenRouter's currency) stops it in words; a failed or capped request goes to DeepL when a DeepL
 key is there (`Engines`).
 """
@@ -26,9 +27,16 @@ from yaptracker.translate import SHORT, TARGETS, Translation, Usage, language, o
 log = logging.getLogger(__name__)
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
-# Small, fast and cheap, with zero-data-retention endpoints on OpenRouter (3, 2026-11-22):
-# $0.125 / $0.75 per million tokens in / out, about $0.0001 for a request of a few lines.
-DEFAULT_MODEL = "google/gemini-3.1-flash-lite"
+# Picked with a slang eval (#583, 2026-11-23): natural gamer tone, 1.3 s at the slowest, $0.10 /
+# $0.50 per million tokens in / out (about $0.02 for 1,000 lines). Its zero-retention endpoint is
+# Amazon Bedrock. The fallback (best on hard slang, a bit slower) steps in on its own when the
+# default has no endpoint free; only for the default: a model the user picked fails in words.
+DEFAULT_MODEL = "anthropic/claude-haiku-5.5"
+FALLBACK_MODEL = "deepseek/deepseek-v4-flash"
+# `zdr` alone still lets endpoints with Google's "Safety Retention" through (Google keeps prompts
+# its classifiers flag, up to 90 days): on OpenRouter's list (2026-11-23) only Google Vertex has
+# them, and there is no request field to leave them out, so that provider is skipped (#583).
+PROVIDER = {"zdr": True, "data_collection": "deny", "ignore": ["google-vertex"]}
 DEFAULT_CAP = 1.0  # US dollars a month
 TIMEOUT_S, TIMEOUT_MAX_S = 3.0, 6.0  # a few lines answer in under a second; a batch gets more
 THINKING_TIMEOUT_S = 15.0  # a model that must think first takes seconds (#568)
@@ -72,7 +80,7 @@ LITTLE_THINKING = {"effort": "low", "exclude": True}
 def request(key: str, model: str, texts: list[str], target: str, context: str | None = None,
             thinking: dict = NO_THINKING) -> urllib.request.Request:  # fmt: skip
     """The one request: the lines' texts, numbered, and the text of the lines before. Only
-    zero-data-retention providers that don't collect data (#568)."""
+    zero-data-retention providers that don't collect data, never Google Vertex (#568, #583)."""
     lines = "\n".join(f"{n}. {' '.join(text.split())}" for n, text in enumerate(texts, start=1))
     asked = f"Chat before:\n{context}\n\nLines:\n{lines}" if context else f"Lines:\n{lines}"
     body = {
@@ -81,12 +89,14 @@ def request(key: str, model: str, texts: list[str], target: str, context: str | 
             {"role": "system", "content": prompt(target)},
             {"role": "user", "content": asked},
         ],  # fmt: skip
-        "provider": {"zdr": True, "data_collection": "deny"},
+        "provider": PROVIDER,
         "usage": {"include": True},  # what it cost, for the monthly cap
         "temperature": 0.2,
         "reasoning": thinking,
         "max_tokens": (120 if thinking is NO_THINKING else 1000) + 80 * len(texts),
     }
+    if model == DEFAULT_MODEL:
+        body["models"] = [DEFAULT_MODEL, FALLBACK_MODEL]  # OpenRouter tries them in order
     return urllib.request.Request(
         URL,
         data=json.dumps(body).encode("utf-8"),
