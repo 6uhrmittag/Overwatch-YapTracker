@@ -4,10 +4,10 @@ Translate chat card."""
 
 from collections.abc import Callable
 
-from nicegui import ui
+from nicegui import run, ui
 
-from yaptracker import config, runtime
-from yaptracker.ai_translate import DEFAULT_MODEL
+from yaptracker import config, paths, runtime
+from yaptracker.ai_models import CACHE, Models
 
 ENGINES = {"deepl": "DeepL", "ai": "AI (OpenRouter)"}
 AI_HINT = (
@@ -32,6 +32,13 @@ def _spent() -> float | None:
     return ai.spend.used() if ai is not None else None
 
 
+def may_check() -> bool:
+    """OpenRouter's model list only with AI on, a key, and never during a match (#584)."""
+    playing = runtime.matches is not None and runtime.matches.running
+    return (config.translate_engine() == "ai" and bool(config.openrouter_key().strip())
+            and not playing)  # fmt: skip
+
+
 def ai_settings(saved: Callable[[], None]) -> None:
     """The engine choice and, with AI, its key, model and limit."""
     with ui.element("div").classes("yt-row yt-filters"):
@@ -41,10 +48,44 @@ def ai_settings(saved: Callable[[], None]) -> None:
     with block:
         key = _field("OpenRouter key", "Your OpenRouter key (sk-or-...)", config.openrouter_key(),
                      "openrouter-key", password=True)  # fmt: skip
-        model = _field("Model", DEFAULT_MODEL, config.ai_model(), "ai-model")
+        with ui.element("div").classes("yt-row yt-filters"):
+            ui.label("Model").classes("yt-setting-name")
+            model = (
+                ui.select([], value=None, with_input=True, new_value_mode="add-unique")
+                .props("dense borderless")
+                .classes("yt-search yt-grow")
+                .mark("ai-model")
+            )
+        about = ui.label().classes("yt-hint").mark("ai-model-hint")
+        ui.label(
+            "Only models a provider that keeps nothing offers are listed (I check OpenRouter's "
+            "list once a day while AI is on, never during a match). Type another model's name "
+            "if you like: I'll say if it can't be used."
+        ).classes("yt-hint")
         cap = _field("Monthly limit ($)", "1.00", f"{config.ai_cap():.2f}", "ai-cap")
         spend = ui.label().classes("yt-hint").mark("ai-spend")
         ui.label(AI_HINT).classes("yt-hint")
+
+    models = Models(paths.data_dir() / CACHE)
+
+    def show_models() -> None:
+        hints, chosen = models.hints(), config.ai_model()
+        model.set_options(list(dict.fromkeys([*hints, chosen])), value=chosen)
+        problem = models.problem(chosen)
+        about.set_text(problem or hints.get(chosen, ""))
+        about.classes(**{"add" if problem else "remove": "yt-hint--warn"})
+
+    def pick_model() -> None:
+        chosen = str(model.value or "").strip()
+        if chosen and chosen != config.ai_model():
+            config.save_ai_model(chosen)  # never overwritten by the list: the user's choice
+            saved()
+        show_models()
+
+    async def check_models() -> None:
+        """OpenRouter's list, a day old at most (#584)."""
+        if await run.io_bound(models.refresh, may_check()) and not model.is_deleted:
+            show_models()
 
     def show_spend() -> None:
         spend.set_text(spend_words(_spent(), config.ai_cap()))
@@ -68,11 +109,13 @@ def ai_settings(saved: Callable[[], None]) -> None:
         cap.value = f"{config.ai_cap():.2f}"
         show_spend()
 
-    for field, now, store in ((key, config.openrouter_key, config.save_openrouter_key),
-                              (model, config.ai_model, config.save_ai_model)):  # fmt: skip
-        handler = lambda f=field, n=now, s=store: save(f, n(), s)  # noqa: E731
-        field.on("blur", handler)
-        field.on("keydown.enter", handler)
+    def save_key() -> None:
+        save(key, config.openrouter_key(), config.save_openrouter_key)
+        ui.timer(0.1, check_models, once=True)  # a new key: the list may be due now
+
+    key.on("blur", save_key)
+    key.on("keydown.enter", save_key)
+    model.on_value_change(pick_model)
     cap.on("blur", save_cap)
     cap.on("keydown.enter", save_cap)
 
@@ -80,6 +123,7 @@ def ai_settings(saved: Callable[[], None]) -> None:
         config.save_translate_engine(engine)
         saved()
         show_engines()
+        ui.timer(0.1, check_models, once=True)
 
     def show_engines() -> None:
         engines.clear()
@@ -97,6 +141,8 @@ def ai_settings(saved: Callable[[], None]) -> None:
 
     show_engines()
     show_spend()
+    show_models()
+    ui.timer(0.1, check_models, once=True)  # after the page is up
 
 
 def _field(name: str, placeholder: str, value: str, mark: str, password: bool = False):

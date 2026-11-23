@@ -320,6 +320,10 @@ of view, like OBS or the Snipping Tool.
   Retention" (`ignore: ["google-vertex"]`, the only provider with them, #583); a monthly spend cap
   in US dollars stops it in words (spend kept in `data/ai_spend.json`); on error, timeout or cap
   DeepL takes over when its key is set. Tests use a fake client; no real OpenRouter calls in tests or CI.
+  Since #584 Settings lists only models with such an endpoint, from OpenRouter's public
+  `openrouter.ai/api/v1/endpoints/zdr` (`ai_models.py`): one GET, no key, no chat data, only while
+  the AI engine is on and a key is set, never during a match, at most once a day, cached in
+  `data/ai_models.json`; offline: a built-in short list. Tests block it (`conftest.py`).
   Decided for later: the rest of the **OpenRouter bridge** (#326, parked): vision models on line
   pictures, after the match only, under the same rules. The app must work identically without it.
 - **The repo is public.** Never commit screenshots or real chat logs — they
