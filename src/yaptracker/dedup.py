@@ -13,9 +13,11 @@ Matching, checked on real frames (#18):
   to a line ("Oops XD EM PORTUGAL") can be read with high confidence once, but not every time.
 """
 
+import itertools
 import re
 import unicodedata
 from collections import Counter
+from collections.abc import Iterator
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field, replace
 
@@ -228,10 +230,12 @@ class Yap:
 
 
 class Dedup:
-    def __init__(self, keep: int = KEEP, fade_s: float = FADE_S) -> None:
+    def __init__(self, keep: int = KEEP, fade_s: float = FADE_S,
+                 ids: Iterator[int] | None = None) -> None:  # fmt: skip
         self._keep, self._fade_s = keep, fade_s
         self.recent: list[Yap] = []
-        self._next_id = 1
+        # Shared by a live and a kept stream read side by side (#597): yap ids never clash.
+        self.ids = ids if ids is not None else itertools.count(1)
         self._open_until = -1.0  # the history stays on screen for a while after the chat closes
         self.unstored: list[ChatLine] = []  # rows seen twice but never stored, this read (#425)
         self._between_seen: dict[tuple[str, int], int] = {}  # a missed line, read how often
@@ -274,9 +278,8 @@ class Dedup:
                     if _stored(whole.best) != before and whole not in improved:
                         improved.append(whole)
                 continue
-            yap = Yap(self._next_id, ts)
+            yap = Yap(next(self.ids), ts)
             yap.add(line)
-            self._next_id += 1
             new.append(yap)
         self.recent = (self.recent + new)[-self._keep :]
         used = {i for i, _ in pairs} | set(range(last + 1, len(lines)))
@@ -355,9 +358,8 @@ class Dedup:
                 # between the lines around it, so it sorts where it was said
                 gap = below.first_seen - above.first_seen
                 at = above.first_seen + gap * step / (len(rows) + 1)
-                yap = Yap(self._next_id, min(ts, at), after=above.id)
+                yap = Yap(next(self.ids), min(ts, at), after=above.id)
                 yap.add(line)
-                self._next_id += 1
                 found.append((j0, yap))
         if found:  # into the history at their place, for the next reads
             below: dict[int, list[Yap]] = {}

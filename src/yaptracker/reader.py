@@ -5,8 +5,10 @@ If OCR falls behind, only the newest frame waits: chat on screen is still there 
 later, and the dedup (#18) sorts out what was already stored.
 
 During a match read afterwards (#335), frames wait in `later` instead, and are read once the
-game is idle, oldest first, into the match they were seen in. While any wait, new frames queue
-behind them: everything is read in the order it was seen, so the dedup sees one stream.
+game is idle, oldest first, into the match they were seen in. While any wait between matches, new
+frames queue behind them: everything is read in the order it was seen, so the dedup sees one
+stream. Once a live match runs, its frames go first and the kept ones only fill the gaps (#597);
+from then on the two are two streams, each with its own dedup, until the kept ones are read.
 """
 
 import logging
@@ -144,6 +146,13 @@ class ChatReader:
         self.min_gap_s = min_gap_s  # Settings can change it while running (#152)
         self._last_read = -math.inf  # monotonic time of the last read's start
         self._dedup = Dedup()
+        # Kept frames read side by side with live ones (#597): their own dedup and screen
+        # (read match, keys on screen), so neither stream takes the other's lines for its own.
+        self._kept_dedup: Dedup | None = None
+        self._kept_screen: tuple[int | None, set[str]] = (None, set())
+        self._live_first = False  # a live match ran since the last match read afterwards
+        self._last_live = -math.inf  # monotonic time of the last live read's start
+        self._kept_cost = PER_PICTURE_S  # how long one kept read takes, about (#597)
         self._stored: dict[int, int] = {}  # yap id -> chat_messages id
         self._pending: tuple[float, np.ndarray] | None = None
         self._wake = threading.Condition()
@@ -187,7 +196,11 @@ class ChatReader:
             self._matches.chat_activity(ts)
         with self._wake:  # wakes the reader either way: kept frames are looked at every 2 s
             self._offered += 1  # for the menu's log line (#350)
-            if mode == AFTER or len(self.later):
+            if mode == AFTER:
+                self._live_first = False
+            elif not self._idle():  # a live match runs: before any backlog (#597)
+                self._live_first = True
+            if mode == AFTER or (len(self.later) and not self._live_first):
                 self.later.add(ts, image, self._matches.match_id, mode)
             else:
                 self._pending = (ts, image)
@@ -235,25 +248,19 @@ class ChatReader:
                     self._wake.wait(LATER_POLL_S if waiting else None)
                 if self._pending is None and self._stop:  # stopping, and the last frame is done
                     return
-                # Too soon after the last read: wait, newer frames replace the pending one.
-                # Kept frames go one after the other while the game is idle (#335).
-                # Kept frames in a live match: one per kept gap and always gated, whatever the
-                # live pace (#588): a backlog never goes through back to back while playing.
-                gap = self.gap_s() if self._pending is not None else self._kept_gap_s()
-                if self.menu:
-                    gap = max(gap, MENU_GAP_S)
-                fast = self._pending is None and self._idle()
-                wait = 0 if fast else self._last_read + gap - time.monotonic()
-                if wait > 0 and not self._stop:
+                what, wait = self._next(time.monotonic())
+                if what is None:
                     self._wake.wait(wait)
                     continue
-                kept = self.later.pop() if self._pending is None else None
-                tidy = None
-                if self._pending is not None:
+                kept = tidy = None
+                if what == "live":
                     (ts, image), self._pending = self._pending, None
-                elif kept is not None:
+                elif what == "kept":
+                    kept = self.later.pop()
+                    if kept is None:
+                        continue
                     ts, image = kept.ts, kept.image
-                elif not self._tidy_due() or (tidy := self.tidy_frames.pop()) is None:
+                elif (tidy := self.tidy_frames.pop()) is None:
                     continue
             if tidy is not None:  # lowest priority: only when nothing else waits (#336)
                 try:
@@ -262,10 +269,14 @@ class ChatReader:
                     log.exception("tidying up the chat failed")
                 continue
             self._last_read = time.monotonic()
+            if kept is None:
+                self._last_live = self._last_read
             live = kept is None  # kept frames carry old times: only live reads count (#457)
             paused = live and self._paused()  # read_frame skips it: not a good read either
+            ok = False
             try:
                 self.read_frame(ts, image, kept)
+                ok = True
             except Exception as error:  # logged with traceback; the next frame is tried as usual
                 side_work.failed("reading the chat", error, then="the next frame is read")
                 self._failed_read(ts, live)
@@ -273,7 +284,33 @@ class ChatReader:
                 if live and not paused:
                     self._read_ok(ts)
             if kept is not None:
+                if ok:  # a failed read says nothing about how long one takes
+                    cost = time.monotonic() - self._last_read
+                    self._kept_cost += RATE_WEIGHT * (cost - self._kept_cost)
                 self._kept_read(kept)
+
+    def _next(self, now: float) -> tuple[str | None, float]:
+        """What to read now: ('live' | 'kept' | 'tidy', 0), or (None, seconds to wait).
+        Live frames go first and keep their own gap (#597). Kept ones go one after the other
+        while the game is idle, in a live match one per kept gap after any read, always gated
+        (#588); either way only if they're done before the waiting live frame is due. Tidy
+        frames only when nothing else waits (#336)."""
+        live_wait = math.inf
+        if self._pending is not None:
+            gap = self.gap_s()
+            if self.menu:
+                gap = max(gap, MENU_GAP_S)
+            live_wait = 0.0 if self._stop else self._last_live + gap - now
+            if live_wait <= 0:
+                return "live", 0.0
+        if self._kept_due():
+            kept_wait = 0.0 if self._idle() else self._last_read + self._kept_gap_s() - now
+            if kept_wait <= 0 and live_wait >= self._kept_cost:
+                return "kept", 0.0
+            return None, min(live_wait, max(kept_wait, 0.0) or live_wait)
+        if self._pending is None and self._tidy_due():
+            return "tidy", 0.0
+        return None, (live_wait if self._pending is not None else LATER_POLL_S)
 
     def _failed_read(self, ts: float, live: bool = True) -> None:
         """Live reads failing in a row (#457): from FAIL_LIMIT on a crash gap is open (from the
@@ -331,44 +368,67 @@ class ChatReader:
                      time.strftime("%H:%M:%S", time.localtime(kept.ts)))  # fmt: skip
         self._batch = (started, frames + 1)
         if not len(self.later):
+            with self._wake:
+                self._one_stream()
             _, dropped = self.later.take_counts()
             drops = ", ".join(f"match {m}: {n}" for m, n in sorted(dropped.items(), key=str))
             log.info("read %d kept chat frames in %.0f s%s", frames + 1, time.monotonic() - started,
                      f" (dropped for the memory cap: {drops})" if drops else "")  # fmt: skip
             self._batch = None
 
+    def _one_stream(self) -> None:
+        """The kept frames are read through (#597): if the newest frames went to them, their
+        dedup goes on as the live one; otherwise theirs goes."""
+        if self._kept_dedup is not None and not self._live_first:
+            self._dedup = self._kept_dedup
+            self._read_match, self._on_screen = self._kept_screen
+            self._weak, self._rereads_left = set(), 0  # those were the other dedup's yaps
+        self._kept_dedup, self._kept_screen = None, (None, set())
+
     def read_frame(self, ts: float, image: np.ndarray, kept: Kept | None = None) -> list[Yap]:
         """One frame through the whole pipeline; returns the yaps it stored. (Tests call it.)
         kept: a frame that waited (#335), read with its own mode into its own match."""
         if kept is None and self._paused():  # paused after the frame was offered: not kept
             return []
+        if kept is None and self._live_first and len(self.later) and self._kept_dedup is None:
+            # a live frame before kept ones (#597): they keep what was read so far, live
+            # starts its own
+            self._kept_dedup, self._kept_screen = self._dedup, (self._read_match, self._on_screen)
+            self._dedup = Dedup(ids=self._kept_dedup.ids)
+        side = kept is not None and self._kept_dedup is not None  # the kept stream of two
+        dedup = self._kept_dedup if side else self._dedup
         started = time.thread_time()
         ocr_lines = self._read(image) if kept is None else self._read_kept(image, kept.mode)
-        ocr, lines = self._lines(image, ocr_lines)
-        new, improved = self._dedup.update(ts, lines)
+        ocr, lines = self._lines(image, ocr_lines, dedup.recent)
+        new, improved = dedup.update(ts, lines)
         before = self._matches.match_id
         # first: a new match may start with this yap. Not for frames read after their match:
         # they belong to it, also after a restart when no match is open yet (#349). Not for a
         # system line: "2 friends playing Overwatch." in the menu started a match that never
         # ended (#417); friend notices and endorsements aren't match chat.
         said = any(yap.best.kind != "system" for yap in new)
-        if said and (kept is None or kept.mode != AFTER):
+        # nor for a kept frame of a match gone by: its old time would be the running one's (#597)
+        if said and (kept is None or kept.mode != AFTER and kept.match_id == before):
             self._matches.chat_changed(ts)
         # The first read of a match that began without this chat can still show lines of the
         # match before (#179): those that were on screen in the read before it belong there.
         current, previous = self._matches.match_id, self._matches.previous_match_id
+        read_match, on_screen = self._kept_screen if side else (self._read_match, self._on_screen)
         if kept is not None and current == before:  # into the match it was seen in (#335)
             before = current = kept.match_id
-            previous = self._read_match
+            previous = read_match
         old = set()
-        if current == before and current != self._read_match and previous is not None:
-            old = {yap.id for yap in new if match_key(yap.best) in self._on_screen}
+        if current == before and current != read_match and previous is not None:
+            old = {yap.id for yap in new if match_key(yap.best) in on_screen}
             if old:
                 log.info("%d line(s) still on screen from match %d", len(old), previous)
-        self._read_match = current
-        self._on_screen = {match_key(line) for line in lines if line.kind in YAP_KINDS}
-        self._want_reread(ts, lines)
-        self._no_chat = 0 if any(line.kind in YAP_KINDS for line in lines) else self._no_chat + 1
+        screen = (current, {match_key(line) for line in lines if line.kind in YAP_KINDS})
+        if side:
+            self._kept_screen = screen
+        else:
+            self._read_match, self._on_screen = screen
+            self._want_reread(ts, lines)
+            self._no_chat = 0 if any(ln.kind in YAP_KINDS for ln in lines) else self._no_chat + 1
         for yap in new:
             player = self._player(yap, ts)
             match_id = previous if yap.id in old else current
@@ -390,7 +450,7 @@ class ChatReader:
                 if yap.best is yap.last:  # read better in this very frame: its picture, too
                     self._keep_picture(yap, image)
         self._count(time.thread_time() - started)
-        unstored = self._really_unstored(ts, self._dedup.unstored, current)
+        unstored = self._really_unstored(ts, dedup.unstored, current)
         if unstored:  # a missed line as a number, not a feeling (#425)
             said = "; ".join(f"{line.speaker or ''}: {line.text}"[:50] for line in unstored)
             log.info("chat reading: %d line(s) seen twice but never stored: %s", len(unstored),
@@ -424,8 +484,11 @@ class ChatReader:
             found.append(line)
         return found
 
-    def _lines(self, image: np.ndarray, ocr_lines: list[OcrLine]) -> tuple[list, list]:
-        """(OCR lines with icons marked, chat lines with channel and who) of one read."""
+    def _lines(self, image: np.ndarray, ocr_lines: list[OcrLine],
+               recent: list[Yap] | None = None) -> tuple[list, list]:  # fmt: skip
+        """(OCR lines with icons marked, chat lines with channel and who) of one read; recent:
+        the yaps of the stream it belongs to (#597)."""
+        recent = self._dedup.recent if recent is None else recent
         known = {**self._colours(), **self._seen_colours}
         read = without_input(ocr_lines, image)  # what you type isn't said yet (#254)
         read = channels.cut_glued(read, image, known)  # "gg 512" -> "gg" (#172)
@@ -440,7 +503,7 @@ class ChatReader:
             self._save_colours({"group": learned["group"]})  # seen only when someone uses it
         known = {**saved, **self._seen_colours}
         lines = channels.assign(parsed, image, known)
-        lines = [replace(line, speaker=name) if (name := hero_speaker(line, self._dedup.recent))
+        lines = [replace(line, speaker=name) if (name := hero_speaker(line, recent))
                  else line for line in lines]  # a misread callout name (#424)  # fmt: skip
         return ocr, self._identity().apply(lines)
 
