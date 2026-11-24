@@ -510,6 +510,12 @@ def save_last_run_version(installed: str, path: Path | None = None) -> None:
     _save(path, data)
 
 
+def ocr_own_process(path: Path | None = None) -> bool:
+    """The chat reader's OCR runs in its own process (#563): on. No switch in Settings; setting
+    "ocr_own_process": false in config.json reads in the main process again, as before."""
+    return _load(path or paths.config_file()).get("ocr_own_process", True) is not False
+
+
 def update_check(path: Path | None = None) -> bool:
     """Ask GitHub once a day whether a newer YapTracker is out (#46): on unless switched off."""
     return _load(path or paths.config_file()).get("update_check", True)

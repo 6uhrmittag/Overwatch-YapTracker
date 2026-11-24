@@ -46,6 +46,13 @@ def _serve(conn, get: Callable[[str], object]) -> None:
         if request is None:
             return
         name, memory, shape, accents, scale = request
+        if memory is None:  # no picture: only make the engine, so the first read doesn't wait
+            reply = _read(get, name, None, accents, scale)
+            try:
+                conn.send((*reply, time.process_time()))
+            except (BrokenPipeError, OSError):
+                return
+            continue
         try:
             if block is None or block.name != memory:
                 if block is not None:
@@ -65,13 +72,15 @@ def _serve(conn, get: Callable[[str], object]) -> None:
             return
 
 
-def _read(get, name: str, image: np.ndarray, accents: bool, scale: float) -> tuple[str, object]:
+def _read(get, name: str, image: np.ndarray | None, accents: bool, scale: float) -> tuple:
     try:
         engine = get(name)
     except OcrUnavailable as reason:
         return "unavailable", str(reason)
     except Exception as error:  # e.g. a model file is missing: not something to retry
         return "error", repr(error)
+    if image is None:
+        return "ok", []
     try:
         return "ok", engine.read(image, accents=accents, scale=scale)
     except OcrUnavailable as reason:
@@ -127,6 +136,14 @@ class OcrChild:
         image = np.ascontiguousarray(image, np.uint8)
         if not image.nbytes:
             return []  # nothing to read, and shared memory can't be empty
+        return self._ask(name, image, accents, scale)
+
+    def make(self, name: str) -> None:
+        """The engine made in the child (its model loaded), like ocr.get(): OcrUnavailable if it
+        can't run on this machine, ChildGone if the child can't."""
+        self._ask(name, None, False, UPSCALE)
+
+    def _ask(self, name: str, image: np.ndarray | None, accents: bool, scale: float) -> list:
         with self._lock:
             try:
                 if self._stopped:
@@ -134,11 +151,14 @@ class OcrChild:
                 if self._process is None or not self._process.is_alive():
                     self._close()
                     self._start()
-                if self._block is None or self._block.size < image.nbytes:
-                    self._free()
-                    self._block = shared_memory.SharedMemory(create=True, size=image.nbytes)
-                np.ndarray(image.shape, np.uint8, buffer=self._block.buf)[:] = image
-                self._conn.send((name, self._block.name, image.shape, accents, scale))
+                if image is None:
+                    self._conn.send((name, None, None, accents, scale))
+                else:
+                    if self._block is None or self._block.size < image.nbytes:
+                        self._free()
+                        self._block = shared_memory.SharedMemory(create=True, size=image.nbytes)
+                    np.ndarray(image.shape, np.uint8, buffer=self._block.buf)[:] = image
+                    self._conn.send((name, self._block.name, image.shape, accents, scale))
                 if not self._conn.poll(self._answer_s):
                     raise TimeoutError(f"no answer in {self._answer_s:g} s")
                 kind, result, cpu = self._conn.recv()
@@ -190,6 +210,88 @@ class OcrChild:
         if block is not None:
             block.close()
             block.unlink()
+
+
+GONE_LIMIT = 3  # children lost in a row before reading stays in this process for a while
+RETRY_S = 600.0  # ...this long; then a child is tried again
+
+
+class _Engine:
+    """An OcrEngine for the chat reader: read() runs in the child."""
+
+    def __init__(self, name: str, owner: "ChildEngines") -> None:
+        self.name, self._owner = name, owner
+
+    def read(
+        self, image: np.ndarray, accents: bool = False, scale: float = UPSCALE
+    ) -> list[OcrLine]:
+        return self._owner.read(self.name, image, accents, scale)
+
+    def read_line(self, image: np.ndarray) -> str:
+        return self._owner.local(self.name).read_line(image)  # milliseconds: not worth the trip
+
+
+class ChildEngines:
+    """ocr.get() for the chat reader (#563): engines that read in the child, and in this process
+    whenever the child can't (it couldn't start, died, hung): a read is never lost to it, and the
+    log says where it was read. GONE_LIMIT children lost in a row: this process reads for
+    RETRY_S, then a child gets another try."""
+
+    def __init__(self, child: OcrChild | None = None,
+                 local: Callable[[str], object] = ocr.get,
+                 clock: Callable[[], float] = time.monotonic) -> None:  # fmt: skip
+        self.child = child or OcrChild()
+        self.local, self._clock = local, clock
+        self._engines: dict[str, _Engine] = {}
+        self._gone, self._retry_at = 0, 0.0
+        self._said: set[str] = set()  # engines whose first read in the child is in the log
+
+    def get(self, name: str) -> _Engine:
+        """Like ocr.get(): blocks while the engine is made (in the child), and raises
+        OcrUnavailable where it can't run."""
+        if name not in self._engines:
+            if not self._in_child(lambda: self.child.make(name)):
+                self.local(name)
+            self._engines[name] = _Engine(name, self)
+        return self._engines[name]
+
+    def read(self, name: str, image: np.ndarray, accents: bool, scale: float) -> list[OcrLine]:
+        lines: list[OcrLine] = []
+
+        def read() -> None:
+            lines.extend(self.child.read(name, image, accents, scale))
+
+        if not self._in_child(read):
+            return self.local(name).read(image, accents=accents, scale=scale)
+        if name not in self._said:
+            self._said.add(name)
+            log.info("ocr child: %s reads the chat in its own process (pid %s)", name,
+                     self.child.pid)  # fmt: skip
+        return lines
+
+    def _in_child(self, ask: Callable[[], None]) -> bool:
+        """True: the child did it. False: do it in this process (said in the log)."""
+        if self._clock() < self._retry_at:
+            return False
+        try:
+            ask()
+        except ChildGone as gone:
+            self._gone += 1
+            self._said.clear()  # a new child says again that it reads
+            if self._gone >= GONE_LIMIT:
+                self._gone, self._retry_at = 0, self._clock() + RETRY_S
+                log.warning(
+                    "ocr child: lost %d times in a row (%s): reading in the main process for"
+                    " %.0f min, then I try again", GONE_LIMIT, gone, RETRY_S / 60,
+                )  # fmt: skip
+            else:
+                log.warning("ocr child: %s: this one is read in the main process", gone)
+            return False
+        self._gone = 0
+        return True
+
+    def stop(self) -> None:
+        self.child.stop()
 
 
 def round_trip(name: str, image: np.ndarray, get: Callable[[str], object] = ocr.get,

@@ -27,11 +27,20 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 PARTS = ("reading", "change detection", "match signals", "debug samples", "capture")
+# CPU seconds used so far in processes of our own (the OCR child, #563); set by the app. It
+# belongs to the whole app like any thread here: the numbers stay comparable with the evenings
+# before, when OCR ran in this process.
+children: Callable[[], float] = lambda: 0.0
+
+
+def app_cpu() -> float:
+    """CPU seconds of the whole app: this process and its OCR child."""
+    return time.process_time() + children()
 
 
 class CpuParts:
     def __init__(self, clock: Callable[[], float] = time.monotonic,
-                 cpu: Callable[[], float] = time.process_time,
+                 cpu: Callable[[], float] = app_cpu,
                  log_every_s: float = 60.0,
                  threads: Callable[[], dict[int, float]] | None = None) -> None:  # fmt: skip
         self._clock, self._cpu, self._every = clock, cpu, log_every_s

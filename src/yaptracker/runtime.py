@@ -47,6 +47,7 @@ health: CaptureHealth | None = None  # gap records (#75), with the store
 debug: DebugSamples | None = None  # the hard moments, kept as test material (#63)
 reader: ChatReader | None = None  # live chat into the database (#108), with the store
 reading: ReadingMode | None = None  # which reader reads during which match (#331)
+ocr_child = None  # ChildEngines: the chat reader's OCR in its own process (#563); None: in-process
 read_again: ReadAgain | None = None  # "Read again, best quality" from line pictures (#333)
 backups: DailyBackup | None = None  # one copy of the database a day (#125), with the store
 pictures: LinePictures | None = None  # the picture of every chat line (#120)

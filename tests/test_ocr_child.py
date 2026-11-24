@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from yaptracker.capture.source import Region
-from yaptracker.ocr.child import ChildGone, OcrChild, round_trip
+from yaptracker.ocr.child import GONE_LIMIT, RETRY_S, ChildEngines, ChildGone, OcrChild, round_trip
 from yaptracker.ocr.engine import OcrLine, OcrUnavailable
 
 
@@ -200,3 +200,71 @@ def test_the_spike_logs_one_round_trip(caplog):
         text = round_trip("echo", picture(), get)
     assert text.startswith("615x395 sum ")
     assert "read a 615x395 picture with echo over shared memory: first read" in caplog.text
+
+
+class Local:
+    """What the main process would read: tells the two apart in the tests."""
+
+    def __init__(self, name):
+        self.name = name
+
+    def read(self, image, accents=False, scale=2.0):
+        return [OcrLine(f"read here by {self.name}", 0.9, Region(0, 0, 1, 1))]
+
+    def read_line(self, image):
+        return "a line read here"
+
+
+def local(name: str):
+    if name == "none":
+        raise OcrUnavailable("no OCR language installed")
+    return Local(name)
+
+
+def test_the_readers_engine_reads_in_the_child_and_says_so_once(child, caplog):
+    engines = ChildEngines(child, local)
+    with caplog.at_level(logging.INFO, logger="yaptracker.ocr.child"):
+        engine = engines.get("echo")
+        first = engine.read(picture(), scale=1.5)
+        engine.read(picture())
+    assert first[0].text.endswith(f"pid {child.pid}") and first[1].text == "accents False scale 1.5"
+    assert caplog.text.count("echo reads the chat in its own process") == 1
+    assert engines.get("echo") is engine
+    assert engine.read_line(picture()) == "a line read here"  # a signal strip: not worth the trip
+
+
+def test_an_engine_that_cant_run_here_is_unavailable_at_get_like_before(child):
+    """ReadingMode falls back from light to best on exactly this."""
+    engines = ChildEngines(child, local)
+    with pytest.raises(OcrUnavailable, match="no OCR language installed"):
+        engines.get("none")
+    with pytest.raises(OcrUnavailable):
+        engines.get("none")  # asked again: not remembered as fine
+
+
+def test_a_lost_child_costs_no_read_and_after_three_the_main_process_reads_for_a_while(caplog):
+    now = [1000.0]
+    child = OcrChild(get, answer_s=20.0)
+    engines = ChildEngines(child, local, clock=lambda: now[0])
+    try:
+        with caplog.at_level(logging.INFO, logger="yaptracker.ocr.child"):
+            assert engines.get("echo").read(picture())[0].text.startswith("615x395")
+            dies = engines.get("dies")  # the child dies making it: made here instead
+            for _ in range(GONE_LIMIT - 1):
+                assert dies.read(picture())[0].text == "read here by dies"
+            assert caplog.text.count("this one is read in the main process") == GONE_LIMIT - 1
+            assert f"lost {GONE_LIMIT} times in a row" in caplog.text
+            pid = child.pid
+            assert engines.get("echo").read(picture())[0].text == "read here by echo"
+            assert child.pid == pid  # no child is even tried for ten minutes
+            now[0] += RETRY_S
+            assert engines.get("echo").read(picture())[0].text.startswith("615x395")
+    finally:
+        engines.stop()
+
+
+def test_after_stop_everything_is_read_here(child):
+    engines = ChildEngines(child, local)
+    engine = engines.get("echo")
+    engines.stop()
+    assert engine.read(picture())[0].text == "read here by echo"
