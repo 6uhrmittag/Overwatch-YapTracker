@@ -27,10 +27,16 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 PARTS = ("reading", "change detection", "match signals", "debug samples", "capture")
+
+
 # CPU seconds used so far in processes of our own (the OCR child, #563); set by the app. It
 # belongs to the whole app like any thread here: the numbers stay comparable with the evenings
 # before, when OCR ran in this process.
-children: Callable[[], float] = lambda: 0.0
+def _no_children() -> float:
+    return 0.0
+
+
+children: Callable[[], float] = _no_children
 
 
 def app_cpu() -> float:

@@ -292,23 +292,3 @@ class ChildEngines:
 
     def stop(self) -> None:
         self.child.stop()
-
-
-def round_trip(name: str, image: np.ndarray, get: Callable[[str], object] = ocr.get,
-               answer_s: float = ANSWER_S) -> str:  # fmt: skip
-    """The spike (#563): one picture to a new child and back, timed and logged; the text read."""
-    child = OcrChild(get, answer_s)
-    try:
-        started = time.monotonic()
-        lines = child.read(name, image)
-        first = time.monotonic() - started
-        started = time.monotonic()
-        child.read(name, image)
-        again = time.monotonic() - started
-        log.info("ocr child: pid %s (parent %d) read a %dx%d picture with %s over shared memory:"
-                 " first read %.0f ms (with starting and the model), the next %.0f ms, %.1f s of"
-                 " its own CPU", child.pid, os.getpid(), image.shape[1], image.shape[0], name,
-                 1000 * first, 1000 * again, child.cpu_s)  # fmt: skip
-        return " ".join(line.text for line in lines)
-    finally:
-        child.stop()

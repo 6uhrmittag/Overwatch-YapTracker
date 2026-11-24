@@ -12,7 +12,7 @@ from nicegui import app, ui
 from nicegui.run import io_bound
 
 from yaptracker import autostart as start_with_windows
-from yaptracker import config, demo, paths, runtime, system_info
+from yaptracker import config, cpu_parts, demo, paths, runtime, system_info
 from yaptracker.capture_wiring import capture_region, start_watcher  # noqa: F401 (#311)
 from yaptracker.cpu_parts import CPU
 from yaptracker.ui import shell
@@ -53,17 +53,19 @@ def _check_ocr() -> bool:
         print(f"smoke test: {name} read: {text[:120]}")
         if "WAHOO" not in text.upper():
             return False
-        # ...and in its own process, as the chat reader will run it (#563): in the exe the child
-        # is this exe started again, so only the built app can prove it starts and reads.
-        from yaptracker.ocr import child
-
+        # ...and in its own process, as the chat reader runs it (#563): in the exe the child is
+        # this exe started again, so only the built app can prove it starts and reads there.
+        if runtime.ocr_child is None:
+            print("smoke test: the OCR child is off")
+            return False
         try:
-            text = child.round_trip(name, crop, answer_s=30.0)
+            text = " ".join(line.text for line in runtime.ocr_child.get(name).read(crop))
         except Exception as error:  # said, not waited out: CI shows why
             print(f"smoke test: {name} in its own process failed: {error!r}")
             return False
-        print(f"smoke test: {name} in its own process read: {text[:120]}")
-        if "WAHOO" not in text.upper():
+        pid = runtime.ocr_child.child.pid
+        print(f"smoke test: {name} in its own process (pid {pid}) read: {text[:120]}")
+        if pid is None or "WAHOO" not in text.upper():  # no pid: the main process read it
             return False
     return True
 
@@ -226,6 +228,8 @@ def _start_bookkeeping() -> None:
 
         runtime.ocr_child = ChildEngines()
         get = runtime.ocr_child.get
+        # its CPU belongs in the "whole app" and "reading" numbers, as when OCR ran here
+        cpu_parts.children = lambda: runtime.ocr_child.child.cpu_s if runtime.ocr_child else 0.0
     else:
         log.info("ocr child: off, the chat is read in the main process")
     runtime.reading = ReadingMode(

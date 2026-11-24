@@ -20,7 +20,7 @@ from dataclasses import replace
 
 import numpy as np
 
-from yaptracker import channels, glyphs, icons, priority, side_work
+from yaptracker import channels, cpu_parts, glyphs, icons, priority, side_work
 from yaptracker.cpu_parts import CPU
 from yaptracker.dedup import (
     FADE_S,
@@ -172,7 +172,7 @@ class ChatReader:
         self._thread: threading.Thread | None = None
         self.read_frames = 0
         self.busy_s = 0.0  # CPU time spent reading (OCR runs on this thread, #108)
-        self._load_since, self._load_cpu = time.monotonic(), time.process_time()
+        self._load_since, self._load_cpu = time.monotonic(), cpu_parts.app_cpu()
         self._load_busy, self._load_frames = 0.0, 0
         self._offered = 0  # frames with new text since the last log line (#350)
         self.busy = False  # the last minute was above the CPU goal: read less often (#249)
@@ -421,7 +421,7 @@ class ChatReader:
             self._dedup = Dedup(ids=self._kept_dedup.ids)
         side = kept is not None and self._kept_dedup is not None  # the kept stream of two
         dedup = self._kept_dedup if side else self._dedup
-        started = time.thread_time()
+        started = _cpu_now()
         ocr_lines = self._read(image) if kept is None else self._read_kept(image, kept.mode)
         ocr, lines = self._lines(image, ocr_lines, dedup.recent)
         new, improved = dedup.update(ts, lines)
@@ -477,7 +477,7 @@ class ChatReader:
                     **self._named(yap, image, stored))  # fmt: skip
                 if yap.best is yap.last:  # read better in this very frame: its picture, too
                     self._keep_picture(yap, image)
-        self._count(time.thread_time() - started)
+        self._count(_cpu_now() - started)
         if adopted:  # a missed line as a number, not a feeling (#425); now kept (#602)
             log.info("chat reading: %d line(s) seen twice, stored now: %s", len(adopted),
                      "; ".join(_said(yap.best) for yap, _ in adopted))  # fmt: skip
@@ -594,7 +594,7 @@ class ChatReader:
             log.info("tidy: match %d resumed, %d frame(s) left", kept.match_id,
                      len(self.tidy_frames) + 1)  # fmt: skip
         self._tidy_paused = False
-        started = time.thread_time()
+        started = _cpu_now()
         tidy = self._tidy
         tidy.seen.append(kept.ts)
         _, lines = self._lines(kept.image, self._read_kept(kept.image, BEST))
@@ -618,7 +618,7 @@ class ChatReader:
         for yap in improved:
             if tidy.links.get(yap.id) is not None:
                 self._tidy_fix(yap, self._store.message(tidy.links[yap.id]), kept)
-        CPU.add("reading", time.thread_time() - started)
+        CPU.add("reading", _cpu_now() - started)
         if not len(self.tidy_frames):
             self._tidied()
 
@@ -734,7 +734,7 @@ class ChatReader:
         self.busy_s += spent
         self._load_busy += spent
         self._load_frames += 1
-        now, cpu = time.monotonic(), time.process_time()
+        now, cpu = time.monotonic(), cpu_parts.app_cpu()
         if now - self._load_since >= LOAD_LOG_S:  # the "< 5 % of one core" goal, checkable
             wall = now - self._load_since
             whole = 100 * (cpu - self._load_cpu) / wall
@@ -751,6 +751,12 @@ class ChatReader:
             self._load_since, self._load_cpu = now, cpu
             self._load_busy, self._load_frames, self._offered = 0.0, 0, 0
             self._held_back = False
+
+
+def _cpu_now() -> float:
+    """CPU seconds a read has cost up to now: this thread's, and the OCR child's (#563), which
+    works for this thread only."""
+    return time.thread_time() + cpu_parts.children()
 
 
 def _said(line: ChatLine) -> str:

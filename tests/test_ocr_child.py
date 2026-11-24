@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from yaptracker.capture.source import Region
-from yaptracker.ocr.child import GONE_LIMIT, RETRY_S, ChildEngines, ChildGone, OcrChild, round_trip
+from yaptracker.ocr.child import GONE_LIMIT, RETRY_S, ChildEngines, ChildGone, OcrChild
 from yaptracker.ocr.engine import OcrLine, OcrUnavailable
 
 
@@ -193,13 +193,6 @@ def test_the_child_ends_when_its_parents_pipe_closes(child):
     process.join(10.0)
     assert not process.is_alive()
     child._conn = child._process = None  # nothing left to stop
-
-
-def test_the_spike_logs_one_round_trip(caplog):
-    with caplog.at_level(logging.INFO, logger="yaptracker.ocr.child"):
-        text = round_trip("echo", picture(), get)
-    assert text.startswith("615x395 sum ")
-    assert "read a 615x395 picture with echo over shared memory: first read" in caplog.text
 
 
 class Local:
