@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-24 · Emoji in Yap snaps (#121)
+- Yap snaps draw the callout icons as emoji (👍 ➕ 📍 ⏪), and ❤️ 😂 😭 💀 in colour too.
+
 ### 2026-11-24 · Icons show as emoji (#121)
 - Chat lines with a callout icon now show its emoji: Thanks! 👍, I need healing! ➕, Group up! 📍, Fall back! ⏪, in Live, Sessions, Search, profiles and the Markdown export.
 
