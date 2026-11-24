@@ -39,10 +39,16 @@ def in_front(hwnd: int) -> bool:
     return bool(hwnd) and user32.GetForegroundWindow() == hwnd
 
 
-def exclusive_fullscreen(hwnd: int) -> bool:
-    """Overwatch in front in exclusive Fullscreen (#217): Windows' own notification state says
-    a Direct3D full-screen app runs. Borderless windowed doesn't count."""
+# SHQueryUserNotificationState's answers, for the log line (#598)
+_STATES = {1: "no screen (locked or switched)", 2: "a fullscreen app runs (busy)",
+           3: "a Direct3D fullscreen app runs", 4: "presentation mode", 5: "normal desktop",
+           6: "a Store app runs", 7: "quiet time"}  # fmt: skip
+
+
+def display_state() -> str:
+    """What Windows' notification state says about the screen, in words (#598): the log says
+    it next to whether the window picture is real, so Fullscreen is measured, not assumed."""
     state = ctypes.c_int(0)
     if ctypes.windll.shell32.SHQueryUserNotificationState(ctypes.byref(state)) != 0:
-        return False
-    return state.value == 3 and in_front(hwnd)  # QUNS_RUNNING_D3D_FULL_SCREEN
+        return "unknown"
+    return _STATES.get(state.value, f"state {state.value}")

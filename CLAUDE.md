@@ -344,7 +344,7 @@ of view, like OBS or the Snipping Tool.
 | OS | Windows 10/11 (PowerShell 5.1 + 7) |
 | GPU | RTX 4090 **plus** AMD Ryzen iGPU (hybrid) |
 | Monitors | Multi-monitor; YapTracker usually on the second screen |
-| Game | Overwatch 2 via Battle.net, **borderless windowed** required for capture |
+| Game | Overwatch 2 via Battle.net, **borderless windowed** recommended; Fullscreen works when the picture isn't black (#598) |
 | User | Experienced IT person, confident "hacking together" coder; wants a finished tool |
 
 Hybrid GPU: DXGI Desktop Duplication (dxcam) often returns black frames when

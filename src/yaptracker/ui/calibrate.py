@@ -177,7 +177,6 @@ def calibrate(on_done: Callable[[bool], None], steps: Callable[[], None] | None 
         save_button.props("disabled")
         with shot:
             ui.label(
-                "I can't see Overwatch right now (not running, minimised or in Fullscreen). "
-                "Start it in Borderless Windowed and I'll take the picture myself, or pick a "
-                "screenshot file."
+                "I can't see Overwatch right now (not running or minimised). Start it and I'll "
+                "take the picture myself, or pick a screenshot file."
             ).classes("yt-hint").mark("not-live")
