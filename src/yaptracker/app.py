@@ -244,6 +244,7 @@ def _start_reader() -> None:
         deferring=lambda: _capturing() and runtime.reading.now() == AFTER,
         idle=lambda: not _capturing() or not runtime.matches.running,
         gated=lambda: runtime.reading.chosen() != BEST,  # best live: no busy gate (#588)
+        starved=lambda: runtime.watcher is not None and runtime.watcher.starved(),  # (#601)
     )
     if (stale := runtime.reader.later.restore()) is not None:  # kept at the last quit (#349)
         runtime.store.close_gap(runtime.store.open_gap(stale[0], "deferred_lost"), stale[1])

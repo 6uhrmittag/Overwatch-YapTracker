@@ -26,6 +26,13 @@ HEALTHY_S = 30.0
 # only for sources that say when Windows last sent a picture (WGC). GDI keeps its own 10 s.
 MATCH_STALL_S, STALL_S = 3.0, 10.0
 TICK_S, LATE_S = 0.5, 2.0  # the watchdog's tick, and when a late tick is logged
+# A late tick means our threads didn't run (the game had the cores, #563), and the thread that
+# notes pictures waited too: time the app didn't run doesn't count as time without a picture.
+# From STARVED_S late, the app counts as starved for STARVED_FOR_S (#601): the picture thread may
+# wait even when the tick is on time (Windows delivered a picture every 5 s in such matches), so
+# a match's stall limit is STARVED_STALL_S then; a real stall is still noticed, a little later.
+STARVED_S, STARVED_STALL_S = 1.0, 6.0
+STARVED_FOR_S = 60.0  # a starved tick counts this long: the chat reader reads less often (#601)
 
 
 class CaptureWatcher:
@@ -72,6 +79,10 @@ class CaptureWatcher:
         self._ran_before = ran_before  # Overwatch ran this long before we first saw it
         self._captured = False  # since Overwatch appeared: its closing is said (#560)
         self._stalled: tuple[FrameSource, str] | None = None  # set by the watchdog
+        self._due = 0.0  # when the watchdog's next tick should come
+        # (the last picture, seconds since then the app didn't run, said in the log) (#601)
+        self._waited: tuple[float, float, bool] = (0.0, 0.0, False)
+        self._starved_at: float | None = None
         # Diagnostics (#506): what the window did when a capture ended, once per lost stretch.
         self._on_ended, self._on_back = on_ended, on_back
         self._focus_window: int | None = None  # the last captured window, for focus changes
@@ -245,29 +256,55 @@ class CaptureWatcher:
     def _watch(self) -> None:
         """The watchdog (#506): its own thread, so frame handling, the database or the UI can't
         delay it. A capture that went quiet is closed; the supervisor opens it again."""
-        due = self._clock() + TICK_S
+        self._due = self._clock() + TICK_S
         while not self._stop.wait(TICK_S):
-            now = self._clock()
-            if now - due > LATE_S:
-                log.info("capture: watchdog tick %.1f s late", now - due)
-            due = now + TICK_S
-            try:
-                self._check_stall(now)
-                self._check_focus()
-            except Exception as error:
-                side_work.failed("the capture watchdog", error, then="it goes on")
+            self._tick(self._clock())
 
-    def _check_stall(self, now: float) -> None:
+    def _tick(self, now: float) -> None:
+        late = max(0.0, now - self._due)
+        if late > LATE_S:
+            log.info("capture: watchdog tick %.1f s late", late)
+        if late >= STARVED_S:
+            self._starved_at = now
+        try:
+            self._check_stall(now, late)
+            self._check_focus()
+        except Exception as error:
+            side_work.failed("the capture watchdog", error, then="it goes on")
+        self._due = self._clock() + TICK_S  # after its own work: a slow close isn't lateness
+
+    def starved(self) -> bool:
+        """A watchdog tick came late within the last minute: the app waits for a core (#601)."""
+        at = self._starved_at
+        return at is not None and self._clock() - at < STARVED_FOR_S
+
+    def _check_stall(self, now: float, late: float = 0.0) -> None:
         source = self._source
         last = getattr(source, "last_frame_at", None)  # when Windows last sent a picture
         if source is None or last is None:
             return
         if self._stalled is not None and self._stalled[0] is source:
             return  # already closed; a stale one for an older session doesn't count
+        last = max(last, self._opened_at)
+        quiet = now - last
+        _, away, said = self._waited if self._waited[0] == last else (last, 0.0, False)
+        away += min(late, quiet)  # a starved app isn't a stalled window (#601)
         limit = self._stall_s()
-        if now - max(last, self._opened_at) > limit:
-            self._stalled = (source, f"no picture from the window for {limit:g} s")
+        allowed = max(limit, STARVED_STALL_S) if self.starved() else limit
+        if quiet - away > allowed:
+            self._stalled = (source, f"no picture from the window for {allowed:g} s")
             source.close()  # the frame loop ends; the supervisor restarts it
+            return
+        starved = away >= STARVED_S or allowed > limit
+        if quiet > limit and starved and not said:  # it would have restarted: once per stretch
+            said = True
+            log.info("capture: app starved %.1f s: no picture for %.1f s isn't taken for a stall",
+                     away, quiet)  # fmt: skip
+        if limit < STALL_S and quiet > COVER_GAP_S:
+            # in a match, this long without a picture can hide a line: a gap, never a silent
+            # hole. No restart; the next picture closes it.
+            self._health_call("lost", "no_frames")
+        self._waited = (last, away, said)
 
     def _back(self) -> None:
         try:
