@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-24 · Chat is read in a process of its own (#563)
+- Reading the chat now happens in a second YapTracker process. When the game takes every core, that process waits; capture, match detection and the window keep running on time instead of waiting with it.
+- If that process can't start, fails or gets stuck, I read in the main one as before, and the log says so. A stuck one is given 15 s before I take over.
+- Task Manager shows one more YapTracker process (about 150-250 MB): that's the reader.
+
 ### 2026-11-24 · Reading chat in its own process: the first step (#563)
 - Behind the scenes: the app can now read a picture in a second process of its own, and every build checks that this works. The chat reader moves there next, so a busy game can't hold up capture and the window any more.
 
