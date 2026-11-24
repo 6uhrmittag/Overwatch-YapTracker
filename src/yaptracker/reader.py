@@ -107,6 +107,7 @@ class ChatReader:
         gated: Callable[[], bool] = lambda: True,
         keep_gap_s: Callable[[], float] | None = None,
         starved: Callable[[], bool] = lambda: False,
+        lowest: bool = True,
     ) -> None:
         self._read, self._store, self._matches = read, store, matches
         self._identity, self._colours, self._paused, self._clock = (
@@ -145,6 +146,10 @@ class ChatReader:
         # The app waits for a core (late watchdog ticks, #601): every choice reads less often,
         # best live and "as fast as it can" too. More reads then mean more waiting, not more chat.
         self._starved, self._held_back = starved, False
+        # Its thread at the lowest priority while it does the OCR itself (#187). With the OCR in
+        # its own process (#563) it only parses and stores: milliseconds, and a thread put to
+        # sleep at the lowest priority while it holds Python's lock stalls the whole process.
+        self._lowest = lowest
         self._batch: tuple[float, int] | None = None  # (started, frames) of reading kept ones
         # Time between two kept frames read through, as the UI's time left (#501): in a live
         # match they only go between live reads, so this beats the OCR time alone.
@@ -254,7 +259,8 @@ class ChatReader:
     def _run(self) -> None:
         """The reader thread never ends but on stop (#457): whatever trips a turn is logged
         (once a minute) and the loop goes on, its waiting frames intact."""
-        priority.lower_this_thread()  # OCR waits for the game, not the other way round (#187)
+        if self._lowest:
+            priority.lower_this_thread()  # OCR waits for the game, not the other way round (#187)
         while True:
             try:
                 return self._loop()

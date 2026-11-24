@@ -1,7 +1,9 @@
 """Command line entry point: `python -m yaptracker` and the packaged YapTracker.exe."""
 
 import argparse
+import json
 import multiprocessing
+import multiprocessing.spawn
 import sys
 
 from yaptracker import __version__, logs
@@ -35,15 +37,35 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def reader_has_its_own_process(dev: bool) -> bool:
+    """As app.py decides it (#563): not in --dev, not with "ocr_own_process": false. Read here
+    with plain json: the config module pulls in the image stack, and a second start mustn't
+    touch (or rename) the running one's config."""
+    if dev:
+        return False
+    try:
+        from yaptracker import paths
+
+        with open(paths.config_file(), encoding="utf-8") as file:
+            return json.load(file).get("ocr_own_process", True) is not False
+    except (OSError, ValueError, AttributeError):  # none yet, or unreadable: the default
+        return True
+
+
 def main(argv: list[str] | None = None) -> None:
     logs.setup()  # also catches stdout/stderr: the windowed exe has no console
-    # Below-normal priority and efficiency mode first: the window's child process runs this too.
     from yaptracker import priority
 
-    priority.lower_process()  # the game gets the CPU when it needs it (#187)
-    # The native window runs in a spawned child process; in the exe that child starts here.
+    # The game goes first (#187): below normal priority for every process of ours. The child
+    # processes (the window, the chat reader's OCR) also run in Windows' efficiency mode; in
+    # the exe a child starts right here and never gets past freeze_support().
+    if multiprocessing.spawn.is_forking(sys.argv):
+        priority.lower_process()
     multiprocessing.freeze_support()
-    args = build_parser().parse_args(argv)
+    args = build_parser().parse_args(argv)  # --version ends here: instant
+    # The main process is in efficiency mode only when it reads the chat itself (#563): with
+    # the reader in its own process it needs little CPU, but on time.
+    priority.lower_process(efficiency=not reader_has_its_own_process(args.dev))
     if sys.platform == "win32" and not (args.dev or args.smoke_test):
         from yaptracker import single_instance
 

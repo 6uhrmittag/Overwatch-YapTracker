@@ -44,8 +44,10 @@ class ChildFailed(RuntimeError):
 
 def _serve(conn, get: Callable[[str], object]) -> None:
     """The child's whole life: read the pictures it's asked to, until the parent goes."""
-    # The game first (#187): this thread, the one that reads, at the lowest priority, as the
+    # The game first (#187): below normal + efficiency mode (the exe's start did that already;
+    # `python -m` didn't), and this thread, the one that reads, at the lowest priority, as the
     # chat reader's thread was while it read in the main process.
+    priority.lower_process()
     priority.lower_this_thread()
     block: shared_memory.SharedMemory | None = None
     while True:
@@ -284,7 +286,10 @@ class ChildEngines:
             lines.extend(self.child.read(name, image, accents, scale))
 
         if not self._in_child(read):
-            return self.local(name).read(image, accents=accents, scale=scale)
+            # heavy work in the main process after all: at the lowest priority while it lasts,
+            # as the reader's thread was before (#187); the game still goes first
+            with priority.lowest_for_now():
+                return self.local(name).read(image, accents=accents, scale=scale)
         if name not in self._said:
             self._said.add(name)
             log.info("ocr child: %s reads the chat in its own process (pid %s)", name,
