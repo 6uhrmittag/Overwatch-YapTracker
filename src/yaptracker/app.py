@@ -53,6 +53,18 @@ def _check_ocr() -> bool:
         print(f"smoke test: {name} read: {text[:120]}")
         if "WAHOO" not in text.upper():
             return False
+        # ...and in its own process, as the chat reader will run it (#563): in the exe the child
+        # is this exe started again, so only the built app can prove it starts and reads.
+        from yaptracker.ocr import child
+
+        try:
+            text = child.round_trip(name, crop, answer_s=30.0)
+        except Exception as error:  # said, not waited out: CI shows why
+            print(f"smoke test: {name} in its own process failed: {error!r}")
+            return False
+        print(f"smoke test: {name} in its own process read: {text[:120]}")
+        if "WAHOO" not in text.upper():
+            return False
     return True
 
 

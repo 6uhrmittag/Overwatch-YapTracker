@@ -143,8 +143,26 @@ jobs:
       - *venv-cache
       - *venv
       - *install-app
-      - name: Windows-only tests (Windows OCR, WGC capture, hotkeys, autostart, system info)
-        run: pytest tests/test_ocr_windows.py tests/test_capture_windows.py tests/test_hotkeys_windows.py tests/test_autostart_windows.py tests/test_process_windows.py tests/test_priority_windows.py tests/test_system_info_windows.py tests/test_capture_gdi_windows.py tests/test_window_place_windows.py tests/test_update_now_windows.py tests/test_cpu_parts.py tests/test_images.py -v
+      - name: Windows-only tests (Windows OCR, WGC capture, hotkeys, autostart, system info, OCR child)
+        # Only the files this commit has: a promoted pre-release can be older than this list
+        # (promote.yml builds its commit with today's ci.yml), and a missing file fails pytest.
+        run: |
+          $tests = @(
+            "tests/test_ocr_windows.py"
+            "tests/test_capture_windows.py"
+            "tests/test_hotkeys_windows.py"
+            "tests/test_autostart_windows.py"
+            "tests/test_process_windows.py"
+            "tests/test_priority_windows.py"
+            "tests/test_system_info_windows.py"
+            "tests/test_capture_gdi_windows.py"
+            "tests/test_window_place_windows.py"
+            "tests/test_update_now_windows.py"
+            "tests/test_cpu_parts.py"
+            "tests/test_images.py"
+            "tests/test_ocr_child.py"
+          ) | Where-Object { Test-Path $_ }
+          pytest $tests -v
 
   build:
     name: Windows build
