@@ -104,7 +104,7 @@ Pill shape, 2 px ink-coloured border, uppercase 800 weight, hard shadow
 `0 3px 0 rgba(0,0,0,.45)`, always slightly tilted. Icons are inline SVG —
 **no emoji anywhere in the UI** (they render inconsistently in WebView2): buttons, headings,
 stickers and the nav stay emoji-free. **Chat content is the exception** (Marv, 2026-11-24, #121):
-emoji inside what people said show, in Windows' own colour emoji font (`--yt-chat` font stack),
+emoji inside what people said show, in Windows' own colour emoji font (`--yt-chat-font`),
 and an Overwatch icon YapTracker knows shows as its emoji (`glyphs.EMOJI`).
 
 ## Type
