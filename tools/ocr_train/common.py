@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 
 DATA = Path("/mnt/c/Users/marvi/AppData/Local/YapTracker/data")  # the installed app's data
-_ICON = re.compile(r"\[icon:[a-z-]+\]|◇")
+_ICON = re.compile(r"\[icon:[a-z0-9-]+\]|◇")
 
 
 def private() -> Path:
@@ -24,12 +24,15 @@ def private() -> Path:
 def game_running() -> bool:
     """Overwatch is open: no heavy step may start or go on (#608's rule)."""
     try:
-        out = subprocess.run(
+        done = subprocess.run(
             ["tasklist.exe", "/FI", "IMAGENAME eq Overwatch.exe", "/NH"],
             capture_output=True, timeout=20,
-        ).stdout.decode("ascii", errors="replace")  # a German Windows answers in cp850  # fmt: skip
+        )  # fmt: skip
     except (OSError, subprocess.TimeoutExpired):
         return True  # can't tell: stay off the GPU
+    out = done.stdout.decode("ascii", errors="replace")  # a German Windows answers in cp850
+    if done.returncode != 0 or not out.strip():
+        return True  # tasklist failed: can't tell either
     return "overwatch.exe" in out.lower()
 
 

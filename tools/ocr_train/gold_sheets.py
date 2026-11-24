@@ -5,7 +5,11 @@
 Picks ~300 lines (every hand-corrected and every umlaut line, then the newest evenings spread
 over channels, wraps and glyph lines) and writes fixtures/private/ocr/gold/sample.json plus
 sheets/NN.png: the pictures only, numbered, no stored text, so the labels are made blind.
-The labels go into gold/labels.json as {"<number>": "<the row as it reads>"} (private).
+The labels go into gold/labels.json as {"<message id>": "<the row as it reads>"} (private);
+sample.json maps a sheet number to its message id. With labels there, a new pick is refused.
+
+"Every umlaut line" means every line RapidOCR stored with an umlaut: lines whose umlauts it
+missed aren't found this way, so the DE bucket flatters the stored text. Say so with the number.
 """
 
 import json
@@ -66,6 +70,8 @@ def main() -> None:
     private = common.private()
     with (private / "dataset.jsonl").open(encoding="utf-8") as f:
         data = [json.loads(line) for line in f]
+    if (private / "gold" / "labels.json").exists():
+        sys.exit("gold/labels.json exists: a new pick would orphan the labels (move it away first)")
     chosen = pick(data)
     (private / "gold").mkdir(exist_ok=True)
     (private / "gold" / "sample.json").write_text(json.dumps([r["id"] for r in chosen]))

@@ -43,7 +43,7 @@ def load(private: Path) -> list[dict]:
     labels = json.loads((private / "gold" / "labels.json").read_text(encoding="utf-8"))
     out = []
     for n, message_id in enumerate(ids):
-        speaker, text = fields(labels[str(n)])
+        speaker, text = fields(labels[str(message_id)])
         out.append({**data[message_id], "n": n, "gold": (speaker, text)})
     return out
 
@@ -101,8 +101,12 @@ def main() -> None:
         name, path = item.split("=", 1)
         engines[name] = reread(private / path)
     for name, got in engines.items():
-        print(f"\n{name}")
-        for bucket, part in buckets(gold).items():
+        read = [g for g in gold if g["id"] in got]  # a re-read may have stopped halfway
+        missing = f"  ({len(gold) - len(read)} gold lines not read yet: left out)"
+        print(f"\n{name}{missing if len(read) < len(gold) else ''}")
+        for bucket, part in buckets(read).items():
+            if not part:
+                continue
             s, f = score(part, got), score(part, got, fold=True)
             print(
                 f"  {bucket:18} n={s['lines']:3}  chars {s['chars']:.2%}  lines {s['exact']:.1%}"
@@ -110,8 +114,8 @@ def main() -> None:
                 f"  | I/l, 0/O as one: chars {f['chars']:.2%}  lines {f['exact']:.1%}"
             )
         if opts.misses:
-            for g in gold:
-                if got.get(g["id"], ("", "")) != g["gold"]:
+            for g in read:
+                if got[g["id"]] != g["gold"]:
                     print(f"    {g['n']:3} gold {g['gold']!r}\n        read {got.get(g['id'])!r}")
 
 

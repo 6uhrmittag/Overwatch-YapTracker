@@ -26,6 +26,8 @@ SCALE_4K = 4 / 3  # what the app uses for a 2160-high window (#169)
 
 def main() -> None:
     private = common.private()
+    if common.game_running():
+        sys.exit("Overwatch is running: no timed pass now")
     cv2.setNumThreads(1)
     engine = RapidOcrEngine()
     gold = score.load(private)

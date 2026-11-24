@@ -81,10 +81,15 @@ def main() -> None:
     done = set()
     if out_path.exists():
         with out_path.open(encoding="utf-8") as f:
-            done = {json.loads(line)["id"] for line in f}
+            for line in f:
+                try:
+                    done.add(json.loads(line)["id"])
+                except ValueError:  # a line torn by a kill: that picture is read again
+                    continue
     todo = [r for r in data if r["id"] not in done][: opts.limit]
     if not todo:
-        sys.exit(f"nothing to do: {len(done)} readings in {out_path.name}")
+        print(f"nothing to do: {len(done)} readings in {out_path.name}")
+        return
     if common.game_running():
         sys.exit(GAME_EXIT)
     reader = Reader(opts.model)

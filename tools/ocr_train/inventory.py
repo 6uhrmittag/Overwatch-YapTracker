@@ -5,6 +5,11 @@
 
 Writes fixtures/private/ocr/dataset.jsonl (one stored line per row, private) and prints
 aggregates only. The app's live DB is never opened: its files are copied first.
+
+Made for 4K evenings (all there are on Marv's PC): a whole row is ROW_MIN_WIDTH or wider and a
+wrap WRAP_HEIGHT or higher. Rows of a 1440p chat box would be counted as "old box crops"; the
+report shows the row widths, so that can't go unseen. Once gold lines exist, the test evenings
+are frozen (gold/split.json) and every gold line is test, whatever its evening.
 """
 
 import argparse
@@ -29,10 +34,20 @@ _GERMAN = set("äöüßÄÖÜ")
 
 
 def copy(private: Path) -> None:
+    """The DB files and the pictures. SQLite's backup can't open the live DB over /mnt/c (disk
+    I/O error), so the files are copied and the copy is checked; a torn copy fails loudly."""
+    if common.game_running():
+        sys.exit("Overwatch is running: the copy waits (or use --no-copy)")
     (private / "dbcopy").mkdir(parents=True, exist_ok=True)
+    for name in ("yaptracker.db", "yaptracker.db-wal", "yaptracker.db-shm"):
+        (private / "dbcopy" / name).unlink(missing_ok=True)  # never an old WAL on a new DB
     for name in ("yaptracker.db", "yaptracker.db-wal"):
         if (common.DATA / name).exists():
             shutil.copy2(common.DATA / name, private / "dbcopy" / name)
+    check = sqlite3.connect(private / "dbcopy" / "yaptracker.db")
+    if check.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+        sys.exit("the DB copy is torn (the app wrote meanwhile): run again")
+    check.close()
     shutil.copytree(common.DATA / "lines", private / "lines", dirs_exist_ok=True)
 
 
@@ -58,9 +73,17 @@ def rows(private: Path) -> list[dict]:
             "width": width, "height": height,
         })  # fmt: skip
     evenings = sorted({r["evening"] for r in out})
-    newest = set(evenings[-TEST_EVENINGS:])
+    split, sample = private / "gold" / "split.json", private / "gold" / "sample.json"
+    gold = set(json.loads(sample.read_text())) if sample.exists() else set()
+    if split.exists():  # frozen with the gold lines: a new evening must not move them to train
+        first_test = json.loads(split.read_text())["test_from"]
+    else:
+        first_test = evenings[-TEST_EVENINGS:][0] if evenings else ""
+        if gold:
+            split.write_text(json.dumps({"test_from": first_test}))
     for r in out:
-        r["split"] = "test" if r["evening"] in newest or r["edited_text"] is not None else "train"
+        test = r["evening"] >= first_test or r["edited_text"] is not None or r["id"] in gold
+        r["split"] = "test" if test else "train"
     return out
 
 
@@ -75,6 +98,9 @@ def report(data: list[dict], private: Path) -> None:
     print(f"evenings {len(evenings)}: {evenings[0]} .. {evenings[-1]}")
     for split in ("train", "test"):
         part = [r for r in data if r["split"] == split]
+        if not part:
+            print(f"\n{split}: no lines")
+            continue
         days = sorted({r["evening"] for r in part})
         print(f"\n{split}: {len(part)} lines, {len(days)} evenings ({days[0]} .. {days[-1]})")
         print("  channel   ", dict(Counter(r["channel"] for r in part).most_common()))
