@@ -139,6 +139,13 @@ def _same_speaker(a: str | None, b: str | None) -> bool:
     return fuzz.ratio(_folded(clean(a)), _folded(clean(b))) >= NEAR_NAME
 
 
+def _near(a: str | None, b: str | None) -> bool:
+    """Maybe one name: looser than _same_speaker, for three-letter names ("Plp" for "Pip")."""
+    if not a or not b:
+        return a == b
+    return fuzz.ratio(_folded(clean(a)), _folded(clean(b))) >= 60
+
+
 def _folded(text: str) -> str:
     """Folded, lower-case, single-spaced text: to see whether one reading begins another."""
     return " ".join(_fold(text).lower().split())
@@ -239,7 +246,12 @@ class Dedup:
         self._open_until = -1.0  # the history stays on screen for a while after the chat closes
         self.unstored: list[ChatLine] = []  # rows seen twice but never stored, this read (#425)
         self._between_seen: dict[tuple[str, int], int] = {}  # a missed line, read how often
-        self._seen_unstored: dict[str, tuple[int, float]] = {}  # key -> (times seen, last seen)
+        # key -> (times seen, last seen, first seen)
+        self._seen_unstored: dict[str, tuple[int, float, float]] = {}
+        # This read's reported rows, by id(): (the known line below it, rows up from that, first
+        # seen): where adopt() puts them (#602).
+        self._where: dict[int, tuple[Yap, int, float]] = {}
+        self._on_screen: set[int] = set()  # the known lines this read matched
 
     def update(self, ts: float, lines: list[ChatLine]) -> tuple[list[Yap], list[Yap]]:
         """(new, improved): yaps first seen in this frame, and earlier ones read better now."""
@@ -263,6 +275,8 @@ class Dedup:
             if _stored(yap.best) != before:
                 improved.append(yap)
         on_screen = {self.recent[j].id for _, j in pairs}  # before _between moves the indexes
+        known = [(i, self.recent[j]) for i, j in pairs]
+        self._on_screen = on_screen
         missed = self._between(ts, lines, pairs)
         last = pairs[-1][0] if pairs else -1
         new = []
@@ -284,26 +298,89 @@ class Dedup:
         self.recent = (self.recent + new)[-self._keep :]
         used = {i for i, _ in pairs} | set(range(last + 1, len(lines)))
         used |= {i for i, line in enumerate(lines) if any(line is y.last for _, y in missed)}
-        self.unstored = self._unstored(ts, [line for i, line in enumerate(lines) if i not in used])
+        rows = [(i, line) for i, line in enumerate(lines) if i not in used]
+        self.unstored = self._unstored(ts, rows, known)
         return [yap for _, yap in missed] + new, improved
 
-    def _unstored(self, ts: float, rows: list[ChatLine]) -> list[ChatLine]:
+    def _unstored(self, ts: float, rows: list[tuple[int, ChatLine]],
+                  known: list[tuple[int, Yap]]) -> list[ChatLine]:  # fmt: skip
         """Rows read well that look like no known line, yet weren't stored (#425): above the
         oldest known line of an opened chat box, or between known lines where one was skipped.
-        The second time one is seen it's reported, once, so a missed line becomes a number
-        instead of a feeling."""
+        The second time one is seen it's reported, once: the reader stores it with adopt() if
+        it isn't in the database either (#602)."""
         self._seen_unstored = {k: v for k, v in self._seen_unstored.items()
                                if ts - v[1] <= UNSTORED_S}  # fmt: skip
-        report = []
-        for line in rows:
+        report, self._where = [], {}
+        for i, line in rows:
             k = match_key(line)
             if line.quality < GOOD or any(y.similarity(k) >= SAME for y in self.recent):
                 continue
-            seen = self._seen_unstored.get(k, (0, ts))[0] + 1
-            self._seen_unstored[k] = (seen, ts)
-            if seen == 2:
+            seen, last, first = self._seen_unstored.get(k, (0, None, ts))
+            if last == ts:
+                continue  # twice in one frame is still one reading (#432)
+            self._seen_unstored[k] = (seen + 1, ts, first)
+            if seen + 1 == 2:
                 report.append(line)
+                # only rows below the last known line are new, so every row here has one below
+                at, below = next((n, yap) for n, yap in known if n > i)
+                self._where[id(line)] = (below, at - i, first)
         return report
+
+    def adopt(self, line: ChatLine) -> tuple[Yap, Yap] | None:
+        """A row this read reported becomes a line after all (#602): (it, the known line right
+        below it). Only with an older known line than that one: the chat box shows lines without
+        holes, so a row above a known line that isn't the known line before it was said between
+        the two and missed. Above the oldest line known, it's the history from before anything
+        was read (#179): None. It goes into the history above the line below it, so the next
+        reads know it; at the time it was first seen, but between its two neighbours' times."""
+        where = self._where.pop(id(line), None)
+        if where is None or where[0] not in self.recent[1:]:
+            return None
+        below, up, first = where
+        at = self.recent.index(below)
+        ts = max(self.recent[at - 1].first_seen, min(first, below.first_seen - 0.001 * up))
+        yap = Yap(next(self.ids), ts)
+        yap.add(line)
+        self.recent.insert(at, yap)
+        self._seen_unstored.pop(match_key(line), None)
+        return yap, below
+
+    def misread_of(self, line: ChatLine) -> Yap | None:
+        """A known line right above the one below this reported row, not matched in this read,
+        by a similar name with a similar text (#602): the row may be that line read a little
+        wrong ("[Plp]: gg" for "[Pip]: gg" is under the bar for one line, #423), not a lost one."""
+        where = self._where.get(id(line))
+        if where is None or where[0] not in self.recent:
+            return None
+        k = match_key(line)
+        for yap in reversed(self.recent[: self.recent.index(where[0])]):
+            if yap.id in self._on_screen:
+                break  # on screen as itself: what's above it is no neighbour of this row
+            said = yap.best
+            if (
+                said.kind == line.kind
+                and _near(said.speaker, line.speaker)
+                and (yap.similarity(k) >= NEAR_NAME)
+            ):
+                return yap
+        return None
+
+    def piece_of(self, line: ChatLine) -> Yap | None:
+        """A known line by a similar name that starts with this row, or that this row starts
+        with (#602): one of the two is a cut reading of the other (#432), not a line of its own.
+        Three words at least, so "gg" isn't taken for the start of "gg wp"; the beginning of a
+        known line counts from four letters, as for new rows ("so please n", #432)."""
+        if (part := self._part_of(line)) is not None:
+            return part
+        text = _folded(_GLUED.sub("", line.text))
+        for yap in reversed(self.recent):
+            said = yap.best
+            if said.kind != line.kind or not _same_speaker(said.speaker, line.speaker):
+                continue
+            short, long = sorted((_folded(_GLUED.sub("", said.text)), text), key=len)
+            if len(short.split()) >= 3 and long.startswith(short + " "):
+                return yap
+        return None
 
     def _part_of(self, line: ChatLine, ts: float | None = None,
                  on_screen: AbstractSet[int] = frozenset()) -> "Yap | None":  # fmt: skip

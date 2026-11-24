@@ -335,7 +335,10 @@ def test_seen_but_not_stored_counts_only_lines_really_missing_and_each_once(stor
         [chat("message", "nice shot", "Pip")],  # two words: not taken for the start of it
     ]
     for n, rows in enumerate(unstored):
-        reader._dedup = SimpleNamespace(update=lambda ts, lines: ([], []), unstored=rows, recent=[])
+        reader._dedup = SimpleNamespace(
+            update=lambda ts, lines: ([], []), unstored=rows, recent=[],
+            piece_of=lambda row: None, adopt=lambda row: None, misread_of=lambda row: None,
+        )  # fmt: skip
         reader.read_frame(1100.0 + 100 * n, first)  # Dedup is faked: these rows only
     assert [[r.text for r in rows] for rows in seen[1:]] == [
         ["have fun all"],
@@ -344,7 +347,8 @@ def test_seen_but_not_stored_counts_only_lines_really_missing_and_each_once(stor
         ["nice shot"],
     ]
     assert caplog.text.count("never stored") == 2
-    assert "1 line(s) seen twice but never stored: Bo: have fun all\n" in caplog.text
+    said = "1 line(s) seen twice but never stored: Bo: have fun all (older than every line I"
+    assert said + " know)\n" in caplog.text  # the reason per line (#602)
 
 
 def test_seen_but_not_stored_once_per_match_also_when_kept_frames_take_turns(store):
@@ -358,3 +362,174 @@ def test_seen_but_not_stored_once_per_match_also_when_kept_frames_take_turns(sto
     assert reader._really_unstored(1020.0, [gg], 6) == [gg]  # another match: counted there
     assert reader._really_unstored(1030.0, [gg], 5) == []  # match 5 still knows it
     assert reader._really_unstored(1040.0, [gg], 6) == []
+
+
+def _reopened(store, **kwargs):
+    """Three lines read; then a gap in which two more were said and scrolled by unread; then the
+    chat re-opened: the lost ones show above the newest known line, the older ones are out of
+    the box. Not between two known lines, so #423 didn't keep them."""
+    before, after, again = BLACK.copy(), BLACK.copy(), BLACK.copy()
+    known = ["[Pip]: hello there", "[Bo]: glhf everyone", "[Kim]: nice shot"]
+    opened = [
+        line("[Zed]: very silly game", y=10),
+        line("[Bo]: Chill Sierra, you were 85 %", y=50),
+        line("[Kim]: nice shot", y=90),
+        line("[Match] ", y=130),
+    ]  # its prompt: the box is open
+    reads = {id(before): [line(text, y=10 + 40 * n) for n, text in enumerate(known[:2])],
+             id(after): [line(text, y=10 + 40 * n) for n, text in enumerate(known)],
+             id(again): opened}  # fmt: skip
+    reader, tracker = reader_for(store, reads, **kwargs)
+    reader.read_frame(1000.0, before)
+    reader.read_frame(1300.0, after)  # "nice shot" came after the gap; two lines were lost
+    return reader, tracker, again
+
+
+def test_reopening_the_chat_after_a_gap_brings_the_lost_lines_back_once(store, caplog):
+    """#602: Marv re-opened the chat to get a lost line back; it was seen twice, logged as
+    'never stored', and dropped. Now it's stored: once, in its place."""
+    caplog.set_level(logging.INFO, "yaptracker.reader")
+    reader, tracker, again = _reopened(store)
+    assert reader.read_frame(1310.0, again) == []  # read twice before it counts (#432)
+    assert [yap.best.text for yap in reader.read_frame(1312.0, again)] == [
+        "very silly game", "Chill Sierra, you were 85 %"]  # fmt: skip
+    for ts in (1314.0, 1316.0, 1400.0):  # still on screen, and opened once more later
+        assert reader.read_frame(ts, again) == []
+    stored = store.messages(tracker.match_id)
+    assert [(m.speaker_raw, m.text) for m in stored] == [
+        ("Pip", "hello there"), ("Bo", "glhf everyone"), ("Zed", "very silly game"),
+        ("Bo", "Chill Sierra, you were 85 %"), ("Kim", "nice shot")]  # fmt: skip
+    assert stored[2].ts < stored[3].ts < stored[4].ts == 1300.0  # said before the line below
+    assert "2 line(s) seen twice, stored now: Zed: very silly game; Bo: Chill Sierra" in caplog.text
+    assert "never stored" not in caplog.text
+
+
+def test_a_lost_line_seen_after_its_match_goes_to_that_match(store):
+    reader, tracker, again = _reopened(store)
+    played = tracker.match_id
+    tracker.end_match(1302.0, "victory")
+    tracker.new_match(1305.0, source="heroselect")
+    reader.read_frame(1310.0, again)
+    reader.read_frame(1312.0, again)
+    assert len(store.messages(played)) == 5 and store.messages(tracker.match_id) == []
+
+
+def test_history_from_before_anything_was_read_stays_out_and_the_log_says_why(store, caplog):
+    """#179: rows above the oldest line known are the opened chat's old history, not lost
+    lines: there's no known line they were said after."""
+    caplog.set_level(logging.INFO, "yaptracker.reader")
+    first, opened = BLACK.copy(), BLACK.copy()
+    reads = {
+        id(first): [line("[Pip]: hello there")],
+        id(opened): [line("[Old]: from the match before"), line("[Pip]: hello there", y=50)],
+    }
+    reader, tracker = reader_for(store, reads)
+    for ts, image in ((1000.0, first), (1002.0, opened), (1004.0, opened), (1006.0, opened)):
+        reader.read_frame(ts, image)
+    assert [m.text for m in store.messages(tracker.match_id)] == ["hello there"]
+    assert caplog.text.count("never stored") == 1  # said once
+    assert ("seen twice but never stored: Old: from the match before (older than every line I"
+            " know)") in caplog.text  # fmt: skip
+
+
+def test_a_longer_reading_of_a_line_stored_cut_is_no_second_line(store, caplog):
+    caplog.set_level(logging.INFO, "yaptracker.reader")
+    reader, tracker, again = _reopened(store)
+    store.add_message(
+        ts=900.0, match_id=tracker.match_id, channel="match", speaker_raw="Zed", text="very silly"
+    )  # two words: "very silly game" is a line of its own
+    store.add_message(
+        ts=901.0,
+        match_id=tracker.match_id,
+        channel="match",
+        speaker_raw="Bo",
+        text="Chill Sierra, you",
+    )  # three: the same line, stored cut
+    reader.read_frame(1310.0, again)
+    reader.read_frame(1312.0, again)
+    assert [m.text for m in store.messages(tracker.match_id) if m.ts >= 1000.0] == [
+        "hello there", "glhf everyone", "very silly game", "nice shot"]  # fmt: skip
+    assert "Bo: Chill Sierra, you were 85 % (a piece of a stored line)" in caplog.text
+
+
+def test_a_lost_line_is_also_kept_while_the_match_before_is_still_being_read(store):
+    """Review: refused once for the backlog, it was never looked at again in that match. The
+    live stream only adopts after a line it knows itself, so kept frames can't bring it."""
+    from yaptracker.dedup import Dedup
+
+    reader, tracker, again = _reopened(store)
+    reader._kept_dedup = Dedup(ids=reader._dedup.ids)  # two streams side by side (#597)
+    reader.read_frame(1310.0, again)
+    reader.read_frame(1312.0, again)
+    assert len(store.messages(tracker.match_id)) == 5
+
+
+def _opened_chat(store, known: list[str], opened: list[str], **kwargs):
+    """`known` read in one frame, then the opened chat showing `opened`, read three times."""
+    first, again = BLACK.copy(), BLACK.copy()
+    reads = {
+        id(first): [line(text, y=10 + 40 * n) for n, text in enumerate(known)],
+        id(again): [line(text, y=10 + 40 * n) for n, text in enumerate([*opened, "[Match] "])],
+    }
+    reader, tracker = reader_for(store, reads, **kwargs)
+    reader.read_frame(1000.0, first)
+    for ts in (1300.0, 1302.0, 1304.0):
+        reader.read_frame(ts, again)
+    return [m.text for m in store.lines_since(0.0)], tracker
+
+
+def test_a_known_line_read_a_little_wrong_is_not_stored_again(store, caplog):
+    """Review: "[Plp]: gg" is under the bar for "[Pip]: gg" (83 of 85) and was adopted next to
+    it, with a player "Plp"."""
+    caplog.set_level(logging.INFO, "yaptracker.reader")
+    known = ["[Pip]: gg", "[Bo]: two words here", "[Kim]: three"]
+    texts, _ = _opened_chat(store, known, ["[Plp]: gg", "[Bo]: two words here", "[Kim]: three"])
+    assert texts == ["gg", "two words here", "three"]
+    assert "Plp: gg (may be a known line read wrong)" in caplog.text
+
+
+def test_a_cut_reading_of_a_line_stored_whole_is_not_a_second_line(store, caplog):
+    """Review: "so please n" (#432's own example) passed the three-whole-words rule."""
+    caplog.set_level(logging.INFO, "yaptracker.reader")
+    known = ["[Zed]: hi", "[Pip]: so please not the mei again", "[Bo]: ok fine", "[Kim]: lol"]
+    texts, _ = _opened_chat(store, known, ["[Pip]: so please n", "[Bo]: ok fine", "[Kim]: lol"])
+    assert texts == ["hi", "so please not the mei again", "ok fine", "lol"]
+    assert "Pip: so please n (a piece of a stored line)" in caplog.text
+
+
+def test_a_line_like_one_stored_long_ago_stays_out_and_the_log_says_so(store, caplog):
+    """Review: filtered by the far look-back, it vanished without a word."""
+    caplog.set_level(logging.INFO, "yaptracker.reader")
+    reader, tracker, again = _reopened(store)
+    store.add_message(
+        ts=1000.5,
+        match_id=tracker.match_id,
+        channel="match",
+        speaker_raw="Zed",
+        text="very silly game",
+    )  # 20 min before it's seen again
+    reader.read_frame(2200.0, again)
+    reader.read_frame(2202.0, again)
+    assert [m.text for m in store.messages(tracker.match_id)].count("very silly game") == 1
+    assert "Zed: very silly game (like a line stored earlier)" in caplog.text
+
+
+def test_a_lost_line_above_a_menu_line_stays_outside_matches_like_it(store):
+    """Review: the line below it was stored outside any match; it went into the running one."""
+    reader, tracker, again = _reopened(store)
+    for message in store.messages(tracker.match_id):
+        store._write("UPDATE chat_messages SET match_id = NULL WHERE id = ?", (message.id,))
+    reader.read_frame(1310.0, again)
+    reader.read_frame(1312.0, again)
+    assert store.messages(tracker.match_id) == []
+    assert len(store.lines_since(0.0)) == 5
+
+
+def test_debug_samples_get_the_kept_lines_as_new_and_only_the_refused_as_unstored(store):
+    seen = []
+    reader, tracker, again = _reopened(store, on_read=lambda *args: seen.append(args[-2:]))
+    reader.read_frame(1310.0, again)
+    reader.read_frame(1312.0, again)
+    new, unstored = seen[-1]
+    assert [yap.best.text for yap in new] == ["very silly game", "Chill Sierra, you were 85 %"]
+    assert unstored == []
