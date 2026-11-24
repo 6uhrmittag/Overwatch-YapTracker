@@ -13,6 +13,9 @@ matches goes and no part says why: every Python thread by name, every other thre
 process (the capture library, OCR's runtime, the window bridge) as "native":
 
     cpu threads (between matches): capture watcher 9.8 %, MainThread 4.1 %, native 3.0 %, ...
+
+The whole app and "reading" include the chat reader's OCR process (#563); the threads line is
+about this process only.
 """
 
 import contextlib

@@ -102,6 +102,8 @@ def _watch_for_overwatch(dev: bool) -> None:
     if config.drop_ocr_gpu():
         log.warning("Use GPU for OCR was on: it's gone in v1 (#219), reading on the CPU")
     ocr.warm_up(config.ocr_engine())  # loaded in the background: nobody waits for it (#219)
+    if runtime.ocr_child is not None:  # and in the reader's own process (#563)
+        runtime.ocr_child.warm_up(config.ocr_engine())
     CaptureWiring(dev).install()
 
 

@@ -171,7 +171,7 @@ class ChatReader:
         self._stop = False
         self._thread: threading.Thread | None = None
         self.read_frames = 0
-        self.busy_s = 0.0  # CPU time spent reading (OCR runs on this thread, #108)
+        self.busy_s = 0.0  # CPU time spent reading (this thread's and the OCR child's, #563)
         self._load_since, self._load_cpu = time.monotonic(), cpu_parts.app_cpu()
         self._load_busy, self._load_frames = 0.0, 0
         self._offered = 0  # frames with new text since the last log line (#350)

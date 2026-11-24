@@ -19,13 +19,15 @@ from multiprocessing import shared_memory
 
 import numpy as np
 
+from yaptracker import priority
 from yaptracker.ocr import engine as ocr
 from yaptracker.ocr.engine import UPSCALE, OcrLine, OcrUnavailable
 
 log = logging.getLogger(__name__)
-# A read waits this long for its answer. The first one loads the model in the child (seconds),
-# and a starved child may need long: a child that takes longer is taken for stuck.
-ANSWER_S = 60.0
+# Making an engine waits this long for its answer: the child starts and loads the model
+# (seconds, more when the game has the cores). A read waits READ_S: a chat line stays ~9 s, so a
+# child that takes longer is taken for stuck and the picture is read in the main process.
+ANSWER_S, READ_S = 60.0, 15.0
 # Set while a child starts: in the exe the child is the exe started again, and its logs.setup()
 # must tell it from the window's process (which owns window.log).
 CHILD_ENV = "YAPTRACKER_OCR_CHILD"
@@ -35,8 +37,16 @@ class ChildGone(RuntimeError):
     """The child died, hung or couldn't start: the caller reads in this process instead."""
 
 
+class ChildFailed(RuntimeError):
+    """The engine failed in the child (it can't make it, or a read raised): the child lives, but
+    the main process may well read the picture, so the caller tries there."""
+
+
 def _serve(conn, get: Callable[[str], object]) -> None:
     """The child's whole life: read the pictures it's asked to, until the parent goes."""
+    # The game first (#187): this thread, the one that reads, at the lowest priority, as the
+    # chat reader's thread was while it read in the main process.
+    priority.lower_this_thread()
     block: shared_memory.SharedMemory | None = None
     while True:
         try:
@@ -94,21 +104,22 @@ def _read(get, name: str, image: np.ndarray | None, accents: bool, scale: float)
 class OcrChild:
     """The parent's end: one child, one read at a time."""
 
-    def __init__(self, get: Callable[[str], object] = ocr.get, answer_s: float = ANSWER_S) -> None:
-        self._get, self._answer_s = get, answer_s
+    def __init__(self, get: Callable[[str], object] = ocr.get, answer_s: float = ANSWER_S,
+                 read_s: float = READ_S) -> None:  # fmt: skip
+        self._get, self._answer_s, self._read_s = get, answer_s, read_s
+        self._made: set[str] = set()  # engines the running child has made: their reads are quick
         self._lock = threading.Lock()
         self._process: multiprocessing.process.BaseProcess | None = None
         self._conn = None
         self._block: shared_memory.SharedMemory | None = None
         self._stopped = False
-        self._cpu_before = 0.0  # of children that are gone
-        self._cpu_now = 0.0  # of the one running
+        self._cpu = (0.0, 0.0)  # (of children that are gone, of the one running): one store
         self.pid: int | None = None
 
     @property
     def cpu_s(self) -> float:
         """CPU time used in children so far, for the "whole app" lines; it only ever grows."""
-        return self._cpu_before + self._cpu_now
+        return sum(self._cpu)
 
     def _start(self) -> None:
         # spawn everywhere (Windows has nothing else): tests on Linux run what Windows runs
@@ -159,8 +170,9 @@ class OcrChild:
                         self._block = shared_memory.SharedMemory(create=True, size=image.nbytes)
                     np.ndarray(image.shape, np.uint8, buffer=self._block.buf)[:] = image
                     self._conn.send((name, self._block.name, image.shape, accents, scale))
-                if not self._conn.poll(self._answer_s):
-                    raise TimeoutError(f"no answer in {self._answer_s:g} s")
+                wait = self._read_s if image is not None and name in self._made else self._answer_s
+                if not self._conn.poll(wait):
+                    raise TimeoutError(f"no answer in {wait:g} s")
                 kind, result, cpu = self._conn.recv()
                 if kind == "gone":
                     raise OSError(result)
@@ -170,30 +182,39 @@ class OcrChild:
             except BaseException:  # Ctrl+C mid-read: its answer mustn't become the next one's
                 self._close()
                 raise
-            self._cpu_now = cpu
+            self._cpu = (self._cpu[0], cpu)
+            if kind == "ok":
+                self._made.add(name)
         if kind == "ok":
             return result
         if kind == "unavailable":
             raise OcrUnavailable(result)
         if kind == "oserror":
             raise OSError(result)
-        raise RuntimeError(f"OCR failed in its own process: {result}")
+        raise ChildFailed(f"OCR failed in its own process: {result}")
 
     def stop(self) -> None:
         """For good (the app is closing). A read still waiting for its answer ends at once
-        with ChildGone: the child is killed first, not waited for behind the read's lock."""
+        with ChildGone: the child is killed first, not waited for behind the read's lock; again
+        and again, in case a read was just starting one."""
         self._stopped = True
-        process = self._process
-        if process is not None:
-            with contextlib.suppress(Exception):  # gone already, or never started
-                process.kill()
-        with self._lock:
+        while True:
+            process = self._process
+            if process is not None:
+                with contextlib.suppress(Exception):  # gone already, or never started
+                    process.kill()
+            if self._lock.acquire(timeout=0.2):
+                break
+        try:
             self._close()
+        finally:
+            self._lock.release()
 
     def _close(self) -> None:
         process, conn = self._process, self._conn
         self._process = self._conn = self.pid = None
-        self._cpu_before, self._cpu_now = self._cpu_before + self._cpu_now, 0.0
+        self._cpu = (sum(self._cpu), 0.0)
+        self._made = set()
         if conn is not None:
             with contextlib.suppress(OSError, ValueError):  # it may be gone already
                 conn.send(None)
@@ -245,6 +266,7 @@ class ChildEngines:
         self._engines: dict[str, _Engine] = {}
         self._gone, self._retry_at = 0, 0.0
         self._said: set[str] = set()  # engines whose first read in the child is in the log
+        self._stopped = False
 
     def get(self, name: str) -> _Engine:
         """Like ocr.get(): blocks while the engine is made (in the child), and raises
@@ -271,11 +293,13 @@ class ChildEngines:
 
     def _in_child(self, ask: Callable[[], None]) -> bool:
         """True: the child did it. False: do it in this process (said in the log)."""
-        if self._clock() < self._retry_at:
-            return False
+        if self._stopped or self._clock() < self._retry_at:
+            return False  # quitting: the last read is done here, without a word
         try:
             ask()
-        except ChildGone as gone:
+        except (ChildGone, ChildFailed) as gone:
+            if self._stopped:
+                return False
             self._gone += 1
             self._said.clear()  # a new child says again that it reads
             if self._gone >= GONE_LIMIT:
@@ -290,5 +314,18 @@ class ChildEngines:
         self._gone = 0
         return True
 
+    def warm_up(self, name: str) -> None:
+        """The child started and the engine made in it, in the background: the evening's first
+        chat line doesn't wait for the model."""
+
+        def make() -> None:
+            try:
+                self.get(name)
+            except Exception as error:  # e.g. no OCR language: the reader says so when it reads
+                log.warning("ocr child: %s can't start: %s", name, error)
+
+        threading.Thread(target=make, name=f"load OCR {name} (child)", daemon=True).start()
+
     def stop(self) -> None:
+        self._stopped = True
         self.child.stop()
