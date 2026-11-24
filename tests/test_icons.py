@@ -180,3 +180,22 @@ def test_a_callout_parsed_from_ocr_is_stored_named_without_its_picture(store):
     (line,) = parse([OcrLine("Pickle (Moira): I need healing!", 0.95, BOX)])
     assert line.text == "I need healing! ◇"
     assert icons.name(line.text, None) == "I need healing! [icon:heal]"
+
+
+def test_known_icons_show_as_emoji_the_text_keeps_the_tag():
+    """#121 (Marv, 2026-11-24): one table, the tag stays stored, people read the emoji."""
+    assert glyphs.shown("Thanks! [icon:thumbs-up]") == "Thanks! \U0001f44d"
+    assert glyphs.shown("[icon:heal][icon:group-up] [icon:fall-back]") == "➕\U0001f4cd ⏪"
+    assert glyphs.shown("gg [icon:someday] ◇") == "gg [icon:someday] ◇"  # no emoji yet
+    assert set(glyphs.EMOJI) == set(icons.BY_TEXT.values())  # every named icon has one
+
+
+def test_a_search_hit_inside_a_tag_highlights_the_emoji():
+    from yaptracker.ui.search import marked_html
+
+    assert marked_html("Thanks! [icon:\x01thumbs\x02-up]") == (
+        'Thanks! <mark class="yt-hit">\U0001f44d</mark>'
+    )
+    assert marked_html("\x01Thanks\x02! [icon:thumbs-up]") == (
+        '<mark class="yt-hit">Thanks</mark>! \U0001f44d'
+    )

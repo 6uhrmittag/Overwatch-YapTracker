@@ -5,12 +5,13 @@ a channel, a yapper and a time span. A click on a result opens its match transcr
 """
 
 import html
+import re
 import time
 
 from nicegui import ui
 
 from yaptracker import days, runtime
-from yaptracker.glyphs import GLYPH
+from yaptracker.glyphs import GLYPH, shown
 from yaptracker.ui.components import count, place_name, switch
 from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark, said_as, stored
 from yaptracker.ui.picker import LinePicker
@@ -30,9 +31,18 @@ def _since(span: str, now: float) -> float | None:
     return midnight - {"today": 0, "week": 6, "month": 29}[span] * 86400
 
 
+# A tag a found word sits in ("[icon:\x01thumbs\x02-up]"): the whole emoji is the hit (#121).
+_MARKED_TAG = re.compile(r"\[icon:[a-z0-9-]*[\x01\x02][a-z0-9\x01\x02-]*\]")
+
+
+def _whole_hit(found: re.Match) -> str:
+    return "\x01" + shown(found.group(0).replace("\x01", "").replace("\x02", "")) + "\x02"
+
+
 def marked_html(marked: str) -> str:
-    """Escaped text with the found words highlighted and emoji/icons as a chip (#128)."""
-    text = html.escape(marked, quote=False)
+    """Escaped text with the found words highlighted, known icons as their emoji (#121) and
+    other emoji/icons as a chip (#128)."""
+    text = html.escape(shown(_MARKED_TAG.sub(_whole_hit, marked)), quote=False)
     text = text.replace("\x01", '<mark class="yt-hit">').replace("\x02", "</mark>")
     return text.replace(GLYPH, f'<span class="yt-glyph">{GLYPH}</span>')
 

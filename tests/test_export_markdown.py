@@ -229,3 +229,17 @@ async def test_one_switch_per_row_and_no_pictures_when_anonymized(user: User):
     assert "show the names" in pictures.props["title"]
     user.find(marker="export-anonymize").click()
     assert "disabled" not in pictures.props
+
+
+def test_known_icons_are_emoji_in_markdown_and_tags_in_json(store, tmp_path):
+    """#121 (Marv, 2026-11-24): the stored tag stays in the JSON; people read the emoji."""
+    session = store.start_session(EVENING)
+    match = store.start_match(session, EVENING + 60, "heroselect", "UNRANKED", "ESPERANCA")
+    store.add_message(ts=EVENING + 90, channel="team", text="Thanks! [icon:thumbs-up]",
+                      speaker_raw="NoodleBonk", hero="Lucio", match_id=match)  # fmt: skip
+    store.end_match(match, EVENING + 400, "victory")
+    store.end_session(session, EVENING + 500)
+    export_all(store, tmp_path, EVENING + 600, markdown=True)
+    day = next((tmp_path / "days").glob("*.md")).read_text(encoding="utf-8")
+    assert "Thanks! \U0001f44d" in day and "[icon:" not in day and "icon:" not in day
+    assert "[icon:thumbs-up]" in (tmp_path / "yaptracker-export.json").read_text(encoding="utf-8")

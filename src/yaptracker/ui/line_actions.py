@@ -12,7 +12,7 @@ from nicegui import run, ui
 
 from yaptracker import config, runtime
 from yaptracker.auto_translate import context_for, outgoing, unchanged
-from yaptracker.glyphs import GLYPH
+from yaptracker.glyphs import GLYPH, shown
 from yaptracker.translate import FAILED, Translation, language
 from yaptracker.ui.quick_verdict import OWN_CLICK
 
@@ -37,9 +37,9 @@ def show_mark(mark: ui.element, on: bool, ocr: str | None) -> None:
 def _show_text(text: ui.element, value: str) -> None:
     if hasattr(text, "set_content"):  # ui.html: escaped, the ◇ as a chip (#128)
         chip = f'<span class="yt-glyph">{GLYPH}</span>'
-        text.set_content(html.escape(value, quote=False).replace(GLYPH, chip))
+        text.set_content(html.escape(shown(value), quote=False).replace(GLYPH, chip))
     else:
-        text.set_text(value)
+        text.set_text(shown(value))
 
 
 # Pressing an Edit button doesn't take the focus from an open field: no blur-save before the

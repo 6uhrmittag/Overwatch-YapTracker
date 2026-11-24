@@ -64,7 +64,7 @@
 | `player_id` | the yapper it belongs to (`players[].id`), or `null` |
 | `role` | `me` (your own line), `crew` (your crew) or `null` |
 | `hero` | from team comms lines like `Name (Lúcio): Group up!`, else `null` |
-| `text` | what was said. An emoji or icon OCR couldn't spell is `◇`; an icon YapTracker knows is `[icon:<name>]` (`thumbs-up`, `heal`, `group-up`, `fall-back`; more to come) |
+| `text` | what was said. An emoji or icon OCR couldn't spell is `◇`; an icon YapTracker knows is `[icon:<name>]` (`thumbs-up`, `heal`, `group-up`, `fall-back`; more to come). The JSON keeps the tag; the Markdown files and the app show its emoji (👍 ➕ 📍 ⏪) |
 | `ocr_confidence` | 0–1, or `null`. Windows OCR always reports 1.0 |
 | `flagged` | `overwatch` (Overwatch showed a `[Report]` link), `manual` (you marked it spicy) or `null` |
 | `has_glyphs` | `true` if the text contains a `◇` or an `[icon:<name>]` |
