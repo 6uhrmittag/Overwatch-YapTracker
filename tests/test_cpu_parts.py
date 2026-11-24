@@ -77,3 +77,25 @@ def test_a_second_line_splits_the_minute_by_thread(caplog):
 def test_this_process_threads_have_cpu_times():
     found = thread_seconds()
     assert threading.get_native_id() in found and all(s >= 0 for s in found.values())
+
+
+def test_the_whole_app_counts_its_ocr_child(monkeypatch, caplog):
+    """#563: OCR moved to a process of its own; its CPU is still the app's, in both lines."""
+    import logging
+
+    from yaptracker import cpu_parts, reader
+
+    used = {"here": 10.0, "child": 100.0, "thread": 1.0}
+    monkeypatch.setattr(cpu_parts.time, "process_time", lambda: used["here"])
+    monkeypatch.setattr(cpu_parts.time, "thread_time", lambda: used["thread"])
+    monkeypatch.setattr(cpu_parts, "children", lambda: used["child"])
+    now = [0.0]
+    parts = cpu_parts.CpuParts(clock=lambda: now[0], threads=lambda: {})
+    parts.tick()
+    started = reader._cpu_now()
+    used.update(here=13.0, child=109.0, thread=1.5)  # a minute: 3 s here, 9 s in the child
+    now[0] = 60.0
+    with caplog.at_level(logging.INFO, logger="yaptracker.cpu_parts"):
+        parts.add("reading", reader._cpu_now() - started)
+    assert "reading 15.8 %" in caplog.text  # 0.5 s of the reader's thread + the child's 9 s
+    assert "(whole app 20.0 %)" in caplog.text

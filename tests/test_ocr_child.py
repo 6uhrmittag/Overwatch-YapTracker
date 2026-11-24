@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from yaptracker.capture.source import Region
-from yaptracker.ocr.child import ChildGone, OcrChild, round_trip
+from yaptracker.ocr.child import GONE_LIMIT, RETRY_S, ChildEngines, ChildFailed, ChildGone, OcrChild
 from yaptracker.ocr.engine import OcrLine, OcrUnavailable
 
 
@@ -20,6 +20,13 @@ class Echo:
         text = f"{image.shape[1]}x{image.shape[0]} sum {int(image.sum())} pid {os.getpid()}"
         return [OcrLine(text, 0.99, Region(1, 2, 3, 4), parts=(("word", Region(5, 6, 7, 8)),)),
                 OcrLine(f"accents {accents} scale {scale}", 0.5, Region(0, 0, 1, 1))]  # fmt: skip
+
+
+class Hangs:
+    def read(self, image, accents=False, scale=2.0):
+        if image[0, 0, 0] == 9:  # only the picture that asks for it: the engine is made first
+            time.sleep(30)
+        return []
 
 
 class Aborts:
@@ -39,7 +46,7 @@ def get(name: str):  # module level: the spawned child imports it by name
     if name == "dies":
         os._exit(3)
     if name == "hangs":
-        time.sleep(30)
+        return Hangs()
     return Echo()
 
 
@@ -82,9 +89,9 @@ def test_the_engines_own_errors_come_back_as_themselves(child):
         child.read("none", picture())
     with pytest.raises(OSError, match="Operation aborted"):
         child.read("aborts", picture())
-    with pytest.raises(RuntimeError, match="bad model"):
+    with pytest.raises(ChildFailed, match="bad model"):
         child.read("broken", picture())
-    with pytest.raises(RuntimeError, match="rec.onnx"):  # no engine: nothing a retry fixes
+    with pytest.raises(ChildFailed, match="rec.onnx"):  # no engine: nothing a retry fixes
         child.read("no model", picture())
     assert child.read("echo", picture())  # and the child lives on
 
@@ -99,10 +106,11 @@ def test_a_child_that_died_is_said_and_the_next_read_starts_a_new_one(child):
 
 def test_a_child_that_hangs_is_ended(child):
     child.read("echo", picture())  # started with a generous limit: a loaded runner is slow
-    child._answer_s = 1.0
+    child.read("hangs", picture())
+    child._read_s = 1.0  # the engine is made: its reads get the short limit
     process = child._process
     with pytest.raises(ChildGone, match="no answer in 1 s"):
-        child.read("hangs", picture())
+        child.read("hangs", picture(fill=9))
     assert not process.is_alive()
 
 
@@ -115,7 +123,7 @@ def test_stopping_doesnt_wait_for_a_read_in_flight(child):
 
     def read():
         try:
-            child.read("hangs", picture())
+            child.read("hangs", picture(fill=9))
         except ChildGone as gone:
             failed.append(gone)
 
@@ -195,8 +203,96 @@ def test_the_child_ends_when_its_parents_pipe_closes(child):
     child._conn = child._process = None  # nothing left to stop
 
 
-def test_the_spike_logs_one_round_trip(caplog):
+class Local:
+    """What the main process would read: tells the two apart in the tests."""
+
+    def __init__(self, name):
+        self.name = name
+
+    def read(self, image, accents=False, scale=2.0):
+        return [OcrLine(f"read here by {self.name}", 0.9, Region(0, 0, 1, 1))]
+
+    def read_line(self, image):
+        return "a line read here"
+
+
+def local(name: str):
+    if name == "none":
+        raise OcrUnavailable("no OCR language installed")
+    return Local(name)
+
+
+def test_the_readers_engine_reads_in_the_child_and_says_so_once(child, caplog):
+    engines = ChildEngines(child, local)
     with caplog.at_level(logging.INFO, logger="yaptracker.ocr.child"):
-        text = round_trip("echo", picture(), get)
-    assert text.startswith("615x395 sum ")
-    assert "read a 615x395 picture with echo over shared memory: first read" in caplog.text
+        engine = engines.get("echo")
+        first = engine.read(picture(), scale=1.5)
+        engine.read(picture())
+    assert first[0].text.endswith(f"pid {child.pid}") and first[1].text == "accents False scale 1.5"
+    assert caplog.text.count("echo reads the chat in its own process") == 1
+    assert engines.get("echo") is engine
+    assert engine.read_line(picture()) == "a line read here"  # a signal strip: not worth the trip
+
+
+def test_an_engine_that_cant_run_here_is_unavailable_at_get_like_before(child):
+    """ReadingMode falls back from light to best on exactly this."""
+    engines = ChildEngines(child, local)
+    with pytest.raises(OcrUnavailable, match="no OCR language installed"):
+        engines.get("none")
+    with pytest.raises(OcrUnavailable):
+        engines.get("none")  # asked again: not remembered as fine
+
+
+def test_a_lost_child_costs_no_read_and_after_three_the_main_process_reads_for_a_while(caplog):
+    now = [1000.0]
+    child = OcrChild(get, answer_s=20.0)
+    engines = ChildEngines(child, local, clock=lambda: now[0])
+    try:
+        with caplog.at_level(logging.INFO, logger="yaptracker.ocr.child"):
+            assert engines.get("echo").read(picture())[0].text.startswith("615x395")
+            dies = engines.get("dies")  # the child dies making it: made here instead
+            for _ in range(GONE_LIMIT - 1):
+                assert dies.read(picture())[0].text == "read here by dies"
+            assert caplog.text.count("this one is read in the main process") == GONE_LIMIT - 1
+            assert f"lost {GONE_LIMIT} times in a row" in caplog.text
+            pid = child.pid
+            assert engines.get("echo").read(picture())[0].text == "read here by echo"
+            assert child.pid == pid  # no child is even tried for ten minutes
+            now[0] += RETRY_S
+            assert engines.get("echo").read(picture())[0].text.startswith("615x395")
+    finally:
+        engines.stop()
+
+
+def test_after_stop_everything_is_read_here(child):
+    engines = ChildEngines(child, local)
+    engine = engines.get("echo")
+    engines.stop()
+    assert engine.read(picture())[0].text == "read here by echo"
+
+
+def test_an_engine_that_fails_in_the_child_is_tried_in_the_main_process(child, caplog):
+    """Review: a model that won't load in the second process failed every read, while the main
+    process had the same engine ready."""
+    engines = ChildEngines(child, local)
+    with caplog.at_level(logging.INFO, logger="yaptracker.ocr.child"):
+        assert engines.get("no model").read(picture())[0].text == "read here by no model"
+    assert "this one is read in the main process" in caplog.text
+
+
+def test_quitting_reads_the_last_picture_here_without_a_warning(child, caplog):
+    engines = ChildEngines(child, local)
+    engine = engines.get("echo")
+    with caplog.at_level(logging.INFO, logger="yaptracker.ocr.child"):
+        engines.stop()
+        assert engine.read(picture())[0].text == "read here by echo"
+    assert "main process" not in caplog.text
+
+
+def test_warming_up_makes_the_engine_in_the_child_in_the_background(child):
+    engines = ChildEngines(child, local)
+    engines.warm_up("echo")
+    end = time.monotonic() + 20
+    while "echo" not in child._made and time.monotonic() < end:
+        time.sleep(0.05)
+    assert "echo" in child._made and child.pid is not None

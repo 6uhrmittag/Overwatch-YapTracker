@@ -12,7 +12,7 @@ from nicegui import app, ui
 from nicegui.run import io_bound
 
 from yaptracker import autostart as start_with_windows
-from yaptracker import config, demo, paths, runtime, system_info
+from yaptracker import config, cpu_parts, demo, paths, runtime, system_info
 from yaptracker.capture_wiring import capture_region, start_watcher  # noqa: F401 (#311)
 from yaptracker.cpu_parts import CPU
 from yaptracker.ui import shell
@@ -53,17 +53,19 @@ def _check_ocr() -> bool:
         print(f"smoke test: {name} read: {text[:120]}")
         if "WAHOO" not in text.upper():
             return False
-        # ...and in its own process, as the chat reader will run it (#563): in the exe the child
-        # is this exe started again, so only the built app can prove it starts and reads.
-        from yaptracker.ocr import child
-
+        # ...and in its own process, as the chat reader runs it (#563): in the exe the child is
+        # this exe started again, so only the built app can prove it starts and reads there.
+        if runtime.ocr_child is None:
+            print("smoke test: the OCR child is off")
+            return False
         try:
-            text = child.round_trip(name, crop, answer_s=30.0)
+            text = " ".join(line.text for line in runtime.ocr_child.get(name).read(crop))
         except Exception as error:  # said, not waited out: CI shows why
             print(f"smoke test: {name} in its own process failed: {error!r}")
             return False
-        print(f"smoke test: {name} in its own process read: {text[:120]}")
-        if "WAHOO" not in text.upper():
+        pid = runtime.ocr_child.child.pid
+        print(f"smoke test: {name} in its own process (pid {pid}) read: {text[:120]}")
+        if pid is None or "WAHOO" not in text.upper():  # no pid: the main process read it
             return False
     return True
 
@@ -100,6 +102,8 @@ def _watch_for_overwatch(dev: bool) -> None:
     if config.drop_ocr_gpu():
         log.warning("Use GPU for OCR was on: it's gone in v1 (#219), reading on the CPU")
     ocr.warm_up(config.ocr_engine())  # loaded in the background: nobody waits for it (#219)
+    if runtime.ocr_child is not None:  # and in the reader's own process (#563)
+        runtime.ocr_child.warm_up(config.ocr_engine())
     CaptureWiring(dev).install()
 
 
@@ -195,6 +199,7 @@ def _start_bookkeeping() -> None:
     from yaptracker.evenings import Evenings
     from yaptracker.familiar import FamiliarFaces
     from yaptracker.matches import MatchTracker
+    from yaptracker.ocr import engine as ocr
     from yaptracker.players import PlayerMatcher
     from yaptracker.reading_mode import ReadingMode
     from yaptracker.store.backups import DailyBackup
@@ -217,11 +222,24 @@ def _start_bookkeeping() -> None:
         config.identity,
         on_shaky=lambda name: runtime.debug.save_chat("new-player"),
     )
+    # The chat reader's OCR in its own process (#563): a busy game can't hold up capture and the
+    # window through it. Not in --dev (fake frames, and the browser reloads the app).
+    get = ocr.get
+    if not demo.ENABLED and config.ocr_own_process():
+        from yaptracker.ocr.child import ChildEngines
+
+        runtime.ocr_child = ChildEngines()
+        get = runtime.ocr_child.get
+        # its CPU belongs in the "whole app" and "reading" numbers, as when OCR ran here
+        cpu_parts.children = lambda: runtime.ocr_child.child.cpu_s if runtime.ocr_child else 0.0
+    else:
+        log.info("ocr child: off, the chat is read in the main process")
     runtime.reading = ReadingMode(
         lambda: runtime.matches,
         lambda: config.reading("competitive"),
         lambda: config.reading("other"),
         config.ocr_engine,
+        get=get,
     )
     note = paths.data_dir() / LATER_NOTE
     if (lost := later.lost_span(note)) is not None:  # the app crashed or was killed (#335)
@@ -304,8 +322,10 @@ def _clean_up_once() -> None:
 def _close_store() -> None:
     """In this order: nothing writes to the store after it closes. The reader stops after
     capture has: its last frame is stored first."""
-    for part in (runtime.backups, runtime.reader, runtime.read_again, runtime.health,
-                 runtime.matches):  # fmt: skip
+    # The OCR child first (#563): a read still waiting for it ends at once and is read here, so
+    # the reader's stop doesn't wait behind a child that waits for a core.
+    for part in (runtime.backups, runtime.ocr_child, runtime.reader, runtime.read_again,
+                 runtime.health, runtime.matches):  # fmt: skip
         if part is not None:
             part.stop()
     if runtime.store is not None:
