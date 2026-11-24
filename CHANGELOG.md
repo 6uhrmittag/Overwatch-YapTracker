@@ -4,6 +4,14 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-24 · Lines seen twice but never kept are kept now (#602)
+- A line I read well twice but had no place for is stored now, where it was said. Re-opening the chat after a hiccup brings a missed line back.
+- Old chat from before I started reading, and a longer reading of a line already stored, still stay out; the log says why for each.
+
+### 2026-11-24 · A busy PC no longer makes the capture restart itself (#601)
+- In a match the game can take every core and YapTracker waits. That wait was taken for the game's picture stopping, so the capture restarted itself and lost chat meanwhile. Now it's told apart: only a picture that really stopped restarts it, and a wait long enough to hide a line is shown as a gap.
+- While YapTracker waits for a core it reads the chat every 3 s for a minute, whatever is chosen in Settings (also "as fast as it can"). Lines stay about 9 s on screen, so that rarely costs one.
+
 ### 2026-11-24 · Fullscreen is fine too (#598)
 - Setup no longer asks you to switch Overwatch to Borderless Windowed when it gets a picture in Fullscreen; it only speaks up when Windows really sends a black picture.
 - README: Borderless Windowed is recommended, not required.
