@@ -73,7 +73,7 @@ def capturing(monkeypatch, snapshot=None) -> CaptureWatcher:
 
 def a_black_picture(monkeypatch) -> None:
     black = BlackPicture(lambda: True)
-    black.black = True
+    black.black, black.verdict = True, "black"
     monkeypatch.setattr(runtime, "black", black)
 
 
@@ -218,20 +218,43 @@ async def test_the_cover_warning_only_while_something_covers_the_chat_box(user: 
     await user.should_see("reading from the screen", marker="status-meta")
 
 
-def test_the_log_says_once_a_start_what_windows_reports_and_if_the_picture_is_real(caplog):
-    """#598: Fullscreen is measured, not assumed: one line per start, with Overwatch in front
-    and past its black start."""
-    front, age = {"on": False}, {"s": 10.0}
+def test_the_log_says_once_per_overwatch_start_what_windows_reports_and_if_the_picture_is_real(
+    caplog,
+):
+    """#598: Fullscreen is measured, not assumed: one line per Overwatch start, with it in front
+    and past its black start; window or screen named."""
+    front, age = {"on": False}, {"s": None}
     black = BlackPicture(lambda: front["on"], window_age=lambda: age["s"],
-                         display=lambda: "a Direct3D fullscreen app runs")  # fmt: skip
+                         display=lambda: "a Direct3D fullscreen app runs",
+                         source=lambda: "window")  # fmt: skip
     picture = np.full((90, 160, 3), 80, np.uint8)
     with caplog.at_level(logging.INFO, logger="yaptracker.capture.black"):
         black.update(picture)  # alt-tabbed: not a fair look
         front["on"] = True
+        black.update(picture)  # age unknown: may still be the black start
+        age["s"] = 10.0
         black.update(picture)  # still starting
         age["s"] = 120.0
         black.update(picture)
         black.update(np.zeros((90, 160, 3), np.uint8))
+        age["s"] = 70.0  # Overwatch started again
+        black.update(picture)
     said = [r.getMessage() for r in caplog.records]
-    assert said == ["capture: Overwatch in front; Windows says: a Direct3D fullscreen app runs; "
-                    "the picture is real"]  # fmt: skip
+    line = "capture: Overwatch in front; Windows says: a Direct3D fullscreen app runs; the window"
+    assert said == [f"{line} picture is real"] * 2
+
+
+def test_setup_says_perfect_only_after_a_real_picture_and_keeps_black_while_alt_tabbed():
+    """#598: setup is read with YapTracker in front: the last fair verdict stays."""
+    clock, front = Clock(), {"on": True}
+    black = BlackPicture(lambda: front["on"], clock)
+    assert black.verdict is None  # nothing seen yet: setup doesn't claim "perfect"
+    black.update(np.full((90, 160, 3), 80, np.uint8))
+    assert black.verdict == "real"
+    for _ in range(30):
+        clock.now += 1
+        black.update(np.zeros((90, 160, 3), np.uint8))
+    assert black.verdict == "black"
+    front["on"] = False  # alt-tab to YapTracker's setup
+    black.update(np.zeros((90, 160, 3), np.uint8))
+    assert not black.black and black.verdict == "black"

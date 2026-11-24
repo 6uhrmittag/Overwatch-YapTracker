@@ -52,12 +52,3 @@ def display_state() -> str:
     if ctypes.windll.shell32.SHQueryUserNotificationState(ctypes.byref(state)) != 0:
         return "unknown"
     return _STATES.get(state.value, f"state {state.value}")
-
-
-def exclusive_fullscreen(hwnd: int) -> bool:
-    """Overwatch in front in exclusive Fullscreen (#217): Windows' own notification state says
-    a Direct3D full-screen app runs. Borderless windowed doesn't count."""
-    state = ctypes.c_int(0)
-    if ctypes.windll.shell32.SHQueryUserNotificationState(ctypes.byref(state)) != 0:
-        return False
-    return state.value == 3 and in_front(hwnd)  # QUNS_RUNNING_D3D_FULL_SCREEN
