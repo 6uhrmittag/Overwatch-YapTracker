@@ -60,6 +60,10 @@ FAIL_LIMIT = 5  # reads failing in a row before a crash gap opens and Live says 
 RATE_GAP_S = 30.0  # kept frames read further apart than this: a pause, not the reading pace
 RATE_WEIGHT = 0.2  # how much each kept frame moves the time-left guess (#501)
 UNSTORED_LOOK_S = 600.0  # seen-but-not-stored: compared with the lines stored this long (#504)
+# ...and with the last lines stored before that, this evening: an opened chat shows old lines as
+# long as nothing newer came, and a stream that just started knows none of them (#602).
+STORED_FAR_S, STORED_ROWS = 4 * 3600.0, 40
+OLDER = "older than every line I know"  # the opened chat's history from before I read (#179)
 
 
 def _fields(line: ChatLine) -> dict:
@@ -118,6 +122,10 @@ class ChatReader:
         self._read_match: int | None = None  # the match of the last read
         self._on_screen: set[str] = set()  # match keys of the lines in the last read (#179)
         self._unstored_said: dict[int | None, list[str]] = {}  # reported, per match (#504)
+        # (key, words of text) of the stored lines the last report was compared with, and the
+        # reported keys that are like one stored more than UNSTORED_LOOK_S ago (#602)
+        self._near: list[tuple[str, int]] = []
+        self._far_like: set[str] = set()
         self._reread_until, self._rereads_left = -math.inf, 0  # read weak lines again (#195)
         self._weak: set[int] = set()  # yaps that already got their re-reads
         self._save_colours = save_colours  # the group colour is rare: kept for next time (#80)
@@ -445,10 +453,14 @@ class ChatReader:
             self._read_match, self._on_screen = screen
             self._want_reread(ts, lines)
             self._no_chat = 0 if any(ln.kind in YAP_KINDS for ln in lines) else self._no_chat + 1
-        for yap in new:
+        seen_twice = self._really_unstored(ts, dedup.unstored, current)
+        adopted, refused = self._adopt(seen_twice, dedup, current)
+        for yap in new + [yap for yap, _ in adopted]:
             player = self._player(yap, ts)
             match_id = previous if yap.id in old else current
-            if yap.after in self._stored:  # missed earlier, read between two lines (#423)
+            if yap.id in (into := {a.id: m for a, m in adopted}):  # seen twice (#602)
+                match_id = into[yap.id]
+            elif yap.after in self._stored:  # missed earlier, read between two lines (#423)
                 above = self._store.message(self._stored[yap.after])
                 match_id = above.match_id if above is not None else match_id
             self._stored[yap.id] = self._store.add_message(
@@ -466,16 +478,55 @@ class ChatReader:
                 if yap.best is yap.last:  # read better in this very frame: its picture, too
                     self._keep_picture(yap, image)
         self._count(time.thread_time() - started)
-        unstored = self._really_unstored(ts, dedup.unstored, current)
-        if unstored:  # a missed line as a number, not a feeling (#425)
-            said = "; ".join(f"{line.speaker or ''}: {line.text}"[:50] for line in unstored)
-            log.info("chat reading: %d line(s) seen twice but never stored: %s", len(unstored),
-                     said)  # fmt: skip
+        if adopted:  # a missed line as a number, not a feeling (#425); now kept (#602)
+            log.info("chat reading: %d line(s) seen twice, stored now: %s", len(adopted),
+                     "; ".join(_said(yap.best) for yap, _ in adopted))  # fmt: skip
+        if refused:
+            log.info("chat reading: %d line(s) seen twice but never stored: %s", len(refused),
+                     "; ".join(f"{_said(line)} ({why})" for line, why in refused))  # fmt: skip
         try:
-            self._on_read(ts, image, ocr, lines, new, unstored)
+            self._on_read(ts, image, ocr, lines, new + [yap for yap, _ in adopted],
+                          [line for line, _ in refused])  # fmt: skip
         except Exception as error:  # debug samples never fail a read (#452)
             side_work.failed("saving a debug sample", error)
-        return new
+        return new + [yap for yap, _ in adopted]
+
+    def _adopt(
+        self, rows: list[ChatLine], dedup: Dedup, match: int | None
+    ) -> tuple[list[tuple[Yap, int | None]], list[tuple[ChatLine, str]]]:
+        """Rows seen twice and stored nowhere become lines (#602): ([(line, its match)], [(row,
+        why not)]). Dedup only stored new rows below the last known line and missed ones between
+        two neighbours (#423); a row above the known lines of an opened chat (Marv re-opened it
+        to get a lost line back) was real, read well twice, and dropped. Its match: the one of
+        the known line right below it (it was said before that one), else the read's."""
+        adopted, refused = [], []
+        for line in rows:
+            why = self._why_not(line, dedup)
+            got = None if why else dedup.adopt(line)
+            if got is None:
+                refused.append((line, why or OLDER))
+                continue
+            yap, below = got
+            under = (
+                self._store.message(self._stored[below.id]) if below.id in self._stored else None
+            )
+            # also "no match": said in the menu before a line stored there (as #423 does)
+            adopted.append((yap, under.match_id if under is not None else match))
+        return adopted, refused
+
+    def _why_not(self, line: ChatLine, dedup: Dedup) -> str | None:
+        """Why a row seen twice still isn't stored, in words for the log; None: store it."""
+        k = match_key(line)
+        if k in self._far_like:
+            return "like a line stored earlier"  # may be that one, still in the opened chat
+        if dedup.misread_of(line) is not None:
+            return "may be a known line read wrong"
+        # a longer or cut reading of a stored line: a second line would be a repeat
+        if dedup.piece_of(line) is not None or any(
+            words >= 3 and k.startswith(s + " ") for s, words in self._near
+        ):
+            return "a piece of a stored line"
+        return None
 
     def _really_unstored(self, ts: float, rows: list[ChatLine],
                          match: int | None) -> list[ChatLine]:  # fmt: skip
@@ -484,18 +535,26 @@ class ChatReader:
         Dedup forgets a row a minute out of sight, and seen again it was counted again. Kept
         frames of the match before and live ones take turns, so each match keeps its own."""
         if not rows:
-            return rows
+            return []
         said = self._unstored_said.setdefault(match, [])
         for old in [m for m in self._unstored_said if m != match][:-2]:  # and 2 more at most
             del self._unstored_said[old]
-        stored = [text_key(m.hero or m.speaker_raw, m.text)
-                  for m in self._store.lines_since(ts - UNSTORED_LOOK_S)]  # fmt: skip
+        lines = sorted(self._store.lines_since(ts - STORED_FAR_S), key=lambda m: m.ts)
+        far = [m for m in lines if m.ts < ts - UNSTORED_LOOK_S][-STORED_ROWS:]
+        near = [m for m in lines if m.ts >= ts - UNSTORED_LOOK_S]
+        stored = [text_key(m.hero or m.speaker_raw, m.text) for m in near]
+        earlier = [text_key(m.hero or m.speaker_raw, m.text) for m in far]
+        self._near = [(k, len(m.text.split())) for k, m in zip(stored + earlier, near + far,
+                                                               strict=True)]  # fmt: skip
+        self._far_like = set()
         found = []
         for line in rows:
             k = match_key(line)
             whole = len(line.text.split()) >= 3  # may be the start of a line with junk glued on
             if stored_as(k, said) or stored_as(k, stored, prefix=whole):
                 continue
+            if stored_as(k, earlier, prefix=whole):  # reported with this reason, never stored
+                self._far_like.add(k)
             said.append(k)
             found.append(line)
         return found
@@ -692,6 +751,10 @@ class ChatReader:
             self._load_since, self._load_cpu = now, cpu
             self._load_busy, self._load_frames, self._offered = 0.0, 0, 0
             self._held_back = False
+
+
+def _said(line: ChatLine) -> str:
+    return f"{line.speaker or ''}: {line.text}"[:50]
 
 
 def _span(first: float, last: float) -> str:

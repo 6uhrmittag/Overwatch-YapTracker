@@ -54,7 +54,9 @@ def setup(argv: list[str] | None = None) -> None:
     folder.mkdir(parents=True, exist_ok=True)
     if multiprocessing.spawn.is_forking(sys.argv if argv is None else argv):
         if sys.stdout is None or sys.stderr is None:  # the native window's process, see above
-            stream = open(folder / "window.log", "w", encoding="utf-8", buffering=1)  # noqa: SIM115 - lives as long as the process
+            # the OCR child (#563) is started the same way: its own file, not the window's
+            name = "ocr-child.log" if os.environ.get("YAPTRACKER_OCR_CHILD") else "window.log"
+            stream = open(folder / name, "w", encoding="utf-8", buffering=1)  # noqa: SIM115 - lives as long as the process
             sys.stdout = sys.stdout or stream
             sys.stderr = sys.stderr or stream
         return
