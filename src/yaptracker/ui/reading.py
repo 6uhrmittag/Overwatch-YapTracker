@@ -49,7 +49,8 @@ def reading_card() -> None:
             ).classes("yt-hint")
             ui.label(
                 "When I use more CPU than planned, I read every 3 s for a minute, unless a match "
-                "is read live with the best quality: that's your choice."
+                "is read live with the best quality: that's your choice. When the game leaves "
+                "me no core at all, I read every 3 s for a minute whatever you chose."
             ).classes("yt-hint")
 
     def segment(container, options: dict, chosen, choose, key: str, disabled=()) -> None:
