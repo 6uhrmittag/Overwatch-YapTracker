@@ -24,3 +24,18 @@ def test_process_below_normal_and_reader_thread_lowest():
     thread.start()
     thread.join()
     assert seen == [-2]  # THREAD_PRIORITY_LOWEST
+
+
+def test_efficiency_mode_can_be_switched_off_by_name_and_on_again():
+    """#563: the main process leaves efficiency mode, the reader's process keeps it."""
+    from yaptracker import priority
+
+    kernel32 = priority._kernel32()
+    try:
+        priority.lower_process(efficiency=False)
+        assert kernel32.GetPriorityClass(kernel32.GetCurrentProcess()) == 0x4000  # still below
+        assert priority.efficiency_mode() in (False, None)  # None: this Windows won't say
+        priority.lower_process()
+        assert priority.efficiency_mode() in (True, None)
+    finally:
+        priority.lower_process()

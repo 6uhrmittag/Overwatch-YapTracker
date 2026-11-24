@@ -35,12 +35,26 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def in_efficiency_mode(argv: list[str] | None = None) -> bool:
+    """The child processes (the window, the chat reader's OCR) run in Windows' efficiency mode;
+    the main process only when it reads the chat itself (#563: with the reader in its own
+    process, the main one needs little CPU, but on time)."""
+    if multiprocessing.spawn.is_forking(sys.argv if argv is None else argv):
+        return True
+    try:
+        from yaptracker import config
+
+        return not config.ocr_own_process()
+    except Exception:  # an unreadable config: the default, the reader has its own process
+        return False
+
+
 def main(argv: list[str] | None = None) -> None:
     logs.setup()  # also catches stdout/stderr: the windowed exe has no console
-    # Below-normal priority and efficiency mode first: the window's child process runs this too.
+    # Below-normal priority first: the window's and the reader's child processes run this too.
     from yaptracker import priority
 
-    priority.lower_process()  # the game gets the CPU when it needs it (#187)
+    priority.lower_process(efficiency=in_efficiency_mode())  # the game goes first (#187)
     # The native window runs in a spawned child process; in the exe that child starts here.
     multiprocessing.freeze_support()
     args = build_parser().parse_args(argv)

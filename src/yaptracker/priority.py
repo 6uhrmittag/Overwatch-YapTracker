@@ -1,6 +1,12 @@
-"""Stay out of the game's way (#187): YapTracker runs below normal priority and in Windows'
-efficiency mode (EcoQoS), the chat reader at the lowest thread priority. So when the game needs
-a core, Windows gives it to the game. Windows only; elsewhere these do nothing."""
+"""Stay out of the game's way (#187): YapTracker runs below normal priority, and its heavy part,
+the chat reader's OCR, in Windows' efficiency mode (EcoQoS) at the lowest thread priority. So
+when the game needs a core, Windows gives it to the game. Windows only; elsewhere these do
+nothing.
+
+Since #563 the OCR has a process of its own, and only that one (and the window's) is in
+efficiency mode: the main process (capture, watchdog, match signals, the UI's server) needs
+milliseconds, but on time. In efficiency mode it waited seconds for a core in a match, and so
+did everything behind it. It stays below normal: the game still goes first."""
 
 import ctypes
 import logging
@@ -36,18 +42,38 @@ def _kernel32():
     return kernel32
 
 
-def lower_process() -> None:
-    """Below-normal priority and EcoQoS for this process (the window's child process too)."""
+def lower_process(efficiency: bool = True) -> None:
+    """Below-normal priority for this process; efficiency mode on, or switched off by name (not
+    left to Windows, which puts processes without a visible window into it on its own)."""
     if sys.platform != "win32":
         return
     kernel32 = _kernel32()
     me = kernel32.GetCurrentProcess()
     if not kernel32.SetPriorityClass(me, BELOW_NORMAL_PRIORITY_CLASS):
         log.warning("couldn't lower the process priority")
-    state = _PowerThrottling(1, _THROTTLE_EXECUTION_SPEED, _THROTTLE_EXECUTION_SPEED)
+    state = _PowerThrottling(1, _THROTTLE_EXECUTION_SPEED,
+                             _THROTTLE_EXECUTION_SPEED if efficiency else 0)  # fmt: skip
     if not kernel32.SetProcessInformation(me, _PROCESS_POWER_THROTTLING, ctypes.byref(state),
                                           ctypes.sizeof(state)):  # fmt: skip
         log.info("efficiency mode not available on this Windows")  # Windows 10 before 1709
+    else:
+        log.info("priority: below normal, efficiency mode %s", "on" if efficiency else "off")
+
+
+def efficiency_mode() -> bool | None:
+    """Whether this process is in efficiency mode by its own setting; None: Windows won't say."""
+    if sys.platform != "win32":
+        return None
+    kernel32 = _kernel32()
+    state = _PowerThrottling(1, 0, 0)
+    kernel32.GetProcessInformation.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p,
+                                               wintypes.DWORD]  # fmt: skip
+    if not kernel32.GetProcessInformation(kernel32.GetCurrentProcess(), _PROCESS_POWER_THROTTLING,
+                                          ctypes.byref(state), ctypes.sizeof(state)):  # fmt: skip
+        return None
+    if not state.control_mask & _THROTTLE_EXECUTION_SPEED:
+        return None  # nobody set it: Windows decides
+    return bool(state.state_mask & _THROTTLE_EXECUTION_SPEED)
 
 
 def lower_this_thread() -> None:

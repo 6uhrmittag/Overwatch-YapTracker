@@ -19,6 +19,7 @@ from multiprocessing import shared_memory
 
 import numpy as np
 
+from yaptracker import priority
 from yaptracker.ocr import engine as ocr
 from yaptracker.ocr.engine import UPSCALE, OcrLine, OcrUnavailable
 
@@ -37,6 +38,10 @@ class ChildGone(RuntimeError):
 
 def _serve(conn, get: Callable[[str], object]) -> None:
     """The child's whole life: read the pictures it's asked to, until the parent goes."""
+    # The game first (#187): below normal + efficiency mode (the exe's start did that already;
+    # `python -m` didn't), and this thread, the one that reads, at the lowest priority.
+    priority.lower_process()
+    priority.lower_this_thread()
     block: shared_memory.SharedMemory | None = None
     while True:
         try:

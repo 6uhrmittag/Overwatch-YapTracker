@@ -273,6 +273,7 @@ def _start_reader() -> None:
         idle=lambda: not _capturing() or not runtime.matches.running,
         gated=lambda: runtime.reading.chosen() != BEST,  # best live: no busy gate (#588)
         starved=lambda: runtime.watcher is not None and runtime.watcher.starved(),  # (#601)
+        lowest=runtime.ocr_child is None,  # the OCR's own process has the low priority (#563)
     )
     if (stale := runtime.reader.later.restore()) is not None:  # kept at the last quit (#349)
         runtime.store.close_gap(runtime.store.open_gap(stale[0], "deferred_lost"), stale[1])
