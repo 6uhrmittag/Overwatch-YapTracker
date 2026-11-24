@@ -76,13 +76,13 @@ def rows(private: Path) -> list[dict]:
     split, sample = private / "gold" / "split.json", private / "gold" / "sample.json"
     gold = set(json.loads(sample.read_text())) if sample.exists() else set()
     if split.exists():  # frozen with the gold lines: a new evening must not move them to train
-        first_test = json.loads(split.read_text())["test_from"]
+        test_evenings = set(json.loads(split.read_text())["test_evenings"])
     else:
-        first_test = evenings[-TEST_EVENINGS:][0] if evenings else ""
+        test_evenings = set(evenings[-TEST_EVENINGS:])
         if gold:
-            split.write_text(json.dumps({"test_from": first_test}))
+            split.write_text(json.dumps({"test_evenings": sorted(test_evenings)}))
     for r in out:
-        test = r["evening"] >= first_test or r["edited_text"] is not None or r["id"] in gold
+        test = r["evening"] in test_evenings or r["edited_text"] is not None or r["id"] in gold
         r["split"] = "test" if test else "train"
     return out
 
