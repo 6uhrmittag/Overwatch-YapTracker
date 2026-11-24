@@ -26,6 +26,23 @@ def tag(name: str) -> str:
     return f"[icon:{name}]"
 
 
+# How a known icon shows (#121, Marv 2026-11-24): the stored text keeps the tag (search, export
+# and old lines stay stable, a typed emoji stays a typed one); what people read shows the emoji.
+EMOJI = {
+    "thumbs-up": "\U0001f44d",  # 👍
+    "heal": "\u2795",  # ➕
+    "group-up": "\U0001f4cd",  # 📍
+    "fall-back": "\u23ea",  # ⏪
+}
+_TAG = re.compile(r"\[icon:([a-z0-9-]+)\]")
+
+
+def shown(text: str) -> str:
+    """The text as people read it (#121): "Thanks! [icon:thumbs-up]" -> "Thanks! 👍". An icon
+    without an emoji keeps its tag."""
+    return _TAG.sub(lambda m: EMOJI.get(m.group(1), m.group(0)), text)
+
+
 def unnamed(text: str) -> str:
     """The text as it was read, every named icon a "◇" again: to compare readings (#121)."""
     return _NAMED.sub(GLYPH, text)

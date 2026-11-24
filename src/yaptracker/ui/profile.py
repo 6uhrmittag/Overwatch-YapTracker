@@ -7,6 +7,7 @@ from collections.abc import Callable
 from nicegui import ui
 
 from yaptracker import days, hero_switches, runtime
+from yaptracker.glyphs import shown
 from yaptracker.ui import backlog, icons
 from yaptracker.ui.components import (
     VERDICTS,
@@ -312,7 +313,7 @@ def _yaps(player_id: int, callouts: bool = False) -> None:
             callout = " yt-their-yap--callout" if message.hero else ""
             with ui.element("div").classes("yt-their-yap" + callout) as line:
                 ch = ui.label(_CHANNELS.get(channel, "Chat")).classes(f"yt-line-ch yt-ch-{channel}")
-                text = ui.label(message.text).classes("yt-line-text")
+                text = ui.label(shown(message.text)).classes("yt-line-text")
                 edited = edited_mark(message)
                 if message.hero:
                     ui.label(f"as {message.hero}").classes("yt-meta")

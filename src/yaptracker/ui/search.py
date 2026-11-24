@@ -10,7 +10,7 @@ import time
 from nicegui import ui
 
 from yaptracker import days, runtime
-from yaptracker.glyphs import GLYPH
+from yaptracker.glyphs import GLYPH, shown
 from yaptracker.ui.components import count, place_name, switch
 from yaptracker.ui.line_actions import delete_button, edit_button, edited_mark, said_as, stored
 from yaptracker.ui.picker import LinePicker
@@ -32,7 +32,7 @@ def _since(span: str, now: float) -> float | None:
 
 def marked_html(marked: str) -> str:
     """Escaped text with the found words highlighted and emoji/icons as a chip (#128)."""
-    text = html.escape(marked, quote=False)
+    text = html.escape(shown(marked), quote=False)
     text = text.replace("\x01", '<mark class="yt-hit">').replace("\x02", "</mark>")
     return text.replace(GLYPH, f'<span class="yt-glyph">{GLYPH}</span>')
 

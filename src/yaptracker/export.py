@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 from yaptracker import __version__, days, game_lists
+from yaptracker.glyphs import shown
 from yaptracker.lines import LinePictures
 from yaptracker.store.repo import GUESSED, Store
 from yaptracker.translate import language
@@ -255,7 +256,8 @@ def _match_markdown(match, number: int, said: list[dict], gaps: list) -> str:
         who = "you" if who and item["role"] == "me" else who
         name = f"**{_md(who)}:** " if who else ""
         channel = _CHANNEL_NAMES.get(item["channel"], "Chat")
-        lines.append(f"- {_clock(item['time'])} \u00b7 {channel} \u00b7 {name}{_md(item['text'])}")
+        said = _md(shown(item["text"]))  # its icons as emoji (#121)
+        lines.append(f"- {_clock(item['time'])} \u00b7 {channel} \u00b7 {name}{said}")
         if item.get("translation"):  # (#470)
             source = language(item.get("translation_from"))
             lines.append(f"  - \u21b3 *{_md(item['translation'])}*"

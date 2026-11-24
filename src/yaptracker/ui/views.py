@@ -15,6 +15,7 @@ from yaptracker.capture.stats import CAPTURE
 from yaptracker.capture.watcher import fps
 from yaptracker.debug import DISK_LOW_SAY
 from yaptracker.glyphs import GLYPH
+from yaptracker.glyphs import shown as with_emoji
 from yaptracker.matches import AFTER_END_GAP_S
 from yaptracker.reader import FAIL_LIMIT
 from yaptracker.snaps import MAX_LINES
@@ -351,7 +352,7 @@ def fill_line(row: dict, message) -> None:
     row["name"].set_text(f"{who}:" if who else "")
     # Escaped text; an emoji or icon OCR couldn't spell shows as a ◇ chip (#128).
     chip = f'<span class="yt-glyph" title="An emoji or icon: click for the picture">{GLYPH}</span>'
-    text = html.escape(message.text, quote=False).replace(GLYPH, chip)
+    text = html.escape(with_emoji(message.text), quote=False).replace(GLYPH, chip)
     if message.flagged:  # spicy (#77): a small chili, no judgement
         text += " " + SPICY
     row["text"].set_content(text)
