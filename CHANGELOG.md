@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-24 · Fullscreen is fine too (#598)
+- Setup no longer asks you to switch Overwatch to Borderless Windowed when it gets a picture in Fullscreen; it only speaks up when Windows really sends a black picture.
+- README: Borderless Windowed is recommended, not required.
+
 ### 2026-11-24 · Emoji in Yap snaps (#121)
 - Yap snaps draw the callout icons as emoji (👍 ➕ 📍 ⏪), and ❤️ 😂 😭 💀 in colour too.
 
