@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from yaptracker.capture.source import Region
-from yaptracker.ocr.child import GONE_LIMIT, RETRY_S, ChildEngines, ChildGone, OcrChild
+from yaptracker.ocr.child import GONE_LIMIT, RETRY_S, ChildEngines, ChildFailed, ChildGone, OcrChild
 from yaptracker.ocr.engine import OcrLine, OcrUnavailable
 
 
@@ -20,6 +20,13 @@ class Echo:
         text = f"{image.shape[1]}x{image.shape[0]} sum {int(image.sum())} pid {os.getpid()}"
         return [OcrLine(text, 0.99, Region(1, 2, 3, 4), parts=(("word", Region(5, 6, 7, 8)),)),
                 OcrLine(f"accents {accents} scale {scale}", 0.5, Region(0, 0, 1, 1))]  # fmt: skip
+
+
+class Hangs:
+    def read(self, image, accents=False, scale=2.0):
+        if image[0, 0, 0] == 9:  # only the picture that asks for it: the engine is made first
+            time.sleep(30)
+        return []
 
 
 class Aborts:
@@ -39,7 +46,7 @@ def get(name: str):  # module level: the spawned child imports it by name
     if name == "dies":
         os._exit(3)
     if name == "hangs":
-        time.sleep(30)
+        return Hangs()
     return Echo()
 
 
@@ -82,9 +89,9 @@ def test_the_engines_own_errors_come_back_as_themselves(child):
         child.read("none", picture())
     with pytest.raises(OSError, match="Operation aborted"):
         child.read("aborts", picture())
-    with pytest.raises(RuntimeError, match="bad model"):
+    with pytest.raises(ChildFailed, match="bad model"):
         child.read("broken", picture())
-    with pytest.raises(RuntimeError, match="rec.onnx"):  # no engine: nothing a retry fixes
+    with pytest.raises(ChildFailed, match="rec.onnx"):  # no engine: nothing a retry fixes
         child.read("no model", picture())
     assert child.read("echo", picture())  # and the child lives on
 
@@ -99,10 +106,11 @@ def test_a_child_that_died_is_said_and_the_next_read_starts_a_new_one(child):
 
 def test_a_child_that_hangs_is_ended(child):
     child.read("echo", picture())  # started with a generous limit: a loaded runner is slow
-    child._answer_s = 1.0
+    child.read("hangs", picture())
+    child._read_s = 1.0  # the engine is made: its reads get the short limit
     process = child._process
     with pytest.raises(ChildGone, match="no answer in 1 s"):
-        child.read("hangs", picture())
+        child.read("hangs", picture(fill=9))
     assert not process.is_alive()
 
 
@@ -115,7 +123,7 @@ def test_stopping_doesnt_wait_for_a_read_in_flight(child):
 
     def read():
         try:
-            child.read("hangs", picture())
+            child.read("hangs", picture(fill=9))
         except ChildGone as gone:
             failed.append(gone)
 
@@ -261,3 +269,30 @@ def test_after_stop_everything_is_read_here(child):
     engine = engines.get("echo")
     engines.stop()
     assert engine.read(picture())[0].text == "read here by echo"
+
+
+def test_an_engine_that_fails_in_the_child_is_tried_in_the_main_process(child, caplog):
+    """Review: a model that won't load in the second process failed every read, while the main
+    process had the same engine ready."""
+    engines = ChildEngines(child, local)
+    with caplog.at_level(logging.INFO, logger="yaptracker.ocr.child"):
+        assert engines.get("no model").read(picture())[0].text == "read here by no model"
+    assert "this one is read in the main process" in caplog.text
+
+
+def test_quitting_reads_the_last_picture_here_without_a_warning(child, caplog):
+    engines = ChildEngines(child, local)
+    engine = engines.get("echo")
+    with caplog.at_level(logging.INFO, logger="yaptracker.ocr.child"):
+        engines.stop()
+        assert engine.read(picture())[0].text == "read here by echo"
+    assert "main process" not in caplog.text
+
+
+def test_warming_up_makes_the_engine_in_the_child_in_the_background(child):
+    engines = ChildEngines(child, local)
+    engines.warm_up("echo")
+    end = time.monotonic() + 20
+    while "echo" not in child._made and time.monotonic() < end:
+        time.sleep(0.05)
+    assert "echo" in child._made and child.pid is not None
