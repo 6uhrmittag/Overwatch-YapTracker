@@ -8,9 +8,11 @@ efficiency mode: the main process (capture, watchdog, match signals, the UI's se
 milliseconds, but on time. In efficiency mode it waited seconds for a core in a match, and so
 did everything behind it. It stays below normal: the game still goes first."""
 
+import contextlib
 import ctypes
 import logging
 import sys
+from collections.abc import Iterator
 from ctypes import wintypes
 
 log = logging.getLogger(__name__)
@@ -49,7 +51,8 @@ def lower_process(efficiency: bool = True) -> None:
         return
     kernel32 = _kernel32()
     me = kernel32.GetCurrentProcess()
-    if not kernel32.SetPriorityClass(me, BELOW_NORMAL_PRIORITY_CLASS):
+    lowered = bool(kernel32.SetPriorityClass(me, BELOW_NORMAL_PRIORITY_CLASS))
+    if not lowered:
         log.warning("couldn't lower the process priority")
     state = _PowerThrottling(1, _THROTTLE_EXECUTION_SPEED,
                              _THROTTLE_EXECUTION_SPEED if efficiency else 0)  # fmt: skip
@@ -57,7 +60,8 @@ def lower_process(efficiency: bool = True) -> None:
                                           ctypes.sizeof(state)):  # fmt: skip
         log.info("efficiency mode not available on this Windows")  # Windows 10 before 1709
     else:
-        log.info("priority: below normal, efficiency mode %s", "on" if efficiency else "off")
+        log.info("priority: %s, efficiency mode %s", "below normal" if lowered else "unchanged",
+                 "on" if efficiency else "off")  # fmt: skip
 
 
 def efficiency_mode() -> bool | None:
@@ -74,6 +78,24 @@ def efficiency_mode() -> bool | None:
     if not state.control_mask & _THROTTLE_EXECUTION_SPEED:
         return None  # nobody set it: Windows decides
     return bool(state.state_mask & _THROTTLE_EXECUTION_SPEED)
+
+
+@contextlib.contextmanager
+def lowest_for_now() -> Iterator[None]:
+    """The calling thread at the lowest priority for one piece of heavy work, then back: OCR the
+    main process has to do itself when the reader's own process can't (#563)."""
+    if sys.platform != "win32":
+        yield
+        return
+    kernel32 = _kernel32()
+    thread = kernel32.GetCurrentThread()
+    before = kernel32.GetThreadPriority(thread)
+    kernel32.SetThreadPriority(thread, THREAD_PRIORITY_LOWEST)
+    try:
+        yield
+    finally:
+        if before != 0x7FFFFFFF:  # THREAD_PRIORITY_ERROR_RETURN: unknown, leave it
+            kernel32.SetThreadPriority(thread, before)
 
 
 def lower_this_thread() -> None:

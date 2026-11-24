@@ -286,7 +286,10 @@ class ChildEngines:
             lines.extend(self.child.read(name, image, accents, scale))
 
         if not self._in_child(read):
-            return self.local(name).read(image, accents=accents, scale=scale)
+            # heavy work in the main process after all: at the lowest priority while it lasts,
+            # as the reader's thread was before (#187); the game still goes first
+            with priority.lowest_for_now():
+                return self.local(name).read(image, accents=accents, scale=scale)
         if name not in self._said:
             self._said.add(name)
             log.info("ocr child: %s reads the chat in its own process (pid %s)", name,
