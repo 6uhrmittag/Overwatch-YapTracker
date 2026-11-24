@@ -26,6 +26,9 @@ log = logging.getLogger(__name__)
 # A read waits this long for its answer. The first one loads the model in the child (seconds),
 # and a starved child may need long: a child that takes longer is taken for stuck.
 ANSWER_S = 60.0
+# Set while a child starts: in the exe the child is the exe started again, and its logs.setup()
+# must tell it from the window's process (which owns window.log).
+CHILD_ENV = "YAPTRACKER_OCR_CHILD"
 
 
 class ChildGone(RuntimeError):
@@ -50,17 +53,33 @@ def _serve(conn, get: Callable[[str], object]) -> None:
                 block = shared_memory.SharedMemory(name=memory)
             # a copy: the parent may write the next picture while an engine still holds this one
             image = np.ndarray(shape, np.uint8, buffer=block.buf).copy()
-            reply = ("ok", get(name).read(image, accents=accents, scale=scale))
-        except OcrUnavailable as reason:
-            reply = ("unavailable", str(reason))
-        except OSError as error:  # Windows OCR's "Operation aborted" (#452): the caller retries
-            reply = ("oserror", str(error))
-        except Exception as error:  # anything else: said in the parent's log
-            reply = ("error", repr(error))
+        except Exception as error:  # no picture, no reading: the parent starts a new child
+            reply = ("gone", f"the picture didn't arrive: {error!r}")
+        else:
+            reply = _read(get, name, image, accents, scale)
         try:
             conn.send((*reply, time.process_time()))
         except (BrokenPipeError, OSError):
             return
+        if reply[0] == "gone":
+            return
+
+
+def _read(get, name: str, image: np.ndarray, accents: bool, scale: float) -> tuple[str, object]:
+    try:
+        engine = get(name)
+    except OcrUnavailable as reason:
+        return "unavailable", str(reason)
+    except Exception as error:  # e.g. a model file is missing: not something to retry
+        return "error", repr(error)
+    try:
+        return "ok", engine.read(image, accents=accents, scale=scale)
+    except OcrUnavailable as reason:
+        return "unavailable", str(reason)
+    except OSError as error:  # Windows OCR's "Operation aborted" (#452): the caller retries
+        return "oserror", str(error)
+    except Exception as error:  # anything else: said in the parent's log
+        return "error", repr(error)
 
 
 class OcrChild:
@@ -72,28 +91,46 @@ class OcrChild:
         self._process: multiprocessing.process.BaseProcess | None = None
         self._conn = None
         self._block: shared_memory.SharedMemory | None = None
-        self.cpu_s = 0.0  # CPU time the child has used so far, for the "whole app" lines
+        self._stopped = False
+        self._cpu_before = 0.0  # of children that are gone
+        self._cpu_now = 0.0  # of the one running
         self.pid: int | None = None
+
+    @property
+    def cpu_s(self) -> float:
+        """CPU time used in children so far, for the "whole app" lines; it only ever grows."""
+        return self._cpu_before + self._cpu_now
 
     def _start(self) -> None:
         # spawn everywhere (Windows has nothing else): tests on Linux run what Windows runs
         context = multiprocessing.get_context("spawn")
-        self._conn, theirs = context.Pipe()
-        self._process = context.Process(
+        ours, theirs = context.Pipe()
+        process = context.Process(
             target=_serve, args=(theirs, self._get), name="ocr child", daemon=True
         )
-        self._process.start()
-        theirs.close()  # ours is the only other end: the child sees it close when we go
-        self.pid, self.cpu_s = self._process.pid, 0.0
+        os.environ[CHILD_ENV] = "1"
+        try:
+            process.start()
+        except BaseException:
+            ours.close()
+            raise
+        finally:
+            os.environ.pop(CHILD_ENV, None)
+            theirs.close()  # ours is the only other end: the child sees it close when we go
+        self._process, self._conn, self.pid = process, ours, process.pid
 
     def read(
         self, name: str, image: np.ndarray, accents: bool = False, scale: float = UPSCALE
     ) -> list[OcrLine]:
-        """Like OcrEngine.read, in the child. ChildGone: it died or took too long (it's ended;
-        the next read starts a new one)."""
+        """Like OcrEngine.read, in the child. ChildGone: it couldn't start, died or took too
+        long (it's ended; the next read starts a new one)."""
         image = np.ascontiguousarray(image, np.uint8)
+        if not image.nbytes:
+            return []  # nothing to read, and shared memory can't be empty
         with self._lock:
             try:
+                if self._stopped:
+                    raise OSError("stopped")
                 if self._process is None or not self._process.is_alive():
                     self._close()
                     self._start()
@@ -105,10 +142,15 @@ class OcrChild:
                 if not self._conn.poll(self._answer_s):
                     raise TimeoutError(f"no answer in {self._answer_s:g} s")
                 kind, result, cpu = self._conn.recv()
-            except (EOFError, OSError, TimeoutError) as error:  # OSError: a broken pipe too
+                if kind == "gone":
+                    raise OSError(result)
+            except Exception as error:  # a broken pipe, a failed start, pickling: all the same
                 self._close()
                 raise ChildGone(f"{type(error).__name__}: {error}") from error
-            self.cpu_s = cpu
+            except BaseException:  # Ctrl+C mid-read: its answer mustn't become the next one's
+                self._close()
+                raise
+            self._cpu_now = cpu
         if kind == "ok":
             return result
         if kind == "unavailable":
@@ -118,12 +160,20 @@ class OcrChild:
         raise RuntimeError(f"OCR failed in its own process: {result}")
 
     def stop(self) -> None:
+        """For good (the app is closing). A read still waiting for its answer ends at once
+        with ChildGone: the child is killed first, not waited for behind the read's lock."""
+        self._stopped = True
+        process = self._process
+        if process is not None:
+            with contextlib.suppress(Exception):  # gone already, or never started
+                process.kill()
         with self._lock:
             self._close()
 
     def _close(self) -> None:
         process, conn = self._process, self._conn
         self._process = self._conn = self.pid = None
+        self._cpu_before, self._cpu_now = self._cpu_before + self._cpu_now, 0.0
         if conn is not None:
             with contextlib.suppress(OSError, ValueError):  # it may be gone already
                 conn.send(None)
@@ -142,9 +192,10 @@ class OcrChild:
             block.unlink()
 
 
-def round_trip(name: str, image: np.ndarray, get: Callable[[str], object] = ocr.get) -> str:
+def round_trip(name: str, image: np.ndarray, get: Callable[[str], object] = ocr.get,
+               answer_s: float = ANSWER_S) -> str:  # fmt: skip
     """The spike (#563): one picture to a new child and back, timed and logged; the text read."""
-    child = OcrChild(get)
+    child = OcrChild(get, answer_s)
     try:
         started = time.monotonic()
         lines = child.read(name, image)

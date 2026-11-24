@@ -22,11 +22,18 @@ class Echo:
                 OcrLine(f"accents {accents} scale {scale}", 0.5, Region(0, 0, 1, 1))]  # fmt: skip
 
 
+class Aborts:
+    def read(self, image, accents=False, scale=2.0):
+        raise OSError("Operation aborted")  # Windows OCR now and then (#452)
+
+
 def get(name: str):  # module level: the spawned child imports it by name
     if name == "none":
         raise OcrUnavailable("no OCR language installed")
     if name == "aborts":
-        raise OSError("Operation aborted")
+        return Aborts()
+    if name == "no model":
+        raise FileNotFoundError("rec.onnx")
     if name == "broken":
         raise ValueError("bad model")
     if name == "dies":
@@ -77,6 +84,8 @@ def test_the_engines_own_errors_come_back_as_themselves(child):
         child.read("aborts", picture())
     with pytest.raises(RuntimeError, match="bad model"):
         child.read("broken", picture())
+    with pytest.raises(RuntimeError, match="rec.onnx"):  # no engine: nothing a retry fixes
+        child.read("no model", picture())
     assert child.read("echo", picture())  # and the child lives on
 
 
@@ -88,16 +97,92 @@ def test_a_child_that_died_is_said_and_the_next_read_starts_a_new_one(child):
     assert new != old
 
 
-def test_a_child_that_hangs_is_ended():
-    child = OcrChild(get, answer_s=1.0)
-    try:
-        child.read("echo", picture())
-        process = child._process
-        with pytest.raises(ChildGone, match="no answer in 1 s"):
+def test_a_child_that_hangs_is_ended(child):
+    child.read("echo", picture())  # started with a generous limit: a loaded runner is slow
+    child._answer_s = 1.0
+    process = child._process
+    with pytest.raises(ChildGone, match="no answer in 1 s"):
+        child.read("hangs", picture())
+    assert not process.is_alive()
+
+
+def test_stopping_doesnt_wait_for_a_read_in_flight(child):
+    """Review: quitting waited up to a minute behind a starved child's read."""
+    import threading
+
+    child.read("echo", picture())
+    failed = []
+
+    def read():
+        try:
             child.read("hangs", picture())
-        assert not process.is_alive()
-    finally:
-        child.stop()
+        except ChildGone as gone:
+            failed.append(gone)
+
+    thread = threading.Thread(target=read)
+    thread.start()
+    time.sleep(0.5)  # the read is waiting for its answer now
+    started = time.monotonic()
+    child.stop()
+    thread.join(5.0)
+    assert time.monotonic() - started < 5.0 and len(failed) == 1
+    with pytest.raises(ChildGone):  # stopped for good: no new child while the app closes
+        child.read("echo", picture())
+
+
+def test_a_child_that_cant_start_is_child_gone_every_time(child, monkeypatch):
+    """Review: an AssertionError from joining a process that never started."""
+    import multiprocessing.context
+
+    def no_start(self):
+        raise OSError("CreateProcess failed")
+
+    monkeypatch.setattr(multiprocessing.context.SpawnProcess, "start", no_start)
+    for _ in range(2):
+        with pytest.raises(ChildGone, match="CreateProcess failed"):
+            child.read("echo", picture())
+    assert os.environ.get("YAPTRACKER_OCR_CHILD") is None
+
+
+def test_a_picture_that_doesnt_arrive_ends_the_child_instead_of_a_retry(child):
+    """Review: a missing block came back as the OSError that Windows OCR's retry is for."""
+    child.read("echo", picture())
+    process = child._process
+    child._block.unlink()  # the child can't open the next, bigger one under this name
+    name = child._block.name
+    child._block.close()
+    child._block = type(
+        "Gone",
+        (),
+        {
+            "size": 10**9,
+            "name": name,
+            "buf": bytearray(10**6),
+            "close": lambda self: None,
+            "unlink": lambda self: None,
+        },
+    )()
+    child._conn.send(("echo", "no-such-block", (4, 4, 3), False, 2.0))
+    kind, why, _ = child._conn.recv()
+    assert kind == "gone" and "didn't arrive" in why
+    process.join(10.0)
+    assert not process.is_alive()
+    child._block = None
+
+
+def test_cpu_time_only_grows_also_over_a_new_child(child):
+    child.read("echo", picture())
+    before = child.cpu_s
+    with pytest.raises(ChildGone):
+        child.read("dies", picture())
+    assert child.cpu_s == before
+    child.read("echo", picture())
+    assert child.cpu_s > before
+
+
+def test_an_empty_picture_has_no_lines_and_needs_no_child(child):
+    assert child.read("echo", np.zeros((0, 10, 3), np.uint8)) == []
+    assert child.pid is None
 
 
 def test_the_child_ends_when_its_parents_pipe_closes(child):
