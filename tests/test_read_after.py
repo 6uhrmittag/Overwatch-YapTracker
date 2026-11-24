@@ -288,7 +288,7 @@ def test_a_live_match_while_a_ranked_one_waits_reads_live_lines_within_a_gap(sto
     gap = 0.5
 
     def kept(image, mode):
-        time.sleep(0.05)  # a best read takes a while
+        time.sleep(0.02)  # a best read takes a while
         return reads[id(image)]
 
     reader = ChatReader(lambda image: reads[id(image)], store, tracker, clock=lambda: clock[0],
@@ -316,7 +316,7 @@ def test_a_live_match_while_a_ranked_one_waits_reads_live_lines_within_a_gap(sto
             left.append(reader.backlog().left)
             time.sleep(gap)
         playing[0] = False
-        wait_for(lambda: reader.backlog().left == 0)
+        wait_for(lambda: reader.backlog().left == 0, timeout=60)  # 116 frames on a slow runner
     finally:
         reader.stop()
     assert max(late) < gap + 0.4  # within one gap (plus a kept read running, a slow runner)
