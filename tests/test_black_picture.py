@@ -90,7 +90,7 @@ async def test_setup_never_says_perfect_then(user: User, monkeypatch):
     await user.open("/")
     await user.should_see("Found Overwatch at 2560×1440.")
     await user.should_see(SAY)
-    await user.should_not_see("Borderless windowed, perfect.")
+    await user.should_not_see("I can see it, perfect.")
 
 
 async def test_a_black_snapshot_isnt_the_picture_to_draw_on(user: User, monkeypatch):
@@ -216,3 +216,22 @@ async def test_the_cover_warning_only_while_something_covers_the_chat_box(user: 
         await asyncio.sleep(0.1)
     assert "yt-hidden" in banner.classes
     await user.should_see("reading from the screen", marker="status-meta")
+
+
+def test_the_log_says_once_a_start_what_windows_reports_and_if_the_picture_is_real(caplog):
+    """#598: Fullscreen is measured, not assumed: one line per start, with Overwatch in front
+    and past its black start."""
+    front, age = {"on": False}, {"s": 10.0}
+    black = BlackPicture(lambda: front["on"], window_age=lambda: age["s"],
+                         display=lambda: "a Direct3D fullscreen app runs")  # fmt: skip
+    picture = np.full((90, 160, 3), 80, np.uint8)
+    with caplog.at_level(logging.INFO, logger="yaptracker.capture.black"):
+        black.update(picture)  # alt-tabbed: not a fair look
+        front["on"] = True
+        black.update(picture)  # still starting
+        age["s"] = 120.0
+        black.update(picture)
+        black.update(np.zeros((90, 160, 3), np.uint8))
+    said = [r.getMessage() for r in caplog.records]
+    assert said == ["capture: Overwatch in front; Windows says: a Direct3D fullscreen app runs; "
+                    "the picture is real"]  # fmt: skip

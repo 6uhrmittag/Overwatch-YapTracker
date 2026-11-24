@@ -39,8 +39,11 @@ class BlackPicture:
 
     def __init__(self, in_front: Callable[[], bool],
                  clock: Callable[[], float] = time.monotonic,
-                 window_age: Callable[[], float | None] = lambda: None) -> None:  # fmt: skip
+                 window_age: Callable[[], float | None] = lambda: None,
+                 display: Callable[[], str] = lambda: "unknown") -> None:  # fmt: skip
         self._in_front, self._clock, self._window_age = in_front, clock, window_age
+        self._display = display  # Windows' display state in words, for the log (#598)
+        self._told = False  # the first fair look of this start is in the log
         self._since: float | None = None
         self._logged = False
         self.black = False  # black for BLACK_FOR_S with Overwatch in front, and not starting
@@ -57,6 +60,7 @@ class BlackPicture:
             return
         black, in_front = is_black(overview), self._in_front()
         self.fine, self.dark = in_front and not black, in_front and black
+        self._tell(black, in_front)
         if not black or not in_front:  # alt-tabbed: not a fair test
             self._since, self.black, self._logged = None, False, False
             return
@@ -72,6 +76,22 @@ class BlackPicture:
             log.warning("capture: Overwatch is in front, but Windows sends a black picture "
                         "(exclusive Fullscreen?); %s", pc)  # fmt: skip
             self._logged = True
+
+    def _tell(self, black: bool, in_front: bool) -> None:
+        """Once a start (#598): with Overwatch in front and started, what Windows says about the
+        display and whether the picture is real. Fullscreen often works (flip model)."""
+        if self._told or not in_front:
+            return
+        age = self._window_age()
+        if age is not None and age < STARTUP_S:
+            return
+        self._told = True
+        try:
+            display = self._display()
+        except Exception as error:  # only a log line
+            display = f"unknown ({error})"
+        log.info("capture: Overwatch in front; Windows says: %s; the picture is %s", display,
+                 "black" if black else "real")  # fmt: skip
 
 
 class ScreenFallback:

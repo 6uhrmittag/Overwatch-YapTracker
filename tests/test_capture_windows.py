@@ -78,3 +78,10 @@ def test_front_window_and_fullscreen_checks_answer():
     desktop = ctypes.windll.user32.GetDesktopWindow()
     assert in_front(desktop) in (True, False)
     assert exclusive_fullscreen(desktop) is False  # nothing in exclusive Fullscreen on CI
+
+
+def test_windows_display_state_in_words():
+    """#598: the log line's display state comes from real Windows."""
+    from yaptracker.capture.window import display_state
+
+    assert isinstance(display_state(), str) and display_state()

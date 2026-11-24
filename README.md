@@ -17,7 +17,7 @@ YapTracker reads Overwatch's text chat from the screen, keeps a local log of eve
 
 ## Quick start
 
-1. In Overwatch: **Options → Video → Display mode: Borderless Windowed**, and text chat switched on.
+1. In Overwatch: text chat switched on. **Borderless Windowed** (Options → Video → Display mode) is recommended; Fullscreen works too, as long as YapTracker gets a picture (setup tells you if it doesn't).
 2. Install with the command under [Install & update](#install--update). Answer **Y** to "Start YapTracker with Windows?": from then on it waits quietly until Overwatch starts.
 3. On first start, the setup walks you through three steps: it finds Overwatch, you drag a box around the chat, and you add your own name and your crew (the people you queue with).
 4. Play. Chat appears in **Live**; when someone you've met before writes in chat, their card pops up. Nothing needs a key press: Live says whether you're in a match, the match is over, or you're between matches, and a new match starts by itself at hero select.
@@ -29,7 +29,7 @@ Everything else the app explains where you need it. This README is the only writ
 
 ## Install & update
 
-Requirements: Windows 10/11, Overwatch in borderless windowed mode, text chat on.
+Requirements: Windows 10/11, text chat on. Overwatch in Borderless Windowed is recommended; Fullscreen works when Windows hands over a picture (see Known limits).
 
 One command installs the newest release and later updates it. In PowerShell:
 
@@ -110,9 +110,9 @@ Nothing else is sent. Yap snaps can hide names with one switch, and exports can 
 - **Tested at** 2560×1440 and 3840×2160, the latter with Windows HDR on, on Windows 11 with an NVIDIA card. Other 16:9 sizes scale along; other aspect ratios need a calibration.
 - **Windows 10** (and Windows 11 before 24H2) can't hand YapTracker just 2 frames a second; it would copy every frame the game draws. So there YapTracker copies only the chat box from the screen, twice a second (once a second while the chat doesn't change). Each copy makes the game wait a moment for the screen, so on Windows 10 YapTracker can cost the game up to about 10 fps. It also reads what's on screen: while another window covers the chat box, YapTracker doesn't read it (Live says so) and goes on once it's free. **Settings → About** says which way your PC reads.
 - **Windows 10 / older CPUs:** if you notice stutter, use **After the match** (Settings → Reading; already the default for Competitive) for all matches. Between matches YapTracker can use about 20–25 % of one core while you're in the menus.
-- **A black picture from the game window** (e.g. the game on the other graphics card): when it stays black (about 20 seconds; the game's own black start doesn't count), YapTracker reads the screen Overwatch is on instead, the same way, and says so quietly next to the fps in Live. It tries the window again at every match start and every few minutes between matches. In exclusive Fullscreen the screen is black too: switch to Borderless Windowed.
+- **A black picture from the game window** (e.g. the game on the other graphics card): when it stays black (about 20 seconds; the game's own black start doesn't count), YapTracker reads the screen Overwatch is on instead, the same way, and says so quietly next to the fps in Live. It tries the window again at every match start and every few minutes between matches. **Fullscreen** often works like Borderless Windowed. If Windows gives only black there (window and screen), setup and Live say so in words: then switch to Borderless Windowed.
 - **Languages:** English and German chat are measured (umlauts and ß included). Other languages aren't tested; chat in other scripts (Cyrillic, Korean…) may come out wrong.
-- **Emoji and game icons** show as `◇` in the text, the ones YapTracker knows by name (`[icon:thumbs-up]`); click a line to see its picture.
+- **Emoji and game icons** show as `◇` in the text; the callout icons YapTracker knows show as their emoji (👍 ➕ 📍 ⏪). Click a line to see its picture.
 - **Lines can be missed** when chat scrolls or fades faster than it's read (it's read every 1.5 s), e.g. a burst of many lines at once, or a very bright background behind the chat.
 - **Group chat** gets its own channel once YapTracker has seen the `[Group]` chat box open once; until then those lines say "Chat".
 - **Matches** start at hero select and end at VICTORY / DEFEAT. If one is missed, a quiet gap starts the next one; **Start match** / **End match** fixes the rest. Pressing it twice, or before a long queue, leaves no empty match.

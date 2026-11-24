@@ -49,16 +49,10 @@ def _windowed() -> bool:
     return has_title_bar(watcher.window)
 
 
-def _fullscreen() -> bool:
-    """Exclusive Fullscreen: Windows says so, or the picture stayed black (#217)."""
-    if runtime.black is not None and runtime.black.black:
-        return True
-    watcher = runtime.watcher
-    if sys.platform != "win32" or watcher is None or watcher.window is None:
-        return False
-    from yaptracker.capture.window import exclusive_fullscreen
-
-    return exclusive_fullscreen(watcher.window)
+def _black() -> bool:
+    """The picture stayed black (#217). Windows' fullscreen flag alone says nothing: a game in
+    Fullscreen is often captured fine (#598)."""
+    return runtime.black is not None and runtime.black.black
 
 
 def _overwatch_status() -> tuple[bool, str, str]:
@@ -71,7 +65,7 @@ def _overwatch_status() -> tuple[bool, str, str]:
             "Already running? Bring it up once, so I can find its window.",
         )
     seen = f"Found Overwatch at {size[0]}\u00d7{size[1]}."
-    if _fullscreen():  # never "perfect" then (#217)
+    if _black():  # never "perfect" then (#217)
         return True, seen, BLACK_SAY
     if _windowed():
         return (
@@ -80,7 +74,7 @@ def _overwatch_status() -> tuple[bool, str, str]:
             "It runs in a window with a title bar. Options \u2192 Video \u2192 Display mode: "
             "Borderless Windowed, then I see exactly what you see.",
         )
-    return True, seen, "Borderless windowed, perfect. That's all I need."
+    return True, seen, "I can see it, perfect. That's all I need."
 
 
 def setup_wizard(on_done: Callable[[], None], start: int = 1) -> None:
