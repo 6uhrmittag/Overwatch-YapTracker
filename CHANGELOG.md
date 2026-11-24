@@ -4,6 +4,12 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-24 · Our own OCR for Overwatch chat: first measurements (#608)
+- Behind the scenes: tools to measure how well chat is read on your own evenings, and to compare other reading engines against it.
+
+### 2026-11-24 · The main process no longer naps in a match (#563)
+- With the chat reader in its own process, only that one (and the window's) runs in Windows' efficiency mode. The main process, which captures and watches for matches, stays below normal priority but out of efficiency mode: it needs little CPU, but on time. The game still goes first.
+
 ### 2026-11-24 · Chat is read in a process of its own (#563)
 - Reading the chat now happens in a second YapTracker process. When the game takes every core, that process waits; capture, match detection and the window keep running on time instead of waiting with it.
 - If that process can't start, fails or gets stuck, I read in the main one as before, and the log says so. A stuck one is given 15 s before I take over.
