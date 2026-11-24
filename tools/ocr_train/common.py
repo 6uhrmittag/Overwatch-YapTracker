@@ -8,8 +8,6 @@ import re
 import subprocess
 from pathlib import Path
 
-from rapidfuzz.distance import Levenshtein
-
 DATA = Path("/mnt/c/Users/marvi/AppData/Local/YapTracker/data")  # the installed app's data
 _ICON = re.compile(r"\[icon:[a-z-]+\]|◇")
 
@@ -28,8 +26,8 @@ def game_running() -> bool:
     try:
         out = subprocess.run(
             ["tasklist.exe", "/FI", "IMAGENAME eq Overwatch.exe", "/NH"],
-            capture_output=True, text=True, timeout=20,
-        ).stdout  # fmt: skip
+            capture_output=True, timeout=20,
+        ).stdout.decode("ascii", errors="replace")  # a German Windows answers in cp850  # fmt: skip
     except (OSError, subprocess.TimeoutExpired):
         return True  # can't tell: stay off the GPU
     return "overwatch.exe" in out.lower()
@@ -42,5 +40,7 @@ def plain(text: str | None) -> str:
 
 def errors(truth: str, got: str) -> tuple[int, int]:
     """(wrong characters, characters) of one field: Levenshtein distance against the truth."""
+    from rapidfuzz.distance import Levenshtein  # not in the POC's own venv (vlm_reread.py)
+
     truth, got = plain(truth), plain(got)
     return Levenshtein.distance(truth, got), len(truth)
