@@ -71,10 +71,16 @@ def test_no_overwatch_means_no_window():
     assert find_overwatch() is None
 
 
-def test_front_window_and_fullscreen_checks_answer():
-    """#217: the checks behind "Overwatch is probably in Fullscreen" run on real Windows."""
-    from yaptracker.capture.window import exclusive_fullscreen, in_front
+def test_front_window_check_answers():
+    """#217: the check behind a fair look at the picture runs on real Windows."""
+    from yaptracker.capture.window import in_front
 
     desktop = ctypes.windll.user32.GetDesktopWindow()
     assert in_front(desktop) in (True, False)
-    assert exclusive_fullscreen(desktop) is False  # nothing in exclusive Fullscreen on CI
+
+
+def test_windows_display_state_in_words():
+    """#598: the log line's display state comes from real Windows."""
+    from yaptracker.capture.window import display_state
+
+    assert isinstance(display_state(), str) and display_state()

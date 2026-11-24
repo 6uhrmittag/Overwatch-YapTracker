@@ -111,7 +111,9 @@ class CaptureWiring:
         )
         self.end_screen = EndScreen(signal_line, self.match_over, on_map=self.end_map)
         self.fps_meter = FpsMeter(self.read_line, self.fps_state, mode=self.fps_mode)  # (#212)
-        runtime.black = BlackPicture(self.overwatch_in_front, window_age=self.window_age)  # #217
+        runtime.black = BlackPicture(self.overwatch_in_front, window_age=self.window_age,
+                                     display=self.display_state,
+                                     source=self.picture_source)  # #217, #598  # fmt: skip
         runtime.screen = ScreenFallback(runtime.black, remembered=config.screen_capture(),
                                         remember=config.save_screen_capture)  # fmt: skip
         # 2 frames a second, in and between (#350, #115)
@@ -233,6 +235,18 @@ class CaptureWiring:
         from yaptracker.capture.window import in_front
 
         return in_front(window)
+
+    def display_state(self) -> str:
+        if sys.platform != "win32":
+            return "unknown"
+        from yaptracker.capture.window import display_state
+
+        return display_state()
+
+    def picture_source(self) -> str:
+        """What the overview came from, for the log (#598): the window, or the screen."""
+        screen = runtime.screen is not None and runtime.screen.screen
+        return "screen" if screen or not self.found.get("window_capture") else "window"
 
     def window_age(self) -> float | None:
         """A starting Overwatch shows black for a while (#560)."""

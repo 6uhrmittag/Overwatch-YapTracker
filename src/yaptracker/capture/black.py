@@ -1,7 +1,8 @@
-"""A black picture from Windows (#217): with Overwatch in exclusive Fullscreen, window capture
-gets black frames. Said in words (Live, setup), and logged once with what might apply. When the
-window stays black, the screen Overwatch is on is read instead (#236), and the window is tried
-again at every match start and every few minutes between matches (#560)."""
+"""A black picture from Windows (#217): window capture can get black frames (exclusive
+Fullscreen on some PCs, the game on the other graphics card); Fullscreen often works (#598).
+Said in words (Live, setup), and logged once with what might apply. When the window stays
+black, the screen Overwatch is on is read instead (#236), and the window is tried again at every
+match start and every few minutes between matches (#560)."""
 
 import logging
 import time
@@ -21,8 +22,8 @@ KNOWN_BLACK_FOR_S = 5.0
 AFTER_MATCH_S = 60.0  # the end screens have chat ("gg"): no try of the window right then
 RETRY_S = 300.0  # on the screen, between matches: try the window again this often (#560)
 PROBE_S = 6.0  # a tried window gets this long to show a picture; an overview comes every 5 s
-SAY = ("Windows sends me a black picture. Overwatch is probably in Fullscreen: Options → "
-       "Video → Display Mode → Borderless Windowed.")  # fmt: skip
+SAY = ("Windows sends me a black picture. If Overwatch is in Fullscreen, switching to Borderless "
+       "Windowed fixes it: Options → Video → Display Mode.")  # fmt: skip
 SCREEN_SAY = ("Reading the chat box from the screen Overwatch is on: its window gave a black "
               "picture. I try the window again at every match start.")  # fmt: skip
 STALLED_SAY = ("Reading the chat box from the screen Overwatch is on: Windows kept dropping the "
@@ -39,8 +40,17 @@ class BlackPicture:
 
     def __init__(self, in_front: Callable[[], bool],
                  clock: Callable[[], float] = time.monotonic,
-                 window_age: Callable[[], float | None] = lambda: None) -> None:  # fmt: skip
+                 window_age: Callable[[], float | None] = lambda: None,
+                 display: Callable[[], str] = lambda: "unknown",
+                 source: Callable[[], str] = lambda: "window") -> None:  # fmt: skip
         self._in_front, self._clock, self._window_age = in_front, clock, window_age
+        # Windows' display state in words and what the picture came from, for the log (#598)
+        self._display, self._source = display, source
+        self._told = False  # the first fair look of this Overwatch start is in the log
+        self._age = 0.0  # the window's age at the last look: smaller again = a new start
+        # The last verdict with Overwatch in front, kept while it isn't (setup is read with
+        # YapTracker in front, #598): "black" (BLACK_FOR_S of it), "real", or None: no fair look.
+        self.verdict: str | None = None
         self._since: float | None = None
         self._logged = False
         self.black = False  # black for BLACK_FOR_S with Overwatch in front, and not starting
@@ -57,6 +67,9 @@ class BlackPicture:
             return
         black, in_front = is_black(overview), self._in_front()
         self.fine, self.dark = in_front and not black, in_front and black
+        self._tell(black, in_front)
+        if self.fine:
+            self.verdict = "real"
         if not black or not in_front:  # alt-tabbed: not a fair test
             self._since, self.black, self._logged = None, False, False
             return
@@ -65,6 +78,8 @@ class BlackPicture:
         age = self._window_age()
         starting = age is not None and age < STARTUP_S  # loading screens are black (#560)
         self.black = now - self._since >= self.for_s and not starting
+        if self.black:
+            self.verdict = "black"
         if self.black and not self._logged:
             from yaptracker import system_info
 
@@ -72,6 +87,26 @@ class BlackPicture:
             log.warning("capture: Overwatch is in front, but Windows sends a black picture "
                         "(exclusive Fullscreen?); %s", pc)  # fmt: skip
             self._logged = True
+
+    def _tell(self, black: bool, in_front: bool) -> None:
+        """Once per Overwatch start (#598): with Overwatch in front and started, what Windows
+        says about the display, and whether the picture (window or screen) is real. Fullscreen
+        often works (flip model)."""
+        if not in_front:
+            return
+        age = self._window_age()
+        if age is not None and age < self._age:  # Overwatch started again
+            self._told, self.verdict = False, None
+        self._age = age if age is not None else self._age
+        if self._told or age is None or age < STARTUP_S:
+            return  # an unknown age may still be the black start
+        self._told = True
+        try:
+            display, source = self._display(), self._source()
+        except Exception as error:  # only a log line
+            display, source = f"unknown ({error})", "?"
+        log.info("capture: Overwatch in front; Windows says: %s; the %s picture is %s", display,
+                 source, "black" if black else "real")  # fmt: skip
 
 
 class ScreenFallback:
