@@ -8,6 +8,7 @@ YapTracker itself is MIT licensed (see `LICENSE`). The Windows app bundles the c
 |---|---|---|
 | Barlow Condensed (The Barlow Project Authors) | SIL Open Font License 1.1 | `src/yaptracker/ui/static/fonts/OFL-BarlowCondensed.txt` |
 | Nunito Sans (The Nunito Sans Project Authors) | SIL Open Font License 1.1 | `src/yaptracker/ui/static/fonts/OFL-NunitoSans.txt` |
+| Noto Emoji pictures (Google LLC), 8 PNGs at 72 px in `src/yaptracker/data/emoji/` for Yap snaps (#121) | SIL Open Font License 1.1 (the repository's license since 2024; its README still names Apache-2.0 for images) | `src/yaptracker/data/emoji/OFL-NotoEmoji.txt` |
 
 ## Game data
 
