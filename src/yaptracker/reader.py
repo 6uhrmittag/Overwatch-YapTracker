@@ -273,8 +273,10 @@ class ChatReader:
                 self._last_live = self._last_read
             live = kept is None  # kept frames carry old times: only live reads count (#457)
             paused = live and self._paused()  # read_frame skips it: not a good read either
+            ok = False
             try:
                 self.read_frame(ts, image, kept)
+                ok = True
             except Exception as error:  # logged with traceback; the next frame is tried as usual
                 side_work.failed("reading the chat", error, then="the next frame is read")
                 self._failed_read(ts, live)
@@ -282,8 +284,9 @@ class ChatReader:
                 if live and not paused:
                     self._read_ok(ts)
             if kept is not None:
-                cost = time.monotonic() - self._last_read
-                self._kept_cost += RATE_WEIGHT * (cost - self._kept_cost)
+                if ok:  # a failed read says nothing about how long one takes
+                    cost = time.monotonic() - self._last_read
+                    self._kept_cost += RATE_WEIGHT * (cost - self._kept_cost)
                 self._kept_read(kept)
 
     def _next(self, now: float) -> tuple[str | None, float]:
@@ -379,6 +382,7 @@ class ChatReader:
         if self._kept_dedup is not None and not self._live_first:
             self._dedup = self._kept_dedup
             self._read_match, self._on_screen = self._kept_screen
+            self._weak, self._rereads_left = set(), 0  # those were the other dedup's yaps
         self._kept_dedup, self._kept_screen = None, (None, set())
 
     def read_frame(self, ts: float, image: np.ndarray, kept: Kept | None = None) -> list[Yap]:
@@ -386,7 +390,7 @@ class ChatReader:
         kept: a frame that waited (#335), read with its own mode into its own match."""
         if kept is None and self._paused():  # paused after the frame was offered: not kept
             return []
-        if kept is None and len(self.later) and self._kept_dedup is None:
+        if kept is None and self._live_first and len(self.later) and self._kept_dedup is None:
             # a live frame before kept ones (#597): they keep what was read so far, live
             # starts its own
             self._kept_dedup, self._kept_screen = self._dedup, (self._read_match, self._on_screen)
