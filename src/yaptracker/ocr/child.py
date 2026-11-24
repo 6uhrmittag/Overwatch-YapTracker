@@ -49,7 +49,6 @@ def _serve(conn, get: Callable[[str], object]) -> None:
     # chat reader's thread was while it read in the main process.
     priority.lower_process()
     priority.lower_this_thread()
-    priority.lower_this_thread()
     block: shared_memory.SharedMemory | None = None
     while True:
         try:
