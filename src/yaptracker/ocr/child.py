@@ -8,6 +8,7 @@ the request and the lines read come back over a pipe. The child ends when the pa
 pipe closes, also when the parent is killed.
 """
 
+import contextlib
 import logging
 import multiprocessing
 import os
@@ -124,10 +125,8 @@ class OcrChild:
         process, conn = self._process, self._conn
         self._process = self._conn = self.pid = None
         if conn is not None:
-            try:
+            with contextlib.suppress(OSError, ValueError):  # it may be gone already
                 conn.send(None)
-            except (OSError, ValueError):
-                pass
             conn.close()
         if process is not None:
             process.join(1.0)
