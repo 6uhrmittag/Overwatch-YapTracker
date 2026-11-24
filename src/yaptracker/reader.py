@@ -184,7 +184,10 @@ class ChatReader:
 
     def _kept_gap_s(self) -> float:
         gap = self._keep_gap()
-        return max(gap, BUSY_GAP_S) if self.busy or self._starved() else gap
+        if self._starved():
+            self._held_back = True
+            return max(gap, BUSY_GAP_S)
+        return max(gap, BUSY_GAP_S) if self.busy else gap
 
     def _gap_words(self) -> str:
         """For the log line (#588): which gap the reads used and why."""
