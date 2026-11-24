@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-24 · Reading chat in its own process: the first step (#563)
+- Behind the scenes: the app can now read a picture in a second process of its own, and every build checks that this works. The chat reader moves there next, so a busy game can't hold up capture and the window any more.
+
 ### 2026-11-24 · Lines seen twice but never kept are kept now (#602)
 - A line I read well twice but had no place for is stored now, where it was said. Re-opening the chat after a hiccup brings a missed line back.
 - Old chat from before I started reading, and a longer reading of a line already stored, still stay out; the log says why for each.
