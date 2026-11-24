@@ -4,6 +4,15 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-24 · Emoji in Yap snaps (#121)
+- Yap snaps draw the callout icons as emoji (👍 ➕ 📍 ⏪), and ❤️ 😂 😭 💀 in colour too.
+
+### 2026-11-24 · Icons show as emoji (#121)
+- Chat lines with a callout icon now show its emoji: Thanks! 👍, I need healing! ➕, Group up! 📍, Fall back! ⏪, in Live, Sessions, Search, profiles and the Markdown export.
+
+### 2026-11-24 · Live chat no longer waits behind a ranked match still being read (#597)
+- A ranked match read after the match, then Quick Play straight away: the Quick Play chat shows up in Live right away; the ranked one is read in the quiet moments between.
+
 ### 2026-11-23 · Callout icons named by their words (#121)
 - "Thanks!", "I need healing!", "Group up!" and "Fall back!" now always show their icon's name, also over a bright map and on old lines: on a copy of Marv's lines, 222 more of the 350 still-unnamed icons get their name.
 
