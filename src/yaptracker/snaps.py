@@ -13,7 +13,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from yaptracker.glyphs import GLYPH
+from yaptracker.glyphs import GLYPH, shown
 from yaptracker.translate import language
 
 MAX_LINES = 20
@@ -175,6 +175,30 @@ def _translation(message) -> str:
     return f"\u201c{text}\u201d" + (f" (from {source})" if source else "")
 
 
+# Emoji in a snap (#121, Marv 2026-11-24): Pillow can't draw colour emoji from a font, so a few
+# are bundled as pictures (Noto Emoji, data/emoji/<codepoint>.png): the four icons' emoji and some
+# common ones. Others stay as they are.
+_EMOJI = Path(__file__).parent / "data" / "emoji"
+EMOJI_PX = 20  # drawn at about text height
+
+
+@cache
+def _bundled() -> frozenset[str]:
+    return frozenset(path.stem for path in _EMOJI.glob("*.png"))
+
+
+def _emoji_code(token: str) -> str | None:
+    """'1f44d' when the token is one bundled emoji ("👍 ", "❤️ "), else None."""
+    word = token.strip()
+    return f"{ord(word):x}" if len(word) == 1 and f"{ord(word):x}" in _bundled() else None
+
+
+@cache
+def _emoji(code: str, size: int) -> Image.Image:
+    with Image.open(_EMOJI / f"{code}.png") as picture:
+        return picture.convert("RGBA").resize((size, size), Image.LANCZOS)
+
+
 @cache
 def _font(name: str, size: int, weight: int | None = None) -> ImageFont.FreeTypeFont:
     font = ImageFont.truetype(str(_FONTS / name), size * SCALE)
@@ -212,8 +236,12 @@ def _length(runs: list[tuple]) -> int:
 
 
 def _tokens(text: str) -> list[str]:
-    """Words with their trailing space; an emoji/icon chip (#128) is a token of its own."""
-    spaced = text.replace(GLYPH, f" {GLYPH} ")
+    """Words with their trailing space; an emoji/icon chip (#128) and a bundled emoji (an icon's
+    too, #121) are tokens of their own."""
+    said = shown(text).replace("\ufe0f", "")  # the selector after "❤" draws nothing
+    spaced = "".join(
+        f" {ch} " if ch == GLYPH or f"{ord(ch):x}" in _bundled() else ch for ch in said
+    )
     return [word + " " for word in spaced.split()]
 
 
@@ -243,11 +271,15 @@ def _layout(lines: list[SnapLine], width: int, style: Style) -> tuple[list[tuple
             if token == "\n":  # the translation starts a row of its own
                 x, y = start, y + line_h
                 continue
-            runs = [] if token.strip() == GLYPH else _runs(token, 17, weight, style.font)
-            size = 18 * s if not runs else _length(runs)
+            emoji = _emoji_code(token)
+            chip = token.strip() == GLYPH or emoji is not None
+            runs = [] if chip else _runs(token, 17, weight, style.font)
+            size = (EMOJI_PX + 4) * s if emoji else 18 * s if chip else _length(runs)
             if x + size > width and x > start:
                 x, y = start, y + line_h  # wrapped lines start under the name, like Live
-            if not runs:
+            if emoji:
+                ops.append(("emoji", x, y, emoji, None, None))
+            elif chip:
                 ops.append(("glyph", x, y, "", faint, None))
             for piece, font in runs:
                 ops.append(("text", x, y, piece, token_colour, font))
@@ -276,7 +308,10 @@ def render(
                            outline=border, width=s)  # fmt: skip
     left, top = margin + pad, margin + pad
     for kind, x, y, text, colour, font in ops:
-        if kind == "glyph":  # a drawn diamond: the line had an emoji or icon OCR couldn't spell
+        if kind == "emoji":  # a bundled emoji picture (#121)
+            picture = _emoji(text, EMOJI_PX * s)
+            image.paste(picture, (left + x, top + y + 3 * s), picture)
+        elif kind == "glyph":  # a drawn diamond: the line had an emoji or icon OCR couldn't spell
             cx, cy, r = left + x + 7 * s, top + y + 13 * s, 6 * s
             draw.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)],
                          outline=colour, width=2 * s)  # fmt: skip

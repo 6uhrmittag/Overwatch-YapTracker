@@ -7,9 +7,9 @@ import pytest
 from nicegui.testing import User, user_simulation
 from PIL import Image
 
-from yaptracker import config, paths, runtime
+from yaptracker import config, paths, runtime, snaps
 from yaptracker.glyphs import GLYPH
-from yaptracker.snaps import SCALE, WIDTH, Style, render, save, snap_lines
+from yaptracker.snaps import SCALE, WIDTH, SnapLine, Style, render, save, snap_lines
 from yaptracker.store.repo import Store
 from yaptracker.ui import shell, snap_dialog
 
@@ -179,3 +179,21 @@ def test_a_translated_line_shows_its_translation_under_it_names_hidden_too():
     without = render(snap_lines([spanish]), style=Style(translations=False))
     plain = render(snap_lines([line("match", "Chorizo", "buenas curas ana")]))
     assert with_it.height > without.height == plain.height
+
+
+def test_icons_and_common_emoji_are_drawn_as_bundled_pictures():
+    """#121 (Marv, 2026-11-24): a known icon's emoji and a few common ones are bundled pictures
+    (Noto Emoji), drawn inline at text height; no network, no emoji font needed."""
+    lines = [SnapLine("team", "Pip", "Thanks! [icon:thumbs-up]", "", ""),
+             SnapLine("match", "Bo", "love it \u2764\ufe0f gg\U0001f602", "", "")]  # fmt: skip
+    ops, _ = snaps._layout(lines, 2000, Style())
+    assert [op[3] for op in ops if op[0] == "emoji"] == ["1f44d", "2764", "1f602"]
+    texts = [op[3] for op in ops if op[0] == "text"]
+    assert not any("icon:" in t or "\u2764" in t or "\ufe0f" in t for t in texts)
+    plain = Style(timestamps=False, channel_labels=False)
+    ((_, x, y, *_),) = [op for op in snaps._layout(lines[:1], 2000, plain)[0] if op[0] == "emoji"]
+    image = render(lines[:1], style=plain)
+    half = snaps.EMOJI_PX * SCALE // 2
+    edge = 48 * SCALE  # margin + padding
+    r, g, b = image.getpixel((edge + x + half, edge + y + 3 * SCALE + half))
+    assert r > 200 and g > 150 and b < 120  # the thumb's yellow, not the card
