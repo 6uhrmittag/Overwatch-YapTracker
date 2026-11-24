@@ -389,3 +389,39 @@ def test_a_piece_of_a_known_line_is_not_a_line_of_its_own():
     assert dedup.piece_of(longer).best.text == "bruh my mei is trolling half the"
     assert dedup.piece_of(wp) is None  # "gg" and then "gg wp" are two lines
     assert dedup.piece_of(other) is None  # somebody else
+
+
+def test_a_row_twice_in_one_frame_is_still_one_reading():
+    """Review: two rows with the same key in one frame counted as seen twice."""
+    dedup = Dedup()
+    dedup.update(100.0, _rows("[Pip]: one", "[Bo]: two"))
+    dedup.update(101.0, _rows("[Pip]: one", "[Bo]: two", "[Kim]: three"))
+    opened = _rows("[Zed]: spam spam", "[Zed]: spam spam", "[Kim]: three")
+    dedup.update(103.0, opened)
+    assert dedup.unstored == []
+    dedup.update(105.0, opened)
+    assert [line.text for line in dedup.unstored] == ["spam spam"]
+
+
+def test_an_adopted_line_never_sorts_above_the_line_it_followed():
+    """Review: lines first read in one frame share their time; a millisecond before the line
+    below put the adopted one above all of them."""
+    dedup = Dedup()
+    dedup.update(100.0, _rows("[Pip]: one", "[Bo]: two", "[Kim]: three"))
+    opened = _rows("[Zed]: sneaky", "[Kim]: three")
+    dedup.update(101.0, opened)
+    dedup.update(102.0, opened)
+    yap, _ = dedup.adopt(dedup.unstored[0])
+    assert yap.first_seen == 100.0  # not before "two"; stored later, it sorts after it
+    assert [y.best.text for y in dedup.recent] == ["one", "two", "sneaky", "three"]
+
+
+def test_a_known_line_misread_above_is_told_from_a_lost_one():
+    dedup = Dedup()
+    dedup.update(100.0, _rows("[Pip]: gg", "[Bo]: two words here", "[Kim]: three"))
+    opened = _rows("[Plp]: gg", "[Zed]: gg", "[Bo]: two words here", "[Kim]: three")
+    dedup.update(101.0, opened)
+    dedup.update(102.0, opened)
+    plp, zed = dedup.unstored
+    assert dedup.misread_of(plp).best.speaker == "Pip"
+    assert dedup.misread_of(zed) is None  # another name: its own line

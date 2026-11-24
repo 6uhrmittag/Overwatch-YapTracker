@@ -139,6 +139,13 @@ def _same_speaker(a: str | None, b: str | None) -> bool:
     return fuzz.ratio(_folded(clean(a)), _folded(clean(b))) >= NEAR_NAME
 
 
+def _near(a: str | None, b: str | None) -> bool:
+    """Maybe one name: looser than _same_speaker, for three-letter names ("Plp" for "Pip")."""
+    if not a or not b:
+        return a == b
+    return fuzz.ratio(_folded(clean(a)), _folded(clean(b))) >= 60
+
+
 def _folded(text: str) -> str:
     """Folded, lower-case, single-spaced text: to see whether one reading begins another."""
     return " ".join(_fold(text).lower().split())
@@ -244,6 +251,7 @@ class Dedup:
         # This read's reported rows, by id(): (the known line below it, rows up from that, first
         # seen): where adopt() puts them (#602).
         self._where: dict[int, tuple[Yap, int, float]] = {}
+        self._on_screen: set[int] = set()  # the known lines this read matched
 
     def update(self, ts: float, lines: list[ChatLine]) -> tuple[list[Yap], list[Yap]]:
         """(new, improved): yaps first seen in this frame, and earlier ones read better now."""
@@ -268,6 +276,7 @@ class Dedup:
                 improved.append(yap)
         on_screen = {self.recent[j].id for _, j in pairs}  # before _between moves the indexes
         known = [(i, self.recent[j]) for i, j in pairs]
+        self._on_screen = on_screen
         missed = self._between(ts, lines, pairs)
         last = pairs[-1][0] if pairs else -1
         new = []
@@ -306,7 +315,9 @@ class Dedup:
             k = match_key(line)
             if line.quality < GOOD or any(y.similarity(k) >= SAME for y in self.recent):
                 continue
-            seen, _, first = self._seen_unstored.get(k, (0, ts, ts))
+            seen, last, first = self._seen_unstored.get(k, (0, None, ts))
+            if last == ts:
+                continue  # twice in one frame is still one reading (#432)
             self._seen_unstored[k] = (seen + 1, ts, first)
             if seen + 1 == 2:
                 report.append(line)
@@ -321,21 +332,46 @@ class Dedup:
         holes, so a row above a known line that isn't the known line before it was said between
         the two and missed. Above the oldest line known, it's the history from before anything
         was read (#179): None. It goes into the history above the line below it, so the next
-        reads know it; at the time it was first seen, but never after the line below it."""
+        reads know it; at the time it was first seen, but between its two neighbours' times."""
         where = self._where.pop(id(line), None)
         if where is None or where[0] not in self.recent[1:]:
             return None
         below, up, first = where
-        yap = Yap(next(self.ids), min(first, below.first_seen - 0.001 * up))
+        at = self.recent.index(below)
+        ts = max(self.recent[at - 1].first_seen, min(first, below.first_seen - 0.001 * up))
+        yap = Yap(next(self.ids), ts)
         yap.add(line)
-        self.recent.insert(self.recent.index(below), yap)
+        self.recent.insert(at, yap)
         self._seen_unstored.pop(match_key(line), None)
         return yap, below
+
+    def misread_of(self, line: ChatLine) -> Yap | None:
+        """A known line right above the one below this reported row, not matched in this read,
+        by a similar name with a similar text (#602): the row may be that line read a little
+        wrong ("[Plp]: gg" for "[Pip]: gg" is under the bar for one line, #423), not a lost one."""
+        where = self._where.get(id(line))
+        if where is None or where[0] not in self.recent:
+            return None
+        k = match_key(line)
+        for yap in reversed(self.recent[: self.recent.index(where[0])]):
+            if yap.id in self._on_screen:
+                break  # on screen as itself: what's above it is no neighbour of this row
+            said = yap.best
+            if (
+                said.kind == line.kind
+                and _near(said.speaker, line.speaker)
+                and (yap.similarity(k) >= NEAR_NAME)
+            ):
+                return yap
+        return None
 
     def piece_of(self, line: ChatLine) -> Yap | None:
         """A known line by a similar name that starts with this row, or that this row starts
         with (#602): one of the two is a cut reading of the other (#432), not a line of its own.
-        Three words at least, so "gg" isn't taken for the start of "gg wp"."""
+        Three words at least, so "gg" isn't taken for the start of "gg wp"; the beginning of a
+        known line counts from four letters, as for new rows ("so please n", #432)."""
+        if (part := self._part_of(line)) is not None:
+            return part
         text = _folded(_GLUED.sub("", line.text))
         for yap in reversed(self.recent):
             said = yap.best
