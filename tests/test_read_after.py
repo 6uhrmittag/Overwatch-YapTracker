@@ -235,3 +235,91 @@ def test_nothing_to_drop_means_over_the_cap_rather_than_losing_a_match_edge():
     for match, t in ((1, 0), (1, 5), (2, 6), (2, 9)):
         later.add(T0 + t, frame(), match, "after")
     assert len(later) == 4  # every frame is a first or last one
+
+
+def test_live_frames_go_first_and_keep_their_gap_while_kept_ones_wait(store):
+    """#597: a live match while an earlier match's frames wait: live keeps its own gap, kept
+    frames only go between live reads, and never when one would make a live frame wait."""
+    tracker = MatchTracker(store, Pause())
+    idle = [False]
+    reader = ChatReader(lambda image: [], store, tracker, min_gap_s=1.5, deferring=lambda: False,
+                        idle=lambda: idle[0], keep_gap_s=lambda: 1.5)  # fmt: skip
+    reader.later.add(T0, frame(), 1, "after")
+    reader.offer(frame(), "light")  # a live match runs: not behind the kept frame
+    assert reader._pending is not None and len(reader.later) == 1
+    reader._last_live = reader._last_read = 100.0
+    assert reader._next(101.5) == ("live", 0.0)  # its gap, whatever waits
+    reader._last_read = 101.5  # a kept frame was read since: live doesn't care
+    assert reader._next(101.5) == ("live", 0.0)
+    reader._pending = None
+    assert reader._next(102.0) == (None, 1.0)  # kept: one per kept gap after any read
+    assert reader._next(103.0) == ("kept", 0.0)
+    reader.offer(frame(), "light")
+    reader._last_live = 102.0
+    assert reader._next(103.0)[0] is None  # live is due in 0.5 s: a kept read would hold it up
+    assert reader._next(103.5) == ("live", 0.0)
+    idle[0] = True  # the live match is over: kept ones fast, still around the live gap
+    reader._last_live = 103.5
+    assert reader._next(103.6) == ("kept", 0.0)
+
+
+LIVE = ["anyone up for a duo later", "nice shot on that widow", "push the payload please", "gg"]
+
+
+def test_a_live_match_while_a_ranked_one_waits_reads_live_lines_within_a_gap(store):
+    """#597 replay: ranked read after the match, then a live match starts while its frames still
+    wait. Live lines show within one gap of their frame; the ranked lines come out as read
+    alone, and the backlog counts down to nothing."""
+    shots = replay()
+    reads = {id(image): lines for _, image, lines in shots}
+    alone = MatchTracker(store, Pause())
+    alone.capture_alive(T0)
+    alone.new_match(T0, source="heroselect", mode="COMPETITIVE", map_name="Busan")
+    solo, _ = make_reader(store, alone, reads, [T0])
+    for t, image, _ in shots:
+        solo.read_frame(t, image)
+    expected = stored(store, alone.match_id)
+
+    tracker = MatchTracker(store, Pause())
+    tracker.capture_alive(T0 + 1000)
+    tracker.new_match(T0 + 1000, source="heroselect", mode="COMPETITIVE", map_name="Busan")
+    ranked = tracker.match_id
+    clock, playing = [T0], [True]
+    gap = 0.3
+
+    def kept(image, mode):
+        time.sleep(0.05)  # a best read takes a while
+        return reads[id(image)]
+
+    reader = ChatReader(lambda image: reads[id(image)], store, tracker, clock=lambda: clock[0],
+                        min_gap_s=gap, read_kept=kept, deferring=lambda: playing[0] and
+                        tracker.match_id == ranked, idle=lambda: not playing[0],
+                        keep_gap_s=lambda: gap)  # fmt: skip
+    for t, image, _ in shots:
+        clock[0] = t
+        reader.offer(image, "after")
+    tracker.end_match(T0 + 1300, outcome="victory")
+    tracker.new_match(T0 + 1400, source="heroselect", mode="QUICK PLAY", map_name="Ilios")
+    left = [reader.backlog().left]
+    reader.start()
+    try:
+        late = []
+        for n, text in enumerate(LIVE):
+            image = frame()  # the chat box shows every live line so far
+            reads[id(image)] = [OcrLine(f"[Bo]: {said}", 0.99, Region(64, 10 + 30 * i, 400, 24))
+                                for i, said in enumerate(LIVE[: n + 1])]  # fmt: skip
+            clock[0] = T0 + 1500 + n
+            offered = time.monotonic()
+            reader.offer(image, "light")
+            wait_for(lambda text=text: text in [m.text for m in store.messages(tracker.match_id)])
+            late.append(time.monotonic() - offered)
+            left.append(reader.backlog().left)
+            time.sleep(gap)
+        playing[0] = False
+        wait_for(lambda: reader.backlog().left == 0)
+    finally:
+        reader.stop()
+    assert max(late) < gap + 0.15  # within one gap (plus a kept read already running)
+    assert left[0] == len(shots) and left[-1] < left[0] and left == sorted(left, reverse=True)
+    assert [m.text for m in store.messages(tracker.match_id)] == LIVE
+    assert stored(store, ranked) == expected  # no line twice, none lost
