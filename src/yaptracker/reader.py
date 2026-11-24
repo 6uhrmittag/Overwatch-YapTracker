@@ -102,6 +102,7 @@ class ChatReader:
         idle: Callable[[], bool] = lambda: True,
         gated: Callable[[], bool] = lambda: True,
         keep_gap_s: Callable[[], float] | None = None,
+        starved: Callable[[], bool] = lambda: False,
     ) -> None:
         self._read, self._store, self._matches = read, store, matches
         self._identity, self._colours, self._paused, self._clock = (
@@ -133,6 +134,9 @@ class ChatReader:
         # The busy gate (#249) is for the default choices; a match read live with best is the
         # user's trade of CPU for quality, and keeps its chosen gap (#588).
         self._gated = gated
+        # The app waits for a core (late watchdog ticks, #601): every choice reads less often,
+        # best live and "as fast as it can" too. More reads then mean more waiting, not more chat.
+        self._starved, self._held_back = starved, False
         self._batch: tuple[float, int] | None = None  # (started, frames) of reading kept ones
         # Time between two kept frames read through, as the UI's time left (#501): in a live
         # match they only go between live reads, so this beats the OCR time alone.
@@ -170,17 +174,26 @@ class ChatReader:
         self._failing_gap: int | None = None
 
     def gap_s(self) -> float:
-        """Seconds between two live reads: the chosen one, or 3 s for a minute after one above
-        the CPU goal, unless the match is read live with best (#249, #588)."""
+        """Seconds between two live reads: the chosen one; 3 s for a minute after one above the
+        CPU goal, unless the match is read live with best (#249, #588); 3 s for a minute after
+        the app was starved, whatever was chosen (#601)."""
+        if self._starved():
+            self._held_back = True
+            return max(self.min_gap_s, BUSY_GAP_S)
         return max(self.min_gap_s, BUSY_GAP_S) if self.busy and self._gated() else self.min_gap_s
 
     def _kept_gap_s(self) -> float:
         gap = self._keep_gap()
-        return max(gap, BUSY_GAP_S) if self.busy else gap
+        return max(gap, BUSY_GAP_S) if self.busy or self._starved() else gap
 
     def _gap_words(self) -> str:
         """For the log line (#588): which gap the reads used and why."""
         chosen = "as fast as it can" if not self.min_gap_s else f"every {self.min_gap_s:g} s"
+        if self._held_back:  # some time in the minute this line is about (#601)
+            return (
+                f"reading every {max(self.min_gap_s, BUSY_GAP_S):g} s for a minute (the app"
+                f" was starved: late watchdog ticks; chosen {chosen})"
+            )
         if not self.busy or self.gap_s() == self.min_gap_s and self._gated():
             return f"reading {chosen} (chosen)"
         if not self._gated():
@@ -675,6 +688,7 @@ class ChatReader:
                          wall)  # fmt: skip
             self._load_since, self._load_cpu = now, cpu
             self._load_busy, self._load_frames, self._offered = 0.0, 0, 0
+            self._held_back = False
 
 
 def _span(first: float, last: float) -> str:
