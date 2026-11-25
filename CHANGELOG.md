@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-25 · A line stored cut gets its whole text (#609)
+- When I stored only the beginning of a line and later read the whole of it twice (for example with the chat box open), the stored line gets the whole text and its picture, instead of staying cut.
+
 ### 2026-11-24 · Our own OCR for Overwatch chat: first measurements (#608)
 - Behind the scenes: tools to measure how well chat is read on your own evenings, and to compare other reading engines against it.
 
