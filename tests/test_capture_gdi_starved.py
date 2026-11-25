@@ -36,7 +36,7 @@ def source(**kwargs) -> gdi.GdiFrameSource:
                               covering=lambda hwnd, region: None, **kwargs)  # fmt: skip
 
 
-def test_it_says_when_it_last_grabbed_the_screen(window):
+def test_it_says_when_it_last_grabbed_the_screen_and_keeps_its_ten_seconds(window):
     capture = source()
     try:
         frames = capture.frames()
@@ -45,59 +45,80 @@ def test_it_says_when_it_last_grabbed_the_screen(window):
         next(frames)
         next(frames)
         assert capture.last_frame_at > first
-        window.clear()  # minimised: no pictures, and the time stands still
-        time.sleep(0.2)
-        stood = capture.last_frame_at
-        time.sleep(0.2)
-        assert capture.last_frame_at == stood
+        assert capture.min_stall_s == 10.0
     finally:
         capture.close()
 
 
-def watched(capture, now: list[float]) -> CaptureWatcher:
+class Stamped:
+    """What the watchdog sees of a GDI source: its picture time and its floor."""
+
+    def __init__(self, last_frame_at: float) -> None:
+        self.last_frame_at, self.min_stall_s, self.closed = last_frame_at, gdi.MIN_STALL_S, False
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def watched(now: list[float]) -> tuple[CaptureWatcher, Stamped]:
     watcher = CaptureWatcher(lambda: 1, lambda _: None, clock=lambda: now[0], stall_s=lambda: 3.0)
-    watcher._source = capture
+    watcher._source = capture = Stamped(now[0])
     watcher._opened_at, watcher._due = now[0], now[0] + TICK_S
-    return watcher
+    return watcher, capture
 
 
-def test_a_starved_gdi_capture_is_not_restarted_and_a_stalled_one_is(window):
-    """The watchdog's clock is driven by hand; the source's picture time is set to match."""
-    capture = source()
-    try:
-        next(capture.frames())
-        window.clear()  # from here on its picture time only moves when the test moves it
-        time.sleep(0.2)
-        now = [1000.0]
-        capture.last_frame_at = now[0]
-        watcher = watched(capture, now)
-        now[0] += 12.0  # the app didn't run for 12 s: over the old 10 s, no restart
+def ticks(watcher, now, seconds: float) -> None:
+    for _ in range(round(seconds / TICK_S)):
+        now[0] += TICK_S
         watcher._tick(now[0])
-        assert watcher._stalled is None and not capture._closed.is_set()
-        for _ in range(13):  # on time again and still no picture: a real stall, 6 s later
-            now[0] += TICK_S
-            watcher._tick(now[0])
-        assert watcher._stalled is not None and capture._closed.is_set()
-    finally:
-        capture.close()
 
 
-def test_its_own_backstop_doesnt_count_the_time_it_was_kept_waiting(window, monkeypatch):
+def test_in_a_match_a_gdi_capture_still_gets_ten_seconds_not_three():
+    """Review: its picture time is stamped by our own thread, a slow pass isn't a stall."""
+    now = [1000.0]
+    watcher, capture = watched(now)
+    ticks(watcher, now, 10.0)
+    assert not capture.closed
+    ticks(watcher, now, 0.5)
+    assert capture.closed and watcher._stalled[1] == "no picture from the window for 10 s"
+
+
+def test_a_starved_gdi_capture_is_not_restarted_and_a_stalled_one_is():
+    now = [1000.0]
+    watcher, capture = watched(now)
+    now[0] += 12.0  # the app didn't run for 12 s: over the old 10 s timeout, no restart
+    watcher._tick(now[0])
+    assert not capture.closed
+    ticks(watcher, now, 9.5)  # on time again and still no picture: 10 s of running time in all
+    assert not capture.closed
+    ticks(watcher, now, 0.5)
+    assert capture.closed
+
+
+def test_closing_ends_the_frame_loop_also_when_the_capture_thread_is_stuck(window, monkeypatch):
+    """Review: only the capture thread ended the loop; stuck, the restart waited 30 s."""
+    stuck = threading.Event()
+    monkeypatch.setattr(Grabber, "grab", lambda self, *area: stuck.wait(20) or np.zeros((1, 1, 3)))
+    capture = source()
+    got = []
+    reader = threading.Thread(target=lambda: got.extend(capture.frames()))
+    reader.start()
+    time.sleep(0.2)
+    capture._thread.join = lambda timeout=None: None  # don't wait for the stuck thread here
+    capture.close()
+    reader.join(3.0)
+    alive = reader.is_alive()
+    stuck.set()
+    assert not alive and got == []
+
+
+def test_its_own_backstop_counts_a_wait_that_took_longer_as_the_wait_asked_for(window):
     window.clear()
-    capture = source(stall_s=3.0)
+    capture = source(stall_s=1.0)
     try:
-        clock = [0.0]
-        real_get = capture._queue.get
-
-        def starved_get(timeout):  # every wait "takes" 20 s: the thread got no core
-            clock[0] += 20.0
-            return real_get(timeout=0.01)
-
-        monkeypatch.setattr(gdi.time, "monotonic", lambda: clock[0])
-        monkeypatch.setattr(capture._queue, "get", starved_get)
-        with pytest.raises(CaptureStalled, match="for 3 s"):
+        started = time.monotonic()
+        with pytest.raises(CaptureStalled, match="for 1 s"):
             next(capture.frames())
-        assert clock[0] == 60.0  # each 20 s wait counted as 1 s: three waits, not the first
+        assert 0.9 <= time.monotonic() - started < 5.0  # two waits of 0.5 s
     finally:
-        monkeypatch.undo()
         capture.close()
