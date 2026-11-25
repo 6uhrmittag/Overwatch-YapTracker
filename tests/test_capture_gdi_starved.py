@@ -60,8 +60,17 @@ class Stamped:
         self.closed = True
 
 
+class Health:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def lost(self, reason: str) -> None:
+        self.calls.append(reason)
+
+
 def watched(now: list[float]) -> tuple[CaptureWatcher, Stamped]:
-    watcher = CaptureWatcher(lambda: 1, lambda _: None, clock=lambda: now[0], stall_s=lambda: 3.0)
+    watcher = CaptureWatcher(lambda: 1, lambda _: None, clock=lambda: now[0],
+                             stall_s=lambda: 3.0, health=Health())  # fmt: skip
     watcher._source = capture = Stamped(now[0])
     watcher._opened_at, watcher._due = now[0], now[0] + TICK_S
     return watcher, capture
@@ -122,3 +131,21 @@ def test_its_own_backstop_counts_a_wait_that_took_longer_as_the_wait_asked_for(w
         assert 0.9 <= time.monotonic() - started < 5.0  # two waits of 0.5 s
     finally:
         capture.close()
+
+
+def test_in_a_match_a_long_wait_without_a_picture_is_a_gap_for_gdi_too():
+    """#618: its limit stays 10 s, so "in a match" was never seen: no restart and no gap."""
+    now = [1000.0]
+    watcher, capture = watched(now)
+    ticks(watcher, now, 6.0)
+    assert watcher._health.calls == []
+    ticks(watcher, now, 0.5)  # more than 6 s: a line can hide in it
+    assert watcher._health.calls[:1] == ["no_frames"] and not capture.closed
+
+
+def test_a_starved_stretch_is_a_gap_for_gdi_too():
+    now = [1000.0]
+    watcher, capture = watched(now)
+    now[0] += 12.0
+    watcher._tick(now[0])
+    assert watcher._health.calls == ["no_frames"] and not capture.closed

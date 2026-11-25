@@ -295,6 +295,7 @@ class CaptureWatcher:
         quiet = now - last
         _, away, said = self._waited if self._waited[0] == last else (last, 0.0, False)
         away += min(late, quiet)  # a starved app isn't a stalled window (#601)
+        in_match = self._stall_s() < STALL_S  # before a source's own floor (#618)
         limit = max(self._stall_s(), getattr(source, "min_stall_s", 0.0))  # GDI: 10 s (#605)
         allowed = max(limit, STARVED_STALL_S) if self.starved() else limit
         if quiet - away > allowed:
@@ -306,7 +307,7 @@ class CaptureWatcher:
             said = True
             log.info("capture: app starved %.1f s: no picture for %.1f s isn't taken for a stall",
                      away, quiet)  # fmt: skip
-        if limit < STALL_S and quiet > COVER_GAP_S:
+        if in_match and quiet > COVER_GAP_S:
             # in a match, this long without a picture can hide a line: a gap, never a silent
             # hole. No restart; the next picture closes it.
             self._health_call("lost", "no_frames")
