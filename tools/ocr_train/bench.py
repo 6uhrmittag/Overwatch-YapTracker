@@ -33,6 +33,21 @@ def recognizer(model: Path, keys: Path):
     return RapidOCR(rec_model_path=str(model), rec_keys_path=str(keys), **ONE_THREAD).text_rec
 
 
+def engines(private: Path, models: list[str]) -> dict[str, RapidOcrEngine]:
+    """The app's engine as shipped, and per `name=folder` two more: that recognizer alone, and
+    as the main reader with the app's Latin model still reading German-looking lines again."""
+    out = {"app, as shipped": RapidOcrEngine()}
+    for item in models:
+        name, folder = item.split("=", 1)
+        ours = recognizer(private / folder / "rec.onnx", private / folder / "dict.txt")
+        alone, both = RapidOcrEngine(), RapidOcrEngine()
+        alone._ocr.text_rec = ours
+        both._ocr.text_rec.default = ours
+        out[name] = alone
+        out[f"{name} + Latin second read"] = both
+    return out
+
+
 def main() -> None:
     args = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     args.add_argument("models", nargs="*", help="name=folder with rec.onnx and dict.txt")
@@ -47,17 +62,14 @@ def main() -> None:
     crops = {g["id"]: [cv2.imread(str(private / "crops" / f"{g['id']}_{p['k']}.png"))
                        for p in parts[g["id"]]] for g in gold}  # fmt: skip
     app = RapidOcrEngine()._ocr.text_rec  # the app's pair: default model, Latin when German
-    engines = {
+    readers = {
         "app: default (PP-OCRv4)": app.default,
         "app: Latin (PP-OCRv5 mobile)": recognizer(LATIN_REC, LATIN_KEYS),
-        "app: both, as shipped": app,
     }
-    for item in opts.models:
-        name, folder = item.split("=", 1)
-        engines[name] = recognizer(private / folder / "rec.onnx", private / folder / "dict.txt")
+    readers |= {name: e._ocr.text_rec for name, e in engines(private, opts.models).items()}
     n_crops = sum(len(c) for c in crops.values())
     print(f"{len(gold)} gold rows, {n_crops} crops")
-    for name, read in engines.items():
+    for name, read in readers.items():
         got, times = {}, []
         for g in gold:
             start = time.perf_counter()

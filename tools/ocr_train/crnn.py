@@ -169,10 +169,11 @@ def export(model: Recognizer, run: Path, alphabet: list[str]) -> None:
 
 def main() -> None:
     args = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    args.add_argument("--run", default="crnn1", help="folder under fixtures/private/ocr/train")
+    args.add_argument("--run", default="ours", help="folder under fixtures/private/ocr/train")
     args.add_argument("--epochs", type=int, default=EPOCHS)
     args.add_argument("--width", type=int, default=96, help="channels: the size/speed knob")
     args.add_argument("--export-only", action="store_true")
+    args.add_argument("--fresh", action="store_true", help="forget an earlier run in this folder")
     opts = args.parse_args()
     private = common.private()
     run = private / "train" / opts.run
@@ -184,6 +185,8 @@ def main() -> None:
     index = {c: i for i, c in enumerate(chars) if c}
     model = Recognizer(len(chars), opts.width)
     state = run / "last.pt"
+    if opts.fresh:
+        state.unlink(missing_ok=True)
     if opts.export_only:
         if (run / "best.pt").exists():
             model.load_state_dict(torch.load(run / "best.pt"))

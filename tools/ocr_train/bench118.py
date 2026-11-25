@@ -21,8 +21,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 import bench  # noqa: E402
 import common  # noqa: E402
 
-from yaptracker.ocr.engine import RapidOcrEngine  # noqa: E402
-
 _spec = importlib.util.spec_from_file_location(
     "ocr_spike", Path(__file__).parents[1] / "ocr_spike.py"
 )
@@ -35,13 +33,7 @@ def main() -> None:
     args.add_argument("models", nargs="*", help="name=folder with rec.onnx and dict.txt")
     opts = args.parse_args()
     private = common.private()
-    engines = {"app, as shipped": RapidOcrEngine()}
-    for item in opts.models:
-        name, folder = item.split("=", 1)
-        engine = RapidOcrEngine()
-        engine._ocr.text_rec = bench.recognizer(private / folder / "rec.onnx",
-                                                private / folder / "dict.txt")  # fmt: skip
-        engines[name] = engine
+    engines = bench.engines(private, opts.models)
     for folder in ("ocr-spike", "ocr-german"):
         root = private.parent / folder
         truth = json.loads((root / "truth.json").read_text(encoding="utf-8"))

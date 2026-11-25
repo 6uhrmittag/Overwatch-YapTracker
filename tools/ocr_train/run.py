@@ -35,9 +35,10 @@ STEPS = [  # (name, runs in the POC venv, script and arguments)
                               "--only", "readings/undecided.json"]),
     ("labels-again", False, ["labels.py"]),
     ("synth", False, ["synth.py"]),
-    ("train", True, ["crnn.py"]),
-    ("score", False, ["bench.py", "ours=train/crnn1"]),
-    ("score-118", False, ["bench118.py", "ours=train/crnn1"]),
+    ("train", True, ["crnn.py", "--fresh"]),
+    ("score", False, ["bench.py", "ours=train/ours"]),
+    ("score-118", False, ["bench118.py", "ours=train/ours"]),
+    ("cpu", False, ["cpu_split.py", "ours=train/ours"]),
 ]  # fmt: skip
 
 
