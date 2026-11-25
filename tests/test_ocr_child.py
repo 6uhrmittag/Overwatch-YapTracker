@@ -9,7 +9,15 @@ import numpy as np
 import pytest
 
 from yaptracker.capture.source import Region
-from yaptracker.ocr.child import GONE_LIMIT, RETRY_S, ChildEngines, ChildFailed, ChildGone, OcrChild
+from yaptracker.ocr.child import (
+    GONE_LIMIT,
+    RETRY_S,
+    ChildEngines,
+    ChildFailed,
+    ChildGone,
+    ChildSlow,
+    OcrChild,
+)
 from yaptracker.ocr.engine import OcrLine, OcrUnavailable
 
 
@@ -296,3 +304,25 @@ def test_warming_up_makes_the_engine_in_the_child_in_the_background(child):
     while "echo" not in child._made and time.monotonic() < end:
         time.sleep(0.05)
     assert "echo" in child._made and child.pid is not None
+
+
+def test_a_read_without_an_answer_in_time_is_skipped_not_read_in_the_main_process(child, caplog):
+    """#619: a starved read took 10-35 s on 2026-11-24; reading it here instead takes as long
+    and stalls capture. It doesn't count against the child, and the next read has a new one."""
+    engines = ChildEngines(child, local)
+    engine = engines.get("hangs")
+    engine.read(picture())
+    child._read_s = 1.0
+    with caplog.at_level(logging.INFO, logger="yaptracker.ocr.child"):
+        for _ in range(GONE_LIMIT + 1):  # never "lost 3 times in a row"
+            with pytest.raises(ChildSlow, match="no answer in 1 s"):
+                engine.read(picture(fill=9))
+            assert engine.read(picture()) == []  # a new child reads the next picture
+    assert "this picture is skipped" in caplog.text
+    assert "read in the main process" not in caplog.text and "lost" not in caplog.text
+
+
+def test_the_waits_are_long_enough_for_a_starved_match():
+    from yaptracker.ocr.child import ANSWER_S, READ_S
+
+    assert READ_S >= 120 and ANSWER_S >= READ_S
