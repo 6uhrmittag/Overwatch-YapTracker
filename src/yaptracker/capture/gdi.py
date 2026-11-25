@@ -30,6 +30,9 @@ log = logging.getLogger(__name__)
 # while the chat is quiet, 1 a second is enough to see a new line within about a second.
 GDI_FPS = 2.0
 QUIET_FPS = 1.0
+# No picture for this long ends the capture by itself; the watcher's watchdog is quicker and
+# decides first (it knows a starved app from a stalled window, #601/#605). As WGC's own 30 s.
+BACKSTOP_S = 30.0
 QUIET_FRAMES = 4  # 2 s with nothing new on the chat change detector (app.chat_quiet)
 _END = object()
 _SRCCOPY = 0x00CC0020
@@ -159,7 +162,7 @@ class GdiFrameSource:
         hwnd: int,
         region_for: Callable[[int, int], Region],
         fps: float = GDI_FPS,
-        stall_s: float = 10.0,
+        stall_s: float = BACKSTOP_S,
         signals_for: Callable[[int, int], dict[str, Region]] = lambda w, h: {},
         signals_every_s: float = 1.0,
         overview_every_s: float = 5.0,
@@ -177,7 +180,9 @@ class GdiFrameSource:
         self._snapshot_wanted, self._snapshot_ready = threading.Event(), threading.Event()
         self._snapshot = None
         self._closed = threading.Event()
-        self._start = time.monotonic()
+        # When the screen was last grabbed, for the watcher's watchdog (#605): it tells a starved
+        # app (this thread got no core) from a window that gives no picture (minimised, gone).
+        self._start = self.last_frame_at = time.monotonic()
         CAPTURE.asked_fps = fps
         CAPTURE.how = f"GDI, chat box only, {QUIET_FPS:g}/s while the chat is quiet"
         self._thread = threading.Thread(target=self._run, name="gdi capture", daemon=True)
@@ -225,6 +230,7 @@ class GdiFrameSource:
                                      then="the frame is read")  # fmt: skip
                     covered = None
                 self._put(Frame(now - self._start, chat, signals, covered))
+                self.last_frame_at = time.monotonic()
                 spent = time.perf_counter() - started
                 CAPTURE.frame(spent)
                 CPU.add("capture", time.thread_time() - started_cpu)  # (#302)
@@ -252,15 +258,24 @@ class GdiFrameSource:
         return self._snapshot if self._snapshot_ready.wait(timeout) else None
 
     def frames(self) -> Iterator[Frame]:
+        """Until it's closed (the watchdog closes a capture that went quiet) or, as a backstop,
+        no picture came for `stall_s` of time in which this thread itself wasn't kept waiting."""
+        waited, tick = 0.0, 0.5
         while True:
+            asked = time.monotonic()
             try:
-                item = self._queue.get(timeout=self._stall_s)
+                item = self._queue.get(timeout=tick)
             except queue.Empty:
-                raise CaptureStalled(
-                    f"no picture from the window for {self._stall_s:.0f} s"
-                ) from None
+                # a wait that took much longer than asked was us not running: not counted (#605)
+                waited += min(time.monotonic() - asked, 2 * tick)
+                if waited >= self._stall_s:
+                    raise CaptureStalled(
+                        f"no picture from the window for {self._stall_s:.0f} s"
+                    ) from None
+                continue
             if item is _END:
                 return
+            waited = 0.0
             yield item
 
     def close(self) -> None:
