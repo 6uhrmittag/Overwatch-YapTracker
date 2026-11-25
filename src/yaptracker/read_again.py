@@ -3,7 +3,9 @@ pictures (#120) with the best engine, e.g. a match read light (#331) or older ga
 
 A new reading replaces a line only when it's better: more confident, or more letters once
 umlauts and punctuation are folded away. Lines fixed by hand (#227) are never touched. It runs
-on a low-priority thread of its own and only while no match runs; a line YapTracker never saw
+on a thread of its own, only while no match runs and Overwatch isn't the window in front (the
+app says when); not at a lowered priority (#614): a thread put to sleep at the lowest priority
+while it holds Python's lock stalls capture and the window with it. A line YapTracker never saw
 has no picture, so it can't be found this way (the tidy-up of #336 keeps whole frames for that).
 """
 
@@ -16,7 +18,7 @@ from dataclasses import dataclass, field, replace
 
 import numpy as np
 
-from yaptracker import glyphs, icons, images, priority
+from yaptracker import glyphs, icons, images
 from yaptracker.dedup import YAP_KINDS
 from yaptracker.identity import Identity
 from yaptracker.ocr.engine import OcrLine
@@ -91,13 +93,8 @@ class ReadAgain:
         idle: Callable[[], bool],
         identity: Callable[[], Identity] = Identity,
         link: Callable[[str | None, float, float], int | None] = lambda name, ts, conf: None,
-        lowest: bool = True,
     ) -> None:
         self._store, self._pictures, self._read, self._idle = store, pictures, read, idle
-        # Its thread at the lowest priority while it does the OCR itself (#187). With the OCR in
-        # its own process (#563) it isn't lowered: a thread put to sleep at the lowest priority
-        # while it holds Python's lock stalls capture and the window with it (#614).
-        self._lowest = lowest
         self._identity, self._link = identity, link
         self._lock = threading.Lock()
         self._jobs: list[Job] = []
@@ -174,8 +171,6 @@ class ReadAgain:
             self._thread.join(timeout=10)
 
     def _run(self) -> None:
-        if self._lowest:
-            priority.lower_this_thread()  # the game first, as the chat reader (#187)
         while not self._stopping:
             if not self.run_once():
                 self._wake.wait(WAIT_S)

@@ -192,37 +192,44 @@ def test_marks_the_map_made_are_checked_once_and_dropped(store, pictures):
     assert done == [True]
 
 
-def test_the_worker_is_only_lowered_when_it_does_the_ocr_itself(tmp_path, monkeypatch):
-    """#614: with the OCR in its own process, a lowest-priority thread here only stalls."""
+def test_the_worker_is_never_lowered(monkeypatch):
+    """#614: a lowest-priority thread asleep with Python's lock stalls capture and the window."""
     from yaptracker import priority
 
     lowered = []
     monkeypatch.setattr(priority, "lower_this_thread", lambda: lowered.append(1))
-    for lowest in (True, False):
-        again = ReadAgain(None, None, lambda image: [], idle=lambda: True, lowest=lowest)
-        again.start()
-        again.stop()
-    assert lowered == [1]
+    again = ReadAgain(None, None, lambda image: [], idle=lambda: True)
+    again.start()
+    again.stop()
+    assert lowered == []
 
 
-def test_read_again_reads_in_the_readers_own_process_when_there_is_one(monkeypatch):
+def test_read_again_waits_while_a_match_runs_or_overwatch_is_in_front(monkeypatch):
     from types import SimpleNamespace
 
-    import numpy as np
+    from yaptracker import app, runtime
 
-    from yaptracker import app, config, runtime
-
-    asked = []
-    engine = SimpleNamespace(read=lambda image, scale: asked.append("child") or [])
-    for name in ("store", "pictures", "matches", "players"):
-        monkeypatch.setattr(runtime, name, SimpleNamespace(running=False))
-    monkeypatch.setattr(runtime, "ocr_child", SimpleNamespace(get=lambda name: engine))
-    monkeypatch.setattr(runtime, "ocr_scale", lambda: 2.0)
+    front = {"overwatch": False}
+    matches = SimpleNamespace(running=False)
+    for name in ("store", "pictures", "players"):
+        monkeypatch.setattr(runtime, name, SimpleNamespace())
+    monkeypatch.setattr(runtime, "matches", matches)
     monkeypatch.setattr(runtime, "read_again", None)
-    monkeypatch.setattr(config, "ocr_engine", lambda: "rapidocr")
+    monkeypatch.setattr(app, "_overwatch_in_front", lambda: front["overwatch"])
     app._start_read_again()
     try:
-        runtime.read_again._read(np.zeros((4, 4, 3), np.uint8))
-        assert asked == ["child"] and runtime.read_again._lowest is False
+        idle = runtime.read_again._idle
+        assert idle()
+        front["overwatch"] = True  # a match start was missed, or a custom game: still not now
+        assert not idle()
+        front["overwatch"], matches.running = False, True
+        assert not idle()
     finally:
         runtime.read_again.stop()
+
+
+def test_overwatch_is_not_in_front_without_a_captured_window(monkeypatch):
+    from yaptracker import app, runtime
+
+    monkeypatch.setattr(runtime, "watcher", None)
+    assert app._overwatch_in_front() is False

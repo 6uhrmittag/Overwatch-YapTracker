@@ -282,21 +282,29 @@ def _start_reader() -> None:
     runtime.reader.start()
 
 
+def _overwatch_in_front() -> bool:
+    window = runtime.watcher.window if runtime.watcher is not None else None
+    if window is None or sys.platform != "win32":
+        return False
+    from yaptracker.capture.window import in_front
+
+    return in_front(window)
+
+
 def _start_read_again() -> None:
     """The 'Read again, best quality' worker (#333)."""
     from yaptracker.ocr import engine as ocr
     from yaptracker.read_again import ReadAgain
 
-    # In the reader's own process when there is one (#614), like the chat itself (#563).
-    get = runtime.ocr_child.get if runtime.ocr_child is not None else ocr.get
     runtime.read_again = ReadAgain(
         runtime.store,
         runtime.pictures,
-        lambda image: get(config.ocr_engine()).read(image, scale=runtime.ocr_scale()),
-        idle=lambda: not runtime.matches.running,
+        lambda image: ocr.get(config.ocr_engine()).read(image, scale=runtime.ocr_scale()),
+        # not while Overwatch is the window in front either (#614): a missed match start, a
+        # custom game, busy menus. It goes on when the user looks at another window.
+        idle=lambda: not runtime.matches.running and not _overwatch_in_front(),
         identity=config.identity,
         link=lambda name, ts, conf: runtime.players.link(name, ts, conf),
-        lowest=runtime.ocr_child is None,
     )
     runtime.read_again.start()
 
