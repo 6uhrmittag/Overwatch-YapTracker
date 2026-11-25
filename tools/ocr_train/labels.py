@@ -92,7 +92,8 @@ def main() -> None:
             else:
                 counts["no agreement: left out"] += 1
                 continue
-        row = " ".join(common.plain(row).split())
+        # the models write a system line's yellow dot as "- " or "• ": not text
+        row = " ".join(common.plain(row).split()).lstrip("-•·* ")
         pieces = cut(row, [p["read"] for p in parts]) if parts else None
         if pieces is None:
             counts["doesn't line up with the crops: left out"] += 1
