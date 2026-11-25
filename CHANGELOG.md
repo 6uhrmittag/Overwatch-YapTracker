@@ -4,6 +4,12 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-25 · Windows 10: a long wait without a picture is shown as a gap (#618)
+- On the Windows 10 way of capturing, more than 6 s without a picture in a match is now recorded as a gap, as on the normal one. Since #605 it would have been a silent hole.
+
+### 2026-11-25 · The reader's process gets the time a busy match needs (#619)
+- In a busy match one read of the chat can take half a minute. The reader's own process is now given that time (two minutes at most) instead of being ended after 15 s and replaced by the main process, which would have held up capture again.
+
 ### 2026-11-25 · Read again waits while you're in the game (#614)
 - "Read again" and the one-time clean-up jobs now also wait while Overwatch is the window in front, not only during a detected match, and no longer run in a way that could hold up capture and the window. They go on when you look at another window or close the game.
 
