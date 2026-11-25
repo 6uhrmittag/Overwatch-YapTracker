@@ -425,3 +425,19 @@ def test_a_known_line_misread_above_is_told_from_a_lost_one():
     plp, zed = dedup.unstored
     assert dedup.misread_of(plp).best.speaker == "Pip"
     assert dedup.misread_of(zed) is None  # another name: its own line
+
+
+def test_completing_a_cut_line_needs_three_words_the_same_name_and_real_text():
+    """#609: glued map capitals never make a line longer."""
+    dedup = Dedup()
+    dedup.update(100.0, _rows("[Pip]: good game everyone", "[Bo]: gg"))
+    glued, other, short, whole = _rows(
+        "[Pip]: good game everyone TOURING EM", "[Kim]: good game everyone and thanks",
+        "[Bo]: gg wp all", "[Pip]: good game everyone and thanks",
+    )  # fmt: skip
+    assert dedup.whole_of(glued) is None and dedup.whole_of(other) is None
+    assert dedup.whole_of(short) is None
+    yap = dedup.whole_of(whole)
+    assert yap.best.text == "good game everyone"  # finding it changes nothing
+    dedup.complete(whole, yap)
+    assert yap.best.text == "good game everyone and thanks"

@@ -460,7 +460,8 @@ class ChatReader:
             self._want_reread(ts, lines)
             self._no_chat = 0 if any(ln.kind in YAP_KINDS for ln in lines) else self._no_chat + 1
         seen_twice = self._really_unstored(ts, dedup.unstored, current)
-        adopted, refused = self._adopt(seen_twice, dedup, current)
+        adopted, refused, completed = self._adopt(seen_twice, dedup, current)
+        improved = improved + [yap for yap in completed if yap not in improved]
         for yap in new + [yap for yap, _ in adopted]:
             player = self._player(yap, ts)
             match_id = previous if yap.id in old else current
@@ -499,14 +500,25 @@ class ChatReader:
 
     def _adopt(
         self, rows: list[ChatLine], dedup: Dedup, match: int | None
-    ) -> tuple[list[tuple[Yap, int | None]], list[tuple[ChatLine, str]]]:
+    ) -> tuple[list[tuple[Yap, int | None]], list[tuple[ChatLine, str]], list[Yap]]:
         """Rows seen twice and stored nowhere become lines (#602): ([(line, its match)], [(row,
-        why not)]). Dedup only stored new rows below the last known line and missed ones between
-        two neighbours (#423); a row above the known lines of an opened chat (Marv re-opened it
-        to get a lost line back) was real, read well twice, and dropped. Its match: the one of
-        the known line right below it (it was said before that one), else the read's."""
-        adopted, refused = [], []
+        why not)], [stored lines a row completed, #609]). Dedup only stored new rows below the
+        last known line and missed ones between two neighbours (#423); a row above the known
+        lines of an opened chat (Marv re-opened it to get a lost line back) was real, read well
+        twice, and dropped. Its match: the one of the known line right below it (it was said
+        before that one), else the read's."""
+        adopted, refused, completed = [], [], []
         for line in rows:
+            # the whole of a line stored cut: that line gets its text, no second one (#609)
+            if match_key(line) not in self._far_like:  # before "read wrong": it begins it
+                whole = dedup.whole_of(line)
+                if whole is not None and whole.id in self._stored:
+                    dedup.complete(line, whole)
+                    completed.append(whole)
+                    continue
+                if whole is not None:
+                    refused.append((line, "a piece of a line that isn't stored"))
+                    continue
             why = self._why_not(line, dedup)
             got = None if why else dedup.adopt(line)
             if got is None:
@@ -518,7 +530,10 @@ class ChatReader:
             )
             # also "no match": said in the menu before a line stored there (as #423 does)
             adopted.append((yap, under.match_id if under is not None else match))
-        return adopted, refused
+        if completed:
+            log.info("chat reading: %d line(s) stored cut, now whole: %s", len(completed),
+                     "; ".join(_said(yap.best) for yap in completed))  # fmt: skip
+        return adopted, refused, completed
 
     def _why_not(self, line: ChatLine, dedup: Dedup) -> str | None:
         """Why a row seen twice still isn't stored, in words for the log; None: store it."""
