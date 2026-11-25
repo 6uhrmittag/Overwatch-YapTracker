@@ -338,7 +338,7 @@ def test_seen_but_not_stored_counts_only_lines_really_missing_and_each_once(stor
         reader._dedup = SimpleNamespace(
             update=lambda ts, lines: ([], []), unstored=rows, recent=[],
             piece_of=lambda row: None, adopt=lambda row: None, misread_of=lambda row: None,
-            complete=lambda row: None,
+            whole_of=lambda row: None,
         )  # fmt: skip
         reader.read_frame(1100.0 + 100 * n, first)  # Dedup is faked: these rows only
     assert [[r.text for r in rows] for rows in seen[1:]] == [
@@ -559,3 +559,11 @@ def test_two_short_words_complete_nothing(store):
     known = ["[Zed]: hi", "[Pip]: nice shot", "[Bo]: ok fine"]
     texts, _ = _opened_chat(store, known, ["[Pip]: nice shot that was", "[Bo]: ok fine"])
     assert "nice shot" in texts  # "nice shot that was" is a line of its own, as typed lines are
+
+
+def test_a_cut_line_with_map_text_glued_on_is_completed_too(store):
+    """Review: the row counted as completing it, but the stored text stayed."""
+    known = ["[Zed]: hi", "[Pip]: good game everyone TOURING EM", "[Bo]: ok fine"]
+    opened = ["[Pip]: good game everyone and thanks a lot friends", "[Bo]: ok fine"]
+    texts, _ = _opened_chat(store, known, opened)
+    assert texts == ["hi", "good game everyone and thanks a lot friends", "ok fine"]

@@ -502,16 +502,18 @@ class ChatReader:
         self, rows: list[ChatLine], dedup: Dedup, match: int | None
     ) -> tuple[list[tuple[Yap, int | None]], list[tuple[ChatLine, str]], list[Yap]]:
         """Rows seen twice and stored nowhere become lines (#602): ([(line, its match)], [(row,
-        why not)], [stored lines a row completed, #609]). Dedup only stored new rows below the last known line and missed ones between
-        two neighbours (#423); a row above the known lines of an opened chat (Marv re-opened it
-        to get a lost line back) was real, read well twice, and dropped. Its match: the one of
-        the known line right below it (it was said before that one), else the read's."""
+        why not)], [stored lines a row completed, #609]). Dedup only stored new rows below the
+        last known line and missed ones between two neighbours (#423); a row above the known
+        lines of an opened chat (Marv re-opened it to get a lost line back) was real, read well
+        twice, and dropped. Its match: the one of the known line right below it (it was said
+        before that one), else the read's."""
         adopted, refused, completed = [], [], []
         for line in rows:
             # the whole of a line stored cut: that line gets its text, no second one (#609)
             if match_key(line) not in self._far_like:  # before "read wrong": it begins it
-                whole = dedup.complete(line)
+                whole = dedup.whole_of(line)
                 if whole is not None and whole.id in self._stored:
+                    dedup.complete(line, whole)
                     completed.append(whole)
                     continue
                 if whole is not None:

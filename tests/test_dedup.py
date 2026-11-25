@@ -435,7 +435,9 @@ def test_completing_a_cut_line_needs_three_words_the_same_name_and_real_text():
         "[Pip]: good game everyone TOURING EM", "[Kim]: good game everyone and thanks",
         "[Bo]: gg wp all", "[Pip]: good game everyone and thanks",
     )  # fmt: skip
-    assert dedup.complete(glued) is None and dedup.complete(other) is None
-    assert dedup.complete(short) is None
-    yap = dedup.complete(whole)
+    assert dedup.whole_of(glued) is None and dedup.whole_of(other) is None
+    assert dedup.whole_of(short) is None
+    yap = dedup.whole_of(whole)
+    assert yap.best.text == "good game everyone"  # finding it changes nothing
+    dedup.complete(whole, yap)
     assert yap.best.text == "good game everyone and thanks"
