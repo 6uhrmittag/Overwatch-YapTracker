@@ -23,7 +23,7 @@ RETRY_S, FAST_TRIES = 1.0, 5
 HEALTHY_S = 30.0
 # No picture for this long is a lost session: in a match the game always draws (#506); menus
 # may send few pictures. Checked by the watchdog, not by the thread that handles the frames;
-# only for sources that say when Windows last sent a picture (WGC). GDI keeps its own 10 s.
+# for sources that say when they last had a picture (WGC; GDI too, never under its 10 s, #605).
 MATCH_STALL_S, STALL_S = 3.0, 10.0
 TICK_S, LATE_S = 0.5, 2.0  # the watchdog's tick, and when a late tick is logged
 # A late tick means our threads didn't run (the game had the cores, #563), and the thread that
@@ -286,7 +286,7 @@ class CaptureWatcher:
 
     def _check_stall(self, now: float, late: float = 0.0) -> None:
         source = self._source
-        last = getattr(source, "last_frame_at", None)  # when Windows last sent a picture
+        last = getattr(source, "last_frame_at", None)  # when it last had a picture
         if source is None or last is None:
             return
         if self._stalled is not None and self._stalled[0] is source:
@@ -295,7 +295,7 @@ class CaptureWatcher:
         quiet = now - last
         _, away, said = self._waited if self._waited[0] == last else (last, 0.0, False)
         away += min(late, quiet)  # a starved app isn't a stalled window (#601)
-        limit = self._stall_s()
+        limit = max(self._stall_s(), getattr(source, "min_stall_s", 0.0))  # GDI: 10 s (#605)
         allowed = max(limit, STARVED_STALL_S) if self.starved() else limit
         if quiet - away > allowed:
             self._stalled = (source, f"no picture from the window for {allowed:g} s")
