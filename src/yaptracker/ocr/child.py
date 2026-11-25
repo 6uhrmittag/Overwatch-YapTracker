@@ -24,10 +24,12 @@ from yaptracker.ocr import engine as ocr
 from yaptracker.ocr.engine import UPSCALE, OcrLine, OcrUnavailable
 
 log = logging.getLogger(__name__)
-# Making an engine waits this long for its answer: the child starts and loads the model
-# (seconds, more when the game has the cores). A read waits READ_S: a chat line stays ~9 s, so a
-# child that takes longer is taken for stuck and the picture is read in the main process.
-ANSWER_S, READ_S = 60.0, 15.0
+# How long an answer is waited for: making an engine (the child starts and loads the model) and
+# a read. Long on purpose (#619): a slow child isn't a dead one. In a starved match a read took
+# 10-35 s before it had a process of its own (Marv's log 2026-11-24: 0.5-3 s of CPU each, 1-3
+# reads in some minutes), and the main process, which reads when the child gives no answer,
+# takes as long and stalls capture with it. Only a child that hangs should run into these.
+ANSWER_S, READ_S = 180.0, 120.0
 # Set while a child starts: in the exe the child is the exe started again, and its logs.setup()
 # must tell it from the window's process (which owns window.log).
 CHILD_ENV = "YAPTRACKER_OCR_CHILD"
@@ -117,6 +119,10 @@ class OcrChild:
         self._stopped = False
         self._cpu = (0.0, 0.0)  # (of children that are gone, of the one running): one store
         self.pid: int | None = None
+
+    def waits(self, answer_s: float, read_s: float) -> None:
+        """Other limits than the defaults (the smoke test: it has 90 s in all)."""
+        self._answer_s, self._read_s = answer_s, read_s
 
     @property
     def cpu_s(self) -> float:
