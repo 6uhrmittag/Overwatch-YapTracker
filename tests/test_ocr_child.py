@@ -296,3 +296,13 @@ def test_warming_up_makes_the_engine_in_the_child_in_the_background(child):
     while "echo" not in child._made and time.monotonic() < end:
         time.sleep(0.05)
     assert "echo" in child._made and child.pid is not None
+
+
+def test_the_waits_are_long_enough_for_a_starved_match(child):
+    """#619: on 2026-11-24 a read took 10-35 s when the game had the cores; 15 s ended the
+    child again and again and put the OCR back into the main process."""
+    from yaptracker.ocr.child import ANSWER_S, READ_S
+
+    assert READ_S >= 120 and ANSWER_S >= READ_S
+    child.waits(answer_s=40.0, read_s=20.0)  # the smoke test's
+    assert (child._answer_s, child._read_s) == (40.0, 20.0)
