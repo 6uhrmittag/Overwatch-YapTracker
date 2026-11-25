@@ -283,8 +283,8 @@ def _read_again(match_id: int, rows: dict[int, dict], button):
         lines, better = count(len(job.ids), "line", "lines"), f"{len(job.better)} better"
         if job.finished:
             text = f"Read {lines} again: {better}. {AGAIN_HINT}"
-        elif runtime.matches is not None and runtime.matches.running:
-            text = "A match is running: I read them again once it's over."
+        elif (waiting := runtime.read_again.waiting("them")) is not None:
+            text = waiting
         else:
             text = f"Reading {lines} again\u2026 {better} so far."
         progress.set_text(text)

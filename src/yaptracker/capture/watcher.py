@@ -195,6 +195,12 @@ class CaptureWatcher:
             return self._retry_s
         return min(60.0, self._poll_s * 2 ** (self._failures - FAST_TRIES - 2))
 
+    @property
+    def game_window(self) -> int | None:
+        """Overwatch's window as last captured, also between two captures of it (a restart);
+        None once the game is gone. `window` is only set while a capture runs."""
+        return self._focus_window
+
     def window_age(self) -> float | None:
         """Seconds since Overwatch's window appeared; None: no window."""
         since = self._window_since
