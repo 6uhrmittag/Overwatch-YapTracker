@@ -173,6 +173,7 @@ class Yap:
     after: int | None = None  # read between known lines: the yap right above it (#423)
     last: ChatLine | None = None  # the reading from the newest frame (its box is on that frame)
     cut: str | None = None  # folded text of a cut reading a longer one completed (#587)
+    whole: str | None = None  # key() of a reading seen twice later that completes it (#609)
 
     @property
     def best(self) -> ChatLine:
@@ -194,6 +195,9 @@ class Yap:
                   and len(_folded(line.text)) > len(start)]  # fmt: skip
         if longer:  # light OCR read the beginning first ("so please n"): the whole line (#432)
             best = max(longer, key=lambda line: len(_folded(line.text)))
+        whole = self.lines.get(self.whole) if self.whole else None
+        if whole is not None and len(_folded(whole.text)) > len(_folded(_GLUED.sub("", best.text))):
+            best = whole  # seen twice later, beginning with the cut text (#609): checked there
         # ◇ when at least half of the good readings saw the icon (#402). One reading out of many
         # was enough before (#259), and the map behind a line changes while it's on screen:
         # sooner or later something bright sat right after the text. Icon callouts always
@@ -364,6 +368,28 @@ class Dedup:
             ):
                 return yap
         return None
+
+    def whole_of(self, line: ChatLine) -> Yap | None:
+        """The known line a reported row is the whole of (#609): "... half the game, he walls
+        me" seen twice in the opened chat for a line stored up to "... half the". Three words of
+        the cut text at least, by a similar name; glued map capitals never make a line longer.
+        Changes nothing: complete() does."""
+        text = _folded(_GLUED.sub("", line.text))
+        for yap in reversed(self.recent):
+            said = yap.best
+            if said.kind != line.kind or not _same_speaker(said.speaker, line.speaker):
+                continue
+            cut = _folded(_GLUED.sub("", said.text))
+            if len(cut.split()) >= 3 and len(text) > len(cut) and text.startswith(cut):
+                return yap
+        return None
+
+    def complete(self, line: ChatLine, yap: Yap) -> None:
+        """The row becomes that line's reading, however often the cut one was read."""
+        yap.add(line)
+        yap.whole = key(line)
+        self._where.pop(id(line), None)
+        self._seen_unstored.pop(match_key(line), None)
 
     def piece_of(self, line: ChatLine) -> Yap | None:
         """A known line by a similar name that starts with this row, or that this row starts
