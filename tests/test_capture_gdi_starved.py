@@ -60,8 +60,17 @@ class Stamped:
         self.closed = True
 
 
+class Health:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def lost(self, reason: str) -> None:
+        self.calls.append(reason)
+
+
 def watched(now: list[float]) -> tuple[CaptureWatcher, Stamped]:
-    watcher = CaptureWatcher(lambda: 1, lambda _: None, clock=lambda: now[0], stall_s=lambda: 3.0)
+    watcher = CaptureWatcher(lambda: 1, lambda _: None, clock=lambda: now[0],
+                             stall_s=lambda: 3.0, health=Health())  # fmt: skip
     watcher._source = capture = Stamped(now[0])
     watcher._opened_at, watcher._due = now[0], now[0] + TICK_S
     return watcher, capture
@@ -122,3 +131,65 @@ def test_its_own_backstop_counts_a_wait_that_took_longer_as_the_wait_asked_for(w
         assert 0.9 <= time.monotonic() - started < 5.0  # two waits of 0.5 s
     finally:
         capture.close()
+
+
+def test_in_a_match_a_long_wait_without_a_picture_is_a_gap_for_gdi_too():
+    """#618: its limit stays 10 s, so "in a match" was never seen: no restart and no gap."""
+    now = [1000.0]
+    watcher, capture = watched(now)
+    ticks(watcher, now, 6.0)
+    assert watcher._health.calls == []
+    ticks(watcher, now, 0.5)  # more than 6 s: a line can hide in it
+    assert watcher._health.calls[:1] == ["no_frames"] and not capture.closed
+
+
+def test_a_starved_stretch_is_a_gap_for_gdi_too():
+    now = [1000.0]
+    watcher, capture = watched(now)
+    now[0] += 12.0
+    watcher._tick(now[0])
+    assert watcher._health.calls == ["no_frames"] and not capture.closed
+
+
+def test_between_matches_ten_seconds_without_a_picture_restart_and_nothing_before():
+    now = [1000.0]
+    watcher, capture = watched(now)
+    watcher._stall_s = lambda: 10.0  # no match, or Overwatch not in front
+    ticks(watcher, now, 10.0)
+    assert watcher._health.calls == [] and not capture.closed
+    ticks(watcher, now, 0.5)
+    assert capture.closed
+
+
+def test_the_gap_is_also_written_when_the_picture_comes_before_the_watchdogs_tick(tmp_path):
+    """Review: after a starved stretch the capture thread may wake first and stamp its time;
+    the watchdog then sees nothing wrong. The frame loop notices the hole itself, and the real
+    health record closes it with that picture."""
+    from yaptracker.capture.health import CaptureHealth
+    from yaptracker.capture.source import Frame
+    from yaptracker.store.repo import Store
+
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    now = [1000.0]
+    health = CaptureHealth(store, clock=lambda: now[0])
+
+    class Pictures:
+        last_frame_at = 0.0
+
+        def frames(self):
+            for wait in (0.5, 0.5, 12.0, 0.5):  # the third one after 12 s without any
+                now[0] += wait
+                yield Frame(now[0], np.zeros((4, 4, 3), np.uint8))
+            watcher._stop.set()
+
+        def close(self) -> None:
+            pass
+
+    watcher = CaptureWatcher(lambda: 1, lambda _: Pictures(), clock=lambda: now[0],
+                             stall_s=lambda: 3.0, health=health)  # fmt: skip
+    try:
+        watcher._capture(1)
+        gaps = store._read("SELECT started_at, ended_at, reason FROM capture_gaps")
+        assert gaps == [(1001.0, 1013.0, "no_frames")] and health.gap is None
+    finally:
+        store.close()

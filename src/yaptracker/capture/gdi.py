@@ -234,8 +234,8 @@ class GdiFrameSource:
                     side_work.failed("checking what's over the chat box", error,
                                      then="the frame is read")  # fmt: skip
                     covered = None
+                self.last_frame_at = time.monotonic()  # before it's handed on, as WGC does
                 self._put(Frame(now - self._start, chat, signals, covered))
-                self.last_frame_at = time.monotonic()
                 spent = time.perf_counter() - started
                 CAPTURE.frame(spent)
                 CPU.add("capture", time.thread_time() - started_cpu)  # (#302)
