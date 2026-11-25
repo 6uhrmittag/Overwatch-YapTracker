@@ -192,44 +192,92 @@ def test_marks_the_map_made_are_checked_once_and_dropped(store, pictures):
     assert done == [True]
 
 
-def test_the_worker_is_never_lowered(monkeypatch):
+def test_the_worker_is_never_lowered_also_not_for_one_read(store, pictures, monkeypatch):
     """#614: a lowest-priority thread asleep with Python's lock stalls capture and the window."""
+    import contextlib
+
     from yaptracker import priority
 
     lowered = []
-    monkeypatch.setattr(priority, "lower_this_thread", lambda: lowered.append(1))
-    again = ReadAgain(None, None, lambda image: [], idle=lambda: True)
+
+    @contextlib.contextmanager
+    def for_now():
+        lowered.append("for now")
+        yield
+
+    monkeypatch.setattr(priority, "lower_this_thread", lambda: lowered.append("thread"))
+    monkeypatch.setattr(priority, "lowest_for_now", for_now)
+    match, words, fine, edited = evening(store, pictures)
+    again = ReadAgain(store, pictures, engine({10: "[Pip]: I have cookies", 20: "[Pip]: gg"}),
+                      idle=lambda: True)  # fmt: skip
+    job = again.match(match)
     again.start()
     again.stop()
-    assert lowered == []
+    while again.run_once():
+        pass
+    assert job.finished and lowered == []
 
 
-def test_read_again_waits_while_a_match_runs_or_overwatch_is_in_front(monkeypatch):
+def test_it_says_in_words_why_it_waits_and_naming_icons_only_waits_for_a_match(store, pictures):
+    why = {"now": "front"}
+    match, words, *_ = evening(store, pictures)
+    again = ReadAgain(store, pictures, lambda image: [], idle=lambda: False,
+                      waits=lambda: why["now"])  # fmt: skip
+    assert again.waiting("it") == (
+        "Overwatch is in front: I read it again when you look at another window.")  # fmt: skip
+    done = []
+    again.name_icons([words], lambda: done.append(1))  # reads nothing: goes on behind the game
+    reading = again.match(match)
+    assert again.run_once() and done == [1]
+    assert not again.run_once() and reading.done == 0  # a read waits
+    why["now"] = "match"
+    assert again.waiting() == "A match is running: I read them again once it's over."
+    why["now"] = None
+    assert again.waiting() is None and again.run_once() and reading.done == 1
+
+
+def test_naming_icons_waits_for_a_match(store, pictures):
+    match, words, *_ = evening(store, pictures)
+    again = ReadAgain(store, pictures, lambda image: [], idle=lambda: False,
+                      waits=lambda: "match")  # fmt: skip
+    job = again.name_icons([words], lambda: None)
+    assert not again.run_once() and job.done == 0
+
+
+def test_read_again_waits_for_a_match_overwatch_in_front_and_a_starved_app(monkeypatch):
     from types import SimpleNamespace
 
     from yaptracker import app, runtime
 
     front = {"overwatch": False}
-    matches = SimpleNamespace(running=False)
-    for name in ("store", "pictures", "players"):
-        monkeypatch.setattr(runtime, name, SimpleNamespace())
+    matches, watcher = SimpleNamespace(running=False), SimpleNamespace(starved=lambda: False)
     monkeypatch.setattr(runtime, "matches", matches)
-    monkeypatch.setattr(runtime, "read_again", None)
+    monkeypatch.setattr(runtime, "watcher", watcher)
     monkeypatch.setattr(app, "_overwatch_in_front", lambda: front["overwatch"])
-    app._start_read_again()
-    try:
-        idle = runtime.read_again._idle
-        assert idle()
-        front["overwatch"] = True  # a match start was missed, or a custom game: still not now
-        assert not idle()
-        front["overwatch"], matches.running = False, True
-        assert not idle()
-    finally:
-        runtime.read_again.stop()
+    assert app._read_again_waits() is None
+    watcher.starved = lambda: True
+    assert app._read_again_waits() == "busy"
+    front["overwatch"] = True  # a match start was missed, or a custom game
+    assert app._read_again_waits() == "front"
+    matches.running = True
+    assert app._read_again_waits() == "match"
 
 
-def test_overwatch_is_not_in_front_without_a_captured_window(monkeypatch):
+def test_overwatch_in_front_goes_by_its_last_captured_window(monkeypatch):
+    """Review: between two captures the watcher has no `window`, and the game counted as not in
+    front exactly while the capture was restarting."""
+    from types import SimpleNamespace
+
     from yaptracker import app, runtime
+    from yaptracker.capture import window
 
     monkeypatch.setattr(runtime, "watcher", None)
+    assert app._overwatch_in_front() is False
+    monkeypatch.setattr(app.sys, "platform", "win32")
+    monkeypatch.setattr(window, "in_front", lambda hwnd: hwnd == 42)
+    monkeypatch.setattr(runtime, "watcher", SimpleNamespace(window=None, game_window=42))
+    assert app._overwatch_in_front() is True
+    monkeypatch.setattr(runtime, "watcher", SimpleNamespace(window=None, game_window=7))
+    assert app._overwatch_in_front() is False
+    monkeypatch.setattr(runtime, "watcher", SimpleNamespace(window=None, game_window=None))
     assert app._overwatch_in_front() is False

@@ -263,8 +263,8 @@ def _read_line_again(message, row: dict | None) -> None:
             if now.better and row is not None and fresh is not None:
                 fill_line(row, fresh)
             job["now"] = None
-        elif runtime.matches is not None and runtime.matches.running:
-            state.set_text("A match is running: I read it again once it's over.")
+        elif (waiting := runtime.read_again.waiting("it")) is not None:
+            state.set_text(waiting)
         else:
             state.set_text("Reading it again\u2026")
 
