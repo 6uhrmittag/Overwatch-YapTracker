@@ -23,7 +23,7 @@ RETRY_S, FAST_TRIES = 1.0, 5
 HEALTHY_S = 30.0
 # No picture for this long is a lost session: in a match the game always draws (#506); menus
 # may send few pictures. Checked by the watchdog, not by the thread that handles the frames;
-# only for sources that say when Windows last sent a picture (WGC). GDI keeps its own 10 s.
+# for sources that say when they last had a picture (WGC; GDI too, never under its 10 s, #605).
 MATCH_STALL_S, STALL_S = 3.0, 10.0
 TICK_S, LATE_S = 0.5, 2.0  # the watchdog's tick, and when a late tick is logged
 # A late tick means our threads didn't run (the game had the cores, #563), and the thread that
@@ -83,6 +83,7 @@ class CaptureWatcher:
         # (the last picture, seconds since then the app didn't run, said in the log) (#601)
         self._waited: tuple[float, float, bool] = (0.0, 0.0, False)
         self._starved_at: float | None = None
+        self._pictured: float | None = None  # when the frame loop last handled a picture
         # Diagnostics (#506): what the window did when a capture ended, once per lost stretch.
         self._on_ended, self._on_back = on_ended, on_back
         self._focus_window: int | None = None  # the last captured window, for focus changes
@@ -195,6 +196,12 @@ class CaptureWatcher:
             return self._retry_s
         return min(60.0, self._poll_s * 2 ** (self._failures - FAST_TRIES - 2))
 
+    @property
+    def game_window(self) -> int | None:
+        """Overwatch's window as last captured, also between two captures of it (a restart);
+        None once the game is gone. `window` is only set while a capture runs."""
+        return self._focus_window
+
     def window_age(self) -> float | None:
         """Seconds since Overwatch's window appeared; None: no window."""
         since = self._window_since
@@ -280,7 +287,7 @@ class CaptureWatcher:
 
     def _check_stall(self, now: float, late: float = 0.0) -> None:
         source = self._source
-        last = getattr(source, "last_frame_at", None)  # when Windows last sent a picture
+        last = getattr(source, "last_frame_at", None)  # when it last had a picture
         if source is None or last is None:
             return
         if self._stalled is not None and self._stalled[0] is source:
@@ -289,7 +296,9 @@ class CaptureWatcher:
         quiet = now - last
         _, away, said = self._waited if self._waited[0] == last else (last, 0.0, False)
         away += min(late, quiet)  # a starved app isn't a stalled window (#601)
-        limit = self._stall_s()
+        asked = self._stall_s()
+        in_match = asked < STALL_S  # before a source's own floor (#618)
+        limit = max(asked, getattr(source, "min_stall_s", 0.0))  # GDI: 10 s (#605)
         allowed = max(limit, STARVED_STALL_S) if self.starved() else limit
         if quiet - away > allowed:
             self._stalled = (source, f"no picture from the window for {allowed:g} s")
@@ -300,7 +309,7 @@ class CaptureWatcher:
             said = True
             log.info("capture: app starved %.1f s: no picture for %.1f s isn't taken for a stall",
                      away, quiet)  # fmt: skip
-        if limit < STALL_S and quiet > COVER_GAP_S:
+        if in_match and quiet > COVER_GAP_S:
             # in a match, this long without a picture can hide a line: a gap, never a silent
             # hole. No restart; the next picture closes it.
             self._health_call("lost", "no_frames")
@@ -350,6 +359,7 @@ class CaptureWatcher:
 
     def _capture(self, window: int) -> None:
         self._stalled, self._opened_at, self._captured = None, self._clock(), True
+        self._pictured = None  # a new session: what was lost before it has its own gap
         self._focus_window = window
         self._source = source = self._open_source(window)
         log.info("capturing window %s", window)
@@ -376,13 +386,22 @@ class CaptureWatcher:
                     self._health_call("paused", paused)
                     was_paused = paused
                 if paused:  # the frame is dropped, not even previewed (#20)
-                    self.last_frame = None
+                    self.last_frame = self._pictured = None
                     self._forget_cover()  # the pause is its own gap; a cover after it starts anew
                     continue
                 if frame.covered:  # read from the screen with a window over it: not chat
+                    self._pictured = None  # a cover has its own gap (#497)
                     self._cover(frame)
                     continue
                 self._uncover()
+                # In a match, two pictures this far apart can hide a line between them: a gap
+                # from the one before to this one. The watchdog opens it too, when its tick
+                # comes first; after a starved stretch this thread may be first (#618).
+                now = self._clock()
+                if (self._pictured is not None and now - self._pictured > COVER_GAP_S
+                        and self._stall_s() < STALL_S):  # fmt: skip
+                    self._health_call("lost", "no_frames")
+                self._pictured = now
                 self._health_call("frame")
                 self.last_frame = frame
                 self._on_frame(frame)

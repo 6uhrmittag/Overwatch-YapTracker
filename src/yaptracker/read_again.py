@@ -3,7 +3,9 @@ pictures (#120) with the best engine, e.g. a match read light (#331) or older ga
 
 A new reading replaces a line only when it's better: more confident, or more letters once
 umlauts and punctuation are folded away. Lines fixed by hand (#227) are never touched. It runs
-on a low-priority thread of its own and only while no match runs; a line YapTracker never saw
+on a thread of its own, only while no match runs and Overwatch isn't the window in front (the
+app says when); not at a lowered priority (#614): a thread put to sleep at the lowest priority
+while it holds Python's lock stalls capture and the window with it. A line YapTracker never saw
 has no picture, so it can't be found this way (the tidy-up of #336 keeps whole frames for that).
 """
 
@@ -16,7 +18,7 @@ from dataclasses import dataclass, field, replace
 
 import numpy as np
 
-from yaptracker import glyphs, icons, images, priority
+from yaptracker import glyphs, icons, images
 from yaptracker.dedup import YAP_KINDS
 from yaptracker.identity import Identity
 from yaptracker.ocr.engine import OcrLine
@@ -24,7 +26,13 @@ from yaptracker.parser import ChatLine, parse
 
 log = logging.getLogger(__name__)
 _MARKED = re.compile(r"(?:\s*" + glyphs.GLYPH + r")+\s*$")  # "◇" at the end of a line (#402)
-WAIT_S = 2.0  # a match runs, or nothing to do: look again this often
+WAIT_S = 2.0  # waiting (see WAITS), or nothing to do: look again this often
+# Why a queued job isn't read right now, in the app's words; {what}: "them" or "it" (#614).
+WAITS = {
+    "match": "A match is running: I read {what} again once it's over.",
+    "front": "Overwatch is in front: I read {what} again when you look at another window.",
+    "busy": "The game needs the PC right now: I read {what} again in a moment.",
+}
 
 
 def letters(*parts: str | None) -> int:
@@ -91,7 +99,10 @@ class ReadAgain:
         idle: Callable[[], bool],
         identity: Callable[[], Identity] = Identity,
         link: Callable[[str | None, float, float], int | None] = lambda name, ts, conf: None,
+        waits: Callable[[], str | None] | None = None,
     ) -> None:
+        # Why it waits, a key of WAITS, or None: go on. Without it, `idle` alone decides.
+        self._waits = waits or (lambda: None if idle() else "match")
         self._store, self._pictures, self._read, self._idle = store, pictures, read, idle
         self._identity, self._link = identity, link
         self._lock = threading.Lock()
@@ -129,10 +140,12 @@ class ReadAgain:
             return next((j for j in reversed(self._jobs) if j.match_id == match_id), None)
 
     def run_once(self) -> bool:
-        """Reads one line of the oldest unfinished job, if no match runs. (Tests call it.)"""
+        """Reads one line of the oldest unfinished job, unless it has to wait (WAITS). Naming
+        icons reads nothing (milliseconds a line): it only waits for a match. (Tests call it.)"""
         with self._lock:
             job = next((j for j in self._jobs if not j.finished), None)
-        if job is None or not self._idle():
+        why = self._waits() if job is not None else None
+        if job is None or (why is not None and not (job.names and why != "match")):
             return False
         message_id = job.ids[job.done] if job.ids else None
         try:
@@ -158,6 +171,11 @@ class ReadAgain:
             job.on_done()
         return True
 
+    def waiting(self, what: str = "them") -> str | None:
+        """In words, why queued lines aren't read right now; None: they are."""
+        why = self._waits()
+        return None if why is None else WAITS[why].format(what=what)
+
     def start(self) -> None:
         self._thread = threading.Thread(target=self._run, name="read again", daemon=True)
         self._thread.start()
@@ -169,7 +187,6 @@ class ReadAgain:
             self._thread.join(timeout=10)
 
     def _run(self) -> None:
-        priority.lower_this_thread()  # the game first, as the chat reader (#187)
         while not self._stopping:
             if not self.run_once():
                 self._wake.wait(WAIT_S)

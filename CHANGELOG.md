@@ -4,6 +4,27 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-25 · Windows 10: a long wait without a picture is shown as a gap (#618)
+- On the Windows 10 way of capturing, more than 6 s without a picture in a match is now recorded as a gap, as on the normal one. Since #605 it would have been a silent hole.
+
+### 2026-11-25 · The reader's process gets the time a busy match needs (#619)
+- In a busy match one read of the chat can take half a minute. The reader's own process is now given that time (two minutes at most) instead of being ended after 15 s and replaced by the main process, which would have held up capture again.
+
+### 2026-11-25 · Read again waits while you're in the game (#614)
+- "Read again" and the one-time clean-up jobs now also wait while Overwatch is the window in front, not only during a detected match, and no longer run in a way that could hold up capture and the window. They go on when you look at another window or close the game.
+
+### 2026-11-25 · Windows 10: a busy PC no longer restarts the capture either (#605)
+- The Windows 10 way of capturing (and the screen fallback) had its own 10 s rule that took a busy PC for a stopped picture. It now follows the same rule as the normal capture: only a picture that really stopped restarts it.
+
+### 2026-11-25 · A line stored cut gets its whole text (#609)
+- When I stored only the beginning of a line and later read the whole of it twice (for example with the chat box open), the stored line gets the whole text and its picture, instead of staying cut.
+
+### 2026-11-24 · Our own OCR for Overwatch chat: first measurements (#608)
+- Behind the scenes: tools to measure how well chat is read on your own evenings, and to compare other reading engines against it.
+
+### 2026-11-24 · The main process no longer naps in a match (#563)
+- With the chat reader in its own process, only that one (and the window's) runs in Windows' efficiency mode. The main process, which captures and watches for matches, stays below normal priority but out of efficiency mode: it needs little CPU, but on time. The game still goes first.
+
 ### 2026-11-24 · Chat is read in a process of its own (#563)
 - Reading the chat now happens in a second YapTracker process. When the game takes every core, that process waits; capture, match detection and the window keep running on time instead of waiting with it.
 - If that process can't start, fails or gets stuck, I read in the main one as before, and the log says so. A stuck one is given 15 s before I take over.

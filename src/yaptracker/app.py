@@ -58,6 +58,8 @@ def _check_ocr() -> bool:
         if runtime.ocr_child is None:
             print("smoke test: the OCR child is off")
             return False
+        # short waits here: a child that hangs must be said before the smoke test's own timeout
+        runtime.ocr_child.child.waits(answer_s=40.0, read_s=20.0)
         try:
             text = " ".join(line.text for line in runtime.ocr_child.get(name).read(crop))
         except Exception as error:  # said, not waited out: CI shows why
@@ -282,6 +284,30 @@ def _start_reader() -> None:
     runtime.reader.start()
 
 
+def _overwatch_in_front() -> bool:
+    """Overwatch is the window the user looks at. By its window as last captured: between two
+    captures of it (a restart, exactly when the PC is busy) the watcher has no `window`."""
+    window = runtime.watcher.game_window if runtime.watcher is not None else None
+    if window is None or sys.platform != "win32":
+        return False
+    from yaptracker.capture.window import in_front
+
+    return in_front(window)
+
+
+def _read_again_waits() -> str | None:
+    """Why Read again doesn't read right now (a key of read_again.WAITS), None: it may. Not in
+    a match; not while Overwatch is in front (#614: a missed match start, a custom game, busy
+    menus); not while the app waited for a core in the last minute (#601)."""
+    if runtime.matches is not None and runtime.matches.running:
+        return "match"
+    if _overwatch_in_front():
+        return "front"
+    if runtime.watcher is not None and runtime.watcher.starved():
+        return "busy"
+    return None
+
+
 def _start_read_again() -> None:
     """The 'Read again, best quality' worker (#333)."""
     from yaptracker.ocr import engine as ocr
@@ -291,7 +317,8 @@ def _start_read_again() -> None:
         runtime.store,
         runtime.pictures,
         lambda image: ocr.get(config.ocr_engine()).read(image, scale=runtime.ocr_scale()),
-        idle=lambda: not runtime.matches.running,
+        idle=lambda: _read_again_waits() is None,
+        waits=_read_again_waits,
         identity=config.identity,
         link=lambda name, ts, conf: runtime.players.link(name, ts, conf),
     )
