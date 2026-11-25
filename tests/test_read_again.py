@@ -190,3 +190,39 @@ def test_marks_the_map_made_are_checked_once_and_dropped(store, pictures):
     assert done == [True] and pictures.path(false, T0 + 10).exists()
     check_marks_once(again, store, lambda: bool(done), lambda: done.append(True))  # never again
     assert done == [True]
+
+
+def test_the_worker_is_only_lowered_when_it_does_the_ocr_itself(tmp_path, monkeypatch):
+    """#614: with the OCR in its own process, a lowest-priority thread here only stalls."""
+    from yaptracker import priority
+
+    lowered = []
+    monkeypatch.setattr(priority, "lower_this_thread", lambda: lowered.append(1))
+    for lowest in (True, False):
+        again = ReadAgain(None, None, lambda image: [], idle=lambda: True, lowest=lowest)
+        again.start()
+        again.stop()
+    assert lowered == [1]
+
+
+def test_read_again_reads_in_the_readers_own_process_when_there_is_one(monkeypatch):
+    from types import SimpleNamespace
+
+    import numpy as np
+
+    from yaptracker import app, config, runtime
+
+    asked = []
+    engine = SimpleNamespace(read=lambda image, scale: asked.append("child") or [])
+    for name in ("store", "pictures", "matches", "players"):
+        monkeypatch.setattr(runtime, name, SimpleNamespace(running=False))
+    monkeypatch.setattr(runtime, "ocr_child", SimpleNamespace(get=lambda name: engine))
+    monkeypatch.setattr(runtime, "ocr_scale", lambda: 2.0)
+    monkeypatch.setattr(runtime, "read_again", None)
+    monkeypatch.setattr(config, "ocr_engine", lambda: "rapidocr")
+    app._start_read_again()
+    try:
+        runtime.read_again._read(np.zeros((4, 4, 3), np.uint8))
+        assert asked == ["child"] and runtime.read_again._lowest is False
+    finally:
+        runtime.read_again.stop()

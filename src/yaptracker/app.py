@@ -287,13 +287,16 @@ def _start_read_again() -> None:
     from yaptracker.ocr import engine as ocr
     from yaptracker.read_again import ReadAgain
 
+    # In the reader's own process when there is one (#614), like the chat itself (#563).
+    get = runtime.ocr_child.get if runtime.ocr_child is not None else ocr.get
     runtime.read_again = ReadAgain(
         runtime.store,
         runtime.pictures,
-        lambda image: ocr.get(config.ocr_engine()).read(image, scale=runtime.ocr_scale()),
+        lambda image: get(config.ocr_engine()).read(image, scale=runtime.ocr_scale()),
         idle=lambda: not runtime.matches.running,
         identity=config.identity,
         link=lambda name, ts, conf: runtime.players.link(name, ts, conf),
+        lowest=runtime.ocr_child is None,
     )
     runtime.read_again.start()
 

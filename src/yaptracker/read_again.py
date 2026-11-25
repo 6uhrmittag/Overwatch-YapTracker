@@ -91,8 +91,13 @@ class ReadAgain:
         idle: Callable[[], bool],
         identity: Callable[[], Identity] = Identity,
         link: Callable[[str | None, float, float], int | None] = lambda name, ts, conf: None,
+        lowest: bool = True,
     ) -> None:
         self._store, self._pictures, self._read, self._idle = store, pictures, read, idle
+        # Its thread at the lowest priority while it does the OCR itself (#187). With the OCR in
+        # its own process (#563) it isn't lowered: a thread put to sleep at the lowest priority
+        # while it holds Python's lock stalls capture and the window with it (#614).
+        self._lowest = lowest
         self._identity, self._link = identity, link
         self._lock = threading.Lock()
         self._jobs: list[Job] = []
@@ -169,7 +174,8 @@ class ReadAgain:
             self._thread.join(timeout=10)
 
     def _run(self) -> None:
-        priority.lower_this_thread()  # the game first, as the chat reader (#187)
+        if self._lowest:
+            priority.lower_this_thread()  # the game first, as the chat reader (#187)
         while not self._stopping:
             if not self.run_once():
                 self._wake.wait(WAIT_S)
