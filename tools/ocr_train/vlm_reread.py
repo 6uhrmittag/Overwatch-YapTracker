@@ -68,6 +68,7 @@ def main() -> None:
     args = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     args.add_argument("--model", choices=MODELS, required=True)
     args.add_argument("--set", choices=("gold", "all"), default="gold")
+    args.add_argument("--only", help="a JSON list of message ids (relative to the private folder)")
     args.add_argument("--limit", type=int, help="stop after this many pictures (a first try)")
     opts = args.parse_args()
     private = common.private()
@@ -76,6 +77,9 @@ def main() -> None:
     if opts.set == "gold":
         gold = set(json.loads((private / "gold" / "sample.json").read_text()))
         data = [r for r in data if r["id"] in gold]
+    if opts.only:
+        only = set(json.loads((private / opts.only).read_text()))
+        data = [r for r in data if r["id"] in only]
     out_path = private / "readings" / f"{opts.model}.jsonl"
     out_path.parent.mkdir(exist_ok=True)
     done = set()

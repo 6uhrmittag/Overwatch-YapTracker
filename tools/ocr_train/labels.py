@@ -14,6 +14,7 @@ train evenings: checkpoints are chosen there, never on gold.
 """
 
 import json
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -25,6 +26,7 @@ import common  # noqa: E402
 import score  # noqa: E402
 
 DEV_EVENINGS = 3
+_GLUED = re.compile(r"^(\[[^\]]+\]:)(\S)")
 LINES_UP = 0.6  # a crop's label must be this similar to what RapidOCR read in it
 
 
@@ -70,7 +72,7 @@ def main() -> None:
     )
     train_days = sorted({r["evening"] for r in data.values() if r["split"] == "train"})
     dev_days = set(train_days[-DEV_EVENINGS:])
-    counts, out = Counter(), []
+    counts, out, undecided = Counter(), [], []
     for message_id, parts in crops.items():
         r = data[message_id]
         if message_id in gold_ids:
@@ -91,9 +93,11 @@ def main() -> None:
                 source = "two models against stored"
             else:
                 counts["no agreement: left out"] += 1
+                undecided.append(message_id)
                 continue
         # the models write a system line's yellow dot as "- " or "• ": not text
         row = " ".join(common.plain(row).split()).lstrip("-•·* ")
+        row = _GLUED.sub(r"\1 \2", row)  # "[Name]:text": the chat always has the space
         pieces = cut(row, [p["read"] for p in parts]) if parts else None
         if pieces is None:
             counts["doesn't line up with the crops: left out"] += 1
@@ -107,6 +111,8 @@ def main() -> None:
                         "split": split, "id": message_id, "source": source})  # fmt: skip
     with (private / "labels.jsonl").open("w", encoding="utf-8") as f:
         f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in out)
+    # for `vlm_reread.py --model qwen --only readings/undecided.json`: a second opinion there
+    (private / "readings" / "undecided.json").write_text(json.dumps(undecided))
     for what, n in sorted(counts.items()):
         print(f"{n:6}  {what}")
     reads = {f"crops/{i}_{p['k']}.png": p["read"] for i, parts in crops.items() for p in parts}

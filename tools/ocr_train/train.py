@@ -19,8 +19,12 @@ within 133 steps. RecConAug (gluing crops together) is off: chat rows aren't glu
 """
 
 import argparse
+import atexit
+import contextlib
 import json
+import os
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -112,12 +116,21 @@ def train(private: Path, run: Path, cfg: Path) -> None:
     if (run / "latest.pdparams").exists():  # stopped for a game before: go on from there
         command += ["-o", f"Global.checkpoints={run / 'latest'}"]
     with (run / "train.log").open("a", encoding="utf-8") as log:
+        # Its own process group: stopping this wrapper must stop the training and its loader
+        # workers too. A trial once lived on for an hour and shared the GPU with every later run.
         job = subprocess.Popen(command, cwd=private / "PaddleOCR", stdout=log,
-                               stderr=subprocess.STDOUT)  # fmt: skip
+                               stderr=subprocess.STDOUT, start_new_session=True)  # fmt: skip
+
+        def stop(*_signal) -> None:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(job.pid, signal.SIGTERM)
+
+        atexit.register(stop)
+        signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
         while job.poll() is None:
             time.sleep(CHECK_S)
             if common.game_running():
-                job.terminate()
+                stop()
                 job.wait()
                 print("Overwatch is running: training stopped, run again to go on")
                 sys.exit(GAME_EXIT)

@@ -1,6 +1,6 @@
 """Phase 2 of the OCR POC (#608): made-up chat lines for what real evenings have too little of.
 
-    python tools/ocr_train/synth.py            # 6000 crops into fixtures/private/ocr/synth
+    python tools/ocr_train/synth.py            # 20000 crops into fixtures/private/ocr/synth
 
 Real data is English with a handful of names; German is ~28 lines. So: made-up names (letter
 runs, digits, CamelCase, a few ä/ø/İ), German and English chat words, stretched words
@@ -34,14 +34,24 @@ FONTS = [  # open, Arial/Helvetica-shaped like the chat font
 ]
 COLOURS = [(255, 255, 255), (0, 255, 255), (255, 255, 110), (255, 170, 200), (255, 180, 60),
            (255, 0, 255), (120, 200, 255)]  # fmt: skip
+# No word here may come from the #118 test sets (ocr-spike, ocr-german): they measure this.
 GERMAN = _words(
-    "ich du wir ihr nicht schon mal aber ist das der die den ein eine auch noch gut ja "
-    "nein bitte danke hallo jetzt wo wie warum hier dann doch mit von zu auf aus für über "
-    "müde schön grüße süß heiß weiß groß größer spaß fuß straße möglich höher können "
-    "müssen würde wäre hätte später nächste fällt läuft käse döner glühwein übrigens "
-    "tschüss viel glück heiler heilen gegner leute jungs mädels spiel runde gewonnen "
-    "verloren knapp stark schwach überall öfter ärgerlich gemütlich natürlich zurück "
-    "drüben außen fließend gruß "
+    "ich du er sie es wir ihr nicht schon mal aber ist das der die den dem ein eine einen "
+    "auch noch gut ja nein bitte danke hallo jetzt wo wie warum wer was hier dann doch "
+    "mit von zu auf aus bei bis nach vor oder wenn weil für über müde schön grüße süß "
+    "heiß weiß groß größer spaß fuß straße möglich höher können müssen würde wäre hätte "
+    "später nächste fällt läuft käse döner glühwein übrigens tschüss viel glück heiler "
+    "heilen heile gegner leute jungs mädels spiel spielen runde gewonnen verloren knapp "
+    "stark schwach überall öfter ärgerlich gemütlich natürlich zurück drüben außen gruß "
+    "wieder gerne alles klar euch bin bist sind seid haben hat hatte war waren wird "
+    "werden kann muss soll will mach mache macht geh gehe geht komm komme kommt sag sage "
+    "sagt nix nichts etwas immer nie heute morgen abend nacht woche zeit lust bock geil "
+    "krass mega echt wirklich leider vielleicht bestimmt genau richtig falsch links "
+    "rechts oben unten hinten vorne schnell langsam zusammen allein team punkt karte held "
+    "heldin schaden schild ulti bereit warte wartet hilfe hilf dir kein keine keinen mein "
+    "meine dein deine unser unsere süße mäuse häuser bäume träume räume frühstück "
+    "kühlschrank bürgermeister weißbier tschö servus moin nabend ne nö jo joa hm hmm "
+    "achso aso okay oki supi top stabil gehts gg wp "
 )
 ENGLISH = _words(
     "gg wp glhf ez lol lmao nice shot ty thx np sorry my bad heal me pls group up push in "
@@ -55,8 +65,9 @@ SYLLABLES = _words(
     "ka zu mi ro te la shi no bu xa qu ve dy fo gri sto ple wun der nox lux ar um el ix "
     "oo ee ww rar uw ny pa chi go bo "
 )
-ODD = list("äöüßÄÖÜøØéèñçİıłş")
-MARKS = [":3", "<3", "xD", ":D", "^^", "T^T", ">:3", "!", "?", "...", "!!", "??", "*hug*", ";)"]
+ODD = list("äöüßÄÖÜøØéèëàáâêîôûñçåÅİıłş_")
+MARKS = [":3", "<3", "xD", ":D", "^^", "T^T", ">:3", "!", "?", "...", "!!", "??", "*hug*", ";)",
+         "uwu", ":)", ":(", "xd", "^_^"]  # fmt: skip
 SYSTEM = ["[{n}] started playing Overwatch.", "[{n}] stopped playing Overwatch.",
           "[{n}] joined the game.", "[{n}] left the game.", "You endorsed {n}!",
           "{n} switched to {h} (was {h2}).", "[{n}] invited you to a group!"]  # fmt: skip
@@ -98,11 +109,11 @@ def sentence(rng: random.Random) -> str:
         roll = rng.random()
         if roll < 0.12:
             out[i] = stretched(rng, out[i])
-        elif roll < 0.18:
+        elif roll < 0.30:  # German nouns and sentence starts
             out[i] = out[i].capitalize()
-        elif roll < 0.21:
+        elif roll < 0.33:
             out[i] = out[i].upper()
-        elif roll < 0.24:
+        elif roll < 0.36:
             out[i] = str(rng.randint(0, 300)) + rng.choice(["", "%", "/3", "k", "s"])
     if rng.random() < 0.3:
         out.append(rng.choice(MARKS))
@@ -160,7 +171,7 @@ def draw(rng: random.Random, text: str, grounds: list[Image.Image]) -> Image.Ima
 
 def main() -> None:
     args = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    args.add_argument("--count", type=int, default=6000)
+    args.add_argument("--count", type=int, default=20000)
     opts = args.parse_args()
     private, rng = common.private(), random.Random(608)
     heroes = list(game_lists.lists()["heroes"])
