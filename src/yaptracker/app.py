@@ -58,6 +58,8 @@ def _check_ocr() -> bool:
         if runtime.ocr_child is None:
             print("smoke test: the OCR child is off")
             return False
+        # short waits here: a child that hangs must be said before the smoke test's own timeout
+        runtime.ocr_child.child.waits(answer_s=40.0, read_s=20.0)
         try:
             text = " ".join(line.text for line in runtime.ocr_child.get(name).read(crop))
         except Exception as error:  # said, not waited out: CI shows why
