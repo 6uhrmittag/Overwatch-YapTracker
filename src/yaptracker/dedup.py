@@ -173,6 +173,7 @@ class Yap:
     after: int | None = None  # read between known lines: the yap right above it (#423)
     last: ChatLine | None = None  # the reading from the newest frame (its box is on that frame)
     cut: str | None = None  # folded text of a cut reading a longer one completed (#587)
+    whole: str | None = None  # key() of a reading seen twice later that completes it (#609)
 
     @property
     def best(self) -> ChatLine:
@@ -189,7 +190,8 @@ class Yap:
         start, read = _folded(best.text), self.readings[key(best)]
         # read at least as often: map text glued once to the end ("gg TOURING EM") stays out
         longer = [line for k, line in self.lines.items()
-                  if line.quality >= GOOD and (self.readings[k] >= read or self._completes(line))
+                  if line.quality >= GOOD
+                  and (self.readings[k] >= read or self._completes(line) or k == self.whole)
                   and _folded(line.text).startswith(start)
                   and len(_folded(line.text)) > len(start)]  # fmt: skip
         if longer:  # light OCR read the beginning first ("so please n"): the whole line (#432)
@@ -362,6 +364,26 @@ class Dedup:
                 and _near(said.speaker, line.speaker)
                 and (yap.similarity(k) >= NEAR_NAME)
             ):
+                return yap
+        return None
+
+    def complete(self, line: ChatLine) -> Yap | None:
+        """A reported row that is the whole of a known line stored cut (#609): "... half the
+        game, he walls me" seen twice in the opened chat for a line stored up to "... half the".
+        The row becomes that line's reading, whatever the cut one was read how often; the yap,
+        or None if no known line begins it. Three words of the cut text at least, by a similar
+        name; glued map capitals never make a line longer."""
+        text = _folded(_GLUED.sub("", line.text))
+        for yap in reversed(self.recent):
+            said = yap.best
+            if said.kind != line.kind or not _same_speaker(said.speaker, line.speaker):
+                continue
+            cut = _folded(_GLUED.sub("", said.text))
+            if len(cut.split()) >= 3 and len(text) > len(cut) and text.startswith(cut):
+                yap.add(line)
+                yap.whole = key(line)
+                self._where.pop(id(line), None)
+                self._seen_unstored.pop(match_key(line), None)
                 return yap
         return None
 

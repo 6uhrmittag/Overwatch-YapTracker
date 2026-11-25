@@ -338,6 +338,7 @@ def test_seen_but_not_stored_counts_only_lines_really_missing_and_each_once(stor
         reader._dedup = SimpleNamespace(
             update=lambda ts, lines: ([], []), unstored=rows, recent=[],
             piece_of=lambda row: None, adopt=lambda row: None, misread_of=lambda row: None,
+            complete=lambda row: None,
         )  # fmt: skip
         reader.read_frame(1100.0 + 100 * n, first)  # Dedup is faked: these rows only
     assert [[r.text for r in rows] for rows in seen[1:]] == [
@@ -533,3 +534,28 @@ def test_debug_samples_get_the_kept_lines_as_new_and_only_the_refused_as_unstore
     new, unstored = seen[-1]
     assert [yap.best.text for yap in new] == ["very silly game", "Chill Sierra, you were 85 %"]
     assert unstored == []
+
+
+def test_a_whole_reading_seen_twice_completes_the_line_stored_cut(store, caplog):
+    """#609: refused as "a piece of a stored line" since #602, the stored line stayed cut."""
+    caplog.set_level(logging.INFO, "yaptracker.reader")
+    known = ["[Zed]: hi", "[Pip]: bruh my mei is trolling half the", "[Bo]: ok fine", "[Kim]: lol"]
+    opened = ["[Pip]: bruh my mei is trolling half the game, he walls me", "[Bo]: ok fine",
+              "[Kim]: lol"]  # fmt: skip
+    texts, _ = _opened_chat(store, known, opened)
+    assert texts == ["hi", "bruh my mei is trolling half the game, he walls me", "ok fine", "lol"]
+    assert "1 line(s) stored cut, now whole: Pip: bruh my mei is trolling half the game" in (
+        caplog.text)  # fmt: skip
+    assert "never stored" not in caplog.text
+
+
+def test_a_line_cut_in_the_middle_of_a_word_is_completed_too(store):
+    known = ["[Zed]: hi", "[Pip]: have a much Uw", "[Bo]: ok fine"]
+    texts, _ = _opened_chat(store, known, ["[Pip]: have a much UwU gameeeee", "[Bo]: ok fine"])
+    assert texts == ["hi", "have a much UwU gameeeee", "ok fine"]
+
+
+def test_two_short_words_complete_nothing(store):
+    known = ["[Zed]: hi", "[Pip]: nice shot", "[Bo]: ok fine"]
+    texts, _ = _opened_chat(store, known, ["[Pip]: nice shot that was", "[Bo]: ok fine"])
+    assert "nice shot" in texts  # "nice shot that was" is a line of its own, as typed lines are
