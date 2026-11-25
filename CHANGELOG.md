@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-25 · Windows 10: a busy PC no longer restarts the capture either (#605)
+- The Windows 10 way of capturing (and the screen fallback) had its own 10 s rule that took a busy PC for a stopped picture. It now follows the same rule as the normal capture: only a picture that really stopped restarts it.
+
 ### 2026-11-25 · A line stored cut gets its whole text (#609)
 - When I stored only the beginning of a line and later read the whole of it twice (for example with the chat box open), the stored line gets the whole text and its picture, instead of staying cut.
 
