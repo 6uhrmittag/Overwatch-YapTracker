@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-25 · Read again waits while you're in the game (#614)
+- "Read again" and the one-time clean-up jobs now also wait while Overwatch is the window in front, not only during a detected match, and no longer run in a way that could hold up capture and the window. They go on when you look at another window or close the game.
+
 ### 2026-11-25 · Windows 10: a busy PC no longer restarts the capture either (#605)
 - The Windows 10 way of capturing (and the screen fallback) had its own 10 s rule that took a busy PC for a stopped picture. It now follows the same rule as the normal capture: only a picture that really stopped restarts it.
 
