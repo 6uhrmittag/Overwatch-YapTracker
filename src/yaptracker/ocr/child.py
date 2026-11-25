@@ -24,12 +24,10 @@ from yaptracker.ocr import engine as ocr
 from yaptracker.ocr.engine import UPSCALE, OcrLine, OcrUnavailable
 
 log = logging.getLogger(__name__)
-# How long an answer is waited for: making an engine (the child starts and loads the model) and
-# a read. Long on purpose (#619): a slow child isn't a dead one. In a starved match a read took
-# 10-35 s before it had a process of its own (Marv's log 2026-11-24: 0.5-3 s of CPU each, 1-3
-# reads in some minutes), and reading in the main process instead takes as long and stalls
-# capture with it. Only a child that hangs runs into these.
-ANSWER_S, READ_S = 180.0, 120.0
+# Making an engine waits this long for its answer: the child starts and loads the model
+# (seconds, more when the game has the cores). A read waits READ_S: a chat line stays ~9 s, so a
+# child that takes longer is taken for stuck and the picture is read in the main process.
+ANSWER_S, READ_S = 60.0, 15.0
 # Set while a child starts: in the exe the child is the exe started again, and its logs.setup()
 # must tell it from the window's process (which owns window.log).
 CHILD_ENV = "YAPTRACKER_OCR_CHILD"
@@ -37,11 +35,6 @@ CHILD_ENV = "YAPTRACKER_OCR_CHILD"
 
 class ChildGone(RuntimeError):
     """The child died, hung or couldn't start: the caller reads in this process instead."""
-
-
-class ChildSlow(ChildGone):
-    """No answer in time (the child is ended): the picture is skipped, not read in this process,
-    where it would take as long (#619)."""
 
 
 class ChildFailed(RuntimeError):
@@ -185,9 +178,6 @@ class OcrChild:
                 kind, result, cpu = self._conn.recv()
                 if kind == "gone":
                     raise OSError(result)
-            except TimeoutError as error:
-                self._close()
-                raise ChildSlow(str(error)) from error
             except Exception as error:  # a broken pipe, a failed start, pickling: all the same
                 self._close()
                 raise ChildGone(f"{type(error).__name__}: {error}") from error
@@ -295,7 +285,7 @@ class ChildEngines:
         def read() -> None:
             lines.extend(self.child.read(name, image, accents, scale))
 
-        if not self._in_child(read, skip_slow=True):
+        if not self._in_child(read):
             # heavy work in the main process after all: at the lowest priority while it lasts,
             # as the reader's thread was before (#187); the game still goes first
             with priority.lowest_for_now():
@@ -306,10 +296,8 @@ class ChildEngines:
                      self.child.pid)  # fmt: skip
         return lines
 
-    def _in_child(self, ask: Callable[[], None], skip_slow: bool = False) -> bool:
-        """True: the child did it. False: do it in this process (said in the log). skip_slow: a
-        read without an answer in time is nobody's (ChildSlow goes on to the reader, which
-        counts a failed read): it doesn't count against the child either."""
+    def _in_child(self, ask: Callable[[], None]) -> bool:
+        """True: the child did it. False: do it in this process (said in the log)."""
         if self._stopped or self._clock() < self._retry_at:
             return False  # quitting: the last read is done here, without a word
         try:
@@ -317,11 +305,6 @@ class ChildEngines:
         except (ChildGone, ChildFailed) as gone:
             if self._stopped:
                 return False
-            if skip_slow and isinstance(gone, ChildSlow):
-                self._said.clear()
-                log.warning("ocr child: %s: this picture is skipped (the game has the PC; the"
-                            " main process would take as long)", gone)  # fmt: skip
-                raise
             self._gone += 1
             self._said.clear()  # a new child says again that it reads
             if self._gone >= GONE_LIMIT:
