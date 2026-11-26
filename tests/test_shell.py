@@ -508,7 +508,7 @@ async def test_settings_explain_themselves(user: User):
     user.find(marker="nav-settings").click()
     await user.should_see("When the limit is reached, the oldest months go first.")  # (#389)
     user.find(marker="calibrate").click()
-    await user.should_see("only for when RapidOCR won't start")  # the OCR engine switch
+    await user.should_see("Windows OCR only if neither starts")  # the OCR engine switch
 
 
 async def test_a_nearly_full_disk_is_said_in_live(user: User, monkeypatch, tmp_path):

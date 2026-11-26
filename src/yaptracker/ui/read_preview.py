@@ -38,10 +38,8 @@ class ReadPreview:
             self._info = ui.label().classes("yt-meta").mark("crop-info")
             self._engines = ui.element("div").classes("yt-seg")
             ui.label(
-                "RapidOCR is the tried one. Chat-trained is new: it learned from Overwatch "
-                "chat itself and should misread less, try it and switch back if lines go "
-                "missing. Windows OCR is quicker but loses lines on bright backgrounds: only "
-                "for when RapidOCR won't start."
+                "RapidOCR is the tried one, Chat-trained is new and learned from Overwatch "
+                "chat itself; Windows OCR only if neither starts."
             ).classes("yt-hint").mark("engine-hint")
             self._lines = ui.element("div").classes("yt-read-lines").mark("read-lines")
         self._render_engines()
@@ -84,7 +82,7 @@ class ReadPreview:
         except Exception as error:  # shown in the card, not swallowed: e.g. no OCR language
             if request == self._request:
                 self._set_hint(
-                    f"{ocr.LABELS[name]} didn't work here ({error}). Pick the other one above."
+                    f"{ocr.LABELS[name]} didn't work here ({error}). Pick another one above."
                 )
             raise
         if request != self._request:

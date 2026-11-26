@@ -192,10 +192,27 @@ def export(private: Path, run: Path, cfg: Path) -> None:
         if done.returncode:
             sys.exit(f"export failed:\n{done.stdout[-2000:]}\n{done.stderr[-2000:]}")
     # PaddlePaddle 3.0's export keeps the training-only head in the file as constants nothing
-    # reads: 57 MB. Keep only what the output is computed from: 8 MB, the same numbers out.
+    # reads: 57 MB. Keep only what the output is computed from (8 MB), and prove on a fixed
+    # picture that the pruned file answers exactly like the full one before the full one goes.
+    full = run / "rec-full.onnx"
+    shutil.move(run / "rec.onnx", full)
+    shutil.copy(full, run / "rec.onnx")
     done = subprocess.run([python, "-c", PRUNE, run / "rec.onnx"], capture_output=True, text=True)
     if done.returncode:
         sys.exit(f"pruning failed:\n{done.stderr[-2000:]}")
+    import numpy as np
+    import onnxruntime
+
+    picture = np.random.default_rng(608).random((2, 3, 48, 480), dtype=np.float32)
+    answers = [
+        onnxruntime.InferenceSession(str(path), providers=["CPUExecutionProvider"]).run(
+            None, {"x": picture}
+        )[0]
+        for path in (full, run / "rec.onnx")
+    ]
+    if not np.array_equal(*answers):
+        sys.exit("the pruned model answers differently from the exported one: not kept")
+    full.unlink()
     shutil.copy(private / "PaddleOCR" / DICT, run / "dict.txt")
     print(f"{run / 'rec.onnx'}: {(run / 'rec.onnx').stat().st_size / 1e6:.1f} MB")
 

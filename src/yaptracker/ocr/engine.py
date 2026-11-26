@@ -54,6 +54,7 @@ class OcrEngine(Protocol):
         """Lines of text in a BGR image, top to bottom. Blocks: from UI code use run.io_bound.
 
         accents: look for ä/ç/é... even if the text doesn't look German (map names, #115).
+            Never for a chat read: the chat-trained engine takes it as "not chat" (#627).
         scale: enlarge the image this much first; upscale_for() the window height (#169).
         """
         ...
@@ -340,6 +341,10 @@ class _ChatOrStock:
     @property
     def latin_reads(self) -> int:
         return self._stock.latin_reads
+
+    @latin_reads.setter
+    def latin_reads(self, count: int) -> None:  # the replay tools reset it
+        self._stock.latin_reads = count
 
     def __call__(self, crops, return_word_box: bool = False):
         if getattr(self.always, "on", False):
