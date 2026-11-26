@@ -177,4 +177,13 @@ V10 = """
 ALTER TABLE matches ADD COLUMN queue_source TEXT CHECK (queue_source IN ('read', 'previous'));
 """
 
-MIGRATIONS = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10]
+# AI correction (#637): a doubtful line re-read from its picture by a vision model. The OCR
+# reading stays in original_text (as for a hand edit, #227); ai_corrected_at says the text is the
+# AI's; speaker_ocr keeps OCR's name when the AI changed it (as channel_ocr, #283). A hand edit
+# always wins and clears the mark.
+V11 = """
+ALTER TABLE chat_messages ADD COLUMN ai_corrected_at REAL;
+ALTER TABLE chat_messages ADD COLUMN speaker_ocr TEXT;
+"""
+
+MIGRATIONS = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11]
