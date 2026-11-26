@@ -4,6 +4,8 @@ the capture isn't restarted for it, and the chat reader reads less often for a m
 
 import logging
 
+import numpy as np
+
 from yaptracker import reader as reader_module
 from yaptracker.capture.watcher import STARVED_FOR_S, STARVED_STALL_S, TICK_S, CaptureWatcher
 
@@ -265,7 +267,7 @@ def test_as_fast_as_it_can_reads_no_backlog_in_a_live_match(tmp_path):
             r = reader_module.ChatReader(lambda image: [], store, MatchTracker(store, Pause()),
                                          min_gap_s=chosen, idle=lambda: idle["now"],
                                          deferring=lambda: False)  # fmt: skip
-            r.later.add(1.0, b"x", None, "after")
+            r.later.add(1.0, np.zeros((2, 2, 3), np.uint8), None, "after")
             r._last_read = -1000.0
             idle["now"] = False
             assert r._next(0.0)[0] == (None if not chosen else "kept")

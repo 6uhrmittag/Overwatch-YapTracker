@@ -351,13 +351,13 @@ class ChatReader:
         frames only when nothing else waits (#336)."""
         live_wait = math.inf
         if self._pending is not None:
-            gap = self.gap_s()
+            gap = chosen = self.gap_s()
             if self.menu:
                 gap = max(gap, MENU_GAP_S)
             live_wait = 0.0 if self._stop else self._last_live + gap - now
-            if live_wait <= 0:
+            if live_wait <= 0:  # the reading gap for the log, not the menu's (#652)
                 low, high = self._gaps_used
-                self._gaps_used = (min(low, gap), max(high, gap))
+                self._gaps_used = (min(low, chosen), max(high, chosen))
                 return "live", 0.0
         # "As fast as it can": a backlog never makes live frames wait (#652); it's read when idle
         if self._kept_due() and not (self.no_brakes() and not self._idle()):

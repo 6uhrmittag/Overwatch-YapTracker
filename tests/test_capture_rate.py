@@ -49,3 +49,22 @@ def test_as_fast_as_it_can_asks_for_4_in_a_match_and_switching_reopens(caplog):
     assert reopened == [1] and rate.opened() == 2.0
     running[0], fast[0] = False, True
     assert rate.wanted() == MENU_FPS == 2.0
+
+
+def test_fast_capture_only_in_a_match_read_live(monkeypatch):
+    """Review of #652: a match read after it has nobody reading its frames now: 2 a second."""
+    from types import SimpleNamespace
+
+    from yaptracker import runtime
+    from yaptracker.capture_wiring import CaptureWiring
+    from yaptracker.reading_mode import AFTER, BEST
+
+    mode = {"now": BEST}
+    monkeypatch.setattr(runtime, "reader", SimpleNamespace(no_brakes=lambda: True))
+    monkeypatch.setattr(runtime, "reading", SimpleNamespace(chosen=lambda: mode["now"]))
+    assert CaptureWiring.fast_capture()
+    mode["now"] = AFTER
+    assert not CaptureWiring.fast_capture()
+    monkeypatch.setattr(runtime, "reader", SimpleNamespace(no_brakes=lambda: False))
+    mode["now"] = BEST
+    assert not CaptureWiring.fast_capture()

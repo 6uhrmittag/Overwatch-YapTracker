@@ -67,9 +67,10 @@ def reading_card() -> None:
                 "while chat is busy. Only for strong PCs."
             ).classes("yt-hint")
             ui.label(
-                "When I use more CPU than planned, I read every 3 s for a minute, unless a match "
-                "is read live with the best quality: that's your choice. When the game leaves "
-                "me no core at all, I read every 3 s for a minute whatever you chose."
+                "Every 1.5 s and every 3 s: when I use more CPU than planned, I read every 3 s "
+                "for a minute, unless a match is read live with the best quality: that's your "
+                "choice. When the game leaves me no core at all, I read every 3 s for a minute. "
+                "As fast as it can never holds back."
             ).classes("yt-hint")
             ai_correction_row()  # doubtful lines re-read by an AI (#637)
 

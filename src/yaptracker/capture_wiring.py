@@ -118,8 +118,16 @@ class CaptureWiring:
                                         remember=config.save_screen_capture)  # fmt: skip
         # 2 frames a second, in and between (#350, #115); 4 in a match "as fast as it can" (#652)
         self.rate = CaptureRate(lambda: in_match_or_unknown(runtime.matches), self.reopen,
-                                fast=lambda: runtime.reader is not None
-                                and runtime.reader.no_brakes())  # fmt: skip
+                                fast=self.fast_capture)  # fmt: skip
+
+    @staticmethod
+    def fast_capture() -> bool:
+        """4 frames a second (#652): "as fast as it can", and this match is read live; a match
+        read after it (#335) has nobody reading its frames now."""
+        from yaptracker.reading_mode import AFTER
+
+        return (runtime.reader is not None and runtime.reader.no_brakes()
+                and runtime.reading is not None and runtime.reading.chosen() != AFTER)  # fmt: skip
 
     # --- the chat path ---------------------------------------------------------------------
 
