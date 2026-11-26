@@ -217,15 +217,20 @@ class Yap:
         best = self.lines[max(self.readings, key=rank)]
         start, read = _folded(best.text), self.readings[key(best)]
         # read at least as often: map text glued once to the end ("gg TOURING EM") stays out
+        # glued map capitals don't make a reading longer (#172)
         family = {k: line for k, line in self.lines.items()
                   if line.quality >= GOOD and _begins(_folded(line.text), start)
-                  and len(_folded(line.text)) > len(start)}  # fmt: skip
+                  and len(_folded(_GLUED.sub("", line.text))) > len(start)}  # fmt: skip
         longer = [line for k, line in family.items()
                   if (self.readings[k] >= read or self._completes(line))
                   and _folded(line.text).startswith(start)]  # fmt: skip
         if longer:  # light OCR read the beginning first ("so please n"): the whole line (#432)
             best = max(longer, key=lambda line: len(_folded(line.text)))
-        elif len(family) > 1 and sum(self.readings[k] for k in family) >= read:
+        elif (
+            len(family) > 1
+            and sum(self.readings[k] for k in family) >= read
+            and any(not _folded(line.text).startswith(start) for line in family.values())
+        ):
             # the whole line read in several spellings, together more often than the cut one
             # (#633): the most read of them
             best = family[max(family, key=lambda k: (self.readings[k], len(family[k].text)))]
@@ -335,9 +340,10 @@ class Dedup:
                 if len(_folded(line.text)) > len(_folded(whole.best.text)):
                     before = _stored(whole.best)
                     cut = _folded(whole.best.text)
+                    one_row = not _wraps(whole.best)  # before the add: it may be the best now
                     whole.add(line)
                     # read cut again and again, or its wrapped whole (#653): any good whole reading
-                    if whole.total() > 3 or (_wraps(line) and not _wraps(whole.best)):
+                    if whole.total() > 3 or (_wraps(line) and one_row):
                         whole.cut = cut
                     if _stored(whole.best) != before and whole not in improved:
                         improved.append(whole)
