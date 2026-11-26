@@ -38,8 +38,10 @@ class ReadPreview:
             self._info = ui.label().classes("yt-meta").mark("crop-info")
             self._engines = ui.element("div").classes("yt-seg")
             ui.label(
-                "RapidOCR reads best. Windows OCR is quicker but loses lines on bright "
-                "backgrounds: only for when RapidOCR won't start."
+                "RapidOCR is the tried one. Chat-trained is new: it learned from Overwatch "
+                "chat itself and should misread less, try it and switch back if lines go "
+                "missing. Windows OCR is quicker but loses lines on bright backgrounds: only "
+                "for when RapidOCR won't start."
             ).classes("yt-hint").mark("engine-hint")
             self._lines = ui.element("div").classes("yt-read-lines").mark("read-lines")
         self._render_engines()

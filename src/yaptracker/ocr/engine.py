@@ -314,6 +314,55 @@ class RapidOcrEngine:
         return " ".join(text for text, _score in result or [])
 
 
+# The recognizer trained on Overwatch chat (#608, #624): PaddleOCR's Latin PP-OCRv5 mobile
+# recognizer, fine-tuned on our own evenings' chat lines. Only weights are in the file, no
+# picture and no text (Marv, 2026-11-26: it may ship). Rebuilt by tools/ocr_train/train.py.
+CHAT_REC = _MODELS / "chat_PP-OCRv5_rec.onnx"
+CHAT_KEYS = _MODELS / "chat_dict.txt"
+
+
+class _ChatOrStock:
+    """In the recognizer's slot of the chat-trained engine: chat lines go to the trained model,
+    everything else to the stock pair.
+
+    The trained model knows chat rows, not Overwatch's menus: of 122 all-caps HUD lines it read
+    89 like the stock models (#608). So match signals stay where they were: the signal strips
+    read through `default` (read_line), the hero-select corner through read(accents=True),
+    which is the stock pair with the Latin model always on. `always` is the stock pair's own
+    per-thread switch: capture (signals) and the chat reader share one engine object, so the
+    choice is made per read and per thread, never by swapping what sits in the slot.
+    """
+
+    def __init__(self, stock: _ReadTwice, chat) -> None:
+        self._stock, self._chat = stock, chat
+        self.default, self.always = stock.default, stock.always
+
+    @property
+    def latin_reads(self) -> int:
+        return self._stock.latin_reads
+
+    def __call__(self, crops, return_word_box: bool = False):
+        if getattr(self.always, "on", False):
+            return self._stock(crops, return_word_box)
+        return self._chat(crops, return_word_box)
+
+
+class ChatTrainedOcrEngine(RapidOcrEngine):
+    """RapidOCR's detection with the recognizer trained on Overwatch chat (#624). One read,
+    umlauts included: no second (Latin) read for chat. Match signals read as with RapidOCR."""
+
+    name = "chat"
+    label = "Chat-trained"
+
+    def __init__(self) -> None:
+        from rapidocr_onnxruntime import RapidOCR
+
+        super().__init__()
+        chat = RapidOCR(rec_model_path=str(CHAT_REC), rec_keys_path=str(CHAT_KEYS),
+                        intra_op_num_threads=1, inter_op_num_threads=1)  # fmt: skip
+        self._ocr.text_rec = _ChatOrStock(self._ocr.text_rec, chat.text_rec)
+
+
 class WindowsOcrEngine:
     """Windows.Media.Ocr via winsdk: ~10x faster, but loses lines on bright backgrounds (#11)."""
 
@@ -373,9 +422,11 @@ class WindowsOcrEngine:
 
 ENGINES: dict[str, Callable[[], OcrEngine]] = {
     RapidOcrEngine.name: RapidOcrEngine,
+    ChatTrainedOcrEngine.name: ChatTrainedOcrEngine,
     WindowsOcrEngine.name: WindowsOcrEngine,
 }
-LABELS = {RapidOcrEngine.name: RapidOcrEngine.label, WindowsOcrEngine.name: WindowsOcrEngine.label}
+LABELS = {engine.name: engine.label
+          for engine in (RapidOcrEngine, ChatTrainedOcrEngine, WindowsOcrEngine)}  # fmt: skip
 DEFAULT = RapidOcrEngine.name
 
 
