@@ -26,7 +26,7 @@ from yaptracker.capture.changes import ChangeDetector
 from yaptracker.capture.gdi import GDI_FPS, QUIET_FPS, QUIET_FRAMES
 from yaptracker.debug import DebugSamples
 from yaptracker.matches import MatchTracker
-from yaptracker.ocr.engine import RapidOcrEngine
+from yaptracker.ocr import engine as engines
 from yaptracker.pause import Pause
 from yaptracker.reader import BUSY_GAP_S, CPU_GOAL, MIN_GAP_S, ChatReader
 from yaptracker.signals import EndScreen, HeroSelect, signal_regions
@@ -45,6 +45,8 @@ def main() -> None:
                         help="grab like the GDI source: 2 frames/s, 1/s while the chat is quiet "
                              "(#319)")  # fmt: skip
     parser.add_argument("--dump", type=Path, help="write the stored lines here, to compare")
+    parser.add_argument("--engine", choices=list(engines.ENGINES), default=engines.DEFAULT,
+                        help="the reading engine, as chosen in Settings (#628)")  # fmt: skip
     args = parser.parse_args()
     root = FRAMES / args.recording
     chat = sorted(os.listdir(root / "chat"))
@@ -57,13 +59,13 @@ def main() -> None:
         return now["t"]
 
     tracker = MatchTracker(store, Pause(), clock=clock)
-    ocr = RapidOcrEngine()
+    ocr = engines.ENGINES[args.engine]()
 
     reader = ChatReader(ocr.read, store, tracker, clock=clock)
     changes = ChangeDetector()
     hero_select = HeroSelect(
         ocr.read_line,
-        lambda image: [line.text for line in ocr.read(image)],
+        lambda image: [line.text for line in ocr.read(image, accents=True)],  # as the app
         lambda mode, map_name: tracker.new_match(source="heroselect", mode=mode,
                                                  map_name=map_name),
         clock,
@@ -125,8 +127,11 @@ def main() -> None:
     if args.dump:
         args.dump.write_text(
             "".join(
-                f"{m[0]}: {m[1]}\n"
-                for m in store._read("SELECT speaker_raw, text FROM chat_messages ORDER BY ts, id")
+                f"{m[2]}\t{m[3]:.2f}\t{m[0]}: {m[1]}\n"
+                for m in store._read(
+                    "SELECT speaker_raw, text, channel, ocr_confidence FROM chat_messages "
+                    "ORDER BY ts, id"
+                )
             ),
             encoding="utf-8",
         )
