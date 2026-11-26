@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-26 · AI correction: doubtful lines re-read by an AI (#637)
+- With an OpenRouter key, lines I'm unsure of (odd names, icons, umlauts, very short or wrapped lines) are re-read by an AI from their picture, a second or two after they show up. They say **AI-corrected**; hover it for what OCR read. Your edits always win.
+- Settings → Reading → **AI correction**: on/off, tonight's count and this month's cost in words. The key stays under Translate chat → AI; without one the row says so and links there. About a cent an evening.
+
 ### 2026-11-26 · AI correction, part 2: storing the AI's reading (#637)
 - Behind the scenes: a corrected line keeps what OCR read, a hand edit always wins, and the AI's reading isn't overwritten by a later OCR reading. Not switched on yet.
 
