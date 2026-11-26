@@ -611,6 +611,8 @@ def record_chat_row() -> None:
 
     def choose(on: bool) -> None:
         config.save_record_chat_until(time.time() + RECORD_S if on else 0)
+        if runtime.recorder is not None:
+            runtime.recorder.refresh()  # the next frame already knows
         state.set_text(words())
 
     def words() -> str:
@@ -624,15 +626,19 @@ def record_chat_row() -> None:
         config.record_chat_until() > time.time(),
         choose,
         hint="Every chat picture that changed, for 12 hours, so lost lines can be counted and "
-        "fixed. About 1.5 GB an hour of play at 4K, kept 14 days; it pauses when the disk has "
-        "less than 5 GB free. Other players' names are in there: it never leaves this PC.",
+        "fixed. About 2 GB an hour of play at 4K, kept 14 days and 30 GB at most; it pauses "
+        "when the disk has less than 5 GB free. Other players' names are in there: it never "
+        "leaves this PC.",
     ).mark("record-switch")
     with ui.element("div").classes("yt-row"):
         state = ui.label(words()).classes("yt-meta").mark("record-state")
-        size_label(
+        size, fill = size_label(
             lambda: runtime.recorder.size_bytes() if runtime.recorder else 0,
             lambda size: f"Recordings: {size}",
-        )[0].mark("record-size")
+        )
+        size.mark("record-size")
+    # it grows while recording, and the 12 hours end by themselves
+    ui.timer(10.0, lambda: (fill(), state.set_text(words())))
 
 
 def _refresh_chat(chat: dict, lines, picker, yap_count, count_callouts, clicked) -> None:

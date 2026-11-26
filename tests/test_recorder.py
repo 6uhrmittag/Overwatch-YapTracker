@@ -71,7 +71,7 @@ def test_changed_frames_are_kept_lossless_and_every_frame_is_in_the_index(tmp_pa
         (True, True, 5, "best"), (False, False, 5, "best"), (True, True, 5, "best")]  # fmt: skip
     kept = images.read(run / index[2]["picture"])
     assert kept is not None and (kept == picture(2)).all()  # lossless
-    assert [p.name.split("-", 1)[1] for p in (run / "signals").iterdir()] == ["banner.webp"]
+    assert [p.name.split("-", 1)[1] for p in (run / "signals").iterdir()] == ["banner.png"]
     assert wait_for(lambda: (r.size_bytes() or 0) > 0)
 
 
@@ -130,3 +130,53 @@ def test_the_setting_saves_until_when(tmp_path):
     assert config.record_chat_until() == 1234.5
     config.save_record_chat_until(0)
     assert config.record_chat_until() == 0.0
+
+
+def test_switched_on_again_later_is_a_recording_of_its_own(tmp_path):
+    """Review of #654: the app runs for days; Friday's recording isn't added to Monday's."""
+    clock, until = Clock(), [Clock().now + 3600]
+    r = recorder(tmp_path, until, clock)
+    r.frame(picture(1), True)
+    until[0] = 0.0
+    clock.now += 5
+    r.refresh()
+    r.frame(picture(2), True)  # off: nothing
+    clock.now += 3 * 86400
+    until[0] = clock.now + 3600
+    r.refresh()
+    r.frame(picture(3), True)
+    r.close()
+    runs = sorted(run for day in (tmp_path / "recordings").iterdir() for run in day.iterdir())
+    assert len(runs) == 2
+    assert [len((run / "frames.jsonl").read_text().splitlines()) for run in runs] == [1, 1]
+
+
+def test_above_the_cap_the_oldest_days_go_at_start_and_recording_pauses(tmp_path):
+    clock, until = Clock(), [Clock().now + 3600]
+    for day in ("2026-11-20", "2026-11-25"):
+        folder = tmp_path / "recordings" / day / "20-00-00"
+        folder.mkdir(parents=True)
+        (folder / "frames.jsonl").write_bytes(b"x" * 600)
+    r = recorder(tmp_path, until, clock, cap_bytes=1000)
+    assert wait_for(lambda: r.size_bytes() is not None)
+    assert not (tmp_path / "recordings" / "2026-11-20").exists()
+    assert (tmp_path / "recordings" / "2026-11-25").exists() and r.on()
+    r._bytes = 2000  # a long evening later
+    assert not r.on()
+    r.close()
+
+
+def test_frames_dropped_at_the_end_are_still_counted_at_quit(tmp_path, monkeypatch):
+    from yaptracker import recorder as recorder_module
+
+    clock, until = Clock(), [Clock().now + 3600]
+    monkeypatch.setattr(recorder_module, "QUEUE", 1)
+    r = ChatRecorder(tmp_path / "recordings", lambda: until[0], clock=clock,
+                     free=lambda folder: 10**12)  # fmt: skip
+    r._run = ((1, clock.now), tmp_path)  # a recording is open (close() only adds to one)
+    r.frame(picture(1), True)
+    r.frame(picture(2), True)  # dropped: the queue holds one
+    r.start()
+    r.close()
+    index = [json.loads(line) for line in (tmp_path / "frames.jsonl").read_text().splitlines()]
+    assert index[-1]["end"] and index[-1]["dropped_before"] == 1
