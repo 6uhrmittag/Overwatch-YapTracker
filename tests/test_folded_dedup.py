@@ -70,3 +70,33 @@ def test_the_umlaut_reading_still_wins_when_it_is_the_same_text():
     for line in (plain, plain, plain, dotted):
         yap.add(line)
     assert yap.best.text == "Schöne Grüße an alle"
+
+
+def test_a_later_reading_gives_the_line_the_channel_the_first_one_didnt_have():
+    """#633: the chat-trained reader read a line the moment it was sent, before its channel
+    icon could be told ("unknown", confidence 1.0). The later readings knew the channel but
+    scored a little lower, so the first one's "unknown" stayed in the database."""
+    from dataclasses import replace
+
+    (early,) = read("[Pickle]: AUA")
+    later = replace(early, channel="match", confidence=0.96)
+    dedup = Dedup()
+    (yap,), _ = dedup.update(100.0, [replace(early, channel="unknown", confidence=1.0)])
+    assert yap.best.channel == "unknown"
+    new, improved = dedup.update(101.5, [later])
+    assert new == [] and improved == [yap]  # the reader stores the channel now
+    assert yap.best.channel == "match" and yap.best.confidence == 1.0
+    _, improved = dedup.update(103.0, [replace(later, channel="unknown")])
+    assert improved == [] and yap.best.channel == "match"  # and a later "unknown" can't undo it
+
+
+def test_the_channel_comes_from_a_differently_spelled_reading_too():
+    from dataclasses import replace
+
+    from yaptracker.dedup import Yap
+
+    (first,), (other,) = read("[Pickle]: hello there"), read("[Pickle]: hel1o there")
+    yap = Yap(id=1, first_seen=100.0)
+    for line in (replace(first, channel="unknown"),) * 3 + (replace(other, channel="team"),):
+        yap.add(line)
+    assert yap.best.text == "hello there" and yap.best.channel == "team"

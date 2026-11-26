@@ -157,8 +157,9 @@ def _plain(text: str) -> str:
 
 
 def _stored(line: ChatLine) -> tuple:
-    """What a better reading would change in the database."""
-    return line.kind, line.speaker, line.hero, line.text, line.flagged
+    """What a better reading would change in the database. The channel too (#633): a line
+    first read before its icon could be told gets its channel from a later reading."""
+    return line.kind, line.speaker, line.hero, line.text, line.flagged, line.channel
 
 
 @dataclass
@@ -210,6 +211,10 @@ class Yap:
         # was enough before (#259), and the map behind a line changes while it's on screen:
         # sooner or later something bright sat right after the text. Icon callouts always
         # carry theirs (parser), so the comms icons that came and went are covered.
+        if best.channel == "unknown":  # another reading of the line may know it (#633)
+            told = [k for k, line in self.lines.items() if line.channel != "unknown"]
+            if told:
+                best = replace(best, channel=self.lines[max(told, key=self.readings.get)].channel)
         plain = _plain(best.text)
         same = [k for k, line in self.lines.items()
                 if line.quality >= GOOD and _plain(line.text) == plain] or [key(best)]  # fmt: skip
@@ -239,8 +244,15 @@ class Yap:
     def add(self, line: ChatLine) -> None:
         k = key(line)
         self.readings[k] += 1
-        if k not in self.lines or line.quality > self.lines[k].quality:
-            self.lines[k] = line
+        kept, other = self.lines.get(k), line
+        if kept is None or line.quality > kept.quality:
+            kept, other = line, kept
+        # A line read the moment it is sent can come before its channel icon is there to be
+        # told (#633: the chat-trained reader is that quick). The channel a later reading of
+        # the same text knows isn't lost to the first one's better score.
+        if kept.channel == "unknown" and other is not None and other.channel != "unknown":
+            kept = replace(kept, channel=other.channel)
+        self.lines[k] = kept
         self.match_keys.add(match_key(line))
         self.last = line
 
