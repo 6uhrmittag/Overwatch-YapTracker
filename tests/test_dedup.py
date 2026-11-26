@@ -441,3 +441,48 @@ def test_completing_a_cut_line_needs_three_words_the_same_name_and_real_text():
     assert yap.best.text == "good game everyone"  # finding it changes nothing
     dedup.complete(whole, yap)
     assert yap.best.text == "good game everyone and thanks"
+
+
+def _wrapped(first: str, second: str, conf: float = 1.0, y: int = 10):
+    """One message over two rows: the parser joins the indented second row (#653)."""
+    return parse([OcrLine(first, conf, Region(64, y, 400, 24)),
+                  OcrLine(second, conf, Region(64, y + 28, 300, 24))])  # fmt: skip
+
+
+def test_a_wrapped_typed_line_first_read_as_its_first_row_is_completed_not_stored_twice():
+    """#653: "they made us not be the best" read for seconds, then the whole message on two
+    rows: one line, the whole text. Read twice or five times before, the same."""
+    for reads in (2, 5):
+        dedup = Dedup()
+        (first,), _ = dedup.update(100.0, _rows("[Pip]: they made us not be the best"))
+        for n in range(1, reads):
+            dedup.update(100.0 + 1.5 * n, _rows("[Pip]: they made us not be the best"))
+        new, improved = dedup.update(114.8, _wrapped(  # 14.8 s later, as on the evening
+            "[Pip]: they made us not be the best", "version of ourselfs and the team"))  # fmt: skip
+        assert new == [] and improved == [first]
+        assert first.best.text == "they made us not be the best version of ourselfs and the team"
+        dedup.update(116.3, _rows("[Pip]: they made us not be the best"))
+        assert first.best.text.endswith("and the team")  # the cut reading again: stays whole
+
+
+def test_a_one_row_longer_typed_line_and_a_late_wrap_stay_two_lines():
+    """#587 stays: "nice play mate" on one row is a line of its own; and a wrapped one long
+    after the short one faded too."""
+    dedup = Dedup()
+    for t in (100.0, 101.5, 103.0):
+        dedup.update(t, _rows("[Pip]: we can do this one"))
+    new, _ = dedup.update(140.0, _wrapped("[Pip]: we can do this one", "more time guys come on"))
+    assert [y.best.text for y in new] == ["we can do this one more time guys come on"]
+
+
+def test_a_cut_reading_loses_to_whole_ones_that_differ_in_a_letter_before_the_cut():
+    """#633: the cut reading "... in ASCIl" read most often at high confidence, the whole one in
+    several spellings ("ASCII Herz)", "ASCll Herz)"): the whole line wins together."""
+    dedup = Dedup()
+    cut = "[Pip]: i drew you a heart in ASCIl"
+    (first,), _ = dedup.update(100.0, parse([OcrLine(cut, 0.995, Region(64, 10, 400, 24))]))
+    dedup.update(101.0, parse([OcrLine(cut, 0.995, Region(64, 10, 400, 24))]))
+    for t, word in ((102.0, "ASCII"), (103.0, "ASCll"), (104.0, "ASCII")):
+        dedup.update(t, _wrapped(f"[Pip]: i drew you a heart in {word}", "Herz)", 0.97))
+    dedup.update(105.0, parse([OcrLine(cut, 0.995, Region(64, 10, 400, 24))]))
+    assert first.best.text == "i drew you a heart in ASCII Herz)"
