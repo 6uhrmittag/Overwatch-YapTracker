@@ -45,7 +45,7 @@ from yaptracker.ui.line_actions import (
     delete_button,
     edit_button,
     edited_mark,
-    show_mark,
+    show_line_mark,
     translate_button,
 )
 from yaptracker.ui.lookup import lookup_card
@@ -223,7 +223,8 @@ def show_picture(message, row: dict | None = None, on_channel=None) -> None:
             if path is not None and path.exists():
                 ui.image(path).classes("yt-picture-image").mark("line-picture")
                 ui.label("The line as it looked in Overwatch.").classes("yt-hint")
-                if message.edited_at is None and runtime.read_again is not None:
+                if (message.edited_at is None and message.ai_corrected_at is None
+                        and runtime.read_again is not None):  # fmt: skip
                     _read_line_again(message, row)
             _channel_picker(message, row, path, on_channel)
             spicy = message.flagged is not None
@@ -334,7 +335,7 @@ def _channel_picker(message, row: dict | None, picture, on_channel=None) -> None
 
 def fill_line(row: dict, message) -> None:
     shown = (message.speaker_raw, message.role, message.text, message.flagged, message.edited_at,
-             message.channel)  # fmt: skip
+             message.channel, message.ai_corrected_at)  # fmt: skip
     if shown == row["shown"]:
         return
     row["shown"] = shown
@@ -345,7 +346,7 @@ def fill_line(row: dict, message) -> None:
         row["ch"].classes(remove=f"yt-ch-{old}", add=f"yt-ch-{channel}")
         row["name"].classes(remove=f"yt-ch-{old}", add=f"yt-ch-{channel}")
         row["ch"].set_text(_CHANNELS.get(channel, "Chat"))
-    show_mark(row["edited"], message.edited_at is not None, message.original_text)
+    show_line_mark(row["edited"], message)  # by hand, or the AI's reading (#637)
     # System lines carry the name in their text ("[gremlin.exe] started playing Overwatch.").
     who = message.speaker_raw if message.channel != "system" else ""
     who = "you" if who and message.role == "me" else who

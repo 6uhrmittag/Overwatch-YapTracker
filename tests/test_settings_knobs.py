@@ -95,6 +95,20 @@ async def test_the_best_reader_is_chosen_in_the_reading_card(user: User, monkeyp
     assert config.ocr_engine() == "rapidocr"
 
 
+async def test_ai_correction_lives_in_the_reading_card_and_points_to_the_key(user: User):
+    """#637/#640: one place for how chat is read; the key stays under Translate chat."""
+    config.save_setup_state("done")
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see("AI correction")
+    await user.should_see("Needs an OpenRouter key")
+    await user.should_see(marker="ai-correct-key-link")
+    await user.should_not_see(marker="ai-correct-key")  # no second key field
+    user.find(marker="ai-correct-switch").click()
+    assert config.ai_correct() is False
+    await user.should_see("Off: lines stay as OCR read them.")
+
+
 async def test_back_up_now_button(user: User, monkeypatch, tmp_path):
     config.save_setup_state("done")
     store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")

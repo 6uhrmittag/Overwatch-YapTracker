@@ -199,7 +199,8 @@ class ReadAgain:
         return job
 
     def _readable(self, message) -> bool:
-        return message.edited_at is None and self._pictures.path(message.id, message.ts).exists()
+        return (message.edited_at is None and message.ai_corrected_at is None  # the AI's (#637)
+                and self._pictures.path(message.id, message.ts).exists())  # fmt: skip
 
     def _marks(self, message_id: int) -> bool:
         """The "◇" at the end of one line: still an icon there, read with today's rules?"""
@@ -234,6 +235,8 @@ class ReadAgain:
     def _again(self, message_id: int) -> bool:
         message = self._store.message(message_id)
         if message is None or message.edited_at is not None:  # fixed by hand in the meantime
+            return False
+        if message.ai_corrected_at is not None:  # the AI read its picture closer (#637)
             return False
         image = images.read(self._pictures.path(message.id, message.ts))
         if image is None:

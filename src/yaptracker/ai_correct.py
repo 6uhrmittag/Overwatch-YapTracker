@@ -207,6 +207,7 @@ def triggers(text: str, speaker: str | None, channel: str, *, readings_disagree:
 # --- the worker: behind storing, never in the reader's way (#637) -------------------------
 DELAY_S = 1.0  # a stored line waits this long: dedup may still find a better OCR reading
 QUEUE_MAX = 60  # lines waiting at most; a flood drops the oldest (they stay as OCR read them)
+SUMMARY_EVERY = 20  # lines sent between two summary lines in the log
 
 
 @dataclass
@@ -229,23 +230,33 @@ class Worker:
                  saved: Callable[[int], None] = lambda message_id: None,
                  label: Callable[[dict], None] = lambda entry: None,
                  enabled: Callable[[], bool] = lambda: True,
+                 orphan: Callable[[int], None] = lambda player_id: None,
+                 heard: Callable[[int | None, int | None], object] = lambda pid, match: None,
                  clock: Callable[[], float] = time.monotonic) -> None:  # fmt: skip
         self._corrector, self._store, self._picture = corrector, store, picture
         self._relink, self._saved, self._label = relink, saved, label
         self._enabled, self._clock = enabled, clock
+        self._orphan, self._heard = orphan, heard
         self._lock = threading.Lock()
         self._queue: list[Waiting] = []
         self._wake = threading.Event()
         self._stop = threading.Event()
         self.counts: dict[str, int] = {}  # trigger -> lines sent this run, for the log
         self.corrected = 0  # lines whose reading the AI changed this run
+        self._asked: set[int] = set()  # each line goes to the AI once a run, whatever comes back
         self._thread: threading.Thread | None = None
+
+    @property
+    def sent_tonight(self) -> int:
+        """Lines looked at this evening (0 once the evening is over, before the next one)."""
+        c = self._corrector
+        return c.sent_tonight if c.evening == day_of(c._clock()) else 0
 
     def submit(self, message_id: int, ts: float, why: set[str]) -> None:
         if not why or not self._enabled():
             return
         with self._lock:
-            if any(w.message_id == message_id for w in self._queue):
+            if message_id in self._asked or any(w.message_id == message_id for w in self._queue):
                 return
             self._queue.append(Waiting(message_id, ts, frozenset(why), self._clock()))
             del self._queue[:-QUEUE_MAX]
@@ -296,6 +307,8 @@ class Worker:
         ok, png = cv2.imencode(".png", picture)
         if not ok:
             return
+        with self._lock:
+            self._asked.add(message.id)
         got = self._corrector.correct(png.tobytes())
         if got.row is None:
             log.info("correct: line %s not corrected (%s)", message.id, got.error)
@@ -321,11 +334,71 @@ class Worker:
                                               ts=time.time()):  # fmt: skip
             return  # fixed by hand while the AI was reading
         if speaker != message.speaker_raw and message.channel != "system":
-            self._store.set_message_player(message.id, self._relink(speaker, message.ts))
+            player = self._relink(speaker, message.ts)
+            self._store.set_message_player(message.id, player)
+            if message.player_id is not None and message.player_id != player:
+                self._orphan(message.player_id)  # the player only OCR's misread made
+            self._heard(player, message.match_id)  # maybe a familiar face after all
         self.corrected += 1
+        if sum(self.counts.values()) % SUMMARY_EVERY == 0:
+            log.info("correct: %d lines changed this run; sent by trigger: %s", self.corrected,
+                     ", ".join(f"{k} {v}" for k, v in sorted(self.counts.items())))  # fmt: skip
         log.info("correct: line %s corrected by %s (%s)", message.id, got.model,
                  ", ".join(sorted(waiting.why)))  # fmt: skip
         self._label({"id": message.id, "ts": message.ts, "speaker": speaker, "text": text,
                      "ocr_speaker": message.speaker_raw, "ocr_text": message.text,
                      "icons": got.icons, "model": got.model, "source": "ai"})  # fmt: skip
         self._saved(message.id)
+
+
+# --- from the reader's line to the triggers (#637) -----------------------------------------
+EDITED_DAYS = 7  # a speaker whose line was fixed by hand this recently is worth a second look
+REFRESH_S = 60.0  # known names and edited speakers are looked up again this often
+WRAPPED = 1.5  # a line's box this much higher than its first row: it wraps
+
+
+class Doubt:
+    """Why a stored line is doubtful, from the reader's yap. Known names and recently edited
+    speakers come from the store, kept for a minute (the reader's thread mustn't query often)."""
+
+    def __init__(self, store, looks_german: Callable[[str], bool],
+                 clock: Callable[[], float] = time.time) -> None:  # fmt: skip
+        self._store, self._looks_german, self._clock = store, looks_german, clock
+        self._names: list[str] = []
+        self._edited: set[str] = set()
+        self._at = float("-inf")
+
+    def _fresh(self) -> None:
+        now = self._clock()
+        if now - self._at >= REFRESH_S:
+            self._names = sorted(name.lower() for name in self._store.trusted_names())
+            self._edited = self._store.edited_speakers(now - EDITED_DAYS * 86_400)
+            self._at = now
+
+    def why(self, yap) -> set[str]:
+        from yaptracker.dedup import _folded
+        from yaptracker.quality import GOOD
+
+        self._fresh()
+        line = yap.best
+        good = {_folded(r.text) for r in yap.lines.values() if r.quality >= GOOD}
+        head = line.head or line.box
+        return triggers(
+            line.text, line.speaker if line.channel != "system" else None, line.channel,
+            readings_disagree=len(good) > 1,
+            wrapped=line.box.height > WRAPPED * max(1, head.height),
+            known_names=self._names, edited_speakers=self._edited,
+            looks_german=self._looks_german,
+        )  # fmt: skip
+
+
+def save_label(folder, entry: dict) -> None:
+    """A correction (the AI's or a hand edit) as a training label for our own OCR (#608, #624):
+    data/labels/<yyyy-mm>.jsonl, local only like the line pictures."""
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        month = time.strftime("%Y-%m", time.localtime(entry.get("ts") or time.time()))
+        with (folder / f"{month}.jsonl").open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except OSError as error:  # a lost label is no reason to lose the correction
+        log.warning("correct: label not saved (%s)", type(error).__name__)

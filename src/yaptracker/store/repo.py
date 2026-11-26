@@ -168,6 +168,10 @@ class Store:
         with self._lock:
             return self._conn.execute(sql, params).lastrowid
 
+    def _write_count(self, sql: str, params: tuple = ()) -> int:
+        with self._lock:
+            return self._conn.execute(sql, params).rowcount
+
     def _read(self, sql: str, params: tuple = ()) -> list[tuple]:
         with self._lock:
             return self._conn.execute(sql, params).fetchall()
@@ -538,6 +542,37 @@ class Store:
             )  # fmt: skip
             return cursor.rowcount == 1
 
+    def edited_speakers(self, since: float) -> set[str]:
+        """Names whose lines were fixed by hand since then (#637: worth a second look)."""
+        rows = self._read(
+            "SELECT DISTINCT lower(speaker_raw) FROM live_messages "
+            "WHERE edited_at >= ? AND speaker_raw IS NOT NULL", (since,)
+        )  # fmt: skip
+        return {name for (name,) in rows}
+
+    def trusted_names(self, lines: int = 3) -> list[str]:
+        """Names a misread one may be near (#637): players with notes, a verdict or a few
+        lines; not aliases, and not the one-line players every misread name makes."""
+        rows = self._read(
+            "SELECT p.display_name FROM players p WHERE p.verdict IS NOT NULL OR "
+            "COALESCE(p.notes, '') != '' OR (SELECT COUNT(*) FROM live_messages m "
+            "WHERE m.player_id = p.id) >= ?", (lines,)
+        )  # fmt: skip
+        return [name for (name,) in rows]
+
+    def drop_player_if_unused(self, player_id: int) -> bool:
+        """A player nothing points to any more (no line, notes or verdict) goes (#637)."""
+        return bool(self._write_count(
+            "DELETE FROM players WHERE id = ? AND verdict IS NULL AND COALESCE(notes, '') = '' "
+            "AND NOT EXISTS (SELECT 1 FROM chat_messages WHERE player_id = ?)",
+            (player_id, player_id)))  # fmt: skip
+
+    def corrected_since(self, since: float) -> int:
+        """Lines the AI corrected since then (#637), for Settings."""
+        return self._read(
+            "SELECT COUNT(*) FROM live_messages WHERE ai_corrected_at >= ?", (since,)
+        )[0][0]
+
     def set_message_player(self, message_id: int, player_id: int | None) -> None:
         """Who said it, after the name was corrected (#637)."""
         self._write("UPDATE chat_messages SET player_id = ? WHERE id = ?", (player_id, message_id))
@@ -844,8 +879,7 @@ class Store:
         removes them (#432)."""
         rows = self._read(
             "SELECT id FROM chat_messages WHERE match_id = ? AND (edited_at IS NOT NULL OR "
-            "channel_ocr IS NOT NULL OR deleted_at IS NOT NULL OR flagged = 'manual' OR "
-            "ai_corrected_at IS NOT NULL)",  # the AI's reading (#637): read closer than OCR
+            "channel_ocr IS NOT NULL OR deleted_at IS NOT NULL OR flagged = 'manual')",
             (match_id,),
         )
         return {row[0] for row in rows}

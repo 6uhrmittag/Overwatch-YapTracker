@@ -108,6 +108,7 @@ class ChatReader:
         keep_gap_s: Callable[[], float] | None = None,
         starved: Callable[[], bool] = lambda: False,
         lowest: bool = True,
+        doubtful: Callable[[int, float, Yap], object] = lambda message_id, ts, yap: None,
     ) -> None:
         self._read, self._store, self._matches = read, store, matches
         self._identity, self._colours, self._paused, self._clock = (
@@ -116,6 +117,7 @@ class ChatReader:
         self._on_read = on_read  # debug samples of hard chat moments (#110)
         self._pictures = pictures  # the picture of every stored line (#120)
         self._players = players  # who said it (#23)
+        self._doubtful = doubtful  # a stored line the AI may read again (#637): only queued
         self._players_seen = 0  # the matcher's generation _speakers is from (#458)
         self._on_player = on_player  # a familiar face may be back (#26)
         self._speakers: dict[int, tuple[str | None, int | None]] = {}  # yap id -> (speaker, player)
@@ -474,6 +476,7 @@ class ChatReader:
                 ts=yap.first_seen, match_id=match_id, player_id=player, **self._named(yap, image)
             )
             self._keep_picture(yap, image)
+            self._doubt(yap)
             if yap.best.channel != "system":  # "[x] started playing" is a friend online, not here
                 self._on_player(player, match_id, kept is not None and kept.mode == AFTER)
         for yap in improved:
@@ -484,6 +487,7 @@ class ChatReader:
                     **self._named(yap, image, stored))  # fmt: skip
                 if yap.best is yap.last:  # read better in this very frame: its picture, too
                     self._keep_picture(yap, image)
+                self._doubt(yap)  # readings that disagree show up only now
         self._count(_cpu_now() - started)
         if adopted:  # a missed line as a number, not a feeling (#425); now kept (#602)
             log.info("chat reading: %d line(s) seen twice, stored now: %s", len(adopted),
@@ -633,6 +637,7 @@ class ChatReader:
                     ts=yap.first_seen, match_id=kept.match_id, player_id=player,
                     **self._named(yap, kept.image))  # fmt: skip
                 self._save_picture(message_id, yap.first_seen, kept.image, yap.last.box)
+                self._doubt(yap, message_id)  # the after-the-match backlog too (#501, #637)
                 tidy.found += 1
                 if yap.best.channel != "system":
                     self._on_player(player, kept.match_id, True)
@@ -742,6 +747,12 @@ class ChatReader:
                 text = stored.text
             fields["text"] = text
         return fields
+
+    def _doubt(self, yap: Yap, message_id: int | None = None) -> None:
+        try:
+            self._doubtful(message_id or self._stored[yap.id], yap.first_seen, yap)
+        except Exception as error:  # the AI's second look never fails a read
+            side_work.failed("queueing a line for the AI", error)
 
     def _keep_picture(self, yap: Yap, image: np.ndarray) -> None:
         self._save_picture(self._stored[yap.id], yap.first_seen, image, yap.last.box)
