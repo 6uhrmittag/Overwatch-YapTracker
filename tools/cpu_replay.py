@@ -127,7 +127,7 @@ def main() -> None:
     if args.dump:
         args.dump.write_text(
             "".join(
-                f"{m[2]}\t{m[3]:.2f}\t{m[0]}: {m[1]}\n"
+                f"{m[2]}\t{m[3] or 0.0:.2f}\t{m[0] or ''}\t{m[1]}\n"
                 for m in store._read(
                     "SELECT speaker_raw, text, channel, ocr_confidence FROM chat_messages "
                     "ORDER BY ts, id"

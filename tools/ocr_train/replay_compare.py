@@ -21,16 +21,18 @@ from rapidfuzz import fuzz, process
 SAME_LINE = 75  # this similar: one line, read differently
 
 
-def load(path: Path) -> list[tuple[str, float, str]]:
+def load(path: Path) -> list[tuple[str, float, str, str]]:
+    """(channel, confidence, speaker, text) per stored line, as cpu_replay.py --dump wrote them."""
     rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        channel, confidence, text = line.split("\t", 2)
-        rows.append((channel, float(confidence), text))
+    for line in path.read_text(encoding="utf-8").split("\n"):
+        if line:
+            channel, confidence, speaker, text = line.split("\t", 3)
+            rows.append((channel, float(confidence), speaker, text))
     return rows
 
 
-def speaker(text: str) -> str:
-    return text.split(": ", 1)[0] if ": " in text else ""
+def shown(row: tuple[str, float, str, str]) -> str:
+    return f"{row[2]}: {row[3]}" if row[2] else row[3]
 
 
 def main() -> None:
@@ -39,20 +41,22 @@ def main() -> None:
     args.add_argument("b", type=Path)
     args.add_argument("--show", type=int, default=0, help="list this many differing lines")
     opts = args.parse_args()
-    sides = {opts.a.stem: load(opts.a), opts.b.stem: load(opts.b)}
-    for name, rows in sides.items():
-        texts = [t for _c, _s, t in rows]
+    names = [opts.a.stem, opts.b.stem]
+    if names[0] == names[1]:  # the same file name in two folders
+        names = [str(opts.a), str(opts.b)]
+    sides = list(zip(names, (load(opts.a), load(opts.b)), strict=True))
+    for name, rows in sides:
+        texts = [shown(r) for r in rows]
         repeats = sum(a == b for a, b in zip(texts, texts[1:], strict=False))
         icons = sum("◇" in t or "[icon:" in t for t in texts)
-        low = sum(s < 0.9 for _c, s, _t in rows)
+        low = sum(r[1] < 0.9 for r in rows)
         print(
-            f"{name}: {len(rows)} lines, {dict(Counter(c for c, _s, _t in rows))}, "
+            f"{name}: {len(rows)} lines, {dict(Counter(r[0] for r in rows))}, "
             f"{icons} with an icon mark, {repeats} repeats in a row, {low} below 0.9"
         )
-    (name_a, a), (name_b, b) = sides.items()
-    left = Counter(t for _c, _s, t in a) - Counter(t for _c, _s, t in b)
-    right = Counter(t for _c, _s, t in b) - Counter(t for _c, _s, t in a)
-    same = sum((Counter(t for _c, _s, t in a) & Counter(t for _c, _s, t in b)).values())
+    (name_a, a), (name_b, b) = sides
+    lines_a, lines_b = Counter(map(shown, a)), Counter(map(shown, b))
+    left, right, same = lines_a - lines_b, lines_b - lines_a, sum((lines_a & lines_b).values())
     pairs, only_a = [], []
     rest = list(right.elements())
     for text in left.elements():
@@ -65,10 +69,10 @@ def main() -> None:
     print(f"\nthe same on both sides: {same}")
     print(f"one line, read differently: {len(pairs)}")
     print(f"only {name_a}: {len(only_a)}   only {name_b}: {len(rest)}")
-    names_a = Counter(speaker(t) for _c, _s, t in a)
-    names_b = Counter(speaker(t) for _c, _s, t in b)
-    odd = {n for n in names_a | names_b if n and names_a[n] != names_b[n]}
-    print(f"speaker names: {len(set(names_a) - {''})} / {len(set(names_b) - {''})}, "
+    names_a = Counter(r[2] for r in a if r[2])
+    names_b = Counter(r[2] for r in b if r[2])
+    odd = {n for n in names_a | names_b if names_a[n] != names_b[n]}
+    print(f"speaker names: {len(names_a)} / {len(names_b)}, "
           f"{len(odd)} stored a different number of times")  # fmt: skip
     if opts.show:
         for n in sorted(odd, key=lambda n: -(names_a[n] + names_b[n]))[: opts.show]:
