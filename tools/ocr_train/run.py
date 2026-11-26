@@ -35,7 +35,7 @@ STEPS = [  # (name, runs in the POC venv, script and arguments)
                               "--only", "readings/undecided.json"]),
     ("labels-again", False, ["labels.py"]),
     ("synth", False, ["synth.py"]),
-    ("train", True, ["crnn.py", "--fresh"]),
+    ("train", True, ["crnn.py"]),
     ("score", False, ["bench.py", "ours=train/ours"]),
     ("score-118", False, ["bench118.py", "ours=train/ours"]),
     ("cpu", False, ["cpu_split.py", "ours=train/ours"]),
@@ -50,6 +50,8 @@ def main() -> None:
     poc = common.private() / "venv" / "bin" / "python"
     for name, gpu, command in STEPS[names.index(opts.start) :]:
         print(f"\n== {name}", flush=True)
+        if name == "train" and opts.start != "train":
+            command = [*command, "--fresh"]  # new data: a new training; `--from train` resumes
         done = subprocess.run([poc if gpu else sys.executable, HERE / command[0], *command[1:]])
         if done.returncode:
             sys.exit(f"{name} stopped ({done.returncode}): `run.py --from {name}` goes on there")

@@ -33,7 +33,6 @@ MODELS = {  # name: (Hugging Face repo, prompt)
 }
 UPSCALE = 2  # a 45 px row is below every model's smallest picture: enlarge it ourselves
 CHECK_EVERY = 20  # pictures between two looks for Overwatch.exe
-GAME_EXIT = 3
 
 
 class Reader:
@@ -94,15 +93,14 @@ def main() -> None:
     if not todo:
         print(f"nothing to do: {len(done)} readings in {out_path.name}")
         return
-    if common.game_running():
-        sys.exit(GAME_EXIT)
+    common.no_game()
     reader = Reader(opts.model)
     seconds = []
     with out_path.open("a", encoding="utf-8") as out:
         for n, r in enumerate(todo):
             if n % CHECK_EVERY == 0 and n and common.game_running():
                 print(f"Overwatch is running: stopped after {n} of {len(todo)}")
-                sys.exit(GAME_EXIT)
+                sys.exit(common.GAME_EXIT)
             start = time.perf_counter()
             row = reader.read(private / r["picture"])
             seconds.append(time.perf_counter() - start)

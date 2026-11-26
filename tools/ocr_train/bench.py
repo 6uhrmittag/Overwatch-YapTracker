@@ -13,6 +13,7 @@ import argparse
 import json
 import statistics
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -33,6 +34,17 @@ def recognizer(model: Path, keys: Path):
     return RapidOCR(rec_model_path=str(model), rec_keys_path=str(keys), **ONE_THREAD).text_rec
 
 
+class Alone:
+    """A recognizer in the engine's slot without the app's second read: `always` is the switch
+    engine.read() flips for it, here without effect."""
+
+    def __init__(self, read) -> None:
+        self.read, self.always, self.latin_reads = read, threading.local(), 0
+
+    def __call__(self, crops, return_word_box: bool = False):
+        return self.read(crops, return_word_box)
+
+
 def engines(private: Path, models: list[str]) -> dict[str, RapidOcrEngine]:
     """The app's engine as shipped, and per `name=folder` two more: that recognizer alone, and
     as the main reader with the app's Latin model still reading German-looking lines again."""
@@ -41,7 +53,7 @@ def engines(private: Path, models: list[str]) -> dict[str, RapidOcrEngine]:
         name, folder = item.split("=", 1)
         ours = recognizer(private / folder / "rec.onnx", private / folder / "dict.txt")
         alone, both = RapidOcrEngine(), RapidOcrEngine()
-        alone._ocr.text_rec = ours
+        alone._ocr.text_rec = Alone(ours)
         both._ocr.text_rec.default = ours
         out[name] = alone
         out[f"{name} + Latin second read"] = both
@@ -53,8 +65,7 @@ def main() -> None:
     args.add_argument("models", nargs="*", help="name=folder with rec.onnx and dict.txt")
     opts = args.parse_args()
     private = common.private()
-    if common.game_running():
-        sys.exit("Overwatch is running: no timed pass now")
+    common.no_game()
     cv2.setNumThreads(1)
     gold = score.load(private)
     with (private / "crops.jsonl").open(encoding="utf-8") as f:

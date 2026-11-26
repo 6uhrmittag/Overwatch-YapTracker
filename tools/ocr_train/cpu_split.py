@@ -29,8 +29,7 @@ def main() -> None:
     args = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     args.add_argument("models", nargs="*", help="name=folder with rec.onnx and dict.txt")
     opts = args.parse_args()
-    if common.game_running():
-        sys.exit("Overwatch is running: no timed pass now")
+    common.no_game()
     cv2.setNumThreads(1)
     frames = []
     for path in sorted((common.DATA / "debug").glob("*/*-chat/*.png"), reverse=True):
@@ -39,7 +38,9 @@ def main() -> None:
             frames.append(image)
         if len(frames) == FRAMES:
             break
-    size = f"{frames[0].shape[1]}x{frames[0].shape[0]}" if frames else "-"
+    if not frames:
+        sys.exit(f"no 4K chat-box samples under {common.DATA / 'debug'}: nothing to time")
+    size = f"{frames[0].shape[1]}x{frames[0].shape[0]}"
     print(f"{len(frames)} chat boxes ({size})")
     for name, engine in bench.engines(common.private(), opts.models).items():
         parts, totals, boxes = {"det": [], "cls": [], "rec": []}, [], []

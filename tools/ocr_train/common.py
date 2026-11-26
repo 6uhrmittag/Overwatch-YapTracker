@@ -6,6 +6,7 @@ the MAIN checkout (gitignored), also when a script runs from a worktree. Never c
 
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 DATA = Path("/mnt/c/Users/marvi/AppData/Local/YapTracker/data")  # the installed app's data
@@ -34,6 +35,16 @@ def game_running() -> bool:
     if done.returncode != 0 or not out.strip():
         return True  # tasklist failed: can't tell either
     return "overwatch.exe" in out.lower()
+
+
+GAME_EXIT = 3  # every heavy step ends with this when Overwatch is there; run.py goes on later
+
+
+def no_game(done: str = "") -> None:
+    """Stop here if Overwatch is running: nothing heavy next to the game (#608's rule)."""
+    if game_running():
+        print(f"Overwatch is running: stopped{done}")
+        sys.exit(GAME_EXIT)
 
 
 def plain(text: str | None) -> str:

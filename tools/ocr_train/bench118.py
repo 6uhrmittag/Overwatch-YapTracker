@@ -3,9 +3,11 @@
     python tools/ocr_train/bench118.py ours=train/crnn1
 
 fixtures/private/ocr-spike (English, 1440p) and ocr-german (German) are chat-box crops with a
-hand-made truth, older than and apart from everything the POC trained on, and the only 1440p
-data here. Each is read by the app's engine (detection, 2x scale) once as shipped and once per
-given model in place of both recognizers, and scored with tools/ocr_spike.py like #118 was:
+hand-made truth, older than the POC's training data and the only 1440p data here. Not fully
+apart from it: no picture, name or phrase of theirs is trained on, but everyday words ("ich",
+"danke", "gg") are also in synth.py's word lists. Each set is read by the app's engine
+(detection, 2x scale) once as shipped and, per given model, with it alone and with it as the
+main reader before the app's Latin second read; scored with tools/ocr_spike.py like #118 was,
 so these numbers sit on the #118 scale (bar: 99.8 % EN chars, 97.9 % DE).
 """
 
@@ -33,6 +35,8 @@ def main() -> None:
     args.add_argument("models", nargs="*", help="name=folder with rec.onnx and dict.txt")
     opts = args.parse_args()
     private = common.private()
+    common.no_game()
+    cv2.setNumThreads(1)
     engines = bench.engines(private, opts.models)
     for folder in ("ocr-spike", "ocr-german"):
         root = private.parent / folder
@@ -42,12 +46,7 @@ def main() -> None:
             got = {}
             for crop in truth:
                 image = cv2.imread(str(root / "crops" / crop))
-                if hasattr(engine._ocr.text_rec, "always"):
-                    lines = engine.read(image)
-                else:  # a swapped-in recognizer has no Latin switch to flip
-                    big = cv2.resize(image, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-                    result, _ = engine._ocr(big)
-                    lines = [type("L", (), {"text": t}) for _box, t, _s in result or []]
+                lines = engine.read(image)
                 got[crop] = ([line.text for line in lines], 0.0)
             s = spike.score(truth, got)
             print(f"  {name:22} chars {s['char']:.3f}  (no spaces {s['char_nospace']:.3f})  "

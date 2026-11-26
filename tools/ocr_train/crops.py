@@ -40,24 +40,27 @@ class Recorder:
 
 def main() -> None:
     private = common.private()
-    if common.game_running():
-        sys.exit("Overwatch is running: not now")
+    common.no_game()
     with (private / "dataset.jsonl").open(encoding="utf-8") as f:
         data = [r for r in map(json.loads, f) if r["width"] >= ROW_MIN_WIDTH]
     folder, index = private / "crops", private / "crops.jsonl"
     folder.mkdir(exist_ok=True)
     done = set()
     if index.exists():
-        with index.open(encoding="utf-8") as f:
-            done = {json.loads(line)["id"] for line in f if line.strip().endswith("}")}
+        # A kill in mid-write leaves half a line: cut it off, or the next row is glued onto it
+        # and the file can't be read any more.
+        whole = index.read_bytes()
+        whole = whole[: whole.rfind(b"\n") + 1]
+        index.write_bytes(whole)
+        done = {json.loads(line)["id"] for line in whole.decode("utf-8").splitlines()}
     cv2.setNumThreads(1)
     engine = RapidOcrEngine()
     recorder = engine._ocr.text_rec = Recorder(engine._ocr.text_rec)
     todo = [r for r in data if r["id"] not in done]
     with index.open("a", encoding="utf-8") as out:
         for n, r in enumerate(todo):
-            if n % CHECK_EVERY == 0 and n and common.game_running():
-                sys.exit(f"Overwatch is running: stopped after {n} of {len(todo)} rows")
+            if n % CHECK_EVERY == 0 and n:
+                common.no_game(f" after {n} of {len(todo)} rows")
             recorder.seen = []
             engine.read(cv2.imread(str(private / r["picture"])), scale=SCALE_4K)
             parts = []

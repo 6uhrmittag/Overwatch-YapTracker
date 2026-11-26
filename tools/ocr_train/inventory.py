@@ -36,8 +36,7 @@ _GERMAN = set("äöüßÄÖÜ")
 def copy(private: Path) -> None:
     """The DB files and the pictures. SQLite's backup can't open the live DB over /mnt/c (disk
     I/O error), so the files are copied and the copy is checked; a torn copy fails loudly."""
-    if common.game_running():
-        sys.exit("Overwatch is running: the copy waits (or use --no-copy)")
+    common.no_game(": the copy waits (or use --no-copy)")
     (private / "dbcopy").mkdir(parents=True, exist_ok=True)
     for name in ("yaptracker.db", "yaptracker.db-wal", "yaptracker.db-shm"):
         (private / "dbcopy" / name).unlink(missing_ok=True)  # never an old WAL on a new DB

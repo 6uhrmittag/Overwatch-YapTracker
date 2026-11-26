@@ -31,10 +31,10 @@ import common  # noqa: E402
 
 HEIGHT = 48
 MAX_WIDTH = 1280  # at 48 px height; a whole 4K chat row is ~1000
+MIN_WIDTH = 320  # RapidOCR pads every crop to at least this
 STRIDE = 4  # px of width per time step: narrow letters ("ll") need two steps each under CTC
 EPOCHS = 40
 BATCH = 64
-GAME_EXIT = 3
 BASE = (
     "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~äöüßÄÖÜ°´éèëàáâêîôûñçåÅøØ"
@@ -110,7 +110,8 @@ def picture(path: Path, rng: random.Random | None) -> np.ndarray:
     if rng:
         array = array * rng.uniform(0.75, 1.2) + rng.uniform(-20, 20)
         if rng.random() < 0.3:
-            array = array + np.random.normal(0, rng.uniform(2, 10), array.shape)
+            noise = np.random.default_rng(rng.getrandbits(32))
+            array = array + noise.normal(0, rng.uniform(2, 10), array.shape)
         array = array.clip(0, 255)
     return ((array / 255 - 0.5) / 0.5).transpose(2, 0, 1).astype(np.float32)
 
@@ -126,7 +127,7 @@ def batches(rows: list[tuple[str, str]], rng: random.Random | None) -> list[list
 
 def tensors(private: Path, batch: list[tuple[str, str]], rng: random.Random | None):
     pictures = [picture(private / crop, rng) for crop, _text in batch]
-    width = -(-max(p.shape[2] for p in pictures) // STRIDE) * STRIDE
+    width = -(-max(MIN_WIDTH, *(p.shape[2] for p in pictures)) // STRIDE) * STRIDE
     x = np.zeros((len(batch), 3, HEIGHT, width), dtype=np.float32)
     for i, p in enumerate(pictures):
         x[i, :, :, : p.shape[2]] = p
@@ -156,14 +157,13 @@ def exact(model: Recognizer, private: Path, rows: list[tuple[str, str]], chars: 
     return right / max(len(rows), 1)
 
 
-def export(model: Recognizer, run: Path, alphabet: list[str]) -> None:
+def export(model: Recognizer, run: Path) -> None:
     model = Export(model).cpu().eval()
     torch.onnx.export(
         model, torch.zeros(1, 3, HEIGHT, 320), str(run / "rec.onnx"), dynamo=False,
         input_names=["x"], output_names=["probabilities"], opset_version=14,
         dynamic_axes={"x": {0: "batch", 3: "width"}, "probabilities": {0: "batch", 1: "steps"}},
     )  # fmt: skip
-    (run / "dict.txt").write_text("\n".join(alphabet), encoding="utf-8")
     print(f"{run / 'rec.onnx'}: {(run / 'rec.onnx').stat().st_size / 1e6:.1f} MB")
 
 
@@ -179,21 +179,30 @@ def main() -> None:
     run = private / "train" / opts.run
     run.mkdir(parents=True, exist_ok=True)
     data = load(private)
-    seen = {c for _crop, text in data["train"] for c in text} - {" "}
-    alphabet = list(BASE) + sorted(seen - set(BASE))
+    if not data["dev"]:  # no agreed labels on the newest evenings: a slice of train stands in
+        data["dev"], data["train"] = (
+            data["train"][::20],
+            [row for i, row in enumerate(data["train"]) if i % 20],
+        )
+    state, kept = run / "last.pt", run / "dict.txt"
+    if opts.fresh:
+        for old in (state, kept, run / "best.pt"):
+            old.unlink(missing_ok=True)
+    if kept.exists():  # the alphabet belongs to the weights: a resume or export never rebuilds it
+        alphabet = kept.read_text(encoding="utf-8").split("\n")
+    else:
+        seen = {c for _crop, text in data["train"] for c in text} - {" "}
+        alphabet = list(BASE) + sorted(seen - set(BASE))
+        kept.write_text("\n".join(alphabet), encoding="utf-8")
     chars = ["", *alphabet, " "]  # RapidOCR's order: blank, dict.txt, space
     index = {c: i for i, c in enumerate(chars) if c}
     model = Recognizer(len(chars), opts.width)
-    state = run / "last.pt"
-    if opts.fresh:
-        state.unlink(missing_ok=True)
     if opts.export_only:
         if (run / "best.pt").exists():
             model.load_state_dict(torch.load(run / "best.pt"))
-        export(model, run, alphabet)
+        export(model, run)
         return
-    if common.game_running():
-        sys.exit(GAME_EXIT)
+    common.no_game()
     model.cuda()
     steps_per_epoch = -(-len(data["train"]) // BATCH)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
@@ -220,7 +229,10 @@ def main() -> None:
         rng, total = random.Random(epoch), 0.0
         model.train()
         for batch in batches(data["train"], rng):
-            x, steps = tensors(private, batch, rng)
+            x, _steps = tensors(private, batch, rng)
+            # Every step of the padded picture counts, not only the crop's own: RapidOCR pads
+            # short crops to 320 px and decodes all of it, so padding must read as nothing.
+            steps = [x.shape[3] // STRIDE] * len(batch)
             targets = [torch.tensor([index[c] for c in text if c in index]) for _c, text in batch]
             log_probs = model(x.cuda()).log_softmax(-1).transpose(0, 1)
             loss = loss_of(log_probs, torch.cat(targets), torch.tensor(steps),
@@ -233,7 +245,7 @@ def main() -> None:
             smooth.update_parameters(model)
             total += loss.item()
         dev = exact(smooth.module, private, data["dev"], chars)
-        if dev > best:
+        if dev > best or not (run / "best.pt").exists():
             best = dev
             torch.save(smooth.module.state_dict(), run / "best.pt")
         saved = {"model": model.state_dict(), "optimizer": optimizer.state_dict(),
@@ -242,11 +254,10 @@ def main() -> None:
         torch.save(saved, state)
         print(f"epoch {epoch + 1}/{opts.epochs}  loss {total / steps_per_epoch:.3f}  "
               f"dev exact {dev:.1%}  best {best:.1%}", flush=True)  # fmt: skip
-        if common.game_running():
-            print("Overwatch is running: stopped, run again to go on")
-            sys.exit(GAME_EXIT)
+        if epoch + 1 < opts.epochs:
+            common.no_game(", run again to go on")
     model.load_state_dict(torch.load(run / "best.pt"))
-    export(model, run, alphabet)
+    export(model, run)
 
 
 if __name__ == "__main__":

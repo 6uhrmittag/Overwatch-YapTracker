@@ -34,7 +34,8 @@ FONTS = [  # open, Arial/Helvetica-shaped like the chat font
 ]
 COLOURS = [(255, 255, 255), (0, 255, 255), (255, 255, 110), (255, 170, 200), (255, 180, 60),
            (255, 0, 255), (120, 200, 255)]  # fmt: skip
-# No word here may come from the #118 test sets (ocr-spike, ocr-german): they measure this.
+# No name or phrase of the #118 test sets (ocr-spike, ocr-german) may be here: they measure
+# this. Everyday words overlap all the same (about a third of the German set's tokens).
 GERMAN = _words(
     "ich du er sie es wir ihr nicht schon mal aber ist das der die den dem ein eine einen "
     "auch noch gut ja nein bitte danke hallo jetzt wo wie warum wer was hier dann doch "
@@ -137,7 +138,7 @@ def line(rng: random.Random, heroes: list[str]) -> str:
 
 def backgrounds(private: Path, rng: random.Random, count: int = 400) -> list[Image.Image]:
     """Strips of game picture from the right end of whole rows, beside the chat's dark panel."""
-    rows = [p for p in (private / "lines").rglob("*.webp")]
+    rows = sorted((private / "lines").rglob("*.webp"))  # sorted: the same pick every run
     out = []
     for path in rng.sample(rows, min(count * 2, len(rows))):
         image = Image.open(path).convert("RGB")
@@ -175,7 +176,10 @@ def main() -> None:
     opts = args.parse_args()
     private, rng = common.private(), random.Random(608)
     heroes = list(game_lists.lists()["heroes"])
+    common.no_game()
     grounds = backgrounds(private, rng)
+    if not grounds:
+        sys.exit("no 1180 px wide row pictures to cut game background from (another resolution?)")
     folder = private / "synth"
     folder.mkdir(exist_ok=True)
     with (private / "synth.jsonl").open("w", encoding="utf-8") as out:

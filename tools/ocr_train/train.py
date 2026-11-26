@@ -12,10 +12,9 @@ dict.txt, which RapidOCR loads through rec_model_path / rec_keys_path.
 
 What differs from PaddleOCR's own recipe, because chat lines are long: texts up to MAX_TEXT
 characters (theirs: 25); pictures up to WIDTH px wide at 48 px height (theirs: 320, which
-squeezes a whole chat row to a third); and batches of crops of similar width (`ds_width`), so
-a batch is as wide as its crops. With one fixed width most of every picture was padding, the
-batch statistics of the pretrained model no longer fitted, and it fell from 85 % to 55 % on dev
-within 133 steps. RecConAug (gluing crops together) is off: chat rows aren't glued.
+squeezes a whole chat row to a third); batches of crops of similar width (`ds_width`), so a
+batch is as wide as its crops; one picture height (48 px) and the backbone patched to pool in
+training as it does in evaluation (see patch(), #623). RecConAug (gluing crops) is off.
 """
 
 import argparse
@@ -41,11 +40,10 @@ PRETRAINED = "pretrained/latin_PP-OCRv5_mobile_rec_pretrained"
 DICT = "ppocr/utils/dict/ppocrv5_latin_dict.txt"
 MAX_TEXT = 80
 WIDTH = 960
-BATCH = 64
+BATCH = 16
 EPOCHS = 30
 LEARNING_RATE = 1e-4  # a fine-tune: a fifth of the from-scratch rate
 CHECK_S = 30
-GAME_EXIT = 3
 
 
 def lists(private: Path, run: Path) -> tuple[int, int]:
@@ -78,12 +76,30 @@ def lists(private: Path, run: Path) -> tuple[int, int]:
     return len(out["train"]), len(out["dev"])
 
 
+POOLING = "ppocr/modeling/backbones/rec_lcnetv3.py"
+FIXED_STEPS = "x = F.adaptive_avg_pool2d(x, [1, 40])"
+AS_EVALUATED = "x = F.avg_pool2d(x, [3, 2])  # YapTracker #623: as in evaluation"
+
+
+def patch(private: Path) -> None:
+    """PaddleOCR's backbone pools every training picture to 40 time steps, whatever its width;
+    evaluation keeps one step per 8 px. Fine at their 320 px, fatal for a chat row (#623: 40
+    steps can't spell 80 characters, the pretrained model unlearned everything in one epoch).
+    Train as it evaluates; that needs 48 px height, so the sampler gets one height only."""
+    path = private / "PaddleOCR" / POOLING
+    text = path.read_text(encoding="utf-8")
+    if FIXED_STEPS in text:
+        path.write_text(text.replace(FIXED_STEPS, AS_EVALUATED), encoding="utf-8")
+    elif AS_EVALUATED not in text:
+        sys.exit(f"{POOLING} changed: the training-mode pooling isn't where it was (#623)")
+
+
 def config(private: Path, run: Path, epochs: int, steps_per_epoch: int) -> Path:
     with (private / "PaddleOCR" / CONFIG).open(encoding="utf-8") as f:
         c = yaml.safe_load(f)
     g = c["Global"]
     g.update(epoch_num=epochs, save_model_dir=str(run), save_epoch_step=1000, distributed=False,
-             pretrained_model=str(private / PRETRAINED), print_batch_step=50,
+             pretrained_model=str(private / PRETRAINED), print_batch_step=20,
              eval_batch_step=[0, steps_per_epoch], character_dict_path=DICT,
              d2s_train_image_shape=[3, 48, WIDTH])  # fmt: skip
     c["Optimizer"]["lr"].update(learning_rate=LEARNING_RATE, warmup_epoch=1)
@@ -102,8 +118,7 @@ def config(private: Path, run: Path, epochs: int, steps_per_epoch: int) -> Path:
                 options["max_text_length"] = MAX_TEXT
             if name == "RecResizeImg":
                 options["image_shape"] = [3, 48, WIDTH]
-    train["sampler"].update(scales=[[320, 32], [320, 48], [320, 64]], first_bs=BATCH,
-                            max_w=WIDTH)  # fmt: skip
+    train["sampler"].update(scales=[[320, 48]], first_bs=BATCH, max_w=WIDTH)
     train["loader"].update(batch_size_per_card=BATCH, num_workers=4)
     dev["loader"].update(num_workers=2)
     path = run / "config.yml"
@@ -129,11 +144,11 @@ def train(private: Path, run: Path, cfg: Path) -> None:
         signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
         while job.poll() is None:
             time.sleep(CHECK_S)
-            if common.game_running():
+            if job.poll() is None and common.game_running():
                 stop()
                 job.wait()
                 print("Overwatch is running: training stopped, run again to go on")
-                sys.exit(GAME_EXIT)
+                sys.exit(common.GAME_EXIT)
     if job.returncode:
         sys.exit(f"training failed ({job.returncode}): see {run / 'train.log'}")
 
@@ -144,17 +159,18 @@ def export(private: Path, run: Path, cfg: Path) -> None:
     python = private / "venv-export" / "bin" / "python"
     out = run / "inference"
     shutil.rmtree(out, ignore_errors=True)
-    subprocess.run(
-        [python, "tools/export_model.py", "-c", str(cfg), "-o", "Global.use_gpu=false",
-         f"Global.pretrained_model={run / 'best_accuracy'}", f"Global.save_inference_dir={out}"],
-        cwd=private / "PaddleOCR", check=True, capture_output=True,
+    steps = (
+        ([python, "tools/export_model.py", "-c", str(cfg), "-o", "Global.use_gpu=false",
+          f"Global.pretrained_model={run / 'best_accuracy'}", f"Global.save_inference_dir={out}"],
+         private / "PaddleOCR"),
+        ([private / "venv-export" / "bin" / "paddle2onnx", "--model_dir", out,
+          "--model_filename", "inference.json", "--params_filename", "inference.pdiparams",
+          "--save_file", run / "rec.onnx", "--opset_version", "14"], None),
     )  # fmt: skip
-    subprocess.run(
-        [private / "venv-export" / "bin" / "paddle2onnx", "--model_dir", out,
-         "--model_filename", "inference.json", "--params_filename", "inference.pdiparams",
-         "--save_file", run / "rec.onnx", "--opset_version", "14"],
-        check=True, capture_output=True,
-    )  # fmt: skip
+    for command, cwd in steps:
+        done = subprocess.run(command, cwd=cwd, capture_output=True, text=True)
+        if done.returncode:
+            sys.exit(f"export failed:\n{done.stdout[-2000:]}\n{done.stderr[-2000:]}")
     shutil.copy(private / "PaddleOCR" / DICT, run / "dict.txt")
     print(f"{run / 'rec.onnx'}: {(run / 'rec.onnx').stat().st_size / 1e6:.1f} MB")
 
@@ -168,8 +184,8 @@ def main() -> None:
     private = common.private()
     run = private / "train" / opts.run
     run.mkdir(parents=True, exist_ok=True)
-    if common.game_running():
-        sys.exit(GAME_EXIT)
+    common.no_game()
+    patch(private)
     n_train, _ = lists(private, run)
     cfg = config(private, run, opts.epochs, max(1, n_train // BATCH))
     if not opts.export:
