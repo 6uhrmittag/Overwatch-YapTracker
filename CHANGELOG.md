@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-26 · AI correction, part 2: storing the AI's reading (#637)
+- Behind the scenes: a corrected line keeps what OCR read, a hand edit always wins, and the AI's reading isn't overwritten by a later OCR reading. Not switched on yet.
+
 ### 2026-11-26 · The reading engine in Settings -> Reading (#640)
 - Settings -> Reading has a **Best reader** row: RapidOCR or the new Chat-trained engine, one click, no need to open Calibrate.
 
