@@ -93,7 +93,8 @@ Comments from the planning chat end with _(planning chat)_.
    green (and the closing checklist below is done), squash-merge it with
    `gh pr merge <PR> --squash --delete-branch`.
    Don't hand the merge back to Marv and don't wait for his review: he reviews the
-   pre-release. Never force-push.
+   pre-release. Never force-push, and never `git reset --hard` (or otherwise throw away work)
+   without asking Marv first.
 6. **Don't idle while CI runs; up to two lanes.** While a PR waits for CI (~2-3 min), start the
    next issue on a fresh branch from `main`. You may run **two issues at once**, each in its own
    worktree, if they touch different files (check with `git diff --name-only`); never two PRs
@@ -390,11 +391,27 @@ adapters differ — that's why capture uses WGC. Don't suggest disabling the iGP
   pre-release on Marv's PC. Never try to run them in WSL.
 - `.ps1` files: ASCII only (Windows PowerShell 5.1 misreads UTF-8 without BOM),
   CRLF via `.gitattributes`.
+- No heavy I/O straight on `/mnt/c` (e.g. backing up the live DB, bulk copies of debug frames):
+  copy the files into the WSL filesystem first and work on the copy (a live-DB backup over
+  `/mnt/c` failed with an I/O error).
+- Snap Chromium can't write to `/tmp`: point browser screenshots/tests at a folder under `$HOME`
+  or the session scratchpad.
 
 **Testability rule:** everything except capture must run and be tested on
 Linux too. Put capture behind a `FrameSource` interface with a
 `ReplayFrameSource` that feeds saved frames — that powers tests, CI and
 development without the game running.
+
+**Checks before pushing** (bugs that review/CI kept catching late, /insights 2026-11-26):
+- New CSS variable, helper or module-level name: `grep` for it first (collisions, shadowing).
+- Async/network code: read the inputs (e.g. the target language, settings) **before** the
+  await/network wait, not after it.
+- Tests never depend on tight timing (CI runners are loaded): poll/wait for the condition with a
+  generous timeout instead of a fixed sleep.
+- PowerShell test harnesses must work in Windows PowerShell 5.1 (piping a JSON array unrolls it:
+  use `-InputObject` / `,@(...)`).
+- A "faster"/"lower latency"/"less CPU" option ships only after measuring it beats the default;
+  put the numbers in the PR.
 
 ---
 
