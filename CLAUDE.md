@@ -109,7 +109,10 @@ Comments from the planning chat end with _(planning chat)_.
 
 **Closing an issue — required, every time (Marv tracks progress in the issues):**
 1. **Before merging**, go through the issue's "Done when" checklist and **tick every
-   box that is really done** (edit the issue body: `- [ ]` → `- [x]`).
+   box that is really done** (edit the issue body: `- [ ]` → `- [x]`). **Re-read the issue
+   right before ticking** (boxes get added while you work), and tick **box by box against what
+   the PR did**: replace each box by its own text, never every `- [ ]` in the body at once
+   (#640: two boxes added before work started were ticked but never built).
 2. Post a **closing comment** on the issue: what was built (1–3 lines), the PR link,
    and for every box that is *not* ticked: why, and where it went — a new issue
    (`#N`), a `blocker`, or "dropped, because …". No silent leftovers.
