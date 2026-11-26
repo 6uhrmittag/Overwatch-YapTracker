@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-27 · Record the chat box for one evening (#654)
+- Settings → Debug samples → "Record the chat box for one evening": every chat picture that changed, for 12 hours, so lost lines can be counted against what was really on screen. Off by default, size shown, kept 14 days, pauses when the disk is nearly full.
+
 ### 2026-11-26 · Long lines stay whole and stored once (#653)
 - A long message that wraps onto a second row is no longer stored twice (once cut after the first row, once whole): the whole message completes the cut one.
 - A wrapped message no longer loses its second row when I read one word before the wrap a little differently in some frames.
