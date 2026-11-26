@@ -4,6 +4,11 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-26 · "As fast as it can" reads without brakes (#652)
+- "As fast as it can" now really means it: no slowing down to protect your FPS. YapTracker and its chat reading run at normal priority (fewer moments where the game picture didn't reach me), the game picture is grabbed 4 times a second in a match, and reading never backs off. Fewer lost lines, a few FPS less.
+- The 1.5 s and 3 s settings keep every brake, as before.
+- The log's chat reading line now says how many reads a minute really ran and the gap they used.
+
 ### 2026-11-26 · One place for how chat is read (#640)
 - Settings → Reading starts with the **Reading engine**: Classic (RapidOCR) or Chat-trained. Light and best quality say what they read with.
 - If the chosen engine can't start, Classic reads instead and Settings → Reading says why.
