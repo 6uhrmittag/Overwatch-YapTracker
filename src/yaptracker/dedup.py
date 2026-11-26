@@ -376,15 +376,20 @@ class Dedup:
         where = self._where.get(id(line))
         if where is None or where[0] not in self.recent:
             return None
-        k = match_key(line)
-        for yap in reversed(self.recent[: self.recent.index(where[0])]):
+        below, up, _ = where
+        text = _folded(line.text)
+        # Only the known lines where this row stands (#653): `up` rows above the one below, and
+        # one more for a row missed in between. The text alone, not the whole key: a long name
+        # made "hehe :3" the same speaker's ":(" minutes before (77 of 70).
+        above = self.recent[: self.recent.index(below)]
+        for yap in list(reversed(above))[: up + 1]:
             if yap.id in self._on_screen:
                 break  # on screen as itself: what's above it is no neighbour of this row
             said = yap.best
             if (
                 said.kind == line.kind
                 and _near(said.speaker, line.speaker)
-                and (yap.similarity(k) >= NEAR_NAME)
+                and fuzz.ratio(_folded(said.text), text) >= NEAR_NAME
             ):
                 return yap
         return None
