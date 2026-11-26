@@ -301,11 +301,19 @@ def _ai_corrections():
         lambda message_id, ts: runtime.pictures.path(message_id, ts) if runtime.pictures else None,
         relink=lambda speaker, ts: runtime.players.link(speaker, ts) if runtime.players else None,
         label=lambda entry: ai_correct.save_label(labels, entry),
+        orphan=_drop_orphan,
+        heard=lambda pid, match: runtime.familiar.heard(pid, match) if runtime.familiar else None,
         enabled=lambda: config.ai_correct() and bool(config.openrouter_key().strip()),
     )  # fmt: skip
     doubt = ai_correct.Doubt(runtime.store, looks_german)
     worker.start()
     return lambda message_id, ts, yap: worker.submit(message_id, ts, doubt.why(yap))
+
+
+def _drop_orphan(player_id: int) -> None:
+    """The player only OCR's misread name made, once the AI fixed the name (#637)."""
+    if runtime.store.drop_player_if_unused(player_id) and runtime.players is not None:
+        runtime.players.reload()
 
 
 def _overwatch_in_front() -> bool:
@@ -377,7 +385,7 @@ def _close_store() -> None:
     # The OCR child first (#563): a read still waiting for it ends at once and is read here, so
     # the reader's stop doesn't wait behind a child that waits for a core.
     for part in (runtime.backups, runtime.ocr_child, runtime.reader, runtime.read_again,
-                 runtime.health, runtime.matches):  # fmt: skip
+                 runtime.ai_corrector, runtime.health, runtime.matches):  # fmt: skip
         if part is not None:
             part.stop()
     if runtime.store is not None:

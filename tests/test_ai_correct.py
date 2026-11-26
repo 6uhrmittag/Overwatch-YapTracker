@@ -273,13 +273,15 @@ def test_undoing_a_hand_edit_of_an_ai_line_keeps_its_mark_and_ocrs_reading(tmp_p
     store.close()
 
 
-def test_the_tidy_up_never_removes_an_ai_line(tmp_path):
+def test_the_tidy_up_may_still_remove_an_ai_line_no_best_reading_confirms(tmp_path):
+    """A light reader's fragment ("gg" beside the real line) the AI read as the whole row is
+    still a fragment: the tidy-up decides as for any line (#432, review of #637)."""
     store = Store.open(tmp_path / "y.db", tmp_path / "b")
     match = store.start_match(store.start_session(90.0), 95.0, "heroselect")
     mid = store.add_message(ts=100.0, match_id=match, channel="match", speaker_raw="Plp",
                             text="helo")  # fmt: skip
     store.ai_correct_message(mid, text="x", speaker_raw="Pip", has_glyphs=False, ts=1.0)
-    assert mid in store.hand_touched(match)
+    assert mid not in store.hand_touched(match)
     store.close()
 
 
@@ -329,7 +331,7 @@ def OcrLine_(text, confidence, box):  # noqa: N802
 
 
 def doubt(store_names=(), edited=()):
-    store = SimpleNamespace(player_names=lambda: [(1, n) for n in store_names],
+    store = SimpleNamespace(trusted_names=lambda: list(store_names),
                             edited_speakers=lambda since: set(edited))  # fmt: skip
     return ai_correct.Doubt(store, lambda text: False)
 
@@ -367,3 +369,37 @@ def test_the_settings_words():
     said = status_words(True, True, 12, 40, 0.01, 1.0)
     assert "12 lines corrected, 40 looked at" in said and "$0.01 of $1.00" in said
     assert "limit is reached" in status_words(True, True, 0, 0, 1.0, 1.0)
+
+
+def test_each_line_goes_to_the_ai_once_a_run(tmp_path):
+    store, mid = stored(tmp_path, text="hello there", speaker="Pip")
+    w = worker(tmp_path, store, "[Pip]: hello there")  # the AI agrees: nothing changes
+    w.handle(ai_correct.Waiting(mid, 100.0, frozenset({"readings disagree"}), 0.0))
+    w.submit(mid, 100.0, {"readings disagree"})  # a later, different OCR reading
+    assert w._queue == [] and w._corrector.sent == 1
+    store.close()
+
+
+def test_a_corrected_name_drops_the_player_the_misread_made_and_may_greet(tmp_path):
+    store, mid = stored(tmp_path, text="hello there", speaker="Plp")
+    misread, pip = store.add_player("Plp", 99.0), store.add_player("Pip", 50.0)
+    store.set_message_player(mid, misread)
+    dropped, heard = [], []
+    w = worker(tmp_path, store, "[Pip]: hello there", player=pip)
+    w._orphan = lambda pid: dropped.append(store.drop_player_if_unused(pid))
+    w._heard = lambda pid, match: heard.append(pid)
+    w.handle(ai_correct.Waiting(mid, 100.0, frozenset({"name near-miss"}), 0.0))
+    assert dropped == [True] and heard == [pip]
+    assert [p.display_name for p in store.players()] == ["Pip"]
+    store.close()
+
+
+def test_near_miss_names_come_from_players_worth_trusting(tmp_path):
+    store, mid = stored(tmp_path, text="a", speaker="Pip")
+    regular, one_off = store.add_player("Pip", 1.0), store.add_player("Plp", 2.0)
+    for n in range(3):
+        store.add_message(ts=200.0 + n, channel="match", speaker_raw="Pip", text="hi",
+                          player_id=regular)  # fmt: skip
+    store.add_message(ts=300.0, channel="match", speaker_raw="Plp", text="hi", player_id=one_off)
+    assert store.trusted_names() == ["Pip"]
+    store.close()

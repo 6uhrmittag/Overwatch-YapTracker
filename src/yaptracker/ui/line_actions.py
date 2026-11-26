@@ -10,7 +10,7 @@ from collections.abc import Callable
 
 from nicegui import run, ui
 
-from yaptracker import config, runtime
+from yaptracker import ai_correct, config, paths, runtime
 from yaptracker.auto_translate import context_for, outgoing, unchanged
 from yaptracker.glyphs import GLYPH, shown
 from yaptracker.translate import FAILED, Translation, language
@@ -136,8 +136,6 @@ def _save_fix(before, value: str, text: ui.element, mark: ui.element, bar) -> No
     if runtime.debug is not None:  # hand-checked OCR ground truth (#227)
         picture = runtime.pictures.path(before.id, before.ts) if runtime.pictures else None
         runtime.debug.correction(before, value, picture)
-    from yaptracker import ai_correct, paths
-
     ai_correct.save_label(paths.data_dir() / "labels", {  # for training our OCR (#608, #637)
         "id": before.id, "ts": before.ts, "speaker": before.speaker_raw, "text": value,
         "ocr_speaker": before.speaker_ocr or before.speaker_raw,
@@ -147,6 +145,8 @@ def _save_fix(before, value: str, text: ui.element, mark: ui.element, bar) -> No
         store.unedit_message(before.id, before.text, before.edited_at)
         _show_text(text, before.text)
         show_line_mark(mark, before)
+        ai_correct.save_label(paths.data_dir() / "labels",  # training skips it (#637)
+                              {"id": before.id, "ts": before.ts, "undone": True})  # fmt: skip
 
     if bar is not None:
         bar.show("Line fixed", undo)

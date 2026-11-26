@@ -109,7 +109,15 @@ def ai_settings(saved: Callable[[], None]) -> None:
         cap.value = f"{config.ai_cap():.2f}"
         show_spend()
 
+    shown_key = {"v": (key.value or "").strip()}
+
     def save_key() -> None:
+        # Against what this field showed, not the config: the AI correction card has the same
+        # key (#637), and a stale field here must not undo a key saved there.
+        value = (key.value or "").strip()
+        if value == shown_key["v"]:
+            return
+        shown_key["v"] = value
         save(key, config.openrouter_key(), config.save_openrouter_key)
         ui.timer(0.1, check_models, once=True)  # a new key: the list may be due now
 

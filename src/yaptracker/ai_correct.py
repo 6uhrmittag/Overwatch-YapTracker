@@ -207,6 +207,7 @@ def triggers(text: str, speaker: str | None, channel: str, *, readings_disagree:
 # --- the worker: behind storing, never in the reader's way (#637) -------------------------
 DELAY_S = 1.0  # a stored line waits this long: dedup may still find a better OCR reading
 QUEUE_MAX = 60  # lines waiting at most; a flood drops the oldest (they stay as OCR read them)
+SUMMARY_EVERY = 20  # lines sent between two summary lines in the log
 
 
 @dataclass
@@ -229,27 +230,33 @@ class Worker:
                  saved: Callable[[int], None] = lambda message_id: None,
                  label: Callable[[dict], None] = lambda entry: None,
                  enabled: Callable[[], bool] = lambda: True,
+                 orphan: Callable[[int], None] = lambda player_id: None,
+                 heard: Callable[[int | None, int | None], object] = lambda pid, match: None,
                  clock: Callable[[], float] = time.monotonic) -> None:  # fmt: skip
         self._corrector, self._store, self._picture = corrector, store, picture
         self._relink, self._saved, self._label = relink, saved, label
         self._enabled, self._clock = enabled, clock
+        self._orphan, self._heard = orphan, heard
         self._lock = threading.Lock()
         self._queue: list[Waiting] = []
         self._wake = threading.Event()
         self._stop = threading.Event()
         self.counts: dict[str, int] = {}  # trigger -> lines sent this run, for the log
         self.corrected = 0  # lines whose reading the AI changed this run
+        self._asked: set[int] = set()  # each line goes to the AI once a run, whatever comes back
         self._thread: threading.Thread | None = None
 
     @property
     def sent_tonight(self) -> int:
-        return self._corrector.sent_tonight
+        """Lines looked at this evening (0 once the evening is over, before the next one)."""
+        c = self._corrector
+        return c.sent_tonight if c.evening == day_of(c._clock()) else 0
 
     def submit(self, message_id: int, ts: float, why: set[str]) -> None:
         if not why or not self._enabled():
             return
         with self._lock:
-            if any(w.message_id == message_id for w in self._queue):
+            if message_id in self._asked or any(w.message_id == message_id for w in self._queue):
                 return
             self._queue.append(Waiting(message_id, ts, frozenset(why), self._clock()))
             del self._queue[:-QUEUE_MAX]
@@ -300,6 +307,8 @@ class Worker:
         ok, png = cv2.imencode(".png", picture)
         if not ok:
             return
+        with self._lock:
+            self._asked.add(message.id)
         got = self._corrector.correct(png.tobytes())
         if got.row is None:
             log.info("correct: line %s not corrected (%s)", message.id, got.error)
@@ -325,8 +334,15 @@ class Worker:
                                               ts=time.time()):  # fmt: skip
             return  # fixed by hand while the AI was reading
         if speaker != message.speaker_raw and message.channel != "system":
-            self._store.set_message_player(message.id, self._relink(speaker, message.ts))
+            player = self._relink(speaker, message.ts)
+            self._store.set_message_player(message.id, player)
+            if message.player_id is not None and message.player_id != player:
+                self._orphan(message.player_id)  # the player only OCR's misread made
+            self._heard(player, message.match_id)  # maybe a familiar face after all
         self.corrected += 1
+        if sum(self.counts.values()) % SUMMARY_EVERY == 0:
+            log.info("correct: %d lines changed this run; sent by trigger: %s", self.corrected,
+                     ", ".join(f"{k} {v}" for k, v in sorted(self.counts.items())))  # fmt: skip
         log.info("correct: line %s corrected by %s (%s)", message.id, got.model,
                  ", ".join(sorted(waiting.why)))  # fmt: skip
         self._label({"id": message.id, "ts": message.ts, "speaker": speaker, "text": text,
@@ -355,7 +371,7 @@ class Doubt:
     def _fresh(self) -> None:
         now = self._clock()
         if now - self._at >= REFRESH_S:
-            self._names = sorted({name.lower() for _pid, name in self._store.player_names()})
+            self._names = sorted(name.lower() for name in self._store.trusted_names())
             self._edited = self._store.edited_speakers(now - EDITED_DAYS * 86_400)
             self._at = now
 

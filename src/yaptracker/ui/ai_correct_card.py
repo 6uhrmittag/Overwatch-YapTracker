@@ -58,9 +58,15 @@ def ai_correct_card() -> None:
             ).classes("yt-hint")
             status = ui.label().classes("yt-hint").mark("ai-correct-status")
 
+    shown_key = {"v": (key.value or "").strip()}
+
     def save_key() -> None:
-        if (key.value or "").strip() != config.openrouter_key():
-            config.save_openrouter_key(key.value or "")
+        # Against what this field showed (the Translate card has the same key, #568): a stale
+        # field must not undo a key saved there.
+        value = (key.value or "").strip()
+        if value != shown_key["v"]:
+            shown_key["v"] = value
+            config.save_openrouter_key(value)
         show()
 
     def show() -> None:

@@ -224,7 +224,8 @@ def show_picture(message, row: dict | None = None, on_channel=None) -> None:
             if path is not None and path.exists():
                 ui.image(path).classes("yt-picture-image").mark("line-picture")
                 ui.label("The line as it looked in Overwatch.").classes("yt-hint")
-                if message.edited_at is None and runtime.read_again is not None:
+                if (message.edited_at is None and message.ai_corrected_at is None
+                        and runtime.read_again is not None):  # fmt: skip
                     _read_line_again(message, row)
             _channel_picker(message, row, path, on_channel)
             spicy = message.flagged is not None
