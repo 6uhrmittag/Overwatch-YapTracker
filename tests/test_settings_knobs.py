@@ -77,6 +77,24 @@ async def test_reading_card_changes_apply_at_once(user: User, monkeypatch):
     assert config.reading("competitive") == "after"
 
 
+async def test_the_best_reader_is_chosen_in_the_reading_card(user: User, monkeypatch):
+    """#640: the reading engine was only in Calibrate's preview; now also in Reading."""
+    from yaptracker.ocr import engine as ocr
+
+    config.save_setup_state("done")
+    warmed = []
+    monkeypatch.setattr(ocr, "warm_up", warmed.append)
+    monkeypatch.setattr(runtime, "ocr_child", None)
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see("Best reader")
+    await user.should_see("Chat-trained")
+    user.find(marker="engine-chat").click()
+    assert config.ocr_engine() == "chat" and warmed == ["chat"]
+    user.find(marker="engine-rapidocr").click()
+    assert config.ocr_engine() == "rapidocr"
+
+
 async def test_back_up_now_button(user: User, monkeypatch, tmp_path):
     config.save_setup_state("done")
     store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
