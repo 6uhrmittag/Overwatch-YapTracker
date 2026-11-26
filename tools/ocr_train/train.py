@@ -153,6 +153,26 @@ def train(private: Path, run: Path, cfg: Path) -> None:
         sys.exit(f"training failed ({job.returncode}): see {run / 'train.log'}")
 
 
+PRUNE = """
+import sys, onnx
+model = onnx.load(sys.argv[1])
+graph = model.graph
+made_by = {out: node for node in graph.node for out in node.output}
+needed, todo = set(), [out.name for out in graph.output]
+while todo:
+    name = todo.pop()
+    if name not in needed:
+        needed.add(name)
+        if name in made_by:
+            todo.extend(made_by[name].input)
+keep = [node for node in graph.node if any(out in needed for out in node.output)]
+del graph.node[:]
+graph.node.extend(keep)
+onnx.checker.check_model(model)
+onnx.save(model, sys.argv[1])
+"""
+
+
 def export(private: Path, run: Path, cfg: Path) -> None:
     """Best dev checkpoint -> Paddle inference model -> ONNX. In the export venv: the converter
     doesn't know the operators PaddlePaddle 3.3 writes (linear_v2, shape64), 3.0 writes old ones."""
@@ -171,9 +191,28 @@ def export(private: Path, run: Path, cfg: Path) -> None:
         done = subprocess.run(command, cwd=cwd, capture_output=True, text=True)
         if done.returncode:
             sys.exit(f"export failed:\n{done.stdout[-2000:]}\n{done.stderr[-2000:]}")
-    # 57 MB: PaddlePaddle 3.0's export keeps the training-only head in the file (3.3's is 8 MB
-    # but can't be converted). Removing unused weights by name didn't shrink it; slimming the
-    # graph properly is for the ship issue (#624).
+    # PaddlePaddle 3.0's export keeps the training-only head in the file as constants nothing
+    # reads: 57 MB. Keep only what the output is computed from (8 MB), and prove on a fixed
+    # picture that the pruned file answers exactly like the full one before the full one goes.
+    full = run / "rec-full.onnx"
+    shutil.move(run / "rec.onnx", full)
+    shutil.copy(full, run / "rec.onnx")
+    done = subprocess.run([python, "-c", PRUNE, run / "rec.onnx"], capture_output=True, text=True)
+    if done.returncode:
+        sys.exit(f"pruning failed:\n{done.stderr[-2000:]}")
+    import numpy as np
+    import onnxruntime
+
+    picture = np.random.default_rng(608).random((2, 3, 48, 480), dtype=np.float32)
+    answers = [
+        onnxruntime.InferenceSession(str(path), providers=["CPUExecutionProvider"]).run(
+            None, {"x": picture}
+        )[0]
+        for path in (full, run / "rec.onnx")
+    ]
+    if not np.array_equal(*answers):
+        sys.exit("the pruned model answers differently from the exported one: not kept")
+    full.unlink()
     shutil.copy(private / "PaddleOCR" / DICT, run / "dict.txt")
     print(f"{run / 'rec.onnx'}: {(run / 'rec.onnx').stat().st_size / 1e6:.1f} MB")
 
