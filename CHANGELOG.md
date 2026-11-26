@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-26 · The new reading engine keeps the right reading of a line (#631)
+- With the Chat-trained reading engine, one misread with a stray ß or accent no longer replaces a line that was read right many times.
+
 ### 2026-11-26 · The new reading engine, checked on whole recorded matches (#628)
 - Behind the scenes: recorded matches can be replayed with either reading engine and the two chat logs compared line by line.
 
