@@ -362,13 +362,13 @@ def test_labels_go_to_a_file_per_month(tmp_path):
 
 
 def test_the_settings_words():
-    from yaptracker.ui.ai_correct_card import status_words
+    from yaptracker.ui.reading import ai_words
 
-    assert "Off" in status_words(True, False, 0, 0, 0.0, 1.0)
-    assert "Needs an OpenRouter key" in status_words(False, True, 0, 0, 0.0, 1.0)
-    said = status_words(True, True, 12, 40, 0.01, 1.0)
+    assert "Off" in ai_words(True, False, 0, 0, 0.0, 1.0)
+    assert ai_words(False, True, 0, 0, 0.0, 1.0).startswith("Needs an OpenRouter key")
+    said = ai_words(True, True, 12, 40, 0.01, 1.0)
     assert "12 lines corrected, 40 looked at" in said and "$0.01 of $1.00" in said
-    assert "limit is reached" in status_words(True, True, 0, 0, 1.0, 1.0)
+    assert "limit is reached" in ai_words(True, True, 0, 0, 1.0, 1.0)
 
 
 def test_each_line_goes_to_the_ai_once_a_run(tmp_path):

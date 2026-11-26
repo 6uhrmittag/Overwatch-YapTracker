@@ -21,7 +21,6 @@ from yaptracker.reader import FAIL_LIMIT
 from yaptracker.snaps import MAX_LINES
 from yaptracker.store.backups import last_backup
 from yaptracker.ui import backlog, timing
-from yaptracker.ui.ai_correct_card import ai_correct_card
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.chat_colours import chat_colours_card
 from yaptracker.ui.components import (
@@ -873,7 +872,6 @@ def settings() -> None:  # noqa: C901 - a page builder: its handlers need the pa
             reading_card()
             crew_card()
             translate_card()  # DeepL, opt-in (#468)
-            ai_correct_card()  # doubtful lines re-read by the AI (#637)
             chat_colours_card()
             startup_card()
             hotkeys_card()

@@ -1,11 +1,16 @@
 """Settings -> Reading (#152): how the chat is read during Competitive and other matches (#331),
 and how often. Applies at once."""
 
+import time
+from datetime import datetime, timedelta
+
 from nicegui import ui
 
-from yaptracker import config, runtime
+from yaptracker import ai_correct, config, runtime
 from yaptracker import reading_mode as modes
+from yaptracker.days import CUT_H, day_of
 from yaptracker.ocr import engine as ocr
+from yaptracker.ui.components import switch
 
 _GAPS = {1.5: "Every 1.5 s", 3.0: "Every 3 s", 0.0: "As fast as it can (strong PCs)"}
 _MODES = {
@@ -60,6 +65,7 @@ def reading_card() -> None:
                 "is read live with the best quality: that's your choice. When the game leaves "
                 "me no core at all, I read every 3 s for a minute whatever you chose."
             ).classes("yt-hint")
+            ai_correction_row()  # doubtful lines re-read by an AI (#637)
 
     def segment(container, options: dict, chosen, choose, key: str, disabled=()) -> None:
         container.clear()
@@ -105,3 +111,67 @@ def reading_card() -> None:
                 disabled=[n for n in ocr.LABELS if n not in available])  # fmt: skip
 
     render()
+
+
+def evening_start(now: float) -> float:
+    """05:00 of the evening `now` belongs to (days.py): when "tonight" began."""
+    day = datetime.fromisoformat(day_of(now))
+    return (day + timedelta(hours=CUT_H)).timestamp()
+
+
+def ai_words(key: bool, on: bool, corrected: int, sent: int, used: float | None,
+             cap: float) -> str:  # fmt: skip
+    """AI correction's state in words (#637). Without a key the link to it follows."""
+    if not on:
+        return "Off: lines stay as OCR read them."
+    if not key:
+        return "Needs an OpenRouter key: nothing is sent. Set it under"
+    said = (f"Tonight: {corrected} line{'s' if corrected != 1 else ''} corrected, {sent} looked "
+            f"at (at most {ai_correct.EVENING_LIMIT} a night).")  # fmt: skip
+    if used is not None:
+        said += f" The AI this month: ${used:.2f} of ${cap:.2f}."
+        if used >= cap:
+            said += " The limit is reached: nothing goes to the AI until next month."
+    return said
+
+
+def ai_correction_row() -> None:
+    """Doubtful lines re-read by an AI from their picture (#637). The OpenRouter key stays in
+    its one place, Translate chat -> AI (#640): without it this row says so and links there."""
+    switch(
+        "AI correction",
+        config.ai_correct(),
+        lambda on: (config.save_ai_correct(on), show()),
+        hint=(
+            "Lines I'm unsure of go to an AI as the picture of that one line, names included; "
+            'hover "AI-corrected" for what OCR read. Your edits always win. About a cent an '
+            "evening."
+        ),
+    ).mark("ai-correct-switch")
+    with ui.element("p").classes("yt-hint").mark("ai-correct-status"):
+        status = ui.label().style("display: inline")
+        where = ui.link("Translate chat → AI", "#translate").style(
+            "color: var(--yt-accent); margin-left: 4px"
+        )
+        where.mark("ai-correct-key-link")
+
+    def show() -> None:
+        worker, store, now = runtime.ai_corrector, runtime.store, time.time()
+        corrected = store.corrected_since(evening_start(now)) if store is not None else 0
+        sent = worker.sent_tonight if worker is not None else 0
+        spend = runtime.ai_spend
+        key, on = bool(config.openrouter_key().strip()), config.ai_correct()
+        status.set_text(
+            ai_words(
+                key,
+                on,
+                corrected,
+                sent,
+                spend.used() if spend is not None else None,
+                config.ai_cap(),
+            )
+        )
+        where.classes(**{"remove" if on and not key else "add": "yt-hidden"})  # fmt: skip
+
+    show()
+    ui.timer(10.0, show)  # tonight's count moves while you play

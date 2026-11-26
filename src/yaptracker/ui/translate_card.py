@@ -39,7 +39,7 @@ SCRIPTS = (
 
 
 def translate_card() -> None:
-    with ui.element("section").classes("yt-card").mark("translate"):
+    with ui.element("section").classes("yt-card").mark("translate").props('id="translate"'):
         with ui.element("div").classes("yt-card-head"):
             ui.label("Translate chat").classes("yt-h2")
             status = ui.element("div")
