@@ -180,11 +180,19 @@ class Yap:
         """A good reading beats weak ones however often those were read, so a bright frame
         can't flip it back (#195); then the most frequent, then the best scored."""
 
+        good = [k for k in self.readings if self.lines[k].quality >= GOOD]
+        # the good reading read most often: what the line says, but for its umlauts
+        usual = _folded(self.lines[max(good, key=lambda k: self.readings[k])].text) if good else ""
+
         def rank(k: str) -> tuple:
-            q = self.lines[k].quality
+            q, text = self.lines[k].quality, self.lines[k].text
             # among good readings the one with umlauts wins, however often the plain one was
-            # read: the Latin model only adds them when the line or its picture shows them (#293)
-            return (q >= GOOD, q >= GOOD and _accented(self.lines[k].text), self.readings[k], q)
+            # read: the Latin model only adds them when the line or its picture shows them
+            # (#293). Only where it is the usual reading with umlauts ("Gruße" -> "Grüße"): a
+            # reader that always has them can also misread a "3" as "ß" once, and that one
+            # reading must not beat the many right ones (#631: "glhf <3" kept as "glhif <ß").
+            dotted = q >= GOOD and _accented(text) and _folded(text) == usual
+            return (q >= GOOD, dotted, self.readings[k], q)
 
         best = self.lines[max(self.readings, key=rank)]
         start, read = _folded(best.text), self.readings[key(best)]
