@@ -29,6 +29,8 @@ class Message:
     translation: str | None = None  # DeepL's (#470), into translation_to ("EN"/"DE")
     translation_from: str | None = None  # DeepL's code of the line's language, e.g. "ES"
     translation_to: str | None = None
+    ai_corrected_at: float | None = None  # the text is the AI's reading (#637)
+    speaker_ocr: str | None = None  # OCR's name, when the AI changed it
 
 
 @dataclass(frozen=True)
@@ -98,7 +100,8 @@ class Stats:
 
 _MESSAGE_COLUMNS = (
     "id, match_id, ts, channel, speaker_raw, player_id, hero, text, ocr_confidence, flagged, role, "
-    "has_glyphs, edited_at, original_text, translation, translation_from, translation_to"
+    "has_glyphs, edited_at, original_text, translation, translation_from, translation_to, "
+    "ai_corrected_at, speaker_ocr"
 )
 # A text fixed by hand drops the line's translation (#470), in the same UPDATE: SET sees the
 # old row, so "text IS ?" (the new text) keeps it only when the text stays as it is. A better
@@ -513,9 +516,31 @@ class Store:
         """Fixed by hand (#227): the first OCR reading is kept, search follows the new text."""
         self._write(
             "UPDATE chat_messages SET original_text = COALESCE(original_text, text), text = ?, "
-            f"edited_at = ?, {_KEEP_TRANSLATION} WHERE id = ?",
+            f"edited_at = ?, ai_corrected_at = NULL, {_KEEP_TRANSLATION} WHERE id = ?",
             (text, ts, text, text, text, message_id),
-        )
+        )  # a hand edit always wins over the AI's reading (#637)
+
+    def ai_correct_message(self, message_id: int, *, text: str, speaker_raw: str | None,
+                           has_glyphs: bool, ts: float) -> bool:  # fmt: skip
+        """The AI's reading of a doubtful line (#637), never over a hand edit or on a deleted
+        line: OCR's text stays in original_text, its name in speaker_ocr when the name changes,
+        and a new text drops the translation. True when it was stored."""
+        with self._lock:
+            cursor = self._conn.execute(
+                "UPDATE chat_messages SET original_text = COALESCE(original_text, text), "
+                "speaker_ocr = CASE WHEN speaker_raw IS NOT ? THEN COALESCE(speaker_ocr, "
+                "speaker_raw) ELSE speaker_ocr END, "
+                f"{_KEEP_TRANSLATION}, text = ?, speaker_raw = ?, has_glyphs = ?, "
+                "ai_corrected_at = ? "
+                "WHERE id = ? AND edited_at IS NULL AND deleted_at IS NULL",
+                (speaker_raw, text, text, text, text, speaker_raw, int(has_glyphs), ts,
+                 message_id),
+            )  # fmt: skip
+            return cursor.rowcount == 1
+
+    def set_message_player(self, message_id: int, player_id: int | None) -> None:
+        """Who said it, after the name was corrected (#637)."""
+        self._write("UPDATE chat_messages SET player_id = ? WHERE id = ?", (player_id, message_id))
 
     def unedit_message(self, message_id: int, text: str, edited_at: float | None) -> None:
         """Undo an edit: the text and mark as they were before."""
@@ -738,8 +763,10 @@ class Store:
                       f"AND text IS NOT ? THEN NULL ELSE {column} END, "
                       for column in ("translation_from", "translation_to"))
             + "channel = CASE WHEN channel_ocr IS NULL THEN ? ELSE channel END, "  # by hand (#283)
-            "speaker_raw = ?, hero = ?, "
-            "text = CASE WHEN edited_at IS NULL THEN ? ELSE text END, "
+            # the AI's reading of a doubtful line stays too (#637): it read the picture closer
+            "speaker_raw = CASE WHEN ai_corrected_at IS NULL THEN ? ELSE speaker_raw END, "
+            "hero = ?, "
+            "text = CASE WHEN edited_at IS NULL AND ai_corrected_at IS NULL THEN ? ELSE text END, "
             "ocr_confidence = ?, "
             "flagged = CASE WHEN flagged = 'manual' THEN flagged ELSE COALESCE(?, flagged) END, "
             "role = ?, has_glyphs = ?, player_id = ? "

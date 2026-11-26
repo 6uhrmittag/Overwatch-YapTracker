@@ -25,12 +25,16 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+import cv2
 from rapidfuzz import fuzz
 
-from yaptracker import ai_translate
+from yaptracker import ai_translate, glyphs, icons, images
 from yaptracker.ai_translate import PROVIDER, URL, Spend
+from yaptracker.capture.source import Region
 from yaptracker.days import day_of
 from yaptracker.glyphs import GLYPH
+from yaptracker.ocr.engine import OcrLine
+from yaptracker.parser import parse as parse_chat
 
 log = logging.getLogger(__name__)
 
@@ -144,7 +148,7 @@ class Corrector:
         try:
             answer = self._send(request(key, model, png), timeout)
             self.spend.add(float((answer.get("usage") or {}).get("cost") or 0.0))
-            row, icons = parse(answer["choices"][0]["message"]["content"])
+            row, named = parse(answer["choices"][0]["message"]["content"])
         except urllib.error.HTTPError as error:
             log.info("correct: OpenRouter said %s (%s)", error.code, model)
             return Correction(error=ai_translate._HTTP.get(error.code, ai_translate.FAILED))
@@ -158,7 +162,7 @@ class Corrector:
         except (ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
             log.info("correct: odd answer from %s (%s)", model, type(error).__name__)
             return Correction(error=ai_translate.FAILED)
-        return Correction(row=row, icons=icons, model=model)
+        return Correction(row=row, icons=named, model=model)
 
 
 TIMED_OUT = "The AI took too long with this line."
@@ -198,3 +202,117 @@ def triggers(text: str, speaker: str | None, channel: str, *, readings_disagree:
     if wrapped:
         why.add("wrapped")
     return why
+
+
+# --- the worker: behind storing, never in the reader's way (#637) -------------------------
+DELAY_S = 1.0  # a stored line waits this long: dedup may still find a better OCR reading
+QUEUE_MAX = 60  # lines waiting at most; a flood drops the oldest (they stay as OCR read them)
+
+
+@dataclass
+class Waiting:
+    message_id: int
+    ts: float
+    why: frozenset[str]
+    since: float
+
+
+class Worker:
+    """Its own thread: takes doubtful stored lines, sends their picture, stores the AI's reading
+    as a second reading. Capture and the reader only append to the queue and never wait.
+
+    `relink(speaker, ts)` gives the player for a corrected name; `saved(message_id)` tells the
+    UI; `label(entry)` keeps the correction for training (#608)."""
+
+    def __init__(self, corrector: Corrector, store, picture: Callable[[int, float], object],
+                 relink: Callable[[str | None, float], int | None],
+                 saved: Callable[[int], None] = lambda message_id: None,
+                 label: Callable[[dict], None] = lambda entry: None,
+                 enabled: Callable[[], bool] = lambda: True,
+                 clock: Callable[[], float] = time.monotonic) -> None:  # fmt: skip
+        self._corrector, self._store, self._picture = corrector, store, picture
+        self._relink, self._saved, self._label = relink, saved, label
+        self._enabled, self._clock = enabled, clock
+        self._lock = threading.Lock()
+        self._queue: list[Waiting] = []
+        self._wake = threading.Event()
+        self._stop = threading.Event()
+        self.counts: dict[str, int] = {}  # trigger -> lines sent this run, for the log
+        self.corrected = 0  # lines whose reading the AI changed this run
+        self._thread: threading.Thread | None = None
+
+    def submit(self, message_id: int, ts: float, why: set[str]) -> None:
+        if not why or not self._enabled():
+            return
+        with self._lock:
+            if any(w.message_id == message_id for w in self._queue):
+                return
+            self._queue.append(Waiting(message_id, ts, frozenset(why), self._clock()))
+            del self._queue[:-QUEUE_MAX]
+        self._wake.set()
+
+    def start(self) -> None:
+        self._thread = threading.Thread(target=self._run, name="ai correct", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._wake.set()
+
+    def _next(self) -> Waiting | None:
+        with self._lock:
+            now = self._clock()
+            for n, waiting in enumerate(self._queue):
+                if now - waiting.since >= DELAY_S:
+                    return self._queue.pop(n)
+            return None
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            waiting = self._next()
+            if waiting is None:
+                self._wake.wait(DELAY_S / 2)
+                self._wake.clear()
+                continue
+            try:
+                self.handle(waiting)
+            except Exception:  # one odd line must not end the corrections for the evening
+                log.exception("correct: line %s", waiting.message_id)
+
+    def handle(self, waiting: Waiting) -> None:
+        """One line: ask, compare, store. Public for the tests (no thread there)."""
+        message = self._store.message(waiting.message_id)
+        if message is None or message.edited_at is not None or message.ai_corrected_at:
+            return  # gone, fixed by hand meanwhile, or done
+        path = self._picture(message.id, message.ts)
+        picture = images.read(path) if path is not None else None
+        if picture is None:
+            return
+        ok, png = cv2.imencode(".png", picture)
+        if not ok:
+            return
+        for trigger in waiting.why:
+            self.counts[trigger] = self.counts.get(trigger, 0) + 1
+        got = self._corrector.correct(png.tobytes())
+        if got.row is None:
+            log.info("correct: line %s not corrected (%s)", message.id, got.error)
+            return
+        box = Region(0, 0, picture.shape[1], picture.shape[0])
+        line = parse_chat([OcrLine(got.row, 1.0, box)])[0]
+        speaker = line.speaker if line.speaker and message.speaker_raw else message.speaker_raw
+        text = icons.name(line.text, picture) if line.text.strip() else message.text
+        if (speaker, glyphs.unnamed(text)) == (message.speaker_raw, glyphs.unnamed(message.text)):
+            return  # the AI read what OCR read: nothing to change
+        if not self._store.ai_correct_message(message.id, text=text, speaker_raw=speaker,
+                                              has_glyphs=glyphs.has_glyphs(text),
+                                              ts=time.time()):  # fmt: skip
+            return  # fixed by hand while the AI was reading
+        if speaker != message.speaker_raw and message.channel != "system":
+            self._store.set_message_player(message.id, self._relink(speaker, message.ts))
+        self.corrected += 1
+        log.info("correct: line %s corrected by %s (%s)", message.id, got.model,
+                 ", ".join(sorted(waiting.why)))  # fmt: skip
+        self._label({"id": message.id, "ts": message.ts, "speaker": speaker, "text": text,
+                     "ocr_speaker": message.speaker_raw, "ocr_text": message.text,
+                     "model": got.model, "source": "ai"})  # fmt: skip
+        self._saved(message.id)
