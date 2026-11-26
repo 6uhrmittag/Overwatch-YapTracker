@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-26 · One place for how chat is read (#640)
+- Settings → Reading starts with the **Reading engine**: Classic (RapidOCR) or Chat-trained. Light and best quality say what they read with.
+- If the chosen engine can't start, Classic reads instead and Settings → Reading says why.
+
 ### 2026-11-26 · Closing rule: boxes ticked one by one (#640)
 - Behind the scenes: an issue's boxes are ticked one by one against what was built, after re-reading the issue.
 
