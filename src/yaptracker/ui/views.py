@@ -596,6 +596,14 @@ def _live() -> None:
     timing.lap("status and banners")
 
 
+def _came_late(messages, drawn: dict) -> bool:
+    """A line not in the feed yet belongs before one that is (#653): stored late (seen twice in
+    the opened chat, #602) with the time it was said. `messages` is in time order. While lines
+    are being picked the feed stays as it is: building it again would drop the selection."""
+    last = max((n for n, m in enumerate(messages) if m.id in drawn), default=-1)
+    return any(m.id not in drawn for m in messages[:last])
+
+
 def _refresh_chat(chat: dict, lines, picker, yap_count, count_callouts, clicked) -> None:
     """The match's lines into Live's feed: new ones added, better readings filled in (#311: out
     of _live)."""
@@ -614,6 +622,10 @@ def _refresh_chat(chat: dict, lines, picker, yap_count, count_callouts, clicked)
         count_callouts(0)
         return
     messages = runtime.store.messages(match_id)
+    if not picker.on and _came_late(messages, chat["rows"]):  # in its place, not at the end
+        chat.update(rows={}, last=None, dom={})  # built again, like a tidied match (#653)
+        lines.clear()
+        picker.clear_rows()
     count_callouts(sum(1 for m in messages if m.hero))
     marks = _live_marks(chat, match_id, messages)
     for message in messages:
