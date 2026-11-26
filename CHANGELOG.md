@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-26 · A line keeps the channel a later reading knows (#633)
+- A chat line read the instant it was sent no longer stays without a channel when the next readings can tell it.
+
 ### 2026-11-26 · The new reading engine keeps the right reading of a line (#631)
 - With the Chat-trained reading engine, one misread with a stray ß or accent no longer replaces a line that was read right many times.
 
