@@ -45,3 +45,16 @@ def test_size_and_snap_words():
     assert snap_title(None, None, day) == "Live · Sun Nov 22, 2026"
     where = Status(1, 3, day, map_name="ilios", mode="UNRANKED")
     assert snap_title(where, day, day + 9) == "Match 3 on Ilios · Unranked · Sun Nov 22, 2026"
+
+
+def test_a_line_stored_late_puts_the_feed_back_in_time_order():
+    """#653: a line stored late (seen twice in the opened chat) went to the bottom of Live."""
+    from types import SimpleNamespace
+
+    from yaptracker.ui.views import _came_late
+
+    a, b, c = (SimpleNamespace(id=n) for n in (1, 3, 2))  # b stored after c, said before it
+    assert not _came_late([a, c], {1: 0, 2: 0})
+    assert not _came_late([a, c, b], {1: 0, 2: 0})  # new at the end: just added
+    assert _came_late([a, b, c], {1: 0, 2: 0})  # new before a drawn one: built again
+    assert not _came_late([], {})
