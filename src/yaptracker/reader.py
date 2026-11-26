@@ -195,7 +195,7 @@ class ChatReader:
         self._live_reads, self._gaps_used = 0, (math.inf, -math.inf)
 
     def no_brakes(self) -> bool:
-        """"As fast as it can" (#652, Marv 2026-11-26): complete chat beats FPS. No CPU gate, no
+        """ "As fast as it can" (#652, Marv 2026-11-26): complete chat beats FPS. No CPU gate, no
         starvation back-off (while the OCR has its own process), the OCR child at normal
         priority, 4 frames a second in a match. The other choices keep every brake."""
         return not self.min_gap_s

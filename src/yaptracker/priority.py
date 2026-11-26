@@ -123,8 +123,11 @@ def brakes(on: bool) -> None:
     me = kernel32.GetCurrentProcess()
     normal = bool(kernel32.SetPriorityClass(me, NORMAL_PRIORITY_CLASS))
     state = _PowerThrottling(1, _THROTTLE_EXECUTION_SPEED, 0)
-    eco_off = bool(kernel32.SetProcessInformation(me, _PROCESS_POWER_THROTTLING,
-                                                  ctypes.byref(state), ctypes.sizeof(state)))
+    eco_off = bool(
+        kernel32.SetProcessInformation(
+            me, _PROCESS_POWER_THROTTLING, ctypes.byref(state), ctypes.sizeof(state)
+        )
+    )
     thread = bool(kernel32.SetThreadPriority(kernel32.GetCurrentThread(), THREAD_PRIORITY_NORMAL))
     log.info("priority: no brakes (as fast as it can): %s priority, efficiency mode %s",
              "normal" if normal and thread else "couldn't set normal",

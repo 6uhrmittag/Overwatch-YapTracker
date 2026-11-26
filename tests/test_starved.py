@@ -162,8 +162,14 @@ def test_starved_lasts_a_minute():
     assert not watcher.starved()
 
 
-def reader_with(tmp_path, starved: dict, min_gap_s: float, gated: bool = False, keep=None,
-                own_process: bool = False):
+def reader_with(
+    tmp_path,
+    starved: dict,
+    min_gap_s: float,
+    gated: bool = False,
+    keep=None,
+    own_process: bool = False,
+):
     from yaptracker.matches import MatchTracker
     from yaptracker.pause import Pause
     from yaptracker.store.repo import Store

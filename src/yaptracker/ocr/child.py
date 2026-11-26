@@ -184,9 +184,7 @@ class OcrChild:
                         self._free()
                         self._block = shared_memory.SharedMemory(create=True, size=image.nbytes)
                     np.ndarray(image.shape, np.uint8, buffer=self._block.buf)[:] = image
-                    self._conn.send(
-                        (name, self._block.name, image.shape, accents, scale, brakes)
-                    )
+                    self._conn.send((name, self._block.name, image.shape, accents, scale, brakes))
                 wait = self._read_s if image is not None and name in self._made else self._answer_s
                 if not self._conn.poll(wait):
                     raise TimeoutError(f"no answer in {wait:g} s")

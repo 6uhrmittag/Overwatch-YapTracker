@@ -330,8 +330,14 @@ def test_the_child_takes_its_brakes_off_for_as_fast_as_it_can_and_back(monkeypat
 
     said = []
     monkeypatch.setattr(priority, "brakes", said.append)
-    conn = Conn([("echo", None, None, False, 2.0, True), ("echo", None, None, False, 2.0, False),
-                 ("echo", None, None, False, 2.0, False), ("echo", None, None, False, 2.0, True)])
+    conn = Conn(
+        [
+            ("echo", None, None, False, 2.0, True),
+            ("echo", None, None, False, 2.0, False),
+            ("echo", None, None, False, 2.0, False),
+            ("echo", None, None, False, 2.0, True),
+        ]
+    )
     child_module._serve(conn, get)
     assert said == [False, True] and len(conn.sent) == 4
 
