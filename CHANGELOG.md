@@ -4,6 +4,12 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-26 · The reading engine in Settings -> Reading (#640)
+- Settings -> Reading has a **Best reader** row: RapidOCR or the new Chat-trained engine, one click, no need to open Calibrate.
+
+### 2026-11-26 · AI correction, part 1: the vision client and the triggers (#637)
+- Behind the scenes: the AI that will re-read doubtful chat lines from their picture is chosen (Claude Haiku 5.5, about a cent an evening) and knows which lines are doubtful. Nothing is sent yet.
+
 ### 2026-11-26 · The new reading engine drops the half-cut top row (#632)
 - With the Chat-trained reading engine, the half-hidden top line of an opened chat is no longer stored as a garbled new line.
 

@@ -656,6 +656,8 @@ class ChatReader:
         fields = self._named(yap, kept.image, message)
         if message is None or self._tidy.links.get(yap.id) is None or not differs(message, fields):
             return
+        if message.ai_corrected_at is not None:  # the AI read its picture closer (#637)
+            return
         self._store.update_message(message.id, player_id=self._link(yap), **fields)
         if yap.best is yap.last:  # its picture from this frame
             self._save_picture(message.id, message.ts, kept.image, yap.last.box)
