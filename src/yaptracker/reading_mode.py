@@ -60,6 +60,9 @@ class ReadingMode:
         self._clock = clock
         self._reads: deque[tuple[float, str]] = deque(maxlen=256)  # (when, engine): read_in()
         self.light_problem: str | None = None  # why light reading can't run here, for Settings
+        # The chosen reading engine that can't start here and why (#640): Classic reads instead
+        # until another engine is chosen (choosing again clears it, so it is tried again).
+        self.best_problem: tuple[str, str] | None = None
         self._said: tuple | None = None  # the mode the log said last
 
     def now(self) -> str:
@@ -119,7 +122,7 @@ class ReadingMode:
                     return LIGHT, self._get(LIGHT_ENGINE)
                 except OcrUnavailable as reason:
                     self._no_light(str(reason))
-        return BEST, self._get(self._best())
+        return BEST, self._best_engine()
 
     def read(self, image: np.ndarray, scale: float, mode: str | None = None) -> list[OcrLine]:
         """Read with the mode for right now, or the one a kept frame was seen with."""
@@ -144,7 +147,26 @@ class ReadingMode:
             if entry in self._reads:
                 self._reads.remove(entry)
             self._reads.append((entry[0], BEST))
-        return self._get(self._best()).read(image, scale=scale)
+        return self._best_engine().read(image, scale=scale)
+
+    def _best_engine(self):
+        """The chosen reading engine, or Classic when it can't start (a model file broken or
+        missing, #640): a line read by Classic beats a frame not read at all."""
+        name = self._best()
+        if name == ocr.DEFAULT or (self.best_problem and self.best_problem[0] == name):
+            return self._get(ocr.DEFAULT if self.best_problem else name)
+        try:
+            return self._get(name)
+        except Exception as error:  # noqa: BLE001 - whatever stops it, Classic reads
+            self.best_problem = (name, str(error).splitlines()[0][:120] if str(error) else
+                                 type(error).__name__)  # fmt: skip
+            log.warning("reading engine %s can't start (%s): reading with %s", name,
+                        self.best_problem[1], ocr.DEFAULT)  # fmt: skip
+            return self._get(ocr.DEFAULT)
+
+    def retry_best(self) -> None:
+        """A reading engine was chosen in Settings: try it again."""
+        self.best_problem = None
 
     def take_counts(self) -> str:
         """Which mode read how many frames since the last call: "light 31, best 9"."""

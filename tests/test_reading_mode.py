@@ -252,3 +252,35 @@ class Clock:
 
     def __call__(self):
         return self.now
+
+
+def test_a_reading_engine_that_cant_start_hands_over_to_classic_until_chosen_again(store):
+    """#640: a broken or missing model file must not stop the reading; Settings says so."""
+    classic, made = FakeEngine("rapidocr"), []
+
+    def get(name):
+        made.append(name)
+        if name == "chat":
+            raise RuntimeError("model file missing\nmore detail")
+        return classic
+
+    reading = modes.ReadingMode(lambda: None, lambda: "best", lambda: "best", lambda: "chat",
+                                get=get, available=lambda: ["rapidocr", "chat"])  # fmt: skip
+    reading.read(IMAGE, 2.0)
+    reading.read(IMAGE, 2.0)
+    assert classic.calls == 2 and reading.best_problem == ("chat", "model file missing")
+    assert made.count("chat") == 1  # not tried again on every read
+    reading.retry_best()
+    reading.read(IMAGE, 2.0)
+    assert made.count("chat") == 2
+
+
+def test_the_reading_card_says_why_classic_reads():
+    from types import SimpleNamespace
+
+    from yaptracker.ui.reading import engine_words
+
+    assert engine_words("chat", SimpleNamespace(best_problem=None)) == ""
+    said = engine_words("chat", SimpleNamespace(best_problem=("chat", "model file missing")))
+    assert "Chat-trained can't start here (model file missing): I read with Classic" in said
+    assert "Windows OCR is chosen" in engine_words("windows", None)
