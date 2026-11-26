@@ -12,7 +12,7 @@ from nicegui import app, ui
 from nicegui.run import io_bound
 
 from yaptracker import autostart as start_with_windows
-from yaptracker import config, cpu_parts, demo, paths, runtime, system_info
+from yaptracker import config, cpu_parts, demo, paths, priority, runtime, system_info
 from yaptracker.capture_wiring import capture_region, start_watcher  # noqa: F401 (#311)
 from yaptracker.cpu_parts import CPU
 from yaptracker.ui import shell
@@ -230,7 +230,10 @@ def _start_bookkeeping() -> None:
     if not demo.ENABLED and config.ocr_own_process():
         from yaptracker.ocr.child import ChildEngines
 
-        runtime.ocr_child = ChildEngines()
+        # no brakes on the child for "as fast as it can" (#652)
+        runtime.ocr_child = ChildEngines(
+            brakes=lambda: runtime.reader is None or not runtime.reader.no_brakes()
+        )
         get = runtime.ocr_child.get
         # its CPU belongs in the "whole app" and "reading" numbers, as when OCR ran here
         cpu_parts.children = lambda: runtime.ocr_child.child.cpu_s if runtime.ocr_child else 0.0
@@ -277,12 +280,14 @@ def _start_reader() -> None:
         idle=lambda: not _capturing() or not runtime.matches.running,
         gated=lambda: runtime.reading.chosen() != BEST,  # best live: no busy gate (#588)
         starved=lambda: runtime.watcher is not None and runtime.watcher.starved(),  # (#601)
+        own_process=lambda: runtime.ocr_child is not None and runtime.ocr_child.reads_in_child(),
         lowest=runtime.ocr_child is None,  # the OCR's own process has the low priority (#563)
         doubtful=_ai_corrections(),
     )
     if (stale := runtime.reader.later.restore()) is not None:  # kept at the last quit (#349)
         runtime.store.close_gap(runtime.store.open_gap(stale[0], "deferred_lost"), stale[1])
     runtime.reader.start()
+    priority.main_brakes(not runtime.reader.no_brakes())  # normal for "as fast as it can" (#652)
 
 
 def _ai_corrections():

@@ -18,7 +18,9 @@ from ctypes import wintypes
 log = logging.getLogger(__name__)
 
 BELOW_NORMAL_PRIORITY_CLASS = 0x4000
+NORMAL_PRIORITY_CLASS = 0x20
 THREAD_PRIORITY_LOWEST = -2
+THREAD_PRIORITY_NORMAL = 0
 _PROCESS_POWER_THROTTLING = 4  # SetProcessInformation class
 _THROTTLE_EXECUTION_SPEED = 0x1
 
@@ -105,3 +107,51 @@ def lower_this_thread() -> None:
     kernel32 = _kernel32()
     if not kernel32.SetThreadPriority(kernel32.GetCurrentThread(), THREAD_PRIORITY_LOWEST):
         log.warning("couldn't lower the chat reader's priority")
+
+
+def brakes(on: bool) -> None:
+    """The OCR child's brakes (#652). On: below normal, efficiency mode, its reading thread at
+    the lowest priority (#187). Off, for "as fast as it can" (complete chat beats FPS): normal
+    priority, efficiency mode off by name, the thread at normal priority."""
+    if on:
+        lower_process()
+        lower_this_thread()
+        return
+    if sys.platform != "win32":
+        return
+    kernel32 = _kernel32()
+    me = kernel32.GetCurrentProcess()
+    normal = bool(kernel32.SetPriorityClass(me, NORMAL_PRIORITY_CLASS))
+    state = _PowerThrottling(1, _THROTTLE_EXECUTION_SPEED, 0)
+    eco_off = bool(
+        kernel32.SetProcessInformation(
+            me, _PROCESS_POWER_THROTTLING, ctypes.byref(state), ctypes.sizeof(state)
+        )
+    )
+    thread = bool(kernel32.SetThreadPriority(kernel32.GetCurrentThread(), THREAD_PRIORITY_NORMAL))
+    log.info("priority: no brakes (as fast as it can): %s priority, efficiency mode %s",
+             "normal" if normal and thread else "couldn't set normal",
+             "off" if eco_off else "unchanged (Windows refused)")  # fmt: skip
+
+
+_main_braked: bool | None = None  # the main process's class as last set by main_brakes
+
+
+def main_brakes(on: bool) -> None:
+    """The main process's class (#652). On: below normal, the game first (#187). Off, for "as
+    fast as it can": normal. Tonight's log (2026-11-26) had 23 capture gaps in matches (222 s
+    of 45 min) where the capture thread got no core while the watchdog ticked on time. Its
+    efficiency mode stays as __main__ set it. Said in the log when it changes."""
+    global _main_braked
+    if sys.platform != "win32" or on == _main_braked:
+        return
+    kernel32 = _kernel32()
+    set_ = kernel32.SetPriorityClass(
+        kernel32.GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS if on else NORMAL_PRIORITY_CLASS
+    )
+    if not set_:
+        log.warning("couldn't set the app's priority to %s", "below normal" if on else "normal")
+        return
+    _main_braked = on
+    log.info("priority: app %s", "below normal (brakes on)" if on else
+             "at normal priority (no brakes: as fast as it can)")  # fmt: skip

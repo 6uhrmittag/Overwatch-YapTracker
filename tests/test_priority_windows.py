@@ -60,3 +60,44 @@ def test_lowest_for_now_gives_the_thread_its_priority_back():
     worker.start()
     worker.join()
     assert seen == [0, -2, 0]
+
+
+def test_no_brakes_is_normal_priority_without_efficiency_mode_and_back():
+    """#652: "as fast as it can": the OCR child at normal priority, efficiency mode off."""
+    from yaptracker import priority
+
+    kernel32 = priority._kernel32()
+    seen = []
+
+    def child():
+        priority.brakes(False)
+        seen.append((kernel32.GetPriorityClass(kernel32.GetCurrentProcess()),
+                     kernel32.GetThreadPriority(kernel32.GetCurrentThread()),
+                     priority.efficiency_mode()))  # fmt: skip
+        priority.brakes(True)
+        seen.append((kernel32.GetPriorityClass(kernel32.GetCurrentProcess()),
+                     kernel32.GetThreadPriority(kernel32.GetCurrentThread()),
+                     priority.efficiency_mode()))  # fmt: skip
+
+    try:
+        thread = threading.Thread(target=child)
+        thread.start()
+        thread.join()
+        assert seen[0][:2] == (0x20, 0) and seen[0][2] in (False, None)  # NORMAL, NORMAL
+        assert seen[1][:2] == (0x4000, -2) and seen[1][2] in (True, None)
+    finally:
+        priority.lower_process()
+
+
+def test_main_brakes_switches_the_apps_class():
+    from yaptracker import priority
+
+    kernel32 = priority._kernel32()
+    try:
+        priority.main_brakes(False)
+        assert kernel32.GetPriorityClass(kernel32.GetCurrentProcess()) == 0x20
+        priority.main_brakes(True)
+        assert kernel32.GetPriorityClass(kernel32.GetCurrentProcess()) == 0x4000
+    finally:
+        priority.lower_process()
+        priority._main_braked = None

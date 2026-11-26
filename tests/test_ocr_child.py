@@ -170,7 +170,7 @@ def test_a_picture_that_doesnt_arrive_ends_the_child_instead_of_a_retry(child):
             "unlink": lambda self: None,
         },
     )()
-    child._conn.send(("echo", "no-such-block", (4, 4, 3), False, 2.0))
+    child._conn.send(("echo", "no-such-block", (4, 4, 3), False, 2.0, True))
     kind, why, _ = child._conn.recv()
     assert kind == "gone" and "didn't arrive" in why
     process.join(10.0)
@@ -306,3 +306,46 @@ def test_the_waits_are_long_enough_for_a_starved_match(child):
     assert READ_S >= 120 and ANSWER_S >= READ_S
     child.waits(answer_s=40.0, read_s=20.0)  # the smoke test's
     assert (child._answer_s, child._read_s) == (40.0, 20.0)
+
+
+class Conn:
+    """The child's end of the pipe, fed by hand: _serve runs in this process."""
+
+    def __init__(self, requests):
+        self.requests, self.sent = list(requests), []
+
+    def recv(self):
+        if not self.requests:
+            raise EOFError
+        return self.requests.pop(0)
+
+    def send(self, reply):
+        self.sent.append(reply)
+
+
+def test_the_child_takes_its_brakes_off_for_as_fast_as_it_can_and_back(monkeypatch):
+    """#652: normal priority, no efficiency mode, only while "as fast as it can" is chosen."""
+    from yaptracker import priority
+    from yaptracker.ocr import child as child_module
+
+    said = []
+    monkeypatch.setattr(priority, "brakes", said.append)
+    conn = Conn(
+        [
+            ("echo", None, None, False, 2.0, True),
+            ("echo", None, None, False, 2.0, False),
+            ("echo", None, None, False, 2.0, False),
+            ("echo", None, None, False, 2.0, True),
+        ]
+    )
+    child_module._serve(conn, get)
+    assert said == [False, True] and len(conn.sent) == 4
+
+
+def test_every_read_carries_the_brakes_the_app_wants_now(child):
+    brakes = [False]
+    engines = ChildEngines(child, brakes=lambda: brakes[0])
+    assert child.brakes() is False
+    assert "pid" in engines.get("echo").read(picture())[0].text
+    brakes[0] = True
+    assert child.brakes() is True and engines.reads_in_child()

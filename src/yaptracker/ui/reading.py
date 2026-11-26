@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from nicegui import ui
 
-from yaptracker import ai_correct, config, runtime
+from yaptracker import ai_correct, config, priority, runtime
 from yaptracker import reading_mode as modes
 from yaptracker.days import CUT_H, day_of
 from yaptracker.ocr import engine as ocr
@@ -62,13 +62,15 @@ def reading_card() -> None:
                 gaps = ui.element("div").classes("yt-seg").mark("reading-gaps")
             ui.label(
                 "Every 3 s is lighter on the CPU, but a fast burst of chat can push a line out "
-                "of the box before I read it. As fast as it can catches the most lines, but "
-                "costs about a whole CPU core while chat is busy: only for strong PCs."
+                "of the box before I read it. As fast as it can catches the most lines and "
+                "never slows down for your FPS: it costs about a whole CPU core and a few FPS "
+                "while chat is busy. Only for strong PCs."
             ).classes("yt-hint")
             ui.label(
-                "When I use more CPU than planned, I read every 3 s for a minute, unless a match "
-                "is read live with the best quality: that's your choice. When the game leaves "
-                "me no core at all, I read every 3 s for a minute whatever you chose."
+                "Every 1.5 s and every 3 s: when I use more CPU than planned, I read every 3 s "
+                "for a minute, unless a match is read live with the best quality: that's your "
+                "choice. When the game leaves me no core at all, I read every 3 s for a minute. "
+                "As fast as it can never holds back."
             ).classes("yt-hint")
             ai_correction_row()  # doubtful lines re-read by an AI (#637)
 
@@ -94,6 +96,7 @@ def reading_card() -> None:
         config.save_read_every_s(seconds)
         if runtime.reader is not None:
             runtime.reader.min_gap_s = seconds  # the next read already waits this long
+            priority.main_brakes(not runtime.reader.no_brakes())  # (#652)
         render()
 
     def choose_engine(name: str) -> None:
