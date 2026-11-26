@@ -51,14 +51,20 @@ def lists(private: Path, run: Path) -> tuple[int, int]:
     (a character outside the dictionary, an over-long text) is left out and counted."""
     known = set((private / "PaddleOCR" / DICT).read_text(encoding="utf-8").split("\n")) | {" "}
     rows = []
-    for name in ("labels.jsonl", "synth.jsonl"):
-        with (private / name).open(encoding="utf-8") as f:
-            rows += [json.loads(line) for line in f]
+    for name in ("labels.jsonl", "synth.jsonl", "cutrows.jsonl"):
+        if (private / name).exists():  # cutrows.jsonl: half-cut rows that say nothing (#632)
+            with (private / name).open(encoding="utf-8") as f:
+                rows += [json.loads(line) for line in f]
     out, skipped = {"train": [], "dev": []}, 0
     for r in rows:
         if r["split"] not in out:
             continue
-        if not r["text"] or len(r["text"]) > MAX_TEXT or not set(r["text"]) <= known:
+        nothing = r.get("source") == "cut row"  # the empty label is meant there, nowhere else
+        if (
+            (not r["text"] and not nothing)
+            or len(r["text"]) > MAX_TEXT
+            or not set(r["text"]) <= known
+        ):
             skipped += 1
             continue
         width, height = Image.open(private / r["crop"]).size  # for the width-sorted batches
@@ -81,6 +87,23 @@ FIXED_STEPS = "x = F.adaptive_avg_pool2d(x, [1, 40])"
 AS_EVALUATED = "x = F.avg_pool2d(x, [3, 2])  # YapTracker #623: as in evaluation"
 
 
+CTC = "ppocr/losses/rec_ctc_loss.py"
+CTC_CALL = "        loss = self.loss_func(predicts, labels, preds_lengths, label_lengths)\n"
+CTC_GUARD = (
+    "        if int(label_lengths.sum()) == 0:  # YapTracker #632: a batch of half-cut rows only\n"
+    '            return {"loss": predicts.sum() * 0.0}  # nothing to learn, warpctc divides by 0\n'
+)
+LABELS = "ppocr/data/imaug/label_ops.py"
+NO_EMPTY = (
+    ("        if len(text) == 0 or len(text) > self.max_text_len:\n            return None\n",
+     "        if len(text) > self.max_text_len:  # YapTracker #632: empty allowed\n"
+     "            return None\n"),
+    ("        if len(text_list) == 0:\n            return None\n",
+     "        if len(text_list) == 0 and len(text) > 0:  # YapTracker #632\n"
+     "            return None\n"),
+)  # fmt: skip
+
+
 def patch(private: Path) -> None:
     """PaddleOCR's backbone pools every training picture to 40 time steps, whatever its width;
     evaluation keeps one step per 8 px. Fine at their 320 px, fatal for a chat row (#623: 40
@@ -92,6 +115,23 @@ def patch(private: Path) -> None:
         path.write_text(text.replace(FIXED_STEPS, AS_EVALUATED), encoding="utf-8")
     elif AS_EVALUATED not in text:
         sys.exit(f"{POOLING} changed: the training-mode pooling isn't where it was (#623)")
+    # ...and its label encoder throws away a picture whose label is empty. Half-cut rows are
+    # trained to read as nothing (#632), so the empty label has to get through.
+    path = private / "PaddleOCR" / LABELS
+    text = path.read_text(encoding="utf-8")
+    for strict, lenient in NO_EMPTY:
+        if strict in text:
+            text = text.replace(strict, lenient)
+        elif lenient not in text:
+            sys.exit(f"{LABELS} changed: the empty-label check isn't where it was (#632)")
+    path.write_text(text, encoding="utf-8")
+    # ...and warpctc crashes (SIGFPE) on a batch whose labels are all empty: skip such a batch.
+    path = private / "PaddleOCR" / CTC
+    text = path.read_text(encoding="utf-8")
+    if CTC_GUARD not in text:
+        if CTC_CALL not in text:
+            sys.exit(f"{CTC} changed: the CTC call isn't where it was (#632)")
+        path.write_text(text.replace(CTC_CALL, CTC_GUARD + CTC_CALL), encoding="utf-8")
 
 
 def config(private: Path, run: Path, epochs: int, steps_per_epoch: int) -> Path:

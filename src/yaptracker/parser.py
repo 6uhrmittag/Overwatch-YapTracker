@@ -201,17 +201,25 @@ def _union(a: Region, b: Region) -> Region:
 
 
 def parse(
-    ocr_lines: list[OcrLine], has_icon: Callable[[Region], bool] = lambda box: False
+    ocr_lines: list[OcrLine],
+    has_icon: Callable[[Region], bool] = lambda box: False,
+    clipped: Callable[[Region, list[Region]], bool] = lambda box, below: False,
 ) -> list[ChatLine]:
     """Every OCR line ends up in exactly one ChatLine; nothing is silently dropped.
-    `has_icon(box)`: the row has its own channel icon, so it's never a wrap (#329)."""
+    `has_icon(box)`: the row has its own channel icon, so it's never a wrap (#329).
+    `clipped(box, below)`: the picture shows the top row cut off, judged against the boxes of
+    the rows below it (top_row.clipped, #632)."""
     if not ocr_lines:
         return []
     ocr_lines = [_without_icon_word(line) for line in ocr_lines]
     height = statistics.median(line.box.height for line in ocr_lines)
     first = ocr_lines[0]
     # The top line of a scrolled chat is cut in half: no readable start, low confidence.
-    top_is_cut = not _starts_line(first.text) and first.confidence < 0.9
+    # ...or it reads like a line, weakly, and the picture shows it cut (#632): a reader trained
+    # on chat makes something line-shaped of half a row.
+    top_is_cut = first.confidence < 0.9 and (
+        not _starts_line(first.text) or clipped(first.box, [line.box for line in ocr_lines[1:]])
+    )
     groups: list[list[OcrLine]] = []
     for i, line in enumerate(ocr_lines):
         previous = ocr_lines[i - 1] if i else None

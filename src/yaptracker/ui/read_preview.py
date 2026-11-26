@@ -4,7 +4,7 @@ import numpy as np
 from nicegui import background_tasks, run, ui
 from PIL import Image
 
-from yaptracker import channels, config, runtime
+from yaptracker import channels, config, runtime, top_row
 from yaptracker.input_row import without_input
 from yaptracker.ocr import engine as ocr
 from yaptracker.parser import ChatLine, parse
@@ -88,7 +88,11 @@ class ReadPreview:
         if request != self._request:
             return  # the box moved again while this read was running
         lines = without_input(lines, bgr)  # the typing field isn't chat (#254)
-        parsed = parse(lines, has_icon=lambda box: channels.has_icon(bgr, box))  # (#329)
+        parsed = parse(
+            lines,
+            has_icon=lambda box: channels.has_icon(bgr, box),  # (#329)
+            clipped=lambda box, below: top_row.clipped(bgr, box, below),  # as live reads (#632)
+        )
         chat = config.identity().apply(channels.assign(parsed, bgr, config.channel_colours()))
         self.learned_colours = channels.learn(chat, bgr)
         yaps = sum(line.kind in YAP_KINDS for line in chat)
