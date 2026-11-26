@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-26 · A reading engine trained on Overwatch chat: measured before building (#624)
+- Behind the scenes: the new reading engine was checked on names it never saw and at 1440p before anything in the app changes.
+
 ### 2026-11-26 · Our own OCR for Overwatch chat: trained and measured (#608)
 - Behind the scenes: two reading engines trained on Overwatch chat itself and the tools to retrain and measure them. Nothing in the app changes yet.
 
