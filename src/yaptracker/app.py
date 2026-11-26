@@ -12,7 +12,7 @@ from nicegui import app, ui
 from nicegui.run import io_bound
 
 from yaptracker import autostart as start_with_windows
-from yaptracker import config, cpu_parts, demo, paths, runtime, system_info
+from yaptracker import config, cpu_parts, demo, paths, priority, runtime, system_info
 from yaptracker.capture_wiring import capture_region, start_watcher  # noqa: F401 (#311)
 from yaptracker.cpu_parts import CPU
 from yaptracker.ui import shell
@@ -287,6 +287,7 @@ def _start_reader() -> None:
     if (stale := runtime.reader.later.restore()) is not None:  # kept at the last quit (#349)
         runtime.store.close_gap(runtime.store.open_gap(stale[0], "deferred_lost"), stale[1])
     runtime.reader.start()
+    priority.main_brakes(not runtime.reader.no_brakes())  # normal for "as fast as it can" (#652)
 
 
 def _ai_corrections():

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from nicegui import ui
 
-from yaptracker import ai_correct, config, runtime
+from yaptracker import ai_correct, config, priority, runtime
 from yaptracker import reading_mode as modes
 from yaptracker.days import CUT_H, day_of
 from yaptracker.ocr import engine as ocr
@@ -96,6 +96,7 @@ def reading_card() -> None:
         config.save_read_every_s(seconds)
         if runtime.reader is not None:
             runtime.reader.min_gap_s = seconds  # the next read already waits this long
+            priority.main_brakes(not runtime.reader.no_brakes())  # (#652)
         render()
 
     def choose_engine(name: str) -> None:

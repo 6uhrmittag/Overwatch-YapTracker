@@ -43,3 +43,13 @@ def test_the_reader_thread_is_only_lowered_when_it_does_the_ocr_itself(tmp_path,
         assert len(lowered) == 1
     finally:
         store.close()
+
+
+def test_main_brakes_does_nothing_off_windows(monkeypatch):
+    """#652: the main process's class follows "as fast as it can"; Windows only."""
+    from yaptracker import priority
+
+    monkeypatch.setattr(priority.sys, "platform", "linux")
+    priority.main_brakes(False)
+    priority.main_brakes(True)
+    assert priority._main_braked is None
