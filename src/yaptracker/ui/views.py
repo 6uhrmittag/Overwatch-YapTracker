@@ -604,6 +604,43 @@ def _came_late(messages, drawn: dict) -> bool:
     return any(m.id not in drawn for m in messages[:last])
 
 
+def record_chat_row() -> None:
+    """Settings -> Debug samples: record the chat box for one evening (#654), to count lost
+    lines. Off by default; it switches itself off after 12 hours."""
+    from yaptracker.recorder import RECORD_S
+
+    def choose(on: bool) -> None:
+        config.save_record_chat_until(time.time() + RECORD_S if on else 0)
+        if runtime.recorder is not None:
+            runtime.recorder.refresh()  # the next frame already knows
+        state.set_text(words())
+
+    def words() -> str:
+        until = config.record_chat_until()
+        if until > time.time():
+            return f"Recording until {time.strftime('%H:%M', time.localtime(until))}."
+        return "Not recording."
+
+    switch(
+        "Record the chat box for one evening",
+        config.record_chat_until() > time.time(),
+        choose,
+        hint="Every chat picture that changed, for 12 hours, so lost lines can be counted and "
+        "fixed. About 2 GB an hour of play at 4K, kept 14 days and 30 GB at most; it pauses "
+        "when the disk has less than 5 GB free. Other players' names are in there: it never "
+        "leaves this PC.",
+    ).mark("record-switch")
+    with ui.element("div").classes("yt-row"):
+        state = ui.label(words()).classes("yt-meta").mark("record-state")
+        size, fill = size_label(
+            lambda: runtime.recorder.size_bytes() if runtime.recorder else 0,
+            lambda size: f"Recordings: {size}",
+        )
+        size.mark("record-size")
+    # it grows while recording, and the 12 hours end by themselves
+    ui.timer(10.0, lambda: (fill(), state.set_text(words())))
+
+
 def _refresh_chat(chat: dict, lines, picker, yap_count, count_callouts, clicked) -> None:
     """The match's lines into Live's feed: new ones added, better readings filled in (#311: out
     of _live)."""
@@ -964,6 +1001,7 @@ def settings() -> None:  # noqa: C901 - a page builder: its handlers need the pa
                         "so they can be fixed later. Other players' names are in there: it never "
                         "leaves this PC."
                     ).classes("yt-hint")
+                    record_chat_row()  # one evening of the chat box (#654)
                     with ui.element("div").classes("yt-row"):
                         button(
                             "Save the last 20 s",

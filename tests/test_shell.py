@@ -584,3 +584,21 @@ async def test_reads_failing_in_a_row_are_said_in_live(user: User, monkeypatch):
             break
         await asyncio.sleep(0.1)
     assert "yt-hidden" in banner.classes
+
+
+async def test_settings_records_the_chat_for_one_evening(user: User):
+    """#654: off by default; on, it says until when, and off again."""
+    from yaptracker import config
+    from yaptracker.recorder import RECORD_S
+
+    await user.open("/")
+    user.find(marker="nav-settings").click()
+    await user.should_see("Record the chat box for one evening")
+    await user.should_see("Not recording.")
+    user.find(marker="record-switch").click()
+    until = config.record_chat_until()
+    assert 0 < until - time.time() <= RECORD_S
+    await user.should_see(f"Recording until {time.strftime('%H:%M', time.localtime(until))}.")
+    user.find(marker="record-switch").click()
+    assert config.record_chat_until() == 0.0
+    await user.should_see("Not recording.")

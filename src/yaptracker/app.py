@@ -143,6 +143,11 @@ def _open_files() -> None:
 
     runtime.debug = DebugSamples(paths.debug_dir(), config.debug_samples)
     runtime.debug.start()  # counted once, then 14 days / 1 GB, also after a long break
+    from yaptracker.recorder import ChatRecorder
+
+    runtime.recorder = ChatRecorder(paths.recordings_dir(), config.record_chat_until,
+                                    stop=lambda: config.save_record_chat_until(0))  # fmt: skip
+    runtime.recorder.start()  # (#654) off by default; cleans up recordings older than 14 days
     runtime.pictures = LinePictures(paths.lines_dir(), config.line_pictures,
                                     config.picture_cap_mb() * 1_000_000)  # fmt: skip
     runtime.pictures.start()  # counted once in the background (#387), then 2 GB at most
@@ -390,7 +395,8 @@ def _close_store() -> None:
     # The OCR child first (#563): a read still waiting for it ends at once and is read here, so
     # the reader's stop doesn't wait behind a child that waits for a core.
     for part in (runtime.backups, runtime.ocr_child, runtime.reader, runtime.read_again,
-                 runtime.ai_corrector, runtime.health, runtime.matches):  # fmt: skip
+                 runtime.ai_corrector, runtime.health, runtime.matches,
+                 runtime.recorder):  # fmt: skip
         if part is not None:
             part.stop()
     if runtime.store is not None:

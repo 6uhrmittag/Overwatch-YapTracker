@@ -31,6 +31,11 @@ def debug_dir() -> Path:
     return data_dir() / "debug"
 
 
+def recordings_dir() -> Path:
+    """Chat recordings (#654): not under debug, whose 1 GB cap would delete them."""
+    return data_dir() / "recordings"
+
+
 def lines_dir() -> Path:
     return data_dir() / "lines"
 
