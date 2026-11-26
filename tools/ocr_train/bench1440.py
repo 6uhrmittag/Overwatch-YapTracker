@@ -45,7 +45,7 @@ def main() -> None:
                 lines = engine.read(image, scale=scale)
                 got[g["id"]] = score.fields(" ".join(line.text for line in lines))
             for bucket, part in score.buckets(gold).items():
-                if bucket in ("all", "EN", "DE (umlauts/ß)"):
+                if part and bucket in ("all", "EN", "DE (umlauts/ß)"):
                     s = score.score(part, got)
                     print(f"  {label:9} {bucket:15} n={s['lines']:3}  chars {s['chars']:.2%}  "
                           f"lines {s['exact']:.1%}  names {s['names']:.1%}")  # fmt: skip

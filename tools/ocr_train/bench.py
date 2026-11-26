@@ -11,6 +11,7 @@ recognizers only, and the baseline is one fresh read, not the stored best-of-sev
 
 import argparse
 import json
+import re
 import sqlite3
 import statistics
 import sys
@@ -26,6 +27,7 @@ import score  # noqa: E402
 
 from yaptracker.ocr.engine import LATIN_KEYS, LATIN_REC, RapidOcrEngine  # noqa: E402
 
+_TO = re.compile(r" to (\S+) \(")  # "... to Name (Hero): Hello!"
 ONE_THREAD = {"intra_op_num_threads": 1, "inter_op_num_threads": 1}
 
 
@@ -64,10 +66,12 @@ def engines(private: Path, models: list[str]) -> dict[str, RapidOcrEngine]:
 def name_buckets(private: Path, gold: list[dict]) -> dict[str, list[dict]]:
     """Whose name is on the row (#624): a reader may know frequent names by heart, so names it
     never saw in training count apart from the user's own and the crew's (most of the rows)."""
-    seen = ""
-    for name in ("labels.jsonl",):
-        with (private / name).open(encoding="utf-8") as f:
-            seen += " ".join(r["text"] for r in map(json.loads, f) if r["split"] != "test")
+    with (private / "labels.jsonl").open(encoding="utf-8") as f:
+        texts = [r["text"] for r in map(json.loads, f) if r["split"] != "test"]
+    # a name counts as seen as the speaker of a line or as the one a comms line goes to
+    seen = {score.fields(text)[0] for text in texts} | {
+        name for text in texts for name in _TO.findall(text)
+    }
     db = sqlite3.connect(private / "dbcopy" / "yaptracker.db")
     own = {i for (i,) in db.execute("SELECT id FROM chat_messages WHERE role IS NOT NULL")}
     named = [g for g in gold if g["gold"][0]]

@@ -212,6 +212,10 @@ def main() -> None:
     first, best = 0, 0.0
     if state.exists():  # stopped for a game before: go on from there
         saved = torch.load(state)
+        if saved.get("epochs", opts.epochs) != opts.epochs:
+            sys.exit(
+                f"this run was planned for {saved['epochs']} epochs: same --epochs, or --fresh"
+            )
         model.load_state_dict(saved["model"])
         optimizer.load_state_dict(saved["optimizer"])
         schedule.load_state_dict(saved["schedule"])
@@ -233,7 +237,8 @@ def main() -> None:
             # Every step of the padded picture counts, not only the crop's own: RapidOCR pads
             # short crops to 320 px and decodes all of it, so padding must read as nothing.
             steps = [x.shape[3] // STRIDE] * len(batch)
-            targets = [torch.tensor([index[c] for c in text if c in index]) for _c, text in batch]
+            targets = [torch.tensor([index[c] for c in text if c in index], dtype=torch.long)
+                       for _c, text in batch]  # fmt: skip
             log_probs = model(x.cuda()).log_softmax(-1).transpose(0, 1)
             loss = loss_of(log_probs, torch.cat(targets), torch.tensor(steps),
                            torch.tensor([len(t) for t in targets]))  # fmt: skip
@@ -250,6 +255,7 @@ def main() -> None:
             torch.save(smooth.module.state_dict(), run / "best.pt")
         saved = {"model": model.state_dict(), "optimizer": optimizer.state_dict(),
                  "schedule": schedule.state_dict(), "epoch": epoch, "best": best,
+                 "epochs": opts.epochs,
                  "smooth": smooth.state_dict()}  # fmt: skip
         torch.save(saved, state)
         print(f"epoch {epoch + 1}/{opts.epochs}  loss {total / steps_per_epoch:.3f}  "
