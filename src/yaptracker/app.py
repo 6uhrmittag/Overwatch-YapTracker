@@ -278,10 +278,34 @@ def _start_reader() -> None:
         gated=lambda: runtime.reading.chosen() != BEST,  # best live: no busy gate (#588)
         starved=lambda: runtime.watcher is not None and runtime.watcher.starved(),  # (#601)
         lowest=runtime.ocr_child is None,  # the OCR's own process has the low priority (#563)
+        doubtful=_ai_corrections(),
     )
     if (stale := runtime.reader.later.restore()) is not None:  # kept at the last quit (#349)
         runtime.store.close_gap(runtime.store.open_gap(stale[0], "deferred_lost"), stale[1])
     runtime.reader.start()
+
+
+def _ai_corrections():
+    """Doubtful lines re-read by a vision model, behind storing (#637). Never in --dev (fake
+    frames, never online) and never without a key; the reader only queues."""
+    from yaptracker import ai_correct, ai_translate
+    from yaptracker.ocr.engine import looks_german
+
+    if demo.ENABLED:
+        return lambda message_id, ts, yap: None
+    spend = runtime.ai_spend or ai_translate.Spend(paths.data_dir() / AI_SPEND)
+    corrector = ai_correct.Corrector(config.openrouter_key, config.ai_cap, spend)
+    labels = paths.data_dir() / "labels"
+    runtime.ai_corrector = worker = ai_correct.Worker(
+        corrector, runtime.store,
+        lambda message_id, ts: runtime.pictures.path(message_id, ts) if runtime.pictures else None,
+        relink=lambda speaker, ts: runtime.players.link(speaker, ts) if runtime.players else None,
+        label=lambda entry: ai_correct.save_label(labels, entry),
+        enabled=lambda: config.ai_correct() and bool(config.openrouter_key().strip()),
+    )  # fmt: skip
+    doubt = ai_correct.Doubt(runtime.store, looks_german)
+    worker.start()
+    return lambda message_id, ts, yap: worker.submit(message_id, ts, doubt.why(yap))
 
 
 def _overwatch_in_front() -> bool:
@@ -428,9 +452,9 @@ def _translator(dev: bool) -> None:
     if dev:
         runtime.translator = translate.FakeTranslator()
     else:
+        runtime.ai_spend = ai_translate.Spend(paths.data_dir() / AI_SPEND)  # shared (#637)
         ai = ai_translate.OpenRouter(config.openrouter_key, config.translate_to,
-                                     config.ai_model, config.ai_cap,
-                                     ai_translate.Spend(paths.data_dir() / AI_SPEND))  # fmt: skip
+                                     config.ai_model, config.ai_cap, runtime.ai_spend)  # fmt: skip
         free_deepl = lambda: config.deepl_key().strip().endswith(":fx")  # noqa: E731
         runtime.translator = ai_translate.Engines(
             translate.DeepL(config.deepl_key, config.translate_to), ai, config.translate_engine,

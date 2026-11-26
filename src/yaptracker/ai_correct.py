@@ -316,3 +316,56 @@ class Worker:
                      "ocr_speaker": message.speaker_raw, "ocr_text": message.text,
                      "model": got.model, "source": "ai"})  # fmt: skip
         self._saved(message.id)
+
+
+# --- from the reader's line to the triggers (#637) -----------------------------------------
+EDITED_DAYS = 7  # a speaker whose line was fixed by hand this recently is worth a second look
+REFRESH_S = 60.0  # known names and edited speakers are looked up again this often
+WRAPPED = 1.5  # a line's box this much higher than its first row: it wraps
+
+
+class Doubt:
+    """Why a stored line is doubtful, from the reader's yap. Known names and recently edited
+    speakers come from the store, kept for a minute (the reader's thread mustn't query often)."""
+
+    def __init__(self, store, looks_german: Callable[[str], bool],
+                 clock: Callable[[], float] = time.time) -> None:  # fmt: skip
+        self._store, self._looks_german, self._clock = store, looks_german, clock
+        self._names: list[str] = []
+        self._edited: set[str] = set()
+        self._at = float("-inf")
+
+    def _fresh(self) -> None:
+        now = self._clock()
+        if now - self._at >= REFRESH_S:
+            self._names = sorted({name.lower() for _pid, name in self._store.player_names()})
+            self._edited = self._store.edited_speakers(now - EDITED_DAYS * 86_400)
+            self._at = now
+
+    def why(self, yap) -> set[str]:
+        from yaptracker.dedup import _folded
+        from yaptracker.quality import GOOD
+
+        self._fresh()
+        line = yap.best
+        good = {_folded(r.text) for r in yap.lines.values() if r.quality >= GOOD}
+        head = line.head or line.box
+        return triggers(
+            line.text, line.speaker if line.channel != "system" else None, line.channel,
+            readings_disagree=len(good) > 1,
+            wrapped=line.box.height > WRAPPED * max(1, head.height),
+            known_names=self._names, edited_speakers=self._edited,
+            looks_german=self._looks_german,
+        )  # fmt: skip
+
+
+def save_label(folder, entry: dict) -> None:
+    """A correction (the AI's or a hand edit) as a training label for our own OCR (#608, #624):
+    data/labels/<yyyy-mm>.jsonl, local only like the line pictures."""
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        month = time.strftime("%Y-%m", time.localtime(entry.get("ts") or time.time()))
+        with (folder / f"{month}.jsonl").open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except OSError as error:  # a lost label is no reason to lose the correction
+        log.warning("correct: label not saved (%s)", type(error).__name__)

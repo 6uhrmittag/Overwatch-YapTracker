@@ -538,6 +538,20 @@ class Store:
             )  # fmt: skip
             return cursor.rowcount == 1
 
+    def edited_speakers(self, since: float) -> set[str]:
+        """Names whose lines were fixed by hand since then (#637: worth a second look)."""
+        rows = self._read(
+            "SELECT DISTINCT lower(speaker_raw) FROM live_messages "
+            "WHERE edited_at >= ? AND speaker_raw IS NOT NULL", (since,)
+        )  # fmt: skip
+        return {name for (name,) in rows}
+
+    def corrected_since(self, since: float) -> int:
+        """Lines the AI corrected since then (#637), for Settings."""
+        return self._read(
+            "SELECT COUNT(*) FROM live_messages WHERE ai_corrected_at >= ?", (since,)
+        )[0][0]
+
     def set_message_player(self, message_id: int, player_id: int | None) -> None:
         """Who said it, after the name was corrected (#637)."""
         self._write("UPDATE chat_messages SET player_id = ? WHERE id = ?", (player_id, message_id))

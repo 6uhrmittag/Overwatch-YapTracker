@@ -636,6 +636,18 @@ def save_translate_engine(engine: str, path: Path | None = None) -> None:
     _save(path, data)
 
 
+def ai_correct(path: Path | None = None) -> bool:
+    """Doubtful lines re-read by the AI (#637): on unless switched off; nothing without a key."""
+    return bool(_load(path or paths.config_file()).get("ai_correct", True))
+
+
+def save_ai_correct(on: bool, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["ai_correct"] = on
+    _save(path, data)
+
+
 def openrouter_key(path: Path | None = None) -> str:
     """The user's own OpenRouter key (#568): only here, never logged or sent elsewhere."""
     return str(_load(path or paths.config_file()).get("openrouter_key", ""))
