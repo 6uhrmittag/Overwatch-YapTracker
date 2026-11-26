@@ -559,6 +559,19 @@ def debug_samples(path: Path | None = None) -> bool:
     return _load(path or paths.config_file()).get("debug_samples", test_version)
 
 
+def record_chat_until(path: Path | None = None) -> float:
+    """When the chat recorder stops (#654): 0 when it's off (the default)."""
+    until = _load(path or paths.config_file()).get("record_chat_until", 0)
+    return float(until) if isinstance(until, int | float) and not isinstance(until, bool) else 0.0
+
+
+def save_record_chat_until(until: float, path: Path | None = None) -> None:
+    path = path or paths.config_file()
+    data = _load(path)
+    data["record_chat_until"] = until
+    _save(path, data)
+
+
 def save_debug_samples(on: bool, path: Path | None = None) -> None:
     path = path or paths.config_file()
     data = _load(path)

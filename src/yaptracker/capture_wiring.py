@@ -142,6 +142,11 @@ class CaptureWiring:
         if runtime.reader is None:
             return
         mode = runtime.reading.now()  # by the running match's queue (#331)
+        if runtime.recorder is not None:  # one evening, to count lost lines (#654)
+            with CPU.part("chat recorder"):
+                runtime.recorder.frame(frame.image, bool(changed), mode=mode,
+                                       match=runtime.matches.match_id if runtime.matches else None,
+                                       size=list(runtime.window_size or ()))  # fmt: skip
         if mode == AFTER:  # nothing read now: changed frames wait for the match's end (#335)
             if changed:
                 runtime.reader.offer(frame.image, mode)
@@ -224,6 +229,9 @@ class CaptureWiring:
         if runtime.debug is not None:  # first, so a start/end sample has what was just read
             with CPU.part("debug samples"):
                 runtime.debug.on_signals(frame.signals, paused=runtime.pause.paused)
+        if runtime.recorder is not None and not runtime.pause.paused:
+            with CPU.part("chat recorder"):
+                runtime.recorder.signals(frame.signals)
         with CPU.part("match signals"):
             self.hero_select.update(frame.signals)
             self.end_screen.update(frame.signals)

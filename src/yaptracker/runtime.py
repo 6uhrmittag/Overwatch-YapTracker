@@ -45,6 +45,7 @@ store: Store | None = None  # the database, open while the app runs (#15)
 matches: MatchTracker | None = None  # sessions and matches (#21), with the store
 health: CaptureHealth | None = None  # gap records (#75), with the store
 debug: DebugSamples | None = None  # the hard moments, kept as test material (#63)
+recorder = None  # ChatRecorder: one evening of the chat box, to count lost lines (#654)
 reader: ChatReader | None = None  # live chat into the database (#108), with the store
 reading: ReadingMode | None = None  # which reader reads during which match (#331)
 ocr_child = None  # ChildEngines: the chat reader's OCR in its own process (#563); None: in-process
