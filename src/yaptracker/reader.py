@@ -20,7 +20,7 @@ from dataclasses import replace
 
 import numpy as np
 
-from yaptracker import channels, cpu_parts, glyphs, icons, priority, side_work
+from yaptracker import channels, cpu_parts, glyphs, icons, priority, side_work, top_row
 from yaptracker.cpu_parts import CPU
 from yaptracker.dedup import (
     FADE_S,
@@ -589,7 +589,11 @@ class ChatReader:
         read = without_input(ocr_lines, image)  # what you type isn't said yet (#254)
         read = channels.cut_glued(read, image, known)  # "gg 512" -> "gg" (#172)
         ocr = glyphs.mark(image, read)  # icons OCR can't spell become ◇ (#128)
-        parsed = parse(ocr, has_icon=lambda box: channels.has_icon(image, box))  # (#329)
+        parsed = parse(
+            ocr,
+            has_icon=lambda box: channels.has_icon(image, box),  # (#329)
+            clipped=lambda box, below: top_row.clipped(image, box, below),  # (#632)
+        )
         learned = channels.learn(parsed, image)
         self._seen_colours.update(learned)  # e.g. HDR shifts them (#173)
         saved = self._colours()
