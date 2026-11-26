@@ -16,6 +16,18 @@ the two share a habit of correcting spelling, so those ~550 rows carry some wron
 plus synthetic lines (synth.py) -> a small CRNN trained from scratch (crnn.py), checkpoint
 chosen on the three newest training evenings -> scored on gold and on the #118 sets.
 
+The environments, all under fixtures/private/ocr (uv, Python 3.12; ~14 GB together):
+    venv         torch 2.15 (CUDA), torchvision, transformers>=5.0 (5.24), accelerate, pillow,
+                 huggingface_hub, onnx, onnxscript
+                 models, fetched on first use: zai-org/GLM-OCR, Qwen/Qwen3.5-4B
+    venv-paddle  paddlepaddle-gpu==3.3.1 from https://www.paddlepaddle.org.cn/packages/stable/cu126/
+                 + PaddleOCR/requirements.txt, paddle2onnx, onnx, onnxruntime
+    venv-export  paddlepaddle==3.0.0 (CPU), paddle2onnx 2.1.0, onnx, setuptools,
+                 PaddleOCR/requirements.txt (the converter can't read what 3.3 exports)
+    PaddleOCR    git clone --depth 1 https://github.com/PaddlePaddle/PaddleOCR (2026-09-16)
+    pretrained/latin_PP-OCRv5_mobile_rec_pretrained.pdparams from
+                 https://paddle-model-ecology.bj.bcebos.com/paddlex/official_pretrained_model/
+
 Not in this chain, because it needs its own two environments (venv-paddle to train, venv-export
 for the ONNX conversion) and an hour: the fine-tuned Latin PP-OCRv5 recognizer, the more
 accurate and slower one. After `labels-again` and `synth`:

@@ -41,7 +41,7 @@ DICT = "ppocr/utils/dict/ppocrv5_latin_dict.txt"
 MAX_TEXT = 80
 WIDTH = 960
 BATCH = 16
-EPOCHS = 30
+EPOCHS = 10  # ~6 min each on a 4090; dev stops improving after 5
 LEARNING_RATE = 1e-4  # a fine-tune: a fifth of the from-scratch rate
 CHECK_S = 30
 
@@ -171,6 +171,9 @@ def export(private: Path, run: Path, cfg: Path) -> None:
         done = subprocess.run(command, cwd=cwd, capture_output=True, text=True)
         if done.returncode:
             sys.exit(f"export failed:\n{done.stdout[-2000:]}\n{done.stderr[-2000:]}")
+    # 57 MB: PaddlePaddle 3.0's export keeps the training-only head in the file (3.3's is 8 MB
+    # but can't be converted). Removing unused weights by name didn't shrink it; slimming the
+    # graph properly is for the ship issue (#624).
     shutil.copy(private / "PaddleOCR" / DICT, run / "dict.txt")
     print(f"{run / 'rec.onnx'}: {(run / 'rec.onnx').stat().st_size / 1e6:.1f} MB")
 
