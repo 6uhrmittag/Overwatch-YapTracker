@@ -211,6 +211,10 @@ class Yap:
         # was enough before (#259), and the map behind a line changes while it's on screen:
         # sooner or later something bright sat right after the text. Icon callouts always
         # carry theirs (parser), so the comms icons that came and went are covered.
+        if best.channel == "unknown":  # another reading of the line may know it (#633)
+            told = [k for k, line in self.lines.items() if line.channel != "unknown"]
+            if told:
+                best = replace(best, channel=self.lines[max(told, key=self.readings.get)].channel)
         plain = _plain(best.text)
         same = [k for k, line in self.lines.items()
                 if line.quality >= GOOD and _plain(line.text) == plain] or [key(best)]  # fmt: skip

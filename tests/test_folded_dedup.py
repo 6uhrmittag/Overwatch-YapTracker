@@ -88,3 +88,15 @@ def test_a_later_reading_gives_the_line_the_channel_the_first_one_didnt_have():
     assert yap.best.channel == "match" and yap.best.confidence == 1.0
     _, improved = dedup.update(103.0, [replace(later, channel="unknown")])
     assert improved == [] and yap.best.channel == "match"  # and a later "unknown" can't undo it
+
+
+def test_the_channel_comes_from_a_differently_spelled_reading_too():
+    from dataclasses import replace
+
+    from yaptracker.dedup import Yap
+
+    (first,), (other,) = read("[Pickle]: hello there"), read("[Pickle]: hel1o there")
+    yap = Yap(id=1, first_seen=100.0)
+    for line in (replace(first, channel="unknown"),) * 3 + (replace(other, channel="team"),):
+        yap.add(line)
+    assert yap.best.text == "hello there" and yap.best.channel == "team"
