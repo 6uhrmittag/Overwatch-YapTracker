@@ -5,6 +5,7 @@ from nicegui import ui
 
 from yaptracker import config, runtime
 from yaptracker import reading_mode as modes
+from yaptracker.ocr import engine as ocr
 
 _GAPS = {1.5: "Every 1.5 s", 3.0: "Every 3 s", 0.0: "As fast as it can (strong PCs)"}
 _MODES = {
@@ -39,6 +40,13 @@ def reading_card() -> None:
                 "mid-match), I use the lighter of the two."
             ).classes("yt-hint")
             problem = ui.label().classes("yt-hint yt-hidden").mark("reading-light-problem")
+            with ui.element("div").classes("yt-row yt-filters"):
+                ui.label("Best reader").classes("yt-setting-name")
+                reader = ui.element("div").classes("yt-seg").mark("reading-engine")
+            ui.label(
+                "What best quality and the tidy-up read with. RapidOCR is the tried one, "
+                "Chat-trained is new and learned from Overwatch chat itself."
+            ).classes("yt-hint").mark("reading-engine-hint")
             with ui.element("div").classes("yt-row yt-filters"):
                 ui.label("Read the chat").classes("yt-setting-name")
                 gaps = ui.element("div").classes("yt-seg").mark("reading-gaps")
@@ -77,6 +85,13 @@ def reading_card() -> None:
             runtime.reader.min_gap_s = seconds  # the next read already waits this long
         render()
 
+    def choose_engine(name: str) -> None:
+        config.save_ocr_engine(name)  # the next best-quality read uses it (#640)
+        ocr.warm_up(name)  # loaded in the background: the first read doesn't wait
+        if runtime.ocr_child is not None:  # ...and in the reader's own process (#563)
+            runtime.ocr_child.warm_up(name)
+        render()
+
     def render() -> None:
         for kind, container in (("competitive", competitive), ("other", other)):
             chosen = config.reading(kind)
@@ -85,5 +100,8 @@ def reading_card() -> None:
         problem.set_text(f"Light reading can't run here ({why}): I read with the best quality.")
         problem.classes(**{"remove" if why else "add": "yt-hidden"})
         segment(gaps, _GAPS, config.read_every_s(), choose_gap, "gap")
+        available = ocr.available()
+        segment(reader, ocr.LABELS, config.ocr_engine(), choose_engine, "engine",
+                disabled=[n for n in ocr.LABELS if n not in available])  # fmt: skip
 
     render()
