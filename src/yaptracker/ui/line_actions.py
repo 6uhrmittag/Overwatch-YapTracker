@@ -21,14 +21,29 @@ _STAY = "(e) => e.stopPropagation()"  # typing in the field doesn't open the lin
 
 
 def edited_mark(message) -> ui.element:
-    """The small "edited" after a fixed line; its tooltip has what OCR read."""
+    """The small "edited" (or "AI-corrected", #637) after a fixed line; its tooltip has what
+    OCR read."""
     mark = ui.label("edited").classes("yt-line-edited").mark("edited-mark")
-    show_mark(mark, message.edited_at is not None, message.original_text)
+    show_line_mark(mark, message)
     return mark
 
 
-def show_mark(mark: ui.element, on: bool, ocr: str | None) -> None:
+def show_line_mark(mark: ui.element, message) -> None:
+    """By hand wins; else the AI's reading, with OCR's name when the AI changed it."""
+    if message.edited_at is not None:
+        show_mark(mark, True, message.original_text)
+    elif getattr(message, "ai_corrected_at", None) is not None:
+        ocr = message.original_text
+        if message.speaker_ocr:
+            ocr = f"{message.speaker_ocr}: {ocr}"
+        show_mark(mark, True, ocr, "AI-corrected")
+    else:
+        show_mark(mark, False, None)
+
+
+def show_mark(mark: ui.element, on: bool, ocr: str | None, label: str = "edited") -> None:
     if on:
+        mark.set_text(label)
         mark.classes(remove="yt-hidden").props(f'title="{html.escape(f"Read as: {ocr}")}"')
     else:
         mark.classes(add="yt-hidden")
@@ -121,11 +136,17 @@ def _save_fix(before, value: str, text: ui.element, mark: ui.element, bar) -> No
     if runtime.debug is not None:  # hand-checked OCR ground truth (#227)
         picture = runtime.pictures.path(before.id, before.ts) if runtime.pictures else None
         runtime.debug.correction(before, value, picture)
+    from yaptracker import ai_correct, paths
+
+    ai_correct.save_label(paths.data_dir() / "labels", {  # for training our OCR (#608, #637)
+        "id": before.id, "ts": before.ts, "speaker": before.speaker_raw, "text": value,
+        "ocr_speaker": before.speaker_ocr or before.speaker_raw,
+        "ocr_text": before.original_text or before.text, "source": "hand"})  # fmt: skip
 
     def undo() -> None:
         store.unedit_message(before.id, before.text, before.edited_at)
         _show_text(text, before.text)
-        show_mark(mark, before.edited_at is not None, before.original_text)
+        show_line_mark(mark, before)
 
     if bar is not None:
         bar.show("Line fixed", undo)

@@ -304,3 +304,66 @@ def test_when_the_name_doesnt_line_up_ocrs_reading_stays(tmp_path):
     m = store.message(mid)
     assert (m.speaker_raw, m.text, m.ai_corrected_at) == ("Plp", "helo", None)
     store.close()
+
+
+# --- part 3: the doubt checks, labels, the mark, Settings -----------------------------------
+from types import SimpleNamespace  # noqa: E402
+
+from yaptracker.capture.source import Region  # noqa: E402
+from yaptracker.dedup import Yap  # noqa: E402
+from yaptracker.parser import parse  # noqa: E402
+
+
+def yap_of(*rows, box=None):
+    yap = Yap(id=1, first_seen=100.0)
+    for text, confidence in rows:
+        (line,) = parse([OcrLine_(text, confidence, box or Region(0, 0, 400, 24))])
+        yap.add(line)
+    return yap
+
+
+def OcrLine_(text, confidence, box):  # noqa: N802
+    from yaptracker.ocr.engine import OcrLine
+
+    return OcrLine(text, confidence, box)
+
+
+def doubt(store_names=(), edited=()):
+    store = SimpleNamespace(player_names=lambda: [(1, n) for n in store_names],
+                            edited_speakers=lambda since: set(edited))  # fmt: skip
+    return ai_correct.Doubt(store, lambda text: False)
+
+
+def test_readings_that_disagree_and_wrapped_lines_are_doubtful():
+    d = doubt(["Pip"])
+    assert d.why(yap_of(("[Pip]: good game everyone", 0.99))) == set()
+    two = yap_of(("[Pip]: good game everyone", 0.99), ("[Pip]: good gane everyone", 0.98))
+    assert d.why(two) == {"readings disagree"}
+    from dataclasses import replace
+
+    wrapped = Yap(id=2, first_seen=1.0)
+    (line,) = parse([OcrLine_("[Pip]: good game everyone", 0.99, Region(0, 0, 400, 50))])
+    wrapped.add(replace(line, head=Region(0, 0, 400, 24)))
+    assert d.why(wrapped) == {"wrapped"}
+
+
+def test_a_speaker_edited_lately_is_doubtful():
+    assert doubt(["Pip"], edited={"pip"}).why(yap_of(("[Pip]: good game all", 0.99))) == {
+        "speaker edited lately"}  # fmt: skip
+
+
+def test_labels_go_to_a_file_per_month(tmp_path):
+    ai_correct.save_label(tmp_path, {"id": 1, "ts": 1_795_700_000.0, "text": "hi"})
+    ai_correct.save_label(tmp_path, {"id": 2, "ts": 1_795_700_001.0, "text": "ho"})
+    (path,) = tmp_path.glob("*.jsonl")
+    assert path.name.startswith("2026-") and len(path.read_text().splitlines()) == 2
+
+
+def test_the_settings_words():
+    from yaptracker.ui.ai_correct_card import status_words
+
+    assert "Off" in status_words(True, False, 0, 0, 0.0, 1.0)
+    assert "Needs an OpenRouter key" in status_words(False, True, 0, 0, 0.0, 1.0)
+    said = status_words(True, True, 12, 40, 0.01, 1.0)
+    assert "12 lines corrected, 40 looked at" in said and "$0.01 of $1.00" in said
+    assert "limit is reached" in status_words(True, True, 0, 0, 1.0, 1.0)

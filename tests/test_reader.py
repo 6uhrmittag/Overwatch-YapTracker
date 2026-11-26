@@ -76,6 +76,35 @@ def test_a_better_reading_updates_the_stored_line(store):
     assert store.search("portugal") == []  # the search index follows the update
 
 
+def test_every_stored_and_every_improved_line_is_offered_for_a_second_look(store):
+    """#637: the reader only hands (message id, when, the line's readings) on; the AI worker
+    decides. Offered again when a reading changes: readings that disagree show up only then."""
+    glitch, good1, good2 = BLACK.copy(), BLACK.copy(), BLACK.copy()
+    reads = {id(glitch): [line("[NoodleBonk]: Oops XD EM PORTUGAL", confidence=0.99)],
+             id(good1): [line("[NoodleBonk]: Oops XD", confidence=0.96)],
+             id(good2): [line("[NoodleBonk]: Oops XD", confidence=0.97)]}  # fmt: skip
+    offered = []
+    reader, tracker = reader_for(
+        store, reads, doubtful=lambda message_id, ts, yap: offered.append((message_id, ts))
+    )
+    for t, image in enumerate([glitch, good1, good2]):
+        reader.read_frame(1000.0 + t, image)
+    (stored,) = store.messages(tracker.match_id)
+    assert offered[0] == (stored.id, 1000.0) and len(offered) >= 2
+
+
+def test_a_failing_second_look_never_fails_a_read(store):
+    image = BLACK.copy()
+    reads = {id(image): [line("[NoodleBonk]: hi")]}
+
+    def broken(*args):
+        raise RuntimeError("the AI queue broke")
+
+    reader, tracker = reader_for(store, reads, doubtful=broken)
+    reader.read_frame(1000.0, image)
+    assert [m.text for m in store.messages(tracker.match_id)] == ["hi"]
+
+
 def test_new_chat_starts_the_match_and_nothing_is_read_while_paused(store):
     image = BLACK.copy()
     pause = Pause()

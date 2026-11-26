@@ -61,4 +61,6 @@ after_update: dict | None = None  # What's new since the version that ran before
 data_too_new: str | None = None  # the database is from a newer YapTracker (#352)
 translator = None  # DeepL (#468), or a fake one in --dev; None until the app starts
 auto_translate = None  # foreign lines translate themselves (#469); None in tests
+ai_spend = None  # what the AI cost this month, shared by translation and correction (#568, #637)
+ai_corrector = None  # doubtful lines re-read by the AI (#637); None in --dev and tests
 lookup_requested = 0.0  # monotonic time of the last Ctrl+Alt+F; the UI focuses the search box

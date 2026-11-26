@@ -241,6 +241,10 @@ class Worker:
         self.corrected = 0  # lines whose reading the AI changed this run
         self._thread: threading.Thread | None = None
 
+    @property
+    def sent_tonight(self) -> int:
+        return self._corrector.sent_tonight
+
     def submit(self, message_id: int, ts: float, why: set[str]) -> None:
         if not why or not self._enabled():
             return

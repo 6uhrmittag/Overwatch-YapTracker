@@ -21,6 +21,7 @@ from yaptracker.reader import FAIL_LIMIT
 from yaptracker.snaps import MAX_LINES
 from yaptracker.store.backups import last_backup
 from yaptracker.ui import backlog, timing
+from yaptracker.ui.ai_correct_card import ai_correct_card
 from yaptracker.ui.calibrate import calibrate
 from yaptracker.ui.chat_colours import chat_colours_card
 from yaptracker.ui.components import (
@@ -45,7 +46,7 @@ from yaptracker.ui.line_actions import (
     delete_button,
     edit_button,
     edited_mark,
-    show_mark,
+    show_line_mark,
     translate_button,
 )
 from yaptracker.ui.lookup import lookup_card
@@ -334,7 +335,7 @@ def _channel_picker(message, row: dict | None, picture, on_channel=None) -> None
 
 def fill_line(row: dict, message) -> None:
     shown = (message.speaker_raw, message.role, message.text, message.flagged, message.edited_at,
-             message.channel)  # fmt: skip
+             message.channel, message.ai_corrected_at)  # fmt: skip
     if shown == row["shown"]:
         return
     row["shown"] = shown
@@ -345,7 +346,7 @@ def fill_line(row: dict, message) -> None:
         row["ch"].classes(remove=f"yt-ch-{old}", add=f"yt-ch-{channel}")
         row["name"].classes(remove=f"yt-ch-{old}", add=f"yt-ch-{channel}")
         row["ch"].set_text(_CHANNELS.get(channel, "Chat"))
-    show_mark(row["edited"], message.edited_at is not None, message.original_text)
+    show_line_mark(row["edited"], message)  # by hand, or the AI's reading (#637)
     # System lines carry the name in their text ("[gremlin.exe] started playing Overwatch.").
     who = message.speaker_raw if message.channel != "system" else ""
     who = "you" if who and message.role == "me" else who
@@ -871,6 +872,7 @@ def settings() -> None:  # noqa: C901 - a page builder: its handlers need the pa
             reading_card()
             crew_card()
             translate_card()  # DeepL, opt-in (#468)
+            ai_correct_card()  # doubtful lines re-read by the AI (#637)
             chat_colours_card()
             startup_card()
             hotkeys_card()
