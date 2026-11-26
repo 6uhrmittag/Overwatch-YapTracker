@@ -4,6 +4,12 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-26 · Late lines in their place (#653)
+- A line I could only store a little later (seen in the opened chat) now shows in Live where it was said, not at the bottom.
+
+### 2026-11-26 · Fewer lost lines: a new line isn't taken for an old one (#653)
+- A new short line from someone with a long name (like "hehe :3") is no longer thrown away as "an older line read wrong". Only the lines right above it count, and only their text.
+
 ### 2026-11-26 · "As fast as it can" reads without brakes (#652)
 - "As fast as it can" now really means it: no slowing down to protect your FPS. YapTracker and its chat reading run at normal priority (fewer moments where the game picture didn't reach me), the game picture is grabbed 4 times a second in a match, and reading never backs off. Fewer lost lines, a few FPS less.
 - The 1.5 s and 3 s settings keep every brake, as before.
