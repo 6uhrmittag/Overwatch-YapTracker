@@ -271,7 +271,7 @@ class RapidOcrEngine:
     """RapidOCR (ONNX, CPU) on the upscaled image (2x at 1440p) - 1x drops the spaces."""
 
     name = "rapidocr"
-    label = "RapidOCR"
+    label = "Classic (RapidOCR)"
 
     def __init__(self) -> None:
         from rapidocr_onnxruntime import RapidOCR  # imported lazily: loading the models takes ~1 s

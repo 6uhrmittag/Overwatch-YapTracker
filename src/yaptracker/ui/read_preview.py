@@ -38,7 +38,7 @@ class ReadPreview:
             self._info = ui.label().classes("yt-meta").mark("crop-info")
             self._engines = ui.element("div").classes("yt-seg")
             ui.label(
-                "RapidOCR is the tried one, Chat-trained is new and learned from Overwatch "
+                "Classic is the tried one, Chat-trained is new and learned from Overwatch "
                 "chat itself; Windows OCR only if neither starts."
             ).classes("yt-hint").mark("engine-hint")
             self._lines = ui.element("div").classes("yt-read-lines").mark("read-lines")

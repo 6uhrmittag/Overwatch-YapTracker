@@ -12,6 +12,9 @@ from yaptracker.days import CUT_H, day_of
 from yaptracker.ocr import engine as ocr
 from yaptracker.ui.components import switch
 
+# Windows OCR isn't an everyday choice (#640): it reads "Live, light" and steps in when nothing
+# else starts; the calibration preview still offers it, to compare on the same picture.
+_ENGINES = {name: ocr.LABELS[name] for name in (ocr.DEFAULT, ocr.ChatTrainedOcrEngine.name)}
 _GAPS = {1.5: "Every 1.5 s", 3.0: "Every 3 s", 0.0: "As fast as it can (strong PCs)"}
 _MODES = {
     modes.AFTER: "After the match",
@@ -26,14 +29,23 @@ def reading_card() -> None:
             ui.label("Reading").classes("yt-h2")
         with ui.element("div").classes("yt-card-body"):
             with ui.element("div").classes("yt-row yt-filters"):
+                ui.label("Reading engine").classes("yt-setting-name")
+                reader = ui.element("div").classes("yt-seg").mark("reading-engine")
+            ui.label(
+                "What reads your chat with the best quality, and tidies up after light reading. "
+                "Classic is the tried one, Chat-trained learned from Overwatch chat itself."
+            ).classes("yt-hint").mark("reading-engine-hint")
+            fallback = ui.label().classes("yt-hint yt-hidden").mark("reading-engine-fallback")
+            with ui.element("div").classes("yt-row yt-filters"):
                 ui.label("Competitive").classes("yt-setting-name")
                 competitive = ui.element("div").classes("yt-seg").mark("reading-competitive")
             with ui.element("div").classes("yt-row yt-filters"):
                 ui.label("Other matches").classes("yt-setting-name")
                 other = ui.element("div").classes("yt-seg").mark("reading-other")
             ui.label(
-                "Light reads live and costs your game almost nothing; afterwards I tidy up with "
-                "the best reader. Pick best if you want the most accurate lines right away."
+                "Light reads live with Windows OCR and costs your game almost nothing; "
+                "afterwards I tidy up with your reading engine. Best reads live with your "
+                "reading engine, for the most accurate lines right away."
             ).classes("yt-hint").mark("reading-other-hint")
             ui.label(
                 "After the match costs your game nothing: I keep the chat pictures and read them "
@@ -45,13 +57,6 @@ def reading_card() -> None:
                 "mid-match), I use the lighter of the two."
             ).classes("yt-hint")
             problem = ui.label().classes("yt-hint yt-hidden").mark("reading-light-problem")
-            with ui.element("div").classes("yt-row yt-filters"):
-                ui.label("Best reader").classes("yt-setting-name")
-                reader = ui.element("div").classes("yt-seg").mark("reading-engine")
-            ui.label(
-                "What best quality and the tidy-up read with. RapidOCR is the tried one, "
-                "Chat-trained is new and learned from Overwatch chat itself."
-            ).classes("yt-hint").mark("reading-engine-hint")
             with ui.element("div").classes("yt-row yt-filters"):
                 ui.label("Read the chat").classes("yt-setting-name")
                 gaps = ui.element("div").classes("yt-seg").mark("reading-gaps")
@@ -93,6 +98,8 @@ def reading_card() -> None:
 
     def choose_engine(name: str) -> None:
         config.save_ocr_engine(name)  # the next best-quality read uses it (#640)
+        if runtime.reading is not None:
+            runtime.reading.retry_best()  # chosen again: try it again
         ocr.warm_up(name)  # loaded in the background: the first read doesn't wait
         if runtime.ocr_child is not None:  # ...and in the reader's own process (#563)
             runtime.ocr_child.warm_up(name)
@@ -106,11 +113,24 @@ def reading_card() -> None:
         problem.set_text(f"Light reading can't run here ({why}): I read with the best quality.")
         problem.classes(**{"remove" if why else "add": "yt-hidden"})
         segment(gaps, _GAPS, config.read_every_s(), choose_gap, "gap")
-        available = ocr.available()
-        segment(reader, ocr.LABELS, config.ocr_engine(), choose_engine, "engine",
-                disabled=[n for n in ocr.LABELS if n not in available])  # fmt: skip
+        chosen = config.ocr_engine()
+        segment(reader, _ENGINES, chosen, choose_engine, "engine")
+        fallback.set_text(engine_words(chosen, runtime.reading))
+        fallback.classes(**{"remove" if fallback.text else "add": "yt-hidden"})
 
     render()
+
+
+def engine_words(chosen: str, reading) -> str:
+    """The reading engine's state when it isn't simply the one chosen (#640); "" otherwise."""
+    if chosen not in _ENGINES:
+        return (f"{ocr.LABELS.get(chosen, chosen)} is chosen (in Calibrate's preview): it reads "
+                "with the best quality.")  # fmt: skip
+    problem = getattr(reading, "best_problem", None)
+    if problem and problem[0] == chosen:
+        return (f"{ocr.LABELS[chosen]} can't start here ({problem[1]}): I read with "
+                f"{ocr.LABELS[ocr.DEFAULT]}. Choose it again to try once more.")  # fmt: skip
+    return ""
 
 
 def evening_start(now: float) -> float:

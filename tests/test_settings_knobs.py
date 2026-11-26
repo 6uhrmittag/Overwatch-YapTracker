@@ -87,7 +87,7 @@ async def test_the_best_reader_is_chosen_in_the_reading_card(user: User, monkeyp
     monkeypatch.setattr(runtime, "ocr_child", None)
     await user.open("/")
     user.find(marker="nav-settings").click()
-    await user.should_see("Best reader")
+    await user.should_see("Reading engine")
     await user.should_see("Chat-trained")
     user.find(marker="engine-chat").click()
     assert config.ocr_engine() == "chat" and warmed == ["chat"]
