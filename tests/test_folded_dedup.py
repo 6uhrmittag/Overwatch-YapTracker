@@ -42,3 +42,31 @@ def test_the_same_word_sent_again_behaves_like_any_repeat():
     for earlier, now in ((["[Ana]: hi", "[Bo]: schon"], ["[Ana]: hi", "[Bo]: schon"]),
                          (["[Bo]: schon"], ["[Bo]: schon", "[Ana]: ok"])):  # fmt: skip
         assert after(earlier, now, "schön") == after(earlier, now, "schon")
+
+
+def test_one_misread_with_an_accent_doesnt_beat_the_many_right_readings():
+    """#631, the chat-trained engine on a recorded match (names replaced): "glhf <3" read right
+    on every clean frame and once, with an outline behind it, as "glhif <ß". The ß made that
+    single reading win. An accented reading only wins as the usual one with its umlauts."""
+    from yaptracker.dedup import Yap
+
+    (right,), (wrong,) = read("[Pickle]: glhf <3"), read("[Pickle]: glhif <ß")
+    yap = Yap(id=1, first_seen=100.0)
+    for line in (right, right, wrong, right):
+        yap.add(line)
+    assert yap.best.text == "glhf <3"
+    yap.add(wrong)  # read twice now, the right one three times
+    assert yap.best.text == "glhf <3"
+
+
+def test_the_umlaut_reading_still_wins_when_it_is_the_same_text():
+    from yaptracker.dedup import Yap
+
+    (plain,), (dotted,) = (
+        read("[Pickle]: Schone GruBe an alle"),
+        read("[Pickle]: Schöne Grüße an alle"),
+    )
+    yap = Yap(id=1, first_seen=100.0)
+    for line in (plain, plain, plain, dotted):
+        yap.add(line)
+    assert yap.best.text == "Schöne Grüße an alle"
