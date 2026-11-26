@@ -4,6 +4,9 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-26 · Our own OCR for Overwatch chat: trained and measured (#608)
+- Behind the scenes: two reading engines trained on Overwatch chat itself and the tools to retrain and measure them. Nothing in the app changes yet.
+
 ### 2026-11-25 · Windows 10: a long wait without a picture is shown as a gap (#618)
 - On the Windows 10 way of capturing, more than 6 s without a picture in a match is now recorded as a gap, as on the normal one. Since #605 it would have been a silent hole.
 
