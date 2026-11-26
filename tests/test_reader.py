@@ -596,3 +596,20 @@ def test_a_cut_line_with_map_text_glued_on_is_completed_too(store):
     opened = ["[Pip]: good game everyone and thanks a lot friends", "[Bo]: ok fine"]
     texts, _ = _opened_chat(store, known, opened)
     assert texts == ["hi", "good game everyone and thanks a lot friends", "ok fine"]
+
+
+def test_a_new_short_line_isnt_taken_for_an_old_one_by_its_long_name(store, caplog):
+    """#653: "hehe :3" was refused as "may be a known line read wrong": the long name alone
+    made it look like the same speaker's ":(" minutes before. Only the text counts now, and
+    only the known lines right above."""
+    caplog.set_level(logging.INFO, "yaptracker.reader")
+    name = "Pipsqueakerton"
+    known = [f"[{name}]: my", f"[{name}]: :(", "[Bo]: Good work!",
+             f"[{name}]: thanks for singing along :3"]  # fmt: skip
+    _opened_chat(store, known, [f"[{name}]: hehe :3",
+                                f"[{name}]: thanks for singing along :3"])  # fmt: skip
+    assert sorted(m.text for m in store.lines_since(0.0)) == sorted(
+        ["my", ":(", "Good work!", "hehe :3", "thanks for singing along :3"]
+    )
+    assert "stored now: Pipsqueakerton: hehe :3" in caplog.text
+    assert "read wrong" not in caplog.text
