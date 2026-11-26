@@ -165,7 +165,9 @@ def test_the_ai_reading_keeps_ocrs_and_a_hand_edit_wins(tmp_path):
     assert (m.text, m.speaker_raw) == ("Thanks! [icon:thumbs-up]", "Pip")  # the AI's stays
     store.edit_message(mid, "thanks!!", 102.0)
     m = store.message(mid)
-    assert m.text == "thanks!!" and m.ai_corrected_at is None
+    assert m.text == "thanks!!" and m.edited_at == 102.0  # the hand edit wins
+    store.update_message(mid, channel="match", text="Thanks!", speaker_raw="Plp")
+    assert store.message(mid).speaker_raw == "Pip"  # the AI's name isn't lost to an edit
     assert not store.ai_correct_message(mid, text="x", speaker_raw="Pip", has_glyphs=False,
                                         ts=103.0)  # fmt: skip
     store.close()
@@ -242,4 +244,63 @@ def test_submit_waits_a_moment_and_ignores_lines_without_a_trigger(tmp_path):
     assert w._next() is None  # not yet: dedup may still improve the OCR reading
     now["t"] = ai_correct.DELAY_S
     assert w._next().message_id == mid and w._next() is None
+    store.close()
+
+
+def test_a_later_ocr_reading_keeps_the_ais_player_marks_and_icons(tmp_path):
+    store, mid = stored(tmp_path, text="gg ◇", speaker="Plp")
+    pip = store.add_player("Pip", 50.0)
+    store.ai_correct_message(mid, text="gg [icon:thumbs-up]", speaker_raw="Pip", has_glyphs=True,
+                             ts=101.0)  # fmt: skip
+    store.set_message_player(mid, pip)
+    store.set_not_foreign(mid, "EN", "EN")
+    store.update_message(mid, channel="match", text="gg", speaker_raw="Plp", has_glyphs=False)
+    m = store.message(mid)
+    assert (m.player_id, m.has_glyphs, m.translation_from) == (pip, 1, "EN")
+    store.close()
+
+
+def test_undoing_a_hand_edit_of_an_ai_line_keeps_its_mark_and_ocrs_reading(tmp_path):
+    store, mid = stored(tmp_path, text="helo", speaker="Pip")
+    store.ai_correct_message(mid, text="hello", speaker_raw="Pip", has_glyphs=False, ts=101.0)
+    before = store.message(mid)
+    store.edit_message(mid, "hello!!", 102.0)
+    store.unedit_message(mid, before.text, before.edited_at)
+    m = store.message(mid)
+    assert (m.text, m.original_text, m.ai_corrected_at) == ("hello", "helo", 101.0)
+    store.update_message(mid, channel="match", text="helo", speaker_raw="Pip")
+    assert store.message(mid).text == "hello"
+    store.close()
+
+
+def test_the_tidy_up_never_removes_an_ai_line(tmp_path):
+    store = Store.open(tmp_path / "y.db", tmp_path / "b")
+    match = store.start_match(store.start_session(90.0), 95.0, "heroselect")
+    mid = store.add_message(ts=100.0, match_id=match, channel="match", speaker_raw="Plp",
+                            text="helo")  # fmt: skip
+    store.ai_correct_message(mid, text="x", speaker_raw="Pip", has_glyphs=False, ts=1.0)
+    assert mid in store.hand_touched(match)
+    store.close()
+
+
+def test_switched_off_nothing_more_goes_out(tmp_path):
+    store, mid = stored(tmp_path, text="hello there", speaker="Plp")
+    on = {"v": True}
+    w = worker(tmp_path, store, "[Pip]: hello there")
+    w._enabled = lambda: on["v"]
+    w.submit(mid, 100.0, {"icon"})
+    on["v"] = False
+    w._clock = lambda: 1e9
+    assert w._next() is None and w._queue == []
+    w.handle(ai_correct.Waiting(mid, 100.0, frozenset({"icon"}), 0.0))
+    assert w._corrector.sent == 0
+    store.close()
+
+
+def test_when_the_name_doesnt_line_up_ocrs_reading_stays(tmp_path):
+    store, mid = stored(tmp_path, text="helo", speaker="Plp")
+    w = worker(tmp_path, store, "Pip: hello")  # no brackets: the parser finds no name
+    w.handle(ai_correct.Waiting(mid, 100.0, frozenset({"very short"}), 0.0))
+    m = store.message(mid)
+    assert (m.speaker_raw, m.text, m.ai_corrected_at) == ("Plp", "helo", None)
     store.close()

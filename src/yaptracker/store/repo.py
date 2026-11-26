@@ -516,9 +516,9 @@ class Store:
         """Fixed by hand (#227): the first OCR reading is kept, search follows the new text."""
         self._write(
             "UPDATE chat_messages SET original_text = COALESCE(original_text, text), text = ?, "
-            f"edited_at = ?, ai_corrected_at = NULL, {_KEEP_TRANSLATION} WHERE id = ?",
+            f"edited_at = ?, {_KEEP_TRANSLATION} WHERE id = ?",
             (text, ts, text, text, text, message_id),
-        )  # a hand edit always wins over the AI's reading (#637)
+        )  # wins over the AI's reading (#637) through edited_at; its mark stays for an Undo
 
     def ai_correct_message(self, message_id: int, *, text: str, speaker_raw: str | None,
                            has_glyphs: bool, ts: float) -> bool:  # fmt: skip
@@ -546,7 +546,8 @@ class Store:
         """Undo an edit: the text and mark as they were before."""
         self._write(
             "UPDATE chat_messages SET text = ?, edited_at = ?, "
-            "original_text = CASE WHEN ? IS NULL THEN NULL ELSE original_text END, "
+            "original_text = CASE WHEN ? IS NULL AND ai_corrected_at IS NULL THEN NULL "
+            "ELSE original_text END, "  # an AI-corrected line keeps OCR's reading (#637)
             f"{_KEEP_TRANSLATION} WHERE id = ?",
             (text, edited_at, edited_at, text, text, text, message_id),
         )
@@ -760,16 +761,20 @@ class Store:
         self._write(
             "UPDATE chat_messages SET "
             + "".join(f"{column} = CASE WHEN translation IS NULL AND edited_at IS NULL "
-                      f"AND text IS NOT ? THEN NULL ELSE {column} END, "
+                      f"AND ai_corrected_at IS NULL AND text IS NOT ? THEN NULL ELSE {column} END, "
                       for column in ("translation_from", "translation_to"))
             + "channel = CASE WHEN channel_ocr IS NULL THEN ? ELSE channel END, "  # by hand (#283)
             # the AI's reading of a doubtful line stays too (#637): it read the picture closer
-            "speaker_raw = CASE WHEN ai_corrected_at IS NULL THEN ? ELSE speaker_raw END, "
+            "speaker_raw = CASE WHEN ai_corrected_at IS NULL AND speaker_ocr IS NULL THEN ? "
+            "ELSE speaker_raw END, "
             "hero = ?, "
             "text = CASE WHEN edited_at IS NULL AND ai_corrected_at IS NULL THEN ? ELSE text END, "
             "ocr_confidence = ?, "
             "flagged = CASE WHEN flagged = 'manual' THEN flagged ELSE COALESCE(?, flagged) END, "
-            "role = ?, has_glyphs = ?, player_id = ? "
+            "role = ?, "
+            "has_glyphs = CASE WHEN ai_corrected_at IS NULL THEN ? ELSE has_glyphs END, "
+            "player_id = CASE WHEN ai_corrected_at IS NULL AND speaker_ocr IS NULL THEN ? "
+            "ELSE player_id END "
             "WHERE id = ?",
             (text, text, channel, speaker_raw, hero, text, ocr_confidence, flagged, role,
              int(has_glyphs), player_id, message_id),
@@ -839,7 +844,8 @@ class Store:
         removes them (#432)."""
         rows = self._read(
             "SELECT id FROM chat_messages WHERE match_id = ? AND (edited_at IS NOT NULL OR "
-            "channel_ocr IS NOT NULL OR deleted_at IS NOT NULL OR flagged = 'manual')",
+            "channel_ocr IS NOT NULL OR deleted_at IS NOT NULL OR flagged = 'manual' OR "
+            "ai_corrected_at IS NOT NULL)",  # the AI's reading (#637): read closer than OCR
             (match_id,),
         )
         return {row[0] for row in rows}
