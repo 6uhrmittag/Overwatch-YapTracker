@@ -110,3 +110,32 @@ def test_each_trigger():
 
 def test_system_lines_arent_short_or_german():
     assert triggers("You endorsed Jörg!", speaker=None, channel="system") == set()
+
+
+def test_offline_isnt_asked_again_with_the_fallback_and_doesnt_count(tmp_path):
+    offline = urllib.error.URLError("no route")
+    c, sent = corrector(tmp_path, [offline])
+    assert c.correct(PNG).error == ai_translate.OFFLINE and len(sent) == 1
+    assert c.sent_tonight == 0  # the evening's limit is for lines OpenRouter saw
+
+
+def test_a_timeout_counts_as_spent_and_the_fallback_gets_its_turn(tmp_path):
+    c, sent = corrector(tmp_path, [TimeoutError("timed out"), answer('{"text": "[Pip]: hi"}', 0)])
+    got = c.correct(PNG)
+    assert got.row == "[Pip]: hi" and c.spend.used() == ai_correct.COST_GUESS[ai_correct.MODEL]
+    assert sent[1]["max_tokens"] > 1000  # Sonnet's thinking doesn't eat the answer
+
+
+def test_a_dropped_answer_doesnt_escape(tmp_path):
+    import http.client
+
+    c, _ = corrector(tmp_path, [http.client.IncompleteRead(b"{"), http.client.IncompleteRead(b"")])
+    assert c.correct(PNG).error == ai_translate.OFFLINE
+
+
+def test_an_icon_only_row_or_odd_icons_are_handled():
+    import pytest
+
+    with pytest.raises(ValueError):
+        ai_correct.parse('{"text": "◇", "icons": []}')
+    assert ai_correct.parse('{"text": "[Pip]: <3 ◇", "icons": "heart"}')[1] == ["heart"]

@@ -9,6 +9,7 @@ estimates it from a replay. Prints counts only.
 """
 
 import argparse
+import heapq
 import re
 import sqlite3
 import sys
@@ -52,10 +53,17 @@ def main() -> None:
     pictures = {int(p.stem): p for p in (private / "lines").rglob("*.webp") if p.stem.isdigit()}
     edited_speakers: set[str] = set()
     edited_tonight: set[tuple[str, str]] = set()  # the narrow variant: an edit this evening
+    edits = sorted(  # (when edited, who, that evening): a speaker counts from the edit on
+        (row[6], row[3].lower(), day_of(row[6])) for row in rows if row[6] and row[3]
+    )
     per: dict[str, Counter] = defaultdict(Counter)
-    for message_id, ts, channel, speaker, text, glyphs, edited in rows:
+    for message_id, ts, channel, speaker, text, glyphs, _edited in rows:
         day = day_of(ts)
         speaker_l = (speaker or "").lower()
+        while edits and edits[0][0] <= ts:
+            _when, who, edited_day = heapq.heappop(edits)
+            edited_speakers.add(who)
+            edited_tonight.add((who, edited_day))
         hits = set()
         if day in days:
             system = channel == "system"
@@ -84,9 +92,6 @@ def main() -> None:
                 per[day][hit] += 1
             per[day]["any trigger"] += bool(hits)
             per[day]["any, narrow"] += bool(hits - {"speaker edited before"})
-        if edited is not None and speaker_l:
-            edited_speakers.add(speaker_l)
-            edited_tonight.add((speaker_l, day))
     columns = ["lines", "name near-miss", "icon (◇)", "umlauts / German", "very short",
                "wrapped", "speaker edited before", "edited tonight", "any trigger",
                "any, narrow"]  # fmt: skip

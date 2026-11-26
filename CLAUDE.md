@@ -324,8 +324,19 @@ of view, like OBS or the Snipping Tool.
   `openrouter.ai/api/v1/endpoints/zdr` (`ai_models.py`): one GET, no key, no chat data, only while
   the AI engine is on and a key is set, never during a match, at most once a day, cached in
   `data/ai_models.json`; offline: a built-in short list. Tests block it (`conftest.py`).
-  Decided for later: the rest of the **OpenRouter bridge** (#326, parked): vision models on line
-  pictures, after the match only, under the same rules. The app must work identically without it.
+  Built exception (#637, Marv 2026-11-26): **AI correction** (`ai_correct.py`) sends the
+  **picture of a doubtful chat line** to a vision model through OpenRouter, with the same key
+  and the same routing (zero data retention, no data collection, no Google Vertex). Two rules of
+  the bridge changed for it: **names may go along in the picture** (one chat row as #120 keeps it:
+  icon, name, text; nothing else from the screen, no DB data), and it runs **live, behind
+  storing**: the line is stored and shown first, the correction comes 1-2 s later; capture and
+  reader never wait for the network. **On by default once an OpenRouter key is set**, switchable
+  in Settings; without a key nothing changes. Only lines a trigger calls doubtful, a per-evening
+  limit (300 lines) and the shared monthly spend cap. Never a silent overwrite: the OCR reading
+  stays in `original_text`, a hand edit always wins. Default `anthropic/claude-haiku-5.5`,
+  fallback `anthropic/claude-sonnet-5.5` (the #637 spike). Tests use a fake client.
+  Decided for later: the rest of the **OpenRouter bridge** (#326, parked). The app must work
+  identically without it.
 - **The repo is public.** Never commit screenshots or real chat logs — they
   contain other players' names. Real samples live in `fixtures/private/`
   (gitignored). Committed test fixtures are OCR-output JSON with names replaced.

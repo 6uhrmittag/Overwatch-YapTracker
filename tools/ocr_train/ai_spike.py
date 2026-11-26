@@ -123,15 +123,17 @@ def main() -> None:
     lock = threading.Lock()
     for model in opts.models:
         out = private / "readings" / f"ai-{model.replace('/', '_')}.jsonl"
-        kept = [json.loads(line) for line in out.open()] if out.exists() else []
+        kept = [json.loads(line) for line in out.open(encoding="utf-8")] if out.exists() else []
         kept = [r for r in kept if "error" not in r]  # failed ones are asked again
-        out.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in kept))
+        out.write_text(
+            "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in kept), encoding="utf-8"
+        )
         done = {r["id"] for r in kept}
 
         def one(g: dict, model: str = model, out: Path = out) -> None:
             try:
                 got = ask(key, model, private / g["picture"])
-            except (urllib.error.URLError, TimeoutError, ValueError, KeyError) as error:
+            except (OSError, ValueError, KeyError) as error:  # URLError, timeouts, resets
                 got = {"row": "", "icons": [], "s": None, "usd": 0.0, "error": repr(error)[:120]}
             with lock, out.open("a", encoding="utf-8") as f:
                 f.write(json.dumps({"id": g["id"], **got}, ensure_ascii=False) + "\n")

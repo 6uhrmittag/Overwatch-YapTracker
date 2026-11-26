@@ -14,6 +14,7 @@ the answer as a second reading, never over a hand edit.
 """
 
 import base64
+import http.client
 import json
 import logging
 import re
@@ -72,7 +73,7 @@ def request(key: str, model: str, png: bytes) -> urllib.request.Request:
         "provider": PROVIDER,
         "usage": {"include": True},
         "temperature": 0,
-        "max_tokens": 300,
+        "max_tokens": 1300 if model in THINKS else 300,  # thinking counts against it
         "reasoning": ai_translate.LITTLE_THINKING if model in THINKS else ai_translate.NO_THINKING,
     }
     return urllib.request.Request(
@@ -93,8 +94,12 @@ def parse(content: str) -> tuple[str, list[str]]:
     row = found.get("text")
     if not isinstance(row, str) or not row.strip():
         raise ValueError("an answer without text")
-    icons = [str(icon) for icon in found.get("icons") or [] if isinstance(icon, (str, int))]
-    return " ".join(row.lstrip(GLYPH + " ").split()), icons
+    row = " ".join(row.lstrip(GLYPH + " ").split())
+    if not row:  # only the channel icon: nothing read
+        raise ValueError("an answer without text")
+    icons = found.get("icons") or []
+    icons = [icons] if isinstance(icons, str) else icons if isinstance(icons, list) else []
+    return row, [str(icon) for icon in icons if isinstance(icon, (str, int))]
 
 
 class Corrector:
@@ -125,22 +130,30 @@ class Corrector:
             cap = self._cap()
             if self.spend.used() >= cap:
                 return Correction(error=ai_translate.capped(cap))
-            self.sent_tonight += 1
-            first = self._ask(key, MODEL, png)
-            if first.error is None or first.error in _FINAL:
-                return first
-            return self._ask(key, FALLBACK, png)
+            got = self._ask(key, MODEL, png)
+            if got.error is not None and got.error not in _FINAL:
+                if self.spend.used() >= cap:  # the first answer may have used the rest
+                    return Correction(error=ai_translate.capped(cap))
+                got = self._ask(key, FALLBACK, png)
+            if got.error != ai_translate.OFFLINE:  # what reached OpenRouter counts (and costs)
+                self.sent_tonight += 1
+            return got
 
     def _ask(self, key: str, model: str, png: bytes) -> Correction:
+        timeout = ai_translate.THINKING_TIMEOUT_S if model in THINKS else TIMEOUT_S
         try:
-            answer = self._send(request(key, model, png), TIMEOUT_S)
+            answer = self._send(request(key, model, png), timeout)
             self.spend.add(float((answer.get("usage") or {}).get("cost") or 0.0))
             row, icons = parse(answer["choices"][0]["message"]["content"])
         except urllib.error.HTTPError as error:
             log.info("correct: OpenRouter said %s (%s)", error.code, model)
             return Correction(error=ai_translate._HTTP.get(error.code, ai_translate.FAILED))
-        except (urllib.error.URLError, TimeoutError, OSError) as error:
+        except (urllib.error.URLError, TimeoutError, OSError,
+                http.client.HTTPException) as error:  # fmt: skip
             log.info("correct: OpenRouter not reached (%s)", type(error).__name__)
+            if isinstance(error, TimeoutError) or "timed out" in str(error):
+                self.spend.add(COST_GUESS.get(model, ai_translate.UNKNOWN_COST))  # billed anyway
+                return Correction(error=TIMED_OUT)
             return Correction(error=ai_translate.OFFLINE)
         except (ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
             log.info("correct: odd answer from %s (%s)", model, type(error).__name__)
@@ -148,15 +161,16 @@ class Corrector:
         return Correction(row=row, icons=icons, model=model)
 
 
-# Asking the fallback won't help: the key, the credit or the cap is the problem, not the model.
-_FINAL = {ai_translate.WRONG_KEY, ai_translate.NO_CREDIT}
+TIMED_OUT = "The AI took too long with this line."
+COST_GUESS = {MODEL: 0.0001, FALLBACK: 0.0026}  # US dollars: twice what a line cost in the spike
+# Asking the fallback won't help: the key, the credit, the network is the problem, not the model.
+_FINAL = {ai_translate.WRONG_KEY, ai_translate.NO_CREDIT, ai_translate.OFFLINE}
 
 
 # --- which lines are worth it (#637) -------------------------------------------------------
 # Not OCR's confidence: the POC showed RapidOCR confidently wrong (85 of 10,776 lines < 0.9).
 NEAR_NAME = 80  # fuzzy ratio to a known name, but not the name itself
 SHORT = 3  # characters of text
-EDITED_DAYS = 7  # a speaker whose line was fixed by hand this recently
 _UMLAUT = re.compile(r"[äöüßÄÖÜ]")
 
 
