@@ -33,7 +33,6 @@ MODELS = {  # name: (Hugging Face repo, prompt)
 }
 UPSCALE = 2  # a 45 px row is below every model's smallest picture: enlarge it ourselves
 CHECK_EVERY = 20  # pictures between two looks for Overwatch.exe
-GAME_EXIT = 3
 
 
 class Reader:
@@ -68,6 +67,7 @@ def main() -> None:
     args = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     args.add_argument("--model", choices=MODELS, required=True)
     args.add_argument("--set", choices=("gold", "all"), default="gold")
+    args.add_argument("--only", help="a JSON list of message ids (relative to the private folder)")
     args.add_argument("--limit", type=int, help="stop after this many pictures (a first try)")
     opts = args.parse_args()
     private = common.private()
@@ -76,6 +76,9 @@ def main() -> None:
     if opts.set == "gold":
         gold = set(json.loads((private / "gold" / "sample.json").read_text()))
         data = [r for r in data if r["id"] in gold]
+    if opts.only:
+        only = set(json.loads((private / opts.only).read_text()))
+        data = [r for r in data if r["id"] in only]
     out_path = private / "readings" / f"{opts.model}.jsonl"
     out_path.parent.mkdir(exist_ok=True)
     done = set()
@@ -90,15 +93,14 @@ def main() -> None:
     if not todo:
         print(f"nothing to do: {len(done)} readings in {out_path.name}")
         return
-    if common.game_running():
-        sys.exit(GAME_EXIT)
+    common.no_game()
     reader = Reader(opts.model)
     seconds = []
     with out_path.open("a", encoding="utf-8") as out:
         for n, r in enumerate(todo):
             if n % CHECK_EVERY == 0 and n and common.game_running():
                 print(f"Overwatch is running: stopped after {n} of {len(todo)}")
-                sys.exit(GAME_EXIT)
+                sys.exit(common.GAME_EXIT)
             start = time.perf_counter()
             row = reader.read(private / r["picture"])
             seconds.append(time.perf_counter() - start)
