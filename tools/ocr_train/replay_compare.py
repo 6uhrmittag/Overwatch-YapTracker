@@ -45,8 +45,10 @@ def main() -> None:
         repeats = sum(a == b for a, b in zip(texts, texts[1:], strict=False))
         icons = sum("◇" in t or "[icon:" in t for t in texts)
         low = sum(s < 0.9 for _c, s, _t in rows)
-        print(f"{name}: {len(rows)} lines, {dict(Counter(c for c, _s, _t in rows))}, "
-              f"{icons} with an icon mark, {repeats} repeats in a row, {low} under 0.9")  # fmt: skip
+        print(
+            f"{name}: {len(rows)} lines, {dict(Counter(c for c, _s, _t in rows))}, "
+            f"{icons} with an icon mark, {repeats} repeats in a row, {low} below 0.9"
+        )
     (name_a, a), (name_b, b) = sides.items()
     left = Counter(t for _c, _s, t in a) - Counter(t for _c, _s, t in b)
     right = Counter(t for _c, _s, t in b) - Counter(t for _c, _s, t in a)
