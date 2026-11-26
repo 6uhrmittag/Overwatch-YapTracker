@@ -261,6 +261,9 @@ class Worker:
 
     def _next(self) -> Waiting | None:
         with self._lock:
+            if not self._enabled():  # switched off (or the key gone): nothing more goes out
+                self._queue.clear()
+                return None
             now = self._clock()
             for n, waiting in enumerate(self._queue):
                 if now - waiting.since >= DELAY_S:
@@ -281,6 +284,8 @@ class Worker:
 
     def handle(self, waiting: Waiting) -> None:
         """One line: ask, compare, store. Public for the tests (no thread there)."""
+        if not self._enabled():
+            return
         message = self._store.message(waiting.message_id)
         if message is None or message.edited_at is not None or message.ai_corrected_at:
             return  # gone, fixed by hand meanwhile, or done
@@ -291,15 +296,23 @@ class Worker:
         ok, png = cv2.imencode(".png", picture)
         if not ok:
             return
-        for trigger in waiting.why:
-            self.counts[trigger] = self.counts.get(trigger, 0) + 1
         got = self._corrector.correct(png.tobytes())
         if got.row is None:
             log.info("correct: line %s not corrected (%s)", message.id, got.error)
             return
+        for trigger in waiting.why:  # what was really sent, for the evening's log
+            self.counts[trigger] = self.counts.get(trigger, 0) + 1
         box = Region(0, 0, picture.shape[1], picture.shape[0])
-        line = parse_chat([OcrLine(got.row, 1.0, box)])[0]
-        speaker = line.speaker if line.speaker and message.speaker_raw else message.speaker_raw
+        parsed = parse_chat([OcrLine(got.row, 1.0, box)])
+        if not parsed:
+            return
+        line = parsed[0]
+        if bool(line.speaker) != bool(message.speaker_raw):
+            # The AI and OCR disagree on whether the row has a name ("Pip: hi" without the
+            # brackets): name and text would come apart. OCR's reading stays.
+            log.info("correct: line %s skipped, the name doesn't line up", message.id)
+            return
+        speaker = line.speaker or message.speaker_raw
         text = icons.name(line.text, picture) if line.text.strip() else message.text
         if (speaker, glyphs.unnamed(text)) == (message.speaker_raw, glyphs.unnamed(message.text)):
             return  # the AI read what OCR read: nothing to change
@@ -314,7 +327,7 @@ class Worker:
                  ", ".join(sorted(waiting.why)))  # fmt: skip
         self._label({"id": message.id, "ts": message.ts, "speaker": speaker, "text": text,
                      "ocr_speaker": message.speaker_raw, "ocr_text": message.text,
-                     "model": got.model, "source": "ai"})  # fmt: skip
+                     "icons": got.icons, "model": got.model, "source": "ai"})  # fmt: skip
         self._saved(message.id)
 
 
