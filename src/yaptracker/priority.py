@@ -18,7 +18,9 @@ from ctypes import wintypes
 log = logging.getLogger(__name__)
 
 BELOW_NORMAL_PRIORITY_CLASS = 0x4000
+NORMAL_PRIORITY_CLASS = 0x20
 THREAD_PRIORITY_LOWEST = -2
+THREAD_PRIORITY_NORMAL = 0
 _PROCESS_POWER_THROTTLING = 4  # SetProcessInformation class
 _THROTTLE_EXECUTION_SPEED = 0x1
 
@@ -105,3 +107,24 @@ def lower_this_thread() -> None:
     kernel32 = _kernel32()
     if not kernel32.SetThreadPriority(kernel32.GetCurrentThread(), THREAD_PRIORITY_LOWEST):
         log.warning("couldn't lower the chat reader's priority")
+
+
+def brakes(on: bool) -> None:
+    """The OCR child's brakes (#652). On: below normal, efficiency mode, its reading thread at
+    the lowest priority (#187). Off, for "as fast as it can" (complete chat beats FPS): normal
+    priority, efficiency mode off by name, the thread at normal priority."""
+    if on:
+        lower_process()
+        lower_this_thread()
+        return
+    if sys.platform != "win32":
+        return
+    kernel32 = _kernel32()
+    me = kernel32.GetCurrentProcess()
+    normal = bool(kernel32.SetPriorityClass(me, NORMAL_PRIORITY_CLASS))
+    state = _PowerThrottling(1, _THROTTLE_EXECUTION_SPEED, 0)
+    kernel32.SetProcessInformation(me, _PROCESS_POWER_THROTTLING, ctypes.byref(state),
+                                   ctypes.sizeof(state))  # fmt: skip
+    thread = bool(kernel32.SetThreadPriority(kernel32.GetCurrentThread(), THREAD_PRIORITY_NORMAL))
+    log.info("priority: no brakes (as fast as it can): %s priority, efficiency mode off",
+             "normal" if normal and thread else "couldn't set normal")  # fmt: skip

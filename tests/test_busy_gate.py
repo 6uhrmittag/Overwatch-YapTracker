@@ -32,7 +32,7 @@ def test_above_the_cpu_goal_it_reads_every_3_s_for_a_minute(monkeypatch, tmp_pat
             assert not r.busy
         said = caplog.records[0].getMessage()
         assert "reading every 3 s for a minute (above the CPU goal; chosen every 1.5 s)" in said
-        assert caplog.records[1].getMessage().endswith("reading every 1.5 s (chosen)")
+        assert "reading every 1.5 s (chosen);" in caplog.records[1].getMessage()
     finally:
         store.close()
 
@@ -65,15 +65,15 @@ def test_best_live_by_choice_is_not_held_back_but_the_defaults_are(tmp_path):
         store.close()
 
 
-def test_as_fast_as_it_can_has_no_gap(tmp_path):
+def test_as_fast_as_it_can_has_no_gap_and_no_gate(tmp_path):
     gated = {"on": False}
     r, store = reader_at(tmp_path, gated, min_gap_s=0.0)
     try:
         r.busy = True
         assert r.gap_s() == 0.0
-        assert r._gap_words().startswith("reading as fast as it can (chosen;")
-        gated["on"] = True  # light: the gate still holds it to 3 s when above the goal
-        assert r.gap_s() == 3.0
+        assert r._gap_words() == "reading as fast as it can (chosen; no brakes: chat before FPS)"
+        gated["on"] = True  # light: no CPU gate either on "as fast as it can" (#652)
+        assert r.gap_s() == 0.0
     finally:
         store.close()
 

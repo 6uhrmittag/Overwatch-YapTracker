@@ -107,6 +107,7 @@ class ChatReader:
         gated: Callable[[], bool] = lambda: True,
         keep_gap_s: Callable[[], float] | None = None,
         starved: Callable[[], bool] = lambda: False,
+        own_process: Callable[[], bool] = lambda: False,
         lowest: bool = True,
         doubtful: Callable[[int, float, Yap], object] = lambda message_id, ts, yap: None,
     ) -> None:
@@ -148,6 +149,9 @@ class ChatReader:
         # The app waits for a core (late watchdog ticks, #601): every choice reads less often,
         # best live and "as fast as it can" too. More reads then mean more waiting, not more chat.
         self._starved, self._held_back = starved, False
+        # The OCR reads in its own process right now (#563): "as fast as it can" then has no
+        # back-off at all (#652); only the in-process fallback still holds back when starved.
+        self._own_process = own_process
         # Its thread at the lowest priority while it does the OCR itself (#187). With the OCR in
         # its own process (#563) it only parses and stores: milliseconds, and a thread put to
         # sleep at the lowest priority while it holds Python's lock stalls the whole process.
@@ -187,11 +191,25 @@ class ChatReader:
         self.failing = 0  # reads in a row that failed (#457); Live says so from FAIL_LIMIT on
         self._failing_since = 0.0
         self._failing_gap: int | None = None
+        # Live reads since the last log line and the gaps they used (#652): what really ran
+        self._live_reads, self._gaps_used = 0, (math.inf, -math.inf)
+
+    def no_brakes(self) -> bool:
+        """"As fast as it can" (#652, Marv 2026-11-26): complete chat beats FPS. No CPU gate, no
+        starvation back-off (while the OCR has its own process), the OCR child at normal
+        priority, 4 frames a second in a match. The other choices keep every brake."""
+        return not self.min_gap_s
 
     def gap_s(self) -> float:
         """Seconds between two live reads: the chosen one; 3 s for a minute after one above the
         CPU goal, unless the match is read live with best (#249, #588); 3 s for a minute after
-        the app was starved, whatever was chosen (#601)."""
+        the app was starved (#601). "As fast as it can": 0, held back only when starved while
+        the main process does the OCR itself (its thread would stall capture, #563, #652)."""
+        if self.no_brakes():
+            if self._starved() and not self._own_process():
+                self._held_back = True
+                return BUSY_GAP_S
+            return 0.0
         if self._starved():
             self._held_back = True
             return max(self.min_gap_s, BUSY_GAP_S)
@@ -208,10 +226,13 @@ class ChatReader:
         """For the log line (#588): which gap the reads used and why."""
         chosen = "as fast as it can" if not self.min_gap_s else f"every {self.min_gap_s:g} s"
         if self._held_back:  # some time in the minute this line is about (#601)
+            where = "; the OCR reads in the main process" if self.no_brakes() else ""
             return (
                 f"reading every {max(self.min_gap_s, BUSY_GAP_S):g} s for a minute (the app"
-                f" was starved: late watchdog ticks; chosen {chosen})"
+                f" was starved: late watchdog ticks{where}; chosen {chosen})"
             )
+        if self.no_brakes():
+            return f"reading {chosen} (chosen; no brakes: chat before FPS)"
         if not self.busy or self.gap_s() == self.min_gap_s and self._gated():
             return f"reading {chosen} (chosen)"
         if not self._gated():
@@ -303,6 +324,7 @@ class ChatReader:
             self._last_read = time.monotonic()
             if kept is None:
                 self._last_live = self._last_read
+                self._live_reads += 1
             live = kept is None  # kept frames carry old times: only live reads count (#457)
             paused = live and self._paused()  # read_frame skips it: not a good read either
             ok = False
@@ -334,8 +356,11 @@ class ChatReader:
                 gap = max(gap, MENU_GAP_S)
             live_wait = 0.0 if self._stop else self._last_live + gap - now
             if live_wait <= 0:
+                low, high = self._gaps_used
+                self._gaps_used = (min(low, gap), max(high, gap))
                 return "live", 0.0
-        if self._kept_due():
+        # "As fast as it can": a backlog never makes live frames wait (#652); it's read when idle
+        if self._kept_due() and not (self.no_brakes() and not self._idle()):
             kept_wait = 0.0 if self._idle() else self._last_read + self._kept_gap_s() - now
             if kept_wait <= 0 and live_wait >= self._kept_cost:
                 return "kept", 0.0
@@ -780,8 +805,9 @@ class ChatReader:
             self.busy = whole > CPU_GOAL
             modes = self._modes()
             log.info("chat reading: %d frames, %.0f ms CPU each%s; whole app: %.1f %% of a core;"
-                     " %s", self._load_frames, 1000 * self._load_busy / self._load_frames,
-                     f" ({modes})" if modes else "", whole, self._gap_words())  # fmt: skip
+                     " %s; %s", self._load_frames, 1000 * self._load_busy / self._load_frames,
+                     f" ({modes})" if modes else "", whole, self._gap_words(),
+                     self._reads_words(wall))  # fmt: skip
             if self.menu:  # how often the menu "changed" without chat: the goal is <= 6/min (#350)
                 log.info("chat reading: no chat in the box between matches, reading every %g s;"
                          " %d changed frames in %.0f s", MENU_GAP_S, self._offered,
@@ -789,6 +815,16 @@ class ChatReader:
             self._load_since, self._load_cpu = now, cpu
             self._load_busy, self._load_frames, self._offered = 0.0, 0, 0
             self._held_back = False
+            self._live_reads, self._gaps_used = 0, (math.inf, -math.inf)
+
+    def _reads_words(self, wall: float) -> str:
+        """Live reads a minute and the gap they used (#652): what the evening really got."""
+        per_minute = 60 * self._live_reads / wall if wall > 0 else 0.0
+        low, high = self._gaps_used
+        if low > high:
+            return f"{per_minute:.0f} live reads a minute"
+        gap = f"{low:g} s" if low == high else f"{low:g}-{high:g} s"
+        return f"{per_minute:.0f} live reads a minute, gap used {gap}"
 
 
 def _cpu_now() -> float:

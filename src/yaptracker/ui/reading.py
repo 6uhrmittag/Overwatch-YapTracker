@@ -62,8 +62,9 @@ def reading_card() -> None:
                 gaps = ui.element("div").classes("yt-seg").mark("reading-gaps")
             ui.label(
                 "Every 3 s is lighter on the CPU, but a fast burst of chat can push a line out "
-                "of the box before I read it. As fast as it can catches the most lines, but "
-                "costs about a whole CPU core while chat is busy: only for strong PCs."
+                "of the box before I read it. As fast as it can catches the most lines and "
+                "never slows down for your FPS: it costs about a whole CPU core and a few FPS "
+                "while chat is busy. Only for strong PCs."
             ).classes("yt-hint")
             ui.label(
                 "When I use more CPU than planned, I read every 3 s for a minute, unless a match "

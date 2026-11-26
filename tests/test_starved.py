@@ -160,7 +160,8 @@ def test_starved_lasts_a_minute():
     assert not watcher.starved()
 
 
-def reader_with(tmp_path, starved: dict, min_gap_s: float, gated: bool = False, keep=None):
+def reader_with(tmp_path, starved: dict, min_gap_s: float, gated: bool = False, keep=None,
+                own_process: bool = False):
     from yaptracker.matches import MatchTracker
     from yaptracker.pause import Pause
     from yaptracker.store.repo import Store
@@ -168,12 +169,14 @@ def reader_with(tmp_path, starved: dict, min_gap_s: float, gated: bool = False, 
     store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
     r = reader_module.ChatReader(lambda image: [], store, MatchTracker(store, Pause()),
                                  min_gap_s=min_gap_s, gated=lambda: gated, keep_gap_s=keep,
-                                 starved=lambda: starved["now"])  # fmt: skip
+                                 starved=lambda: starved["now"],
+                                 own_process=lambda: own_process)  # fmt: skip
     return r, store
 
 
 def test_a_starved_app_reads_every_3_s_whatever_was_chosen(tmp_path):
-    """Best live isn't held back by the CPU gate (#588), but by starvation it is."""
+    """Best live isn't held back by the CPU gate (#588), but by starvation it is: while the main
+    process does the OCR itself (the in-process fallback, #652)."""
     starved = {"now": False}
     for folder, chosen in (("a", 0.0), ("b", 1.5)):  # "as fast as it can", every 1.5 s
         (tmp_path / folder).mkdir()
@@ -203,8 +206,70 @@ def test_the_reading_line_says_it_was_starved_then_goes_back(monkeypatch, tmp_pa
             now[0] += 61
             r._count(0.1)
         first, second = (record.getMessage() for record in caplog.records[:2])
-        assert first.endswith("reading every 3 s for a minute (the app was starved: late watchdog"
-                              " ticks; chosen as fast as it can)")  # fmt: skip
-        assert second.endswith("reading as fast as it can (chosen)")
+        assert ("reading every 3 s for a minute (the app was starved: late watchdog ticks; the OCR"
+                " reads in the main process; chosen as fast as it can)") in first  # fmt: skip
+        assert "reading as fast as it can (chosen; no brakes: chat before FPS)" in second
+    finally:
+        store.close()
+
+
+def test_with_the_ocr_child_as_fast_as_it_can_never_backs_off_but_the_defaults_do(tmp_path):
+    """#652: the back-off protected the watchdog from the OCR in the main process. With the OCR
+    in its own process, "as fast as it can" reads back to back; 1.5 s / 3 s keep the back-off."""
+    starved = {"now": True}
+    for folder, chosen, gap in (("a", 0.0, 0.0), ("b", 1.5, 3.0), ("c", 3.0, 3.0)):
+        (tmp_path / folder).mkdir()
+        r, store = reader_with(tmp_path / folder, starved, chosen, own_process=True)
+        try:
+            assert r.gap_s() == gap
+            assert ("the app was starved" in r._gap_words()) == bool(chosen)
+        finally:
+            store.close()
+
+
+def test_the_reading_line_says_live_reads_a_minute_and_the_gap_used(monkeypatch, tmp_path, caplog):
+    now = [1000.0]
+    monkeypatch.setattr(reader_module.time, "monotonic", lambda: now[0])
+    starved = {"now": False}
+    r, store = reader_with(tmp_path, starved, 0.0)
+    try:
+        r._pending = (now[0], None)
+        assert r._next(now[0]) == ("live", 0.0)
+        starved["now"] = True  # the in-process fallback, starved: 3 s
+        r._last_live = now[0]
+        now[0] += 3
+        assert r._next(now[0]) == ("live", 0.0)
+        r._live_reads = 30
+        with caplog.at_level(logging.INFO, logger="yaptracker.reader"):
+            now[0] += 60
+            r._count(0.1)
+            now[0] += 61
+            r._count(0.1)
+        first, second = (record.getMessage() for record in caplog.records[:2])
+        assert first.endswith("; 29 live reads a minute, gap used 0-3 s")  # 30 in 63 s
+        assert second.endswith("; 0 live reads a minute")
+    finally:
+        store.close()
+
+
+def test_as_fast_as_it_can_reads_no_backlog_in_a_live_match(tmp_path):
+    """#652 (#597): kept frames of an after-the-match match wait until the game is idle."""
+    from yaptracker.matches import MatchTracker
+    from yaptracker.pause import Pause
+    from yaptracker.store.repo import Store
+
+    idle = {"now": False}
+    store = Store.open(tmp_path / "yaptracker.db", tmp_path / "backups")
+    try:
+        for chosen in (0.0, 1.5):
+            r = reader_module.ChatReader(lambda image: [], store, MatchTracker(store, Pause()),
+                                         min_gap_s=chosen, idle=lambda: idle["now"],
+                                         deferring=lambda: False)  # fmt: skip
+            r.later.add(1.0, b"x", None, "after")
+            r._last_read = -1000.0
+            idle["now"] = False
+            assert r._next(0.0)[0] == (None if not chosen else "kept")
+            idle["now"] = True
+            assert r._next(0.0)[0] == "kept"
     finally:
         store.close()

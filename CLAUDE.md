@@ -556,6 +556,9 @@ bind Pause, Start/End match, Who's that? and Save sample in Settings → Hotkeys
       game sits idle in the menu: 44 % of the evening's CPU), second the between-match match
       signals - accepted for v1, improvements in #453 (v1.1). The evening average is the mean of the
       once-a-minute `cpu parts … (whole app N %)` lines, not of the reader's lines (#476).
+      The FPS and CPU bars apply to the **defaults** only: "as fast as it can" has no FPS brake at all
+      (complete chat beats FPS: OCR child at normal priority, no efficiency mode, 4 fps capture in a
+      match, no back-off, no CPU gate; Marv, 2026-11-26, #652).
       FPS bar met 2026-10-16 (#34/#187); the CPU bar was missed (~19 %) and waived for v1 as above,
       follow-up #453
 - [x] Update via `tools/update.ps1` works from any v0 pre-release to v1.0.0

@@ -42,6 +42,8 @@ def has_rate_setting(build: int) -> bool:
 # 2026-10-11): a chat line stays ~9 s on screen and is read every 1.5-3 s at most, so 2 a second
 # still see it 15+ times; each frame is a whole-window GPU->CPU copy before we see it.
 MATCH_FPS, MENU_FPS = 2.0, 2.0
+# "As fast as it can" (#652, Marv 2026-11-26): complete chat beats FPS, 4 a second in a match.
+FAST_MATCH_FPS = 4.0
 
 
 class CaptureRate:
@@ -51,18 +53,22 @@ class CaptureRate:
     seconds, so 2 a second miss nothing. The rate is fixed per capture session: a change
     reopens it (no gap, #236's path)."""
 
-    def __init__(self, running: Callable[[], bool], reopen: Callable[[], None]) -> None:
-        self._running, self._reopen = running, reopen
+    def __init__(self, running: Callable[[], bool], reopen: Callable[[], None],
+                 fast: Callable[[], bool] = lambda: False) -> None:  # fmt: skip
+        self._running, self._reopen, self._fast = running, reopen, fast
         self.fps: float | None = None  # of the open window capture; None: none open, or GDI
 
     def wanted(self) -> float:
-        return MATCH_FPS if self._running() else MENU_FPS
+        if not self._running():
+            return MENU_FPS
+        return FAST_MATCH_FPS if self._fast() else MATCH_FPS
 
     def opened(self) -> float:
         """A window capture opens now: at this rate."""
         self.fps = self.wanted()
         log.info("capture: asking Windows for %g frames a second (%s)", self.fps,
-                 "in a match" if self._running() else "between matches")  # fmt: skip
+                 ("in a match, as fast as it can" if self.fps == FAST_MATCH_FPS else "in a match")
+                 if self._running() else "between matches")  # fmt: skip
         return self.fps
 
     def check(self) -> None:

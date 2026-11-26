@@ -116,8 +116,10 @@ class CaptureWiring:
                                      source=self.picture_source)  # #217, #598  # fmt: skip
         runtime.screen = ScreenFallback(runtime.black, remembered=config.screen_capture(),
                                         remember=config.save_screen_capture)  # fmt: skip
-        # 2 frames a second, in and between (#350, #115)
-        self.rate = CaptureRate(lambda: in_match_or_unknown(runtime.matches), self.reopen)
+        # 2 frames a second, in and between (#350, #115); 4 in a match "as fast as it can" (#652)
+        self.rate = CaptureRate(lambda: in_match_or_unknown(runtime.matches), self.reopen,
+                                fast=lambda: runtime.reader is not None
+                                and runtime.reader.no_brakes())  # fmt: skip
 
     # --- the chat path ---------------------------------------------------------------------
 

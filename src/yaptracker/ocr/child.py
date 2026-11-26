@@ -51,6 +51,7 @@ def _serve(conn, get: Callable[[str], object]) -> None:
     # chat reader's thread was while it read in the main process.
     priority.lower_process()
     priority.lower_this_thread()
+    braked = True  # "as fast as it can" takes them off, and a change of mind back on (#652)
     block: shared_memory.SharedMemory | None = None
     while True:
         try:
@@ -59,7 +60,10 @@ def _serve(conn, get: Callable[[str], object]) -> None:
             return  # the parent is gone (also killed): so are we
         if request is None:
             return
-        name, memory, shape, accents, scale = request
+        name, memory, shape, accents, scale, brakes = request
+        if brakes != braked:
+            braked = brakes
+            priority.brakes(brakes)
         if memory is None:  # no picture: only make the engine, so the first read doesn't wait
             reply = _read(get, name, None, accents, scale)
             try:
@@ -119,6 +123,8 @@ class OcrChild:
         self._stopped = False
         self._cpu = (0.0, 0.0)  # (of children that are gone, of the one running): one store
         self.pid: int | None = None
+        # The child's FPS brakes (#652): off only for "as fast as it can"; sent with every read
+        self.brakes: Callable[[], bool] = lambda: True
 
     def waits(self, answer_s: float, read_s: float) -> None:
         """Other limits than the defaults (the smoke test: it has 90 s in all)."""
@@ -163,6 +169,7 @@ class OcrChild:
         self._ask(name, None, False, UPSCALE)
 
     def _ask(self, name: str, image: np.ndarray | None, accents: bool, scale: float) -> list:
+        brakes = bool(self.brakes())
         with self._lock:
             try:
                 if self._stopped:
@@ -171,13 +178,15 @@ class OcrChild:
                     self._close()
                     self._start()
                 if image is None:
-                    self._conn.send((name, None, None, accents, scale))
+                    self._conn.send((name, None, None, accents, scale, brakes))
                 else:
                     if self._block is None or self._block.size < image.nbytes:
                         self._free()
                         self._block = shared_memory.SharedMemory(create=True, size=image.nbytes)
                     np.ndarray(image.shape, np.uint8, buffer=self._block.buf)[:] = image
-                    self._conn.send((name, self._block.name, image.shape, accents, scale))
+                    self._conn.send(
+                        (name, self._block.name, image.shape, accents, scale, brakes)
+                    )
                 wait = self._read_s if image is not None and name in self._made else self._answer_s
                 if not self._conn.poll(wait):
                     raise TimeoutError(f"no answer in {wait:g} s")
@@ -268,8 +277,11 @@ class ChildEngines:
 
     def __init__(self, child: OcrChild | None = None,
                  local: Callable[[str], object] = ocr.get,
-                 clock: Callable[[], float] = time.monotonic) -> None:  # fmt: skip
+                 clock: Callable[[], float] = time.monotonic,
+                 brakes: Callable[[], bool] | None = None) -> None:  # fmt: skip
         self.child = child or OcrChild()
+        if brakes is not None:
+            self.child.brakes = brakes
         self.local, self._clock = local, clock
         self._engines: dict[str, _Engine] = {}
         self._gone, self._retry_at = 0, 0.0
@@ -324,6 +336,10 @@ class ChildEngines:
             return False
         self._gone = 0
         return True
+
+    def reads_in_child(self) -> bool:
+        """The child reads now (False: the main process does, for a while or for good)."""
+        return not self._stopped and self._clock() >= self._retry_at
 
     def warm_up(self, name: str) -> None:
         """The child started and the engine made in it, in the background: the evening's first
