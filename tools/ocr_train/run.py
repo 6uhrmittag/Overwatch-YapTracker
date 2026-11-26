@@ -15,6 +15,12 @@ models agree against it (labels.py; on the gold lines such a pair was right 21 t
 the two share a habit of correcting spelling, so those ~550 rows carry some wrong labels) ->
 plus synthetic lines (synth.py) -> a small CRNN trained from scratch (crnn.py), checkpoint
 chosen on the three newest training evenings -> scored on gold and on the #118 sets.
+
+Not in this chain, because it needs its own two environments (venv-paddle to train, venv-export
+for the ONNX conversion) and an hour: the fine-tuned Latin PP-OCRv5 recognizer, the more
+accurate and slower one. After `labels-again` and `synth`:
+    fixtures/private/ocr/venv-paddle/bin/python tools/ocr_train/train.py --run paddle
+    python tools/ocr_train/bench.py ours=train/ours paddle=train/paddle
 """
 
 import argparse
