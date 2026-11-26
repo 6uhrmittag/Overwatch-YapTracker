@@ -115,6 +115,11 @@ def stored_as(k: str, keys: list[str], prefix: bool = False) -> bool:
     return any(_similar(k, s) >= SAME or (prefix and s.startswith(k + " ")) for s in keys)
 
 
+# A typed line read as its first row, then whole on two rows (#653): this long after it
+# was first seen the wrapped reading still completes it.
+WRAP_S = 20.0
+WRAP_ROWS = 1.5  # a line's box this much higher than its first row: it wraps (as ai_correct)
+NEAR_PREFIX = 90  # a longer reading still begins the cut one, a letter read differently (#633)
 NEAR_NAME = 70  # a callout's speaker this close to its hero's recent speaker is a misreading
 
 
@@ -149,6 +154,20 @@ def _near(a: str | None, b: str | None) -> bool:
 def _folded(text: str) -> str:
     """Folded, lower-case, single-spaced text: to see whether one reading begins another."""
     return " ".join(_fold(text).lower().split())
+
+
+def _wraps(line: ChatLine) -> bool:
+    """The line covers more than one row (#653): its box higher than its first row."""
+    head = line.head or line.box
+    return line.box.height > WRAP_ROWS * max(1, head.height)
+
+
+def _begins(text: str, start: str) -> bool:
+    """`text` goes on where `start` stops, also with a letter read differently before the cut
+    (#633: "... ascii herz)" begins "... ascil")."""
+    if text.startswith(start):
+        return True
+    return len(start) >= PART_MIN and fuzz.ratio(text[: len(start)], start) >= NEAR_PREFIX
 
 
 def _plain(text: str) -> str:
@@ -198,12 +217,23 @@ class Yap:
         best = self.lines[max(self.readings, key=rank)]
         start, read = _folded(best.text), self.readings[key(best)]
         # read at least as often: map text glued once to the end ("gg TOURING EM") stays out
-        longer = [line for k, line in self.lines.items()
-                  if line.quality >= GOOD and (self.readings[k] >= read or self._completes(line))
-                  and _folded(line.text).startswith(start)
-                  and len(_folded(line.text)) > len(start)]  # fmt: skip
+        # glued map capitals don't make a reading longer (#172)
+        family = {k: line for k, line in self.lines.items()
+                  if line.quality >= GOOD and _begins(_folded(line.text), start)
+                  and len(_folded(_GLUED.sub("", line.text))) > len(start)}  # fmt: skip
+        longer = [line for k, line in family.items()
+                  if (self.readings[k] >= read or self._completes(line))
+                  and _folded(line.text).startswith(start)]  # fmt: skip
         if longer:  # light OCR read the beginning first ("so please n"): the whole line (#432)
             best = max(longer, key=lambda line: len(_folded(line.text)))
+        elif (
+            len(family) > 1
+            and sum(self.readings[k] for k in family) >= read
+            and any(not _folded(line.text).startswith(start) for line in family.values())
+        ):
+            # the whole line read in several spellings, together more often than the cut one
+            # (#633): the most read of them
+            best = family[max(family, key=lambda k: (self.readings[k], len(family[k].text)))]
         whole = self.lines.get(self.whole) if self.whole else None
         if whole is not None and len(_folded(whole.text)) > len(_folded(_GLUED.sub("", best.text))):
             best = whole  # seen twice later, beginning with the cut text (#609): checked there
@@ -310,8 +340,10 @@ class Dedup:
                 if len(_folded(line.text)) > len(_folded(whole.best.text)):
                     before = _stored(whole.best)
                     cut = _folded(whole.best.text)
+                    one_row = not _wraps(whole.best)  # before the add: it may be the best now
                     whole.add(line)
-                    if whole.total() > 3:  # read cut again and again: any good whole reading
+                    # read cut again and again, or its wrapped whole (#653): any good whole reading
+                    if whole.total() > 3 or (_wraps(line) and one_row):
                         whole.cut = cut
                     if _stored(whole.best) != before and whole not in improved:
                         improved.append(whole)
@@ -457,7 +489,11 @@ class Dedup:
             fresh = (line.kind == "comms" and ts is not None and ts - yap.first_seen <= FADE_S
                      and yap.id not in on_screen
                      and _folded(_GLUED.sub("", line.text)).startswith(other + " "))  # fmt: skip
-            if text.startswith(other) and (yap.total() <= 2 or fresh):
+            wrap = (line.kind == "message" and ts is not None and ts - yap.first_seen <= WRAP_S
+                    and yap.id not in on_screen and _wraps(line) and not _wraps(said)
+                    and len(other.split()) >= 3
+                    and _folded(_GLUED.sub("", line.text)).startswith(other + " "))  # fmt: skip
+            if text.startswith(other) and (yap.total() <= 2 or fresh or wrap):
                 return yap
         return None
 
