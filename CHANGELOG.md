@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-26 · Long lines stay whole and stored once (#653)
+- A long message that wraps onto a second row is no longer stored twice (once cut after the first row, once whole): the whole message completes the cut one.
+- A wrapped message no longer loses its second row when I read one word before the wrap a little differently in some frames.
+
 ### 2026-11-26 · Late lines in their place (#653)
 - A line I could only store a little later (seen in the opened chat) now shows in Live where it was said, not at the bottom.
 
