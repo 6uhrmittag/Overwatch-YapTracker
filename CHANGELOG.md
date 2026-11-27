@@ -4,6 +4,10 @@ What changed in YapTracker, newest first, in plain words. Every merge is a pre-r
 
 ## v1.2: on the way to v1.2.0
 
+### 2026-11-27 · Capture runs again (#663)
+- Fixed: since the chat recorder came in, capture crashed right after every start and nothing was recorded. It records again.
+- Behind the scenes: the once-a-minute CPU line counts the chat recorder too, and a part it doesn't know can never stop capture again.
+
 ### 2026-11-27 · Record the chat box for one evening (#654)
 - Settings → Debug samples → "Record the chat box for one evening": every chat picture that changed, for 12 hours, so lost lines can be counted against what was really on screen. Off by default, size shown, kept 14 days, pauses when the disk is nearly full.
 
