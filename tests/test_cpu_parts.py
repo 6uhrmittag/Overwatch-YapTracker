@@ -24,7 +24,7 @@ def test_one_line_a_minute_with_every_part_the_rest_and_the_whole(caplog):
     (line,) = [r.getMessage() for r in caplog.records]
     assert line == (
         "cpu parts: reading 16.0 %, change detection 10.0 %, match signals 0.0 %, "
-        "debug samples 0.0 %, capture 3.0 % - rest 6.0 % (whole app 35.0 %)"
+        "debug samples 0.0 %, capture 3.0 %, chat recorder 0.0 % - rest 6.0 % (whole app 35.0 %)"
     )
 
 
@@ -99,3 +99,32 @@ def test_the_whole_app_counts_its_ocr_child(monkeypatch, caplog):
         parts.add("reading", reader._cpu_now() - started)
     assert "reading 15.8 %" in caplog.text  # 0.5 s of the reader's thread + the child's 9 s
     assert "(whole app 20.0 %)" in caplog.text
+
+
+def test_every_part_named_in_the_code_is_counted():
+    """A CPU.part("...") name missing from PARTS crashed capture on every start (#663)."""
+    import re
+    from pathlib import Path
+
+    from yaptracker import cpu_parts
+
+    src = Path(cpu_parts.__file__).parent
+    named = re.compile(r"""CPU\.(?:part|add)\(\s*["']([^"']+)["']""")
+    names = {m for f in src.rglob("*.py") for m in named.findall(f.read_text("utf-8"))}
+    assert names >= {"chat recorder", "change detection", "debug samples"}  # the scan finds them
+    assert names <= set(cpu_parts.PARTS), names - set(cpu_parts.PARTS)
+
+
+def test_an_unknown_part_never_raises_and_is_said_once(caplog):
+    clock, cpu = [0.0], [0.0]
+    parts = CpuParts(lambda: clock[0], lambda: cpu[0])
+    parts.tick()
+    with caplog.at_level(logging.INFO, logger="yaptracker.cpu_parts"):
+        parts.add("no such part", 3.0)
+        with parts.part("no such part"):
+            pass
+        clock[0], cpu[0] = 60.0, 6.0
+        parts.tick()
+    lines = [r.getMessage() for r in caplog.records]
+    assert sum("unknown part 'no such part'" in line for line in lines) == 1
+    assert "no such part" not in lines[-1] and "rest 10.0 %" in lines[-1]  # its time is rest

@@ -29,7 +29,14 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 log = logging.getLogger(__name__)
-PARTS = ("reading", "change detection", "match signals", "debug samples", "capture")
+PARTS = (
+    "reading",
+    "change detection",
+    "match signals",
+    "debug samples",
+    "capture",
+    "chat recorder",
+)  # every part name used in src/ (a test checks, #663)
 
 
 # CPU seconds used so far in processes of our own (the OCR child, #563); set by the app. It
@@ -61,10 +68,21 @@ class CpuParts:
         self._cpu_since = 0.0
         self._threads = threads or thread_seconds  # per thread, for the second line (#350)
         self._threads_since: dict[int, float] = {}
+        self._unknown: set[str] = set()  # names not in PARTS, said once each
 
     def add(self, part: str, seconds: float) -> None:
+        """An unknown part never raises (#663): a counter must not take capture down. Its time
+        stays in "rest", the log says so once."""
         with self._lock:
-            self._spent[part] += max(0.0, seconds)
+            if part in self._spent:
+                self._spent[part] += max(0.0, seconds)
+                part = ""
+            elif part in self._unknown:
+                part = ""
+            else:
+                self._unknown.add(part)
+        if part:
+            log.warning("cpu parts: unknown part %r, counted under rest (said once)", part)
         self.tick()
 
     @contextlib.contextmanager

@@ -205,3 +205,24 @@ def test_dev_mode_starts_capture_without_hotkeys(monkeypatch):
     wiring.install()
     assert wiring.start_capture in started and wiring.stop_capture in stopped
     assert "hotkeys" not in started and capture_wiring.CPU.state == wiring.cpu_state
+
+
+@pytest.mark.parametrize("until", [0.0, 50.0, 1e12], ids=["off", "evening over", "recording"])
+def test_the_chat_recorder_on_or_off_never_stops_the_capture(wiring, monkeypatch, tmp_path, until):
+    """#663: the recorder's CPU.part crashed every capture start, with it off too. The real
+    recorder and the real CPU counter, through on_signals and on_frame."""
+    from yaptracker.recorder import ChatRecorder
+
+    recorder = ChatRecorder(tmp_path, until=lambda: until, clock=lambda: 100.0,
+                            free=lambda folder: 10**12)  # fmt: skip
+    monkeypatch.setattr(runtime, "recorder", recorder)
+    monkeypatch.setattr(runtime, "pause", SimpleNamespace(paused=False))
+    monkeypatch.setattr(runtime, "reader", FakeReader())
+    monkeypatch.setattr(runtime, "reading", SimpleNamespace(now=lambda: "best", light_problem=None))
+    monkeypatch.setattr(wiring.changes, "update", lambda image, scale: True)
+    runtime.screen = FakeScreen()
+    crop = np.zeros((4, 4, 3), np.uint8)
+    wiring.on_signals(Frame(0.0, crop, {"overview": crop, "banner": crop}))
+    wiring.on_frame(Frame(0.0, crop))
+    assert runtime.screen.calls == [("check", False, None)]  # on_signals ran to its end
+    assert runtime.reader.offered == ["best"]
